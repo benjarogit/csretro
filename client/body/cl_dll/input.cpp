@@ -26,6 +26,7 @@
 
 #include "vgui_parser.h"
 #include "com_weapons.h"
+#include "keydefs.h"
 
 extern int g_weaponselect;
 extern cl_enginefunc_t gEngfuncs;
@@ -369,6 +370,9 @@ int DLLEXPORT HUD_Key_Event( int down, int keynum, const char *pszCurrentBinding
 {
 	if( g_pMenu )
 		g_pMenu->Key( keynum, down );
+
+	if( down && keynum == K_ESCAPE && gHUD.m_Menu.HandleEscape() )
+		return 0;
 
 	return 1;
 }

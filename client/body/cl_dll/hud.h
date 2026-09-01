@@ -538,13 +538,14 @@ public:
 	CHudUserCmd(OldStyleMenuOpen);
 	CHudUserCmd(ShowVGUIMenu);
 
-	void ShowVGUIMenu( int menuType ); // cs16client extension
-
+	void ShowVGUIMenu( int menuType );
+	void OpenLocalized( const char *titleKey, int bitsValidSlots, int displayTime );
+	void Close( void );
+	bool HandleEscape( void );
 	void SelectMenuItem( int menu_item );
 
 	int m_fMenuDisplayed;
 	bool m_bAllowSpec;
-	cvar_t *_extended_menus;
 	int m_bitsValidSlots;
 	float m_flShutoffTime;
 	int m_fWaitingForMore;
@@ -919,11 +920,6 @@ public:
 	CHudMsgFunc( SpecHealth );
 	CHudMsgFunc( SpecHealth2 );
 
-	CHudUserCmd( ToggleSpectatorMenu );
-	CHudUserCmd( ToggleSpectatorMenuOptions );
-	CHudUserCmd( ToggleSpectatorMenuOptionsSettings );
-	CHudUserCmd( ToggleSpectatorMenuSpectateOptions );
-
 	void CalcAllNeededData( );
 
 	bool m_bBombPlanted;
@@ -940,19 +936,6 @@ private:
 		char m_szNameAndHealth[80];
 	} label;
 	int m_hTimerTexture;
-	int m_hChecked;
-	int m_hArrowDown;
-	int m_hArrowUp;
-	int m_hArrowLeft;
-	int m_hArrowRight;
-
-	enum {
-		ROOT_MENU = (1<<0),
-		MENU_OPTIONS = (1<<1),
-		MENU_OPTIONS_SETTINGS = (1<<2),
-		MENU_SPEC_OPTIONS = (1<<3)
-	};
-	byte m_menuFlags;
 };
 
 //

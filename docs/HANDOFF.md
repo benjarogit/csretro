@@ -3,21 +3,21 @@
 Anderen Rechner arbeitsfähig machen. Diese Datei ist der **lebende Stand**.
 Nach substantieller Arbeit Tabelle und „Offene Arbeit“ in derselben Session nachziehen.
 
-Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`, `PHASE3-BODY.md` (nur während Phase 3), `CHANGELOG.md`. Danksagung: `CREDITS.md`.
+Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `MENUS.md`, `GAMEDATA.md`, `PHASEN.md`, `PHASE3-BODY.md` (nur während Phase 3), `CHANGELOG.md`. Danksagung: `CREDITS.md`.
 
 ## Aktueller Stand
 
 | Feld | Wert |
 |------|------|
 | Datum | 2026-09-01 |
-| Phase | **3A/3B/3C abgenommen.** Game-Data-Bootstrap: RODIR = `gamedata/`, nicht Steam-HL. **3D nicht automatisch** (FOV erst nach Freigabe). |
+| Phase | **3A/3B/3C abgenommen.** Game-Data-Bootstrap + Desktop-In-Game-Menüs (ShowMenu). **3D nicht automatisch** (FOV erst nach Freigabe). |
 | Körper-Quelle | **A1** — Manifest in `ROLLEN.md` |
 | GameDLL | `server/game/` — Pin `b088984`, Target `csretro_gamedll` |
 | Stapel | Xash → Export → A1-Body → (später) NextClient-Funktionen |
 | Plattform | **64-Bit only** — `docs/PLATTFORMEN.md` |
 | GitHub | https://github.com/benjarogit/csretro (**privat**) |
 | Branch | `main` |
-| Letztes Release | `v0.1.4-phase2` — Phase 3 ist **kein** Abschluss-Release |
+| Letztes Release | `v0.1.5` — Desktop-Menüs + Game-Data. Phase 3 ist **kein** Abschluss-Release |
 | Lokaler Worktree | `/home/benny/Dokumente/csretro` |
 
 ## Rollen (Kurz)
@@ -77,8 +77,9 @@ Abschluss-Release nur wenn die Phase wirklich fertig ist. Zwischenstand darf auf
 - Steam-HL nie als RODIR. Erkennung: `python3 ./scripts/bootstrap-gamedata.py --print-steam`
 - ZBot-Testdaten im Game-Data-Baum (`BotProfile.db`, `de_dust.nav`), nicht in Steam
 - Listen-`+map`: `.rc` mit `stuffcmds` in Game-Data und BASEDIR
-- Menü: Xash-MainUI (`libmenu.so`)
-- Steam-`dlls/cs_amd64.so` nicht laden (`executable stack`). Immer `-dll` auf unsere Lib oder Kopie unter `build/run/cstrike/dlls/`
+- Menü: Hauptmenü = Xash-MainUI (`GetMenuAPI`). In-Game = GoldSrc-`ShowMenu` (`docs/MENUS.md`). `MenuFactory` existiert in Xash; Phase-3-`libmenu.so` liefert kein `GameMenuExports001` — optional, kein Modal.
+- `cstrike/liblist.gam` ist CS-Retro-owned (Branding + `dlls/cs.so` → Xash `cs_amd64.so`).
+- Steam-`dlls/cs_amd64.so` nicht laden. Ohne `-dll`/`-clientlib` findet Xash die Libraries über `liblist` (`dlls/cs.so` → `cs_amd64.so`, `cl_dlls/client_amd64.so`), sofern sie in BASEDIR oder Game-Data liegen. Tests dürfen die Flags weiter nutzen.
 
 ## Quickstart
 
@@ -93,23 +94,24 @@ python3 ./scripts/bootstrap-gamedata.py
 ./scripts/smoke-gamedll.sh dedicated
 ./scripts/smoke-gamedll.sh listen
 ./scripts/interactive-3c.sh
+./scripts/interactive-menus.sh   # Team/Buy/Radio ohne Auto-Join, ohne touch/*.cfg
 ```
 
 Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-dll`.
 
 ## Offene Arbeit
 
-1. **3D nicht automatisch.** Erst nach Freigabe; erstes Feature wäre FOV. Kein Phase-3-Tag. Game-Data-Baseline ohne Steam-RODIR steht.
-2. Windows x86_64 / macOS ARM64+x86_64: Compile-Gates (CMake ist vorbereitet, auf diesem Host nicht gebaut).
-3. Bot-Grenze analysieren und schrittweise nach `bots/` — nicht amputieren.
-4. Phase 4 nur bei Bedarf: NextClient-Menüs; Ref B ein Feature.
+1. **3D nicht automatisch.** Erst nach Freigabe; erstes Feature wäre FOV. Kein Phase-3-Tag.
+2. Später: eine Menü-Lib mit `GetMenuAPI` + `GameMenuExports001` (klassisches CS-1.6-VGUI-Bild; Ref B / NextClient als Referenz).
+3. Windows x86_64 / macOS ARM64+x86_64: Compile-Gates (CMake ist vorbereitet, auf diesem Host nicht gebaut).
+4. Bot-Grenze analysieren und schrittweise nach `bots/` — nicht amputieren.
 
 ## Nicht anfassen
 
 - 3D / NextClient-Feature-Port (FOV, View, Camera, Inspect) ohne ausdrückliche Freigabe
 - Ref A außerhalb des A1-Manifests
 - Ref-A-ReGameDLL / YaPB / Ref-A-mainui
-- Ref B vor Phase 4
+- Ref-B-Vollport als zweiten Menüstapel; Ref B bleibt Referenz (`docs/MENUS.md`)
 - AMXX/Metamod in die GameDLL backen
 - ZBot vor Funktionsübernahme löschen
 - 32-Bit-Targets, Steam-Bind, `git submodule add`

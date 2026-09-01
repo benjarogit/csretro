@@ -830,12 +830,6 @@ void CHudSpectator::HandleButtonsDown( int ButtonPressed )
 	if ( m_flNextObserverInput > time )
 		return;
 
-	// enable spectator screen
-	if ( ButtonPressed & IN_DUCK )
-	{
-		gHUD.m_SpectatorGui.UserCmd_ToggleSpectatorMenu();
-	}
-
 	//  'Use' changes inset window mode
 	if ( ButtonPressed & IN_USE )
 	{

@@ -3,11 +3,20 @@
 Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
 Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 
-## Unreleased — Game-Data-Bootstrap (2026-09-01)
+## 0.1.5 — 2026-09-01
 
-Kein Phase-3-Abschluss-Tag. 3D nicht automatisch (FOV erst nach Freigabe).
+Kein Phase-3-Tag. Kein FOV.
+
+### Desktop-Menüs
+
+- Kein modaler `MenuFactory`-Dialog: Xash hat das Native Object; Phase-3-`libmenu.so` exportiert kein `GameMenuExports001`.
+- Touch-/`exec touch/*.cfg`-Pfad entfernt. Team/Klasse/Buy/Radio = GoldSrc-`ShowMenu` + `titles.txt`.
+- `_vgui_menus` 0. `cstrike/liblist.gam` ist CS-Retro-owned.
+- Architektur: `docs/MENUS.md`. Tests: `./scripts/interactive-menus.sh`, `./scripts/interactive-3c.sh`.
 
 ### Game-Data
+
+Kein Phase-3-Abschluss-Tag. 3D nicht automatisch (FOV erst nach Freigabe).
 
 - Steam CS 1.6 (AppID 10) nur als read-only Quelle. Bootstrap: `scripts/bootstrap-gamedata.py`.
 - Manifest `data/gamedata-manifest.json` aus Runtime-Traces. RODIR = `gamedata/`, nicht Steam-HL.

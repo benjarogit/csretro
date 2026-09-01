@@ -54,9 +54,9 @@ Windows zusätzlich: Registry `SteamPath`. Linux: inkl. Flatpak-Pfad. macOS: `~/
 
 ## Klassen
 
-**COPY** — beobachtete Content-Gruppen und Dateien (Maps, Models, Sounds, Sprites, Events, gfx, resource, WADs, `delta.lst`, `titles.txt`, `liblist.gam`). Gruppen, von denen der Trace nur ein Verzeichnis sah (`valve/maps`, `valve/media`), werden nicht kopiert.
+**COPY** — beobachtete Content-Gruppen und Dateien (Maps, Models, Sounds, Sprites, Events, gfx, resource, WADs, `delta.lst`, `titles.txt`). `valve/liblist.gam` bleibt HL-Metadaten. Gruppen, von denen der Trace nur ein Verzeichnis sah (`valve/maps`, `valve/media`), werden nicht kopiert.
 
-**REPLACE** — `cstrike/dlls`, `cstrike/cl_dlls`, `valve/cl_dlls`, `valve.rc` / `cstrike.rc`. Dort liegen CS-Retro-GameDLL, CS-Retro-Client, stuffcmds.
+**REPLACE** — `cstrike/dlls`, `cstrike/cl_dlls`, `valve/cl_dlls`, `valve.rc` / `cstrike.rc`, **`cstrike/liblist.gam`**. GameDLL/Client sind CS-Retro; `liblist.gam` ist CS-Retro-owned (Name „CS Retro“, `gamedll_linux "dlls/cs.so"` — Xash hängt `_amd64` an).
 
 **IGNORE** — Steam-/GoldSrc-Binaries (`*.so`/`*.dll`/`*.exe`, `hl_linux`, `hw.so`, `steam_api`, CEF), `platform/`, `redist/`, `cstrike_hd/`, Steam-`config.cfg`, `steam.inf` / `steam_appid.txt`.
 

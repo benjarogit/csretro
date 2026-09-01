@@ -252,12 +252,6 @@ int __MsgFunc_ItemStatus( const char *name, int size, void *buf ) { return 1; }
 int __MsgFunc_ForceCam( const char *name, int size, void *buf ) { return 1; }
 int __MsgFunc_Spectator( const char *name, int size, void *buf ) { return 1; }
 
-#ifdef __ANDROID__
-bool evdev_open = false;
-void __CmdFunc_MouseSucksOpen( void ) { evdev_open = true; }
-void __CmdFunc_MouseSucksClose( void ) { evdev_open = false; }
-#endif
-
 int __MsgFunc_Rain(const char *pszName, int iSize, void *pbuf)
 {
 	return g_Environment.MsgFunc_Rain( pszName, iSize, pbuf );
@@ -286,11 +280,6 @@ void CHud :: Init( void )
 	HOOK_COMMAND_FUNC( "special", __CmdFunc_InputCommandSpecial, );
 	HOOK_COMMAND_FUNC( "gunsmoke", __CmdFunc_GunSmoke, );
 
-#ifdef __ANDROID__
-	HOOK_COMMAND_FUNC( "evdev_mouseopen", __CmdFunc_MouseSucksOpen );
-	HOOK_COMMAND_FUNC( "evdev_mouseclose", __CmdFunc_MouseSucksClose );
-#endif
-	
 	HOOK_MESSAGE( gHUD, Logo );
 	HOOK_MESSAGE( gHUD, ResetHUD );
 	HOOK_MESSAGE( gHUD, GameMode );
@@ -314,20 +303,15 @@ void CHud :: Init( void )
 	gEngfuncs.pfnHookUserMsg( "WeatherPos", __MsgFunc_WeatherPos );
 	gEngfuncs.pfnHookUserMsg( "ReceiveW", __MsgFunc_ReceiveW );
 
-	CVAR_CREATE( "_vgui_menus", "1", FCVAR_ARCHIVE | FCVAR_USERINFO );
+	CVAR_CREATE( "_vgui_menus", "0", FCVAR_ARCHIVE | FCVAR_USERINFO );
+	gEngfuncs.Cvar_Set( "_vgui_menus", "0" );
 	CVAR_CREATE( "_cl_autowepswitch", "1", FCVAR_ARCHIVE | FCVAR_USERINFO );
 	CVAR_CREATE( "_ah", "0", FCVAR_ARCHIVE | FCVAR_USERINFO );
 
-	// TODO remove hack later
-	CVAR_CREATE( "numericalmenu", "1", FCVAR_ARCHIVE );
-	CVAR_CREATE( "numericalmenu_clientonly", "1", FCVAR_ARCHIVE );
 	CVAR_CREATE( "checkscoreboard", "1", FCVAR_ARCHIVE );
 	cscl_currentmap = CVAR_CREATE( "cscl_currentmap", "", 0 );
 	cscl_mapprefix = CVAR_CREATE( "cscl_mapprefix", "", 0 );
 	cscl_currentmoney = CVAR_CREATE( "cscl_currentmoney", "0", 0 );
-	CVAR_CREATE( "teammenu_showscores", "0", FCVAR_ARCHIVE );
-	CVAR_CREATE( "menu_bg_fill", "0", FCVAR_ARCHIVE );
-	CVAR_CREATE( "buymenu_stayon", "0", FCVAR_ARCHIVE );
 
 	hud_textmode = CVAR_CREATE( "hud_textmode", "0", FCVAR_ARCHIVE );
 	hud_colored  = CVAR_CREATE( "hud_colored", "0", FCVAR_ARCHIVE );
@@ -455,7 +439,6 @@ CHud :: ~CHud()
 
 void CHud :: VidInit( void )
 {
-	static bool firstinit = true;
 	m_scrinfo.iSize = sizeof( m_scrinfo );
 	GetScreenInfo( &m_scrinfo );
 
@@ -563,18 +546,6 @@ void CHud :: VidInit( void )
 
 	for( HUDLIST *pList = m_pHudList; pList; pList = pList->pNext )
 		pList->p->VidInit();
-
-#if 0
-	if( firstinit && gEngfuncs.CheckParm( "-firsttime", NULL ) )
-	{
-		ConsolePrint( "firstrun\n" );
-
-		ClientCmd( "exec touch_presets/phone_ahsim" );
-		gEngfuncs.Cvar_Set( "touch_config_file", "touch_presets/phone_ahsim.cfg" );
-	}
-#endif
-
-	firstinit = false;
 }
 
 void CHud::Reset( void )

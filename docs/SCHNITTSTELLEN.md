@@ -22,7 +22,9 @@ Nach dem Bootstrap zeigt `XASH3D_RODIR` auf den CS-Retro-Datenbaum. Die Steam-Ha
 
 ## Engine → Menü
 
-`GetMenuAPI` (`cl_gameui.c`). Phase 3: Xash-`libmenu.so`. NextClient-GameUI/CEF nicht in Phase 3. `IClientVGUI` / `IBaseUI` ersetzen `GetClientAPI` nicht.
+Xash `MenuFactory` ist ein plattformübergreifendes Native Object und liefert den `CreateInterface`-Pointer der geladenen Menü-Lib (`cl_gameui.c` / `UI_GetMenuFactory`).
+
+Phase-3-Hauptmenü: Xash-`GetMenuAPI` (`libmenu.so`). Diese Lib exportiert derzeit kein `CreateInterface` / `GameMenuExports001`. `IGameMenuExports` im Client ist deshalb optional (kein Modal). In-Game: GoldSrc-`ShowMenu` / `titles.txt`. Ziel: eine CS-Retro-Menü-Lib mit beiden Exporten. Details: `docs/MENUS.md`. NextClient-GameUI/CEF nicht in Phase 3. `IClientVGUI` / `IBaseUI` ersetzen `GetClientAPI` nicht.
 
 ## Engine → GameDLL
 

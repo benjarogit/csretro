@@ -15,6 +15,8 @@ Alle Komponenten einer Installation haben **dieselbe** Architektur: Engine, Clie
 
 ## Verboten
 
+- Android, iOS, Switch, PS Vita, sonstige Konsolen
+- Mobile-/Touch-UI als Produktfeature (kein `touch/*.cfg`, keine Touch-Buttons)
 - i386, i686, sonstige 32-Bit-Desktop-Targets
 - stiller 32-Bit-Build (CMake bricht in `cmake/CsretroPlatform.cmake` ab)
 - Engine ohne Waf-`-8`

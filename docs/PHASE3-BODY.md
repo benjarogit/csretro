@@ -49,11 +49,15 @@ Build: `./scripts/build-client.sh`
 | `engine/cdll_int.h` | `steam/steamtypes.h` → `archtypes.h` | kein Steam im aktiven Build |
 | `cl_dll/cdll_int.cpp` | Versionscheck nur wenn `g_iXash > 0` | Waf-`Q_buildnum()` ist `-1` |
 | `cl_dll/cdll_int.cpp` | `F()` entfernt | Xash nutzt `GetClientAPI`; altes Layout falsch |
+| `cl_dll/cdll_int.cpp` | kein Modal bei fehlendem `GameMenuExports001` | Xash `MenuFactory` existiert; Phase-3-`libmenu.so` exportiert kein `CreateInterface` |
+| `cl_dll/menu.cpp` | Desktop-`ShowMenu` / `titles.txt` | Touch-`exec touch/*.cfg` entfernt |
+| `cl_dll/hud.cpp` | `_vgui_menus` 0 | GameDLL sendet GoldSrc-`ShowMenu` |
 
 ## 3C — Stand
 
 GameDLL `cs_amd64.so` unter Xash. Smoke: `./scripts/smoke-gamedll.sh dedicated|listen`.
-Interaktiv: `./scripts/interactive-3c.sh` (`de_dust`, 640×480, xdotool).
+Interaktiv: `./scripts/interactive-3c.sh` (`de_dust`, 640×480, xdotool, Fenstertitel `CS Retro`).
+Menüs ohne Auto-Join: `./scripts/interactive-menus.sh`.
 
 Nachweis im `engine.log`: Auto-Join CT, ZBot T, `Game_Commencing` / `Round_Start`, Movement/Duck/Jump, Slot 1–3, Attack, Reload, `give weapon_ak47`, Host-`quit`.
 Listen-Admin soweit vorhanden = Host-Konsole/Binds (`give`, `bot_add_t`, `sv_cheats`), kein AMXX-Admin.

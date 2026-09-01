@@ -406,6 +406,34 @@ def collect_copy_rels(source: Path, manifest: dict) -> list[str]:
     return sorted(seen)
 
 
+LIBLIST_GAM = """game "CS Retro"
+url_info ""
+url_dl ""
+version "0.1"
+size "0"
+svonly "0"
+secure "0"
+type "multiplayer_only"
+cldll "1"
+hlversion "1111"
+nomodels "1"
+nohimodel "1"
+mpentity "info_player_start"
+gamedll "dlls/mp.dll"
+gamedll_linux "dlls/cs.so"
+gamedll_osx "dlls/cs.dylib"
+trainmap "tr_1"
+edicts\t"1800"
+"""
+
+
+def write_liblist(dest_root: Path) -> str:
+    path = dest_root / "cstrike" / "liblist.gam"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(LIBLIST_GAM, encoding="utf-8")
+    return "cstrike/liblist.gam"
+
+
 def write_startup_rc(dest_root: Path) -> None:
     for rel in ("valve/valve.rc", "cstrike/cstrike.rc"):
         path = dest_root / rel
@@ -437,6 +465,7 @@ def deploy_csretro_modules(dest_root: Path, client: Path | None, gamedll: Path |
         shutil.copy2(src, dest)
         deployed.append(str(dest.relative_to(dest_root)))
     write_startup_rc(dest_root)
+    deployed.append(write_liblist(dest_root))
     deployed.extend(["valve/valve.rc", "cstrike/cstrike.rc"])
     return deployed
 
@@ -489,11 +518,14 @@ def do_import(args: argparse.Namespace) -> int:
         if same and (dest_root / "cstrike" / "maps" / "de_dust.bsp").is_file():
             print(f"Game-Data aktuell ({dest_root}), Steam-ACF unverändert.")
             if not args.skip_modules:
-                deploy_csretro_modules(
+                owned = deploy_csretro_modules(
                     dest_root,
                     Path(args.client) if args.client else None,
                     Path(args.gamedll) if args.gamedll else None,
                 )
+                if origin is not None:
+                    origin["csretro_owned"] = sorted(set(origin.get("csretro_owned", []) + owned))
+                    write_origin(dest_root, origin)
             if not args.skip_extras:
                 install_zbot_extras(dest_root, args.map)
             print(f"XASH3D_RODIR={dest_root}")

@@ -36,6 +36,7 @@ need_cmd() {
 [[ -f "${CLIENT}" ]] || fail "Client fehlt. ./scripts/build-client.sh"
 GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${MAP}")" || fail "Game-Data-Bootstrap fehlt"
 need_cmd timeout
+need_cmd xdotool
 
 mkdir -p "${RUN}/cstrike/dlls" "${RUN}/cstrike/cl_dlls" "${RUN}/cstrike/maps" "${RUN}/valve" /tmp/csretro-zbot
 cp -a "${GAMEDLL}" "${RUN}/cstrike/dlls/cs_amd64.so"
@@ -113,6 +114,7 @@ cl_showerror 1
 echo CSRETRO_3C_CFG_LOADED
 EOF
 cat > "${RUN}/cstrike/3c-actions.cfg" <<'EOF'
+wait 350
 give weapon_ak47
 echo CSRETRO_3C_GIVE_AK47
 bot_add_t
@@ -133,18 +135,12 @@ echo CSRETRO_3C_SLOT1
 echo CSRETRO_3C_ATTACK
 +reload
 echo CSRETRO_3C_RELOAD
-EOF
-# wait N = N gerenderte Frames (144 Hz-Host ≈ 6 s bei 900).
-cat > "${RUN}/cstrike/3c-delay.cfg" <<'EOF'
-wait 4000
-exec 3c-actions.cfg
-wait 500
+wait 80
 quit
+echo CSRETRO_3C_QUIT
 EOF
+printf '%s\n' 'exec userconfig.cfg' > "${RUN}/cstrike/config.cfg"
 cp -a "${RUN}/cstrike/userconfig.cfg" "${RUN}/cstrike/autoexec.cfg"
-if [[ -f "${RUN}/cstrike/config.cfg" ]] && ! rg -q '^exec userconfig\.cfg' "${RUN}/cstrike/config.cfg"; then
-    printf '\nexec userconfig.cfg\n' >> "${RUN}/cstrike/config.cfg"
-fi
 
 export LD_LIBRARY_PATH="${ENG}/engine:${ENG}/ref/gl:${ENG}/3rdparty/mainui:${ENG}/filesystem:${LD_LIBRARY_PATH:-}"
 export XASH3D_RODIR="${GAMEDATA}"
@@ -154,10 +150,8 @@ export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-x11}"
 export DISPLAY="${DISPLAY:-:0}"
 
 rm -f "${LOG}"
-if pgrep -f "${RUN}/xash3d" >/dev/null 2>&1; then
-    pkill -f "${RUN}/xash3d" >/dev/null 2>&1 || true
-    sleep 0.4
-fi
+killall -q xash3d 2>/dev/null || true
+sleep 0.4
 
 cd "${RUN}"
 set +e
@@ -212,16 +206,25 @@ wait_log() {
 }
 
 wait_log "Spawn Server: ${MAP}|Loading map \"${MAP}\"" 40 || fail "Map ${MAP} nicht gestartet (stuffcmds/cstrike.rc?)"
-wait_log 'joined team' 25 || true
-sleep 2
+wait_log 'CSRETRO_3C_CFG_LOADED' 15 || true
 
-WID="$(xdotool search --onlyvisible --name 'Counter-Strike' 2>/dev/null | head -n1 || true)"
-if [[ -n "${WID}" ]]; then
-    xdotool key --window "${WID}" F6 >/dev/null 2>&1 || true
-    sleep 2
-    xdotool key --window "${WID}" F8 >/dev/null 2>&1 || true
-    sleep 2
-fi
+WID=""
+for _ in $(seq 1 20); do
+    WID="$(xdotool search --onlyvisible --name 'CS Retro' 2>/dev/null | head -n1 || true)"
+    if [[ -z "${WID}" ]]; then
+        WID="$(xdotool search --onlyvisible --name 'Counter-Strike' 2>/dev/null | head -n1 || true)"
+    fi
+    if [[ -n "${WID}" ]]; then
+        break
+    fi
+    sleep 0.25
+done
+[[ -n "${WID}" ]] || fail "kein CS-Retro-/Counter-Strike-Fenster"
+# Kein windowactivate: XWayland liefert sonst oft SDL_QUIT.
+# F6 früh senden — ein unfokussiertes XWayland-Fenster stirbt sonst nach wenigen Sekunden.
+xdotool key --window "${WID}" F6 >/dev/null 2>&1 || true
+
+wait_log 'joined team' 25 || true
 
 wait_log 'Issuing host shutdown|Server shutdown' 15 || true
 if kill -0 "${XASH_PID}" >/dev/null 2>&1; then

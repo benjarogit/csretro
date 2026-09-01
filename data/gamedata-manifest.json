@@ -82,8 +82,7 @@
   "copy_globs": [
     {"glob": "cstrike/*.wad", "why": "CS-WAD-Dateien, alle im Trace geöffnet."},
     {"glob": "valve/*.wad", "why": "HL-WAD-Dateien, alle im Trace geöffnet."},
-    {"glob": "cstrike/liblist.gam", "why": "Mod-Metadaten. gamedll-Pfade werden nicht benutzt (-dll)."},
-    {"glob": "valve/liblist.gam", "why": "Basis-Metadaten."},
+    {"glob": "valve/liblist.gam", "why": "HL-Basis-Metadaten, nur valve-Hierarchie."},
     {"glob": "cstrike/delta.lst", "why": "Netz-Delta, Dedicated-Trace."},
     {"glob": "cstrike/titles.txt", "why": "HUD-Titel, Listen-Trace."},
     {"glob": "cstrike/game.tga", "why": "MainUI-Icon, Listen-Trace."},
@@ -104,6 +103,11 @@
       "id": "startup_rc",
       "paths": ["valve/valve.rc", "cstrike/cstrike.rc"],
       "why": "CS-Retro stuffcmds; Steam-valve.rc liegt nur in RODIR und wird von FileExists oft nicht gesehen."
+    },
+    {
+      "id": "liblist",
+      "paths": ["cstrike/liblist.gam"],
+      "why": "CS-Retro-owned: Branding und Xash-Library-Namen (dlls/cs.so → cs_amd64.so). Keine Steam-GameDLL als Default."
     }
   ],
   "ignore": [
@@ -118,6 +122,7 @@
     {"glob": "**/steam.inf", "why": "Steam-Identität."},
     {"glob": "**/steam_appid.txt", "why": "SteamAPI-AppID-Datei."},
     {"glob": "**/steamcomm.lst", "why": "Steam-Master."},
+    {"glob": "cstrike/liblist.gam", "why": "REPLACE durch CS-Retro-liblist."},
     {"glob": "cstrike/dlls/**", "why": "REPLACE durch CS-Retro-GameDLL."},
     {"glob": "cstrike/cl_dlls/**", "why": "REPLACE durch CS-Retro-Client."},
     {"glob": "valve/dlls/**", "why": "HL-GameDLL, ungenutzt."},

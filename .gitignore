@@ -1,0 +1,44 @@
+# Build
+/build/
+/out/
+/.cache/
+engine/build/
+CMakeUserPresets.json
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+
+# Spielinhalte (Valve-Copyright — nie committen).
+# Nur Root-Gamedirs, nicht NextClient-eigene Assets unter client/assets/.
+/gamedata/
+/valve/
+/cstrike/
+/czero/
+/*.pak
+/*.pk3
+
+# Editor / Agent-Leaks (nicht auf GitHub)
+.idea/
+.vscode/
+*.user
+CLAUDE.md
+.claude/
+AGENTS.md
+
+# Compiler-Artefakte
+*.o
+*.obj
+*.a
+!server/deps/openssl/lib/*.a
+*.so
+*.dll
+*.lib
+*.exe
+*.pdb
+__pycache__/
+*.pyc
+
+# WoltLab-Pakete (gehören nicht hierher)
+*.tar.gz
+*.tgz

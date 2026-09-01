@@ -1,0 +1,38 @@
+/out
+/build
+
+# Visual Studio
+.vs
+
+# macOS garbage
+.DS_Store
+
+# JetBrains IDEs
+.idea
+
+# CMake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+cmake-build-*/
+CMakeUserPresets.json
+
+### CMake Patch ###
+# External projects
+*-prefix/
+
+# AI
+.claude/
+.codex/
+.gemini/
+.cursor/
+.windsurf/
+.junie/

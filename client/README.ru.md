@@ -1,0 +1,215 @@
+Language: [EN](https://github.com/CS-NextClient/NextClient/blob/main/README.md) | RU
+
+NextClient
+==========
+
+NextClient это модификация для Counter-Strike 1.6, нацеленная на введение новой функциональности как для игроков, так и для разработчиков серверных модификаций на amxmodx.
+В NextClient интегрированы некоторые фичи из [csldr](https://github.com/mikkokko/csldr). 
+
+*Пожалуйста обратите внимание, официальная версия NextClient поставляется без эмулятора. Next21 не занимается разработкой эмулятора Steam. Вам всё ещё небходим запущенный Steam и купленная игра Cs 1.6 для игры на версии NextClient с гитхаба.*
+
+*Некоторые антивирусы ругаются на файлы NextClient. Это ложные эвристические срабатывания, вызванные перехватом функций движка во время работы. Официальные сборки собираются из исходного кода этого репозитория через GitHub Actions и имеют подписанную аттестацию происхождения сборки. Подробности и отправка репортов о ложных срабатываниях: [docs/reporting-av-false-positives.md](docs/reporting-av-false-positives.md).*
+
+### Основные возможности:
+ - Протектор - защищает клиент от вредоносных команд с сервера
+ - Смена мастер сервера (по умолчанию установлен [tsarvar.com](https://tsarvar.com))
+ - Расширенные настройки видео - фикс FOV на разрешениях 16:9, возможность регулировать FOV и отдельно регулировать FOV для модели от первого лица
+ - Расширенный killfeed - поддержка расширенного killfeed [regamedll](https://github.com/s1lentq/ReGameDLL_CS/pull/858), отображение иконок убийств: через стену, через дым, без прицела, в прыжке, с доминированием, etc.
+ - Расширенные настройки прицела - добавлены новые виды прицела: точка, T-образный, окружность
+ - 2 схемы GUI с возможностью их смены через настройки, и возможность добавлять свои схемы не удаляя старые
+ - Поддержка HTML-интерфейсов в GameUI на базе CEF (Chromium Embedded Framework) с JS API для взаимодействия с клиентом
+ - Отображение более 255hp при использовании [серверного модуля](https://github.com/CS-NextClient/NextClientServerApi)
+ - Отображение количества и размера оставшихся файлов, общего размера файлов и скорости загрузки при подключении на сервер
+ - Цветной чат в консоли
+ - Различные улучшения из [csldr](https://github.com/mikkokko/csldr) для оружия от первого лица:
+    - Настраиваемое расположение модели
+    - Альтернативный bob из CS:GO 1.0.0.40
+    - Поддержка sway/lag
+    - Возможность отключить смещение модели при взгляде вверх/вниз
+    - Клиентский осмотр оружия
+    - Управление камерой на основе костей
+
+### Возможности для amxmodx разработчиков:
+ - Песочница кваров, возможность менять квары клиенту (из ограниченного списка) на время его нахождения на сервере
+ - Кастомизация killfeed
+ - Sprite API, управление спрайтами на экране
+ - Расширенное FOV сообщение
+ - Поддержка эффектов для viewmodel
+ - Замена звуков оружия
+ - Инверсия мыши
+ - Верификация клиента и получение идентификатора игрока на основе железа (HWID)
+ - Раздельный прекэш для обычного клиента cs 1.6 и NextClient
+ - Прекэш hud.txt и других стандартных ресурсов
+
+### Новые квары
+<details>
+<summary>Нажмите, чтобы развернуть</summary>
+
+| Cvar name | Default value | Available in sandbox*       | Description |
+| --- |---------------|-----------------------------| --- |
+| viewmodel_disable_shift | 0             | Yes                         | Disable viewmodel shifting (when you looking up or down). |
+| viewmodel_offset_x | 0             | Yes                         |  |
+| viewmodel_offset_y | 0             | Yes                         |  |
+| viewmodel_offset_z | 0             | Yes                         |  |
+| camera_movement_scale | 1.0           | Yes                         | Camera movement scale. |
+| camera_movement_interp | 0             | Yes                         | Smooths out camera movement when switching weapons. Recommended value is 0.1. Set to 0 to disable smoothing. |
+| viewmodel_fov | 90            | Yes                         | Min: 70<br/>Max: 100 |
+| cl_crosshair_type | 0             | Yes                         | Crosshair type. 0 - crosshair, 1 - T-shaped, 2 - circle, 3 - dot. |
+| cl_bob_camera | 1             | Yes                         | View origin bob, does nothing with cl_bobstyle 2. |
+| cl_bobstyle | 0             | Yes                         | 0 for default bob, 1 for old style bob and 2 for CS:GO style bob. |
+| cl_bobamt_vert | 0\.13         | Yes                         | Vertical scale for CS:GO style bob. |
+| cl_bobamt_lat | 0\.32         | Yes                         | Lateral scale for CS:GO style bob. |
+| cl_bob_lower_amt | 8.0           | Yes                         | Specifies how much the viewmodel moves inwards for CS:GO style bob. |
+| cl_rollangle | 0             | Yes                         | Screen roll angle when strafing or looking (Quake effect). |
+| cl_rollspeed | 200.0         | Yes                         | Screen roll speed when strafing or looking (Quake effect). |
+| viewmodel_lag_style | 0             | Yes                         | Viewmodel sway style. 0 is off, 1 is HL2 style and 2 is CS:S/CS:GO style. |
+| viewmodel_lag_scale | 1.0           | Yes                         | Scale of the viewmodel sway. |
+| viewmodel_lag_speed | 8.0           | Yes                         |  Speed of the viewmodel sway. (HL2 sway only) |
+| fov_horplus | 0             | No                          | Enables Hor+ scaling for FOV. Fixes the FOV when playing with aspect ratios besides 4:3. |
+| fov_angle | 90            | No (use ncl_setfov instead) | Min: 70<br/>Max: 100 |
+| fov_lerp | 0             | No (use ncl_setfov instead) | FOV interpolation time in seconds. |
+| hud_deathnotice_max | 5             | Yes                         | The maximum number of killfeed entries that can be displayed. |
+| hud_deathnotice_old | 0             | No                          | Enable the old style of killfeed. |
+| http_max_active_requests | 5             | No                          |  |
+| http_max_requests_retries | 3             | No                          |   |
+
+*Может ли сервер изменять значение квара, используя функцию песочницы кваров.
+</details>
+
+## Установка
+
+1. NextClient работает только с версией движка 8684, убедитесь, что вы находитесь на бета-ветви "steam_legacy - Pre-25th Anniversary Build" в Steam (⚠️ вам нужны файлы официальной игры из Steam! Вы не можете установить NextClient на пиратские клиенты!)
+2. Скопируйте всю папку Counter-Strike 1.6 (Half-Life) в отдельную папку вне папки Steam
+3. Скопируйте все файлы NextClient в папку куда вы копировали все файлы CS 1.6
+4. Запускайте игру через cstrike.exe
+
+### ⚠️ Внимание! Никогда не помещайте файлы NextClient прямо в папку установки игры в Steam! Это приведет к VAC бану! ⚠️
+
+## Смена мастер сервера
+
+Файл конфигурации находится по пути `platform\config\MasterServer.vdf`
+```vdf
+"MasterServer"
+{
+   "Selected"     "1"       // Номер элемента из раздела Servers. Нумерация начинается с 0.
+   "CacheServers" "false"   // В случае недоступности мастер сервера, список серверов будет взят из кэша.
+                            // В кэш попадают сервера из последнего запроса, который был полностью завершён.
+   "Servers"
+   {
+      "Steam"
+      {
+         "address" "hl1master.steampowered.com:27011" // Адрес мастер сервера.
+         "site"    ""       // Не используется.
+         "region"  "0x03"   // Код региона, https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol#Region_codes.
+      }
+      "Tsarvar"
+      {
+         "address" "ms.tsarvar.com:27010"
+         "site"    "https://tsarvar.com/"
+         "region"  "0xFF"
+      }
+   }
+}
+```
+
+## Сборка
+Требования:
+ - Последняя версия MSVC 2022 или новее
+ - CMake 3.21 или выше
+ - Ninja (необязательно)
+
+Запустите x86 Native Tools Command Prompt for VS
+
+```
+git clone --recurse-submodules https://github.com/CS-NextClient/NextClient.git
+cd NextClient
+```
+
+С генератором Visual Studio 2022:
+```
+cmake --preset vs2022
+cmake --build --preset vs2022-release --target BUILD_ALL
+```
+
+С генератором Visual Studio 2026:
+```
+cmake --preset vs2026
+cmake --build --preset vs2026-release --target BUILD_ALL
+```
+
+Или с Ninja:
+```
+cmake --preset ninja
+cmake --build --preset ninja-release --target BUILD_ALL
+```
+
+`BUILD_ALL` также копирует собранные файлы и ассеты в `NEXTCLIENT_INSTALL_DIR`, если переменная задана.
+Можно передать её при конфигурации:
+```
+cmake --preset vs2022 -DNEXTCLIENT_INSTALL_DIR="C:/Games/CS 1.6 - NextClient"
+```
+Или создать `CMakeUserPresets.json` в корне проекта (файл добавлен в gitignore), чтобы не передавать путь каждый раз:
+```json
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "vs2022-local",
+      "inherits": "vs2022",
+      "cacheVariables": {
+        "NEXTCLIENT_INSTALL_DIR": "C:/Games/CS 1.6 - NextClient"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "vs2022-local-release",
+      "configurePreset": "vs2022-local",
+      "configuration": "Release"
+    },
+    {
+      "name": "vs2022-local-debug",
+      "configurePreset": "vs2022-local",
+      "configuration": "Debug"
+    }
+  ]
+}
+```
+Затем:
+```
+cmake --preset vs2022-local
+cmake --build --preset vs2022-local-release --target BUILD_ALL
+```
+
+## Работа в IDE
+
+### CLion
+ - Toolchain по умолчанию должен быть Visual Studio с платформой x86
+ - В настройках CMake (Settings -> Build -> CMake) включить нужные пресеты, например `vs2022 - vs2022-debug` и `vs2022 - vs2022-release`
+ - Собирать цель `BUILD_ALL`
+
+### Visual Studio
+ - Открыть папку проекта
+ - Выбрать build-пресет, например `vs2022-debug` или `vs2022-release`
+ - В главном меню выбрать Build -> Build All
+
+### VS Code
+ - Установить расширение `ms-vscode.cmake-tools`
+ - Выбрать configure-пресет `vs2022`, `vs2026` или `ninja` и соответствующую build-конфигурацию
+ - Собирать цель `BUILD_ALL`
+ - Для пресета `ninja` VS Code необходимо запускать из "x86 Native Tools Command Prompt for VS"
+
+## Благодарности
+- [Nordic Warrior](https://github.com/Nord1cWarr1or) - за огромное количество фидбека и багрепортов
+- [fl0werD](https://github.com/fl0werD) - за разработку Sprite API
+- [Mikko Kokko](https://github.com/mikkokko) - за проект [csldr](https://github.com/mikkokko/csldr), фичи из которого мы проинтегрировали в NextClient
+- [Felipe](https://github.com/LAGonauta) - за проект [MetaAudio](https://github.com/LAGonauta/MetaAudio)
+- [MoeMod](https://github.com/MoeMod) - за проект [Thanatos-Launcher](https://github.com/MoeMod/Thanatos-Launcher), он очень помог при реализации GameUI и VGUI2
+- [tmp64](https://github.com/tmp64) - за проект [hl1_source_sdk](https://github.com/tmp64/hl1_source_sdk)
+- [TsarVar](https://tsarvar.com) - за идею JS API для gameui
+- [s1lent](https://github.com/s1lentq) - за советы, готовые фиксы и разработку спецификации [avatarid-spec](https://github.com/goldclient-plus/avatarid-spec)
+- [lozatto](https://github.com/lozatto) - за реализацию фичи Unique Machine Identifier (HWID)
+- [SanyaSho](https://github.com/SanyaSho) - за проект [BarsTech_goldsrc_compatible_public](https://github.com/SanyaSho/BarsTech_goldsrc_compatible_public), который помог с рендерингом шрифтов VGUI2
+- Valve - за Counter-Strike 1.6 и лояльное отношение к моддерскому сообществу
+
+Спасибо всем кто поддерживает проект баг репортами, предложениями и словами поддержки.

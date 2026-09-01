@@ -1,0 +1,68 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "linux-clang-x86_64",
+      "displayName": "Linux Clang x86_64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-clang-x86_64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CSRETRO_ENGINE_64BIT": "ON",
+        "CSRETRO_BUILD_ENGINE": "ON",
+        "CSRETRO_BUILD_CLIENT": "OFF",
+        "CSRETRO_BUILD_SERVER": "OFF"
+      }
+    },
+    {
+      "name": "linux-clang-i686",
+      "displayName": "Linux Clang i686 (Cross)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-clang-i686",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-linux-i686.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CSRETRO_ENGINE_64BIT": "OFF",
+        "CSRETRO_BUILD_ENGINE": "ON",
+        "CSRETRO_BUILD_CLIENT": "OFF"
+      }
+    },
+    {
+      "name": "linux-clang-aarch64",
+      "displayName": "Linux Clang aarch64 (Cross)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-clang-aarch64",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-linux-aarch64.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CSRETRO_ENGINE_64BIT": "ON",
+        "CSRETRO_BUILD_ENGINE": "ON",
+        "CSRETRO_BUILD_CLIENT": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-clang-x86_64",
+      "configurePreset": "linux-clang-x86_64",
+      "targets": ["engine"]
+    },
+    {
+      "name": "linux-clang-i686",
+      "configurePreset": "linux-clang-i686",
+      "targets": ["engine"]
+    },
+    {
+      "name": "linux-clang-aarch64",
+      "configurePreset": "linux-clang-aarch64",
+      "targets": ["engine"]
+    }
+  ]
+}

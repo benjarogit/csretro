@@ -1,0 +1,648 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Исходные файлы">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Файлы заголовков">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Файлы ресурсов">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Исходные файлы\cl_dll">
+      <UniqueIdentifier>{a71778ab-2f87-40d7-a2d1-77874279e4c5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\common">
+      <UniqueIdentifier>{b25a3b0d-a19b-4e57-ab81-83ba6b77dd9e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\game_shared">
+      <UniqueIdentifier>{bcf5be68-0ed6-447e-b73a-04dbee2b3e11}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\pm_shared">
+      <UniqueIdentifier>{b2616a6f-0a0b-4980-b85b-de25fa6cc6d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\public">
+      <UniqueIdentifier>{749032c4-7756-4c68-a6b7-cae9b8d942a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\cl_dll">
+      <UniqueIdentifier>{024add53-81f7-4e4c-87eb-4d7e094306a2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\common">
+      <UniqueIdentifier>{697d6dc5-5bd9-49ba-812b-6bc9452dd399}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\game_shared">
+      <UniqueIdentifier>{64de1d0a-ca1f-4df1-907e-04e2c081a831}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\pm_shared">
+      <UniqueIdentifier>{f135175e-5cb0-4577-b7d8-a268dc513f75}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\_hl">
+      <UniqueIdentifier>{a6dabf85-f809-4196-b1e3-1f5b7a7a6282}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\_hl\dlls">
+      <UniqueIdentifier>{d10d8f55-33f0-454c-a268-6b8d52771745}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\_hl\dlls\wpn_shared">
+      <UniqueIdentifier>{252defee-3301-492c-b065-e428ad9fc3fe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\_hl\cl_dll">
+      <UniqueIdentifier>{d1b073b6-e8dd-4fcc-be37-5203f4ecdc1a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\cs_wpn">
+      <UniqueIdentifier>{5f697074-131c-434b-aa5f-bd80e5ac1a5e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\cl_dll\events">
+      <UniqueIdentifier>{9105826d-b1c3-428b-913c-b98cc6522908}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\wpn_shared">
+      <UniqueIdentifier>{730cc526-7232-4a0d-8270-f56e8b97a7e0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\ui">
+      <UniqueIdentifier>{97e6da0b-c175-4f09-b5c7-dd2e32942962}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\ui\common">
+      <UniqueIdentifier>{c7cfdad2-05af-44fb-a2eb-5805355d7392}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\ui\vgui1">
+      <UniqueIdentifier>{5f1242ce-aabb-43fa-9c2e-4e1627cbd550}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\ui\vgui2">
+      <UniqueIdentifier>{5a666464-c76c-41a7-8ab6-bccf63e673eb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\platform">
+      <UniqueIdentifier>{680C84C2-EB1B-4C59-82AE-9432D6E77F89}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\platform">
+      <UniqueIdentifier>{A4C4BA49-1264-4CCF-A99A-667E7676AF06}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\ui">
+      <UniqueIdentifier>{fbfa7100-4e77-46cf-bec4-7688f404f316}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\ui\common">
+      <UniqueIdentifier>{f22d9708-132d-40e6-a404-79ae852683be}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\ui\vgui1">
+      <UniqueIdentifier>{377c7280-a06b-4879-9cb8-a44bb36bf694}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\ui\vgui2">
+      <UniqueIdentifier>{4b09e666-a48d-4bb6-825e-ab0a0ce004ef}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="view.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="ammo.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="ammo_secondary.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="ammohistory.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="battery.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="cdll_int.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="ui\common\cs_localize.cpp">
+      <Filter>Исходные файлы\ui\common</Filter>
+    </ClCompile>
+    <ClCompile Include="ui\common\hud_style.cpp">
+      <Filter>Исходные файлы\ui\common</Filter>
+    </ClCompile>
+    <ClCompile Include="ui\vgui1\cs_vgui_bridge.cpp">
+      <Filter>Исходные файлы\ui\vgui1</Filter>
+    </ClCompile>
+    <ClCompile Include="ui\vgui2\cs_vgui2.cpp">
+      <Filter>Исходные файлы\ui\vgui2</Filter>
+    </ClCompile>
+    <ClCompile Include="ui\vgui2\cs_vgui2_client.cpp">
+      <Filter>Исходные файлы\ui\vgui2</Filter>
+    </ClCompile>
+    <ClCompile Include="ui\vgui1\cs_vgui_viewport.cpp">
+      <Filter>Исходные файлы\ui\vgui1</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\steam_integration.cpp">
+      <Filter>Исходные файлы\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="platform\discord_rpc.cpp">
+      <Filter>Исходные файлы\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="com_weapons.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="death.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="demo.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="entity.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="ev_common.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="events.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="flashlight.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="GameStudioModelRenderer.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="geiger.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="health.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud_msg.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud_redraw.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud_servers.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud_spectator.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud_update.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="in_camera.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="input.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="inputw32.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="interpolation.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="menu.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="message.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="saytext.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="status_icons.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="statusbar.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="studio_util.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="StudioModelRenderer.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="text_message.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="train.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="tri.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="util.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\parsemsg.cpp">
+      <Filter>Исходные файлы\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\game_shared\voice_banmgr.cpp">
+      <Filter>Исходные файлы\game_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\game_shared\vgui_loadtga.cpp">
+      <Filter>Исходные файлы\game_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\public\interface.cpp">
+      <Filter>Исходные файлы\public</Filter>
+    </ClCompile>
+    <ClCompile Include="cs_wpn\cs_weapons.cpp">
+      <Filter>Исходные файлы\cs_wpn</Filter>
+    </ClCompile>
+    <ClCompile Include="radar.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="events\ev_cs16.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_ak47.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_aug.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_awp.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_createexplo.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_createsmoke.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_czerods.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_deagle.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_decal_reset.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_elite.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_famas.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_fiveseven.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_g3sg1.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_galil.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_glock18.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_knife.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_m3.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_m4a1.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_m249.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_mac10.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_mp5n.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_p90.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_p228.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_scout.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_sg550.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_sg552.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_tmp.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_ump45.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_usp.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_vehicle.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="events\event_xm1014.cpp">
+      <Filter>Исходные файлы\cl_dll\events</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_ak47.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_aug.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_awp.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_c4.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_deagle.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_elite.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_famas.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_fiveseven.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_flashbang.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_g3sg1.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_galil.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_glock18.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_hegrenade.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_knife.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_m3.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_m4a1.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_m249.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_mac10.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_mp5navy.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_p90.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_p228.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_scout.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_sg550.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_sg552.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_smokegrenade.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_tmp.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_ump45.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_usp.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dlls\wpn_shared\wpn_xm1014.cpp">
+      <Filter>Исходные файлы\wpn_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\pm_shared\pm_debug.cpp">
+      <Filter>Исходные файлы\pm_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\pm_shared\pm_math.cpp">
+      <Filter>Исходные файлы\pm_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\pm_shared\pm_shared.cpp">
+      <Filter>Исходные файлы\pm_shared</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\radio.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\scenario.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\scoreboard.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\sniperscope.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\spectator_gui.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\timer.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\money.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\MOTD.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="hud\nvg.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="nightvision.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="rain.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+    <ClCompile Include="ui\common\draw_util.cpp">
+      <Filter>Исходные файлы\ui\common</Filter>
+    </ClCompile>
+    <ClCompile Include="voice_status.cpp">
+      <Filter>Исходные файлы\cl_dll</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ammo.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="ammohistory.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="camera.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="cl_dll.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\vgui1\cs_vgui.h">
+      <Filter>Файлы заголовков\ui\vgui1</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\vgui2\cs_vgui2.h">
+      <Filter>Файлы заголовков\ui\vgui2</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\vgui2\cs_vgui2_client.h">
+      <Filter>Файлы заголовков\ui\vgui2</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\common\cs_localize.h">
+      <Filter>Файлы заголовков\ui\common</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\common\hud_style.h">
+      <Filter>Файлы заголовков\ui\common</Filter>
+    </ClInclude>
+    <ClInclude Include="com_weapons.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="demo.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="ev_hldm.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="eventscripts.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="GameStudioModelRenderer.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="health.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="hud.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="hud_servers.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="hud_servers_priv.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="hud_spectator.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="in_defs.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="interpolation.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="kbutton.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="StudioModelRenderer.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="tri.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="view.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="wrect.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\parsemsg.h">
+      <Filter>Файлы заголовков\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\game_shared\voice_banmgr.h">
+      <Filter>Файлы заголовков\game_shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\game_shared\vgui_scrollbar2.h">
+      <Filter>Файлы заголовков\game_shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\game_shared\vgui_slider2.h">
+      <Filter>Файлы заголовков\game_shared</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\common\draw_util.h">
+      <Filter>Файлы заголовков\ui\common</Filter>
+    </ClInclude>
+    <ClInclude Include="rain.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="csprite.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="radar.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="events.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="util_vector.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="Exports.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="..\pm_shared\pm_debug.h">
+      <Filter>Файлы заголовков\pm_shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\pm_shared\pm_defs.h">
+      <Filter>Файлы заголовков\pm_shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\pm_shared\pm_info.h">
+      <Filter>Файлы заголовков\pm_shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\pm_shared\pm_materials.h">
+      <Filter>Файлы заголовков\pm_shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\pm_shared\pm_math.h">
+      <Filter>Файлы заголовков\pm_shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\pm_shared\pm_movevars.h">
+      <Filter>Файлы заголовков\pm_shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\pm_shared\pm_shared.h">
+      <Filter>Файлы заголовков\pm_shared</Filter>
+    </ClInclude>
+    <ClInclude Include="voice_status.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="vgui_SpectatorPanel.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="vgui_TeamFortressViewport.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="vgui_ConsolePanel.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="vgui_ControlConfigPanel.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="vgui_int.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="vgui_SchemeManager.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="vgui_ScorePanel.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="vgui_ServerBrowser.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="global_consts.h">
+      <Filter>Файлы заголовков\cl_dll</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\steam_integration.h">
+      <Filter>Файлы заголовков\platform</Filter>
+    </ClInclude>
+    <ClInclude Include="platform\discord_rpc.h">
+      <Filter>Файлы заголовков\platform</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

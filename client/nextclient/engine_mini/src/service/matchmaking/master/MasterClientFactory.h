@@ -14,7 +14,7 @@ class MasterClientFactory : public MasterClientFactoryInterface
 
     struct MasterServerConfig
     {
-        std::string address = "hl1master.steampowered.com:27011";
+        std::string address = "ms.tsarvar.com:27010";
         MsClientType ms_client_type = MsClientType::SourceQuery;
         MasterRegionCode region_code = MasterRegionCode::Europe;
         bool cache_enabled{};

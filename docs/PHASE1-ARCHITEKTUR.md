@@ -83,22 +83,20 @@ Xash3D-FWGS
 - **Features:** aus `client_mini` lösen, `gEngfuncs` direkt, NextClient-Verhalten behalten; bei Redundanz eine CS-Retro-Implementierung (`docs/ROLLEN.md`).
 - **Phase 3 Menü:** vorhandenes Xash-`libmenu.so` (`GetMenuAPI`). NextClient-GameUI/CEF nicht in Phase 3.
 - **Phase 4:** NextClient-Menüs prüfen; Ref B nur wenn die nicht tragen — ein Feature, ein Diff.
-- **NitroApi, steam_api_proxy, 8684-Provider, Launcher-als-cstrike.exe:** nicht der Bind-Pfad. Phase 2 entfernen oder ersetzen.
+- **NitroApi, steam_api_proxy, 8684-Provider, Launcher-als-cstrike.exe:** nicht der Bind-Pfad. Phase 2: entfernt bzw. deaktiviert.
 - **Server:** weiter AMXX-Insel. Xash-`dlls/cs.so` ist eine eigene Phase-3-Entscheidung, kein Ref-A-ReGameDLL.
 
 ## 7. Was in Phase 2 / 3 angefasst wird
 
-**Phase 2 (Steam raus, kein Körper-Schreiben):** Inventar und Schnitt der Overlay-Reste — `steam_api_proxy`, Master/Tsarvar, `tier2/steam_api.cpp`, Protector soweit Steam, CEF-Pfade. Bind-Architektur nicht wieder öffnen.
+**Phase 2 (erledigt):** Schnitt der Overlay-Reste, siehe `docs/PHASE2-SCHNITT.md`. Bind-Architektur nicht wieder öffnen.
 
-**Phase 3:** Nach Phase 2. A1-Allowlist vendorn. Eine Lib. NextClient-Features auf den Unterbau, nicht cs16-client pflegen.
-
-**Körper-Umfang:** A1 gewählt. Lizenz dokumentiert, nicht audit-fertig.
+**Phase 3:** A1-Allowlist vendorn. Eine Lib. NextClient-Features auf den Unterbau, nicht cs16-client pflegen.
 
 ## 8. Anpassungen (Checkliste, kein Code)
 
 | # | Wo | Was |
 |---|-----|-----|
-| 1 | `client/` neu | `export/` mit `GetClientAPI` + Pflicht-Namen |
+| 1 | `client/export/` | Vertrag steht (Phase 2). Phase 3: `GetClientAPI` + Pflicht-Namen |
 | 2 | `client/body/` | Phase 3: A1-Allowlist; Xash-Header über `csretro_engine_headers` |
 | 3 | `client_mini` | Features von NitroApi lösen; `GameHud` ohne `NitroApiInterface*` |
 | 4 | `engine_mini` | kein Bind-Pfad; NCLM/Entity-Sync später einzeln bewerten |

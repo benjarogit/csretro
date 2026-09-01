@@ -81,7 +81,7 @@ add_subdirectory(nextclient/engine_mini)
 add_subdirectory(nextclient/filesystem_proxy)
 add_subdirectory(nextclient/client_mini)
 add_subdirectory(nextclient/gameui)
-add_subdirectory(nextclient/steam_api_proxy)
+# steam_api_proxy: Phase 2 entfernt (Steam-Bind, nicht Feature)
 
 # Windows 7 compatibility
 if (MSVC)
@@ -92,7 +92,6 @@ if (MSVC)
             filesystem_proxy
             client_mini
             gameui
-            steam_api_proxy
             nitro_api
             vgui2)
         target_link_libraries(${_tgt} PRIVATE "${YY_THUNKS_WIN7_OBJ}")
@@ -115,7 +114,6 @@ if (NOT NEXTCLIENT_BUILD_TESTS)
             filesystem_proxy
             client_mini
             gameui
-            steam_api_proxy
             nitro_api
             vgui2
     )
@@ -128,7 +126,6 @@ if (NOT NEXTCLIENT_BUILD_TESTS)
                 COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:filesystem_proxy> ${NEXTCLIENT_INSTALL_DIR}/FileSystem_Proxy.dll
                 COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:client_mini> ${NEXTCLIENT_INSTALL_DIR}/cstrike/cl_dlls/client_mini.dll
                 COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:gameui> ${NEXTCLIENT_INSTALL_DIR}/cstrike/cl_dlls/GameUI.dll
-                COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:steam_api_proxy> ${NEXTCLIENT_INSTALL_DIR}/steam_api.dll
                 COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:nitro_api> ${NEXTCLIENT_INSTALL_DIR}/nitro_api2.dll
                 COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:vgui2> ${NEXTCLIENT_INSTALL_DIR}/vgui2.dll
                 COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/dep/optic/bin/OptickCore.dll ${NEXTCLIENT_INSTALL_DIR}/OptickCore.dll

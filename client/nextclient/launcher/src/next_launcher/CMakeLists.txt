@@ -28,7 +28,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE
         NextClient::client_mini
         NextClient::engine_mini
         NextClient::gameui
-        NextClient::steam_api_proxy
         data_encoding::data_encoding
         ncl_utils::ncl_utils
         next_launcher::utils

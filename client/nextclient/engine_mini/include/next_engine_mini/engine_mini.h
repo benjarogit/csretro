@@ -32,6 +32,7 @@ public:
     virtual bool AddCmdLogger(CommandLoggerInterface* logger) = 0;
     virtual bool RemoveCmdLogger(CommandLoggerInterface* logger) = 0;
 
+    // Phase 2: Steam-Matchmaking entfernt; Implementierung gibt nullptr.
     virtual ISteamMatchmakingServers* GetSteamMatchmakingServers() = 0;
     virtual void SetNclmVerificator(NclmVerificatorInterface* handler) = 0;
 };

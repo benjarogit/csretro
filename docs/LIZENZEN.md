@@ -1,6 +1,7 @@
 # Lizenzen
 
-Geprüft, bevor Code wandert. **A1 (2026-09-01) ist dokumentiert, nicht als vollständig geklärt markiert.**
+Geprüft, bevor Code wandert. **Kein Architektur-, Phasen- oder Entwicklungs-Gate.**
+**A1 (2026-09-01) ist dokumentiert, nicht als vollständig geklärt markiert.**
 Vor einer öffentlichen Distribution: vollständiger Lizenz-Audit. Repo bis dahin privat.
 
 Kein Ref-A-Code ist bisher in `client/body/` (Phase 3). Attribution/Lizenztexte beim späteren Vendor **mitkopieren**, nicht ersetzen.

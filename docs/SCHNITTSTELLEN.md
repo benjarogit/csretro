@@ -25,7 +25,7 @@ Phase 3: vorhandenes Xash-`libmenu.so`. NextClient-GameUI (VGUI2/CEF, Steam-Fact
 
 - `IClientVGUI` — `client/dep/NclNitroApi/dep/ncl-hl1-source-sdk/public/IClientVGUI.h`
 - `IBaseUI` — dieselbe SDK-`public/`-Leiste
-- NitroApi-Hooks: Windows-Address-Provider für Engine 8684 — unter Xash **wertlos**, nicht als Bindung missbrauchen
+- NitroApi-Hooks / 8684-Address-Provider: Phase 2 entfernt. Kein Bind-Pfad.
 
 ## Server
 
@@ -44,3 +44,4 @@ Noch kein Vertrag. Später nur über eine dokumentierte Server-Schnittstelle, ni
 |--------|-----------|
 | `csretro_engine_headers` | `engine/common`, `engine/public`, `engine/pm_shared`, `engine/engine` |
 | `csretro_client_sdk_headers` | ncl-hl1-source-sdk `public/`, NitroApi `include/` |
+| `csretro_client_export` | `client/export/` (Vertrag; Implementierung Phase 3) |

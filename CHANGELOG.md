@@ -3,6 +3,24 @@
 Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
 Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 
+## 0.1.4-phase2 — 2026-09-01
+
+### Schnitt
+
+- `steam_api_proxy/` entfernt; Launcher lädt `steam_api.dll` nicht mehr.
+- 8684-Address-Provider entfernt; NitroApi hookt keine Steam-`hw.dll`/`client.dll` mehr.
+- Steam-Master (`hl1master`) und `MatchmakingSteamComp` entfernt.
+- Xash-Exportvertrag: `client/export/csretro_cdll_export.h`, CMake-Target `csretro_client_export`.
+
+### Behalten
+
+- Feature-Quellen: `client_mini` (GameHud, View, FOV, …), `engine_mini` NCLM/HTTP-Master, GameUI als Quelle.
+- Inventar: `docs/PHASE2-SCHNITT.md`.
+
+### Nicht enthalten
+
+- Kein Phase-3-Body, kein `GetClientAPI`-Rumpf, kein `client/body/`.
+
 ## 0.1.3-a1 — 2026-09-01
 
 ### Dokumentation

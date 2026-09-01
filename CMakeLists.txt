@@ -6,9 +6,10 @@ set(CSRETRO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 
 include(cmake/ClangDefaults.cmake)
 include(cmake/CsretroInterfaces.cmake)
+include(cmake/CsretroClient.cmake)
 
 option(CSRETRO_BUILD_ENGINE "Xash3D-FWGS über Waf bauen" ON)
-option(CSRETRO_BUILD_CLIENT "NextClient-Upstream-CMake (MSVC/vcpkg) — aus bis Phase 1" OFF)
+option(CSRETRO_BUILD_CLIENT "NextClient-Upstream-CMake (MSVC/vcpkg) — aus; Client ist Phase 3" OFF)
 option(CSRETRO_BUILD_SERVER "NextClientServerApi (AMXX, typisch i386)" OFF)
 option(CSRETRO_BUILD_BOTS "Bots — Bereich ist leer" OFF)
 option(CSRETRO_ENGINE_64BIT "Xash mit -8 (64-bit)" ON)
@@ -49,11 +50,12 @@ if(CSRETRO_BUILD_ENGINE)
     )
 endif()
 
-# NextClient-Upstream-CMake nicht anfassen, solange es vcpkg/MSVC voraussetzt.
+# NextClient-Upstream-CMake bleibt tot (MSVC/vcpkg, Steam-Pfad). Eine Client-Lib = Phase 3.
 if(CSRETRO_BUILD_CLIENT)
     message(FATAL_ERROR
         "CSRETRO_BUILD_CLIENT ist absichtlich aus: client/CMakeLists.txt ist der "
-        "Windows/vcpkg-Upstream. Bindung gegen Xash kommt in Phase 1.")
+        "alte Windows/vcpkg-Upstream. Die Xash-Client-Lib kommt in Phase 3 "
+        "(client/export + body). steam_api_proxy/8684 sind entfernt.")
 endif()
 
 if(CSRETRO_BUILD_SERVER)

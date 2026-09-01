@@ -60,14 +60,10 @@ add_library(nitro_api SHARED
         src/modules/client/ClientModule.h
         src/modules/engine/EngineModule.cpp
         src/modules/engine/EngineModule.h
-        src/modules/engine/EngineAddressProvider8684Windows.cpp
-        src/modules/engine/EngineAddressProvider8684Windows.h
         src/AddressProviderBase.h
         src/modules/ModuleBase.cpp
         src/modules/ModuleBase.h
         include/nitroapi/Concepts.h
-        src/modules/client/ClientAddressProvider8684Windows.cpp
-        src/modules/client/ClientAddressProvider8684Windows.h
         src/SearchConfig.cpp
         src/SearchConfig.h
         include/nitroapi/BuildVersion.h
@@ -86,10 +82,6 @@ add_library(nitro_api SHARED
         src/profiler.h
         src/seh_platform.h
         src/AddressProviderBase.cpp
-        src/modules/client/ClientAddressProvider8684Linux.cpp
-        src/modules/client/ClientAddressProvider8684Linux.h
-        src/modules/engine/EngineAddressProvider8684Linux.cpp
-        src/modules/engine/EngineAddressProvider8684Linux.h
 )
 
 target_include_directories(nitro_api PRIVATE

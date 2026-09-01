@@ -11,11 +11,6 @@
 
 #include "nitroapi/handler_helper/Handler.h"
 #include "modules/windows/WindowsModule.h"
-#include "modules/engine/EngineAddressProvider8684Windows.h"
-#include "modules/engine/EngineAddressProvider8684Linux.h"
-#include "modules/client/ClientAddressProvider8684Windows.h"
-#include "modules/client/ClientAddressProvider8684Linux.h"
-#include "modules/sdl2/SDL2AddressProvider.h"
 
 #ifdef NITROAPI_USE_PROFILER
 #include "profiler.h"
@@ -72,38 +67,11 @@ namespace nitroapi
 
         RetrieveEngineBuildVersion();
 
-        std::shared_ptr<AddressProviderBase> engine_provider = GetEngineAddressProvider();
-        if (engine_provider != nullptr)
-        {
-            std::string engine_path = IsWindows() ? "hw.dll" : "hw.so";
-            auto engine_module = std::make_unique<EngineModule>(hook_storage_, engine_provider, this, command_line, file_system, registry);
-            engine_data_ = engine_module->GetEngineData();
-            modules_.emplace_back(engine_path, std::move(engine_module));
-        }
-        else
-        {
-            LOG(INFO) << "Can't get engine address provider, engine hooks will not work";
-        }
-
-        std::shared_ptr<AddressProviderBase> client_provider = GetClientAddressProvider();
-        if (client_provider != nullptr)
-        {
-            std::string client_path = IsWindows() ? "cstrike\\cl_dlls\\client.dll" : "cstrike/cl_dlls/client.so";
-            auto client_module = std::make_unique<ClientModule>(hook_storage_, client_provider);
-            client_data_ = client_module->GetClientData();
-            modules_.emplace_back(client_path, std::move(client_module));
-        }
-        else
-        {
-            LOG(INFO) << "Can't get client address provider, client hooks will not work";
-        }
-
-        if (IsWindows())
-        {
-            auto sdl2_module = std::make_unique<SDL2Module>(hook_storage_, std::make_shared<SDL2AddressProvider>());
-            sdl2_data_ = sdl2_module->GetSDL2Data();
-            modules_.emplace_back("sdl2.dll", std::move(sdl2_module));
-        }
+        // Phase 2: kein Steam-hw.dll-/client.dll-/sdl2.dll-Hook. Provider bleiben nullptr.
+        if (GetEngineAddressProvider() == nullptr)
+            LOG(INFO) << "No engine address provider (Steam/8684 cut); engine hooks disabled";
+        if (GetClientAddressProvider() == nullptr)
+            LOG(INFO) << "No client address provider (Steam/8684 cut); client hooks disabled";
 
         for (auto& [path, module]: modules_)
             InvokeLibraryLoaded(path, module);
@@ -214,50 +182,18 @@ namespace nitroapi
 
     void NitroApi::RetrieveEngineBuildVersion()
     {
-        std::string engine_path = IsWindows() ? "hw.dll" : "hw.so";
-
-        std::ifstream engine_file(engine_path, std::ifstream::ate | std::ifstream::binary);
-        if (!engine_file.is_open())
-        {
-            LOG(INFO) << "Can't open " << engine_path << " to retrieve engine build version";
-            return;
-        }
-
-        size_t engine_size = engine_file.tellg();
-        if (engine_size == 1641376)
-            build_version_ = BuildVersion{8684};
-        else
-            LOG(INFO) << "Unsupported engine version";
+        // Phase 2: Steam-hw.dll-Größe 8684 wird nicht mehr erkannt.
+        LOG(INFO) << "Steam engine build detection disabled";
     }
 
     std::shared_ptr<AddressProviderBase> NitroApi::GetEngineAddressProvider()
     {
-        if (build_version_.build_number != 8684)
-            return nullptr;
-
-        std::shared_ptr<AddressProviderBase> address_provider;
-
-        if (IsWindows())
-            address_provider = std::make_shared<EngineAddressProvider8684Windows>();
-        else
-            address_provider = std::make_shared<EngineAddressProvider8684Linux>();
-
-        return address_provider;
+        return nullptr;
     }
 
     std::shared_ptr<AddressProviderBase> NitroApi::GetClientAddressProvider()
     {
-        if (build_version_.build_number != 8684)
-            return nullptr;
-
-        std::shared_ptr<AddressProviderBase> address_provider;
-
-        if (IsWindows())
-            address_provider = std::make_shared<ClientAddressProvider8684Windows>();
-        else
-            address_provider = std::make_shared<ClientAddressProvider8684Linux>();
-
-        return address_provider;
+        return nullptr;
     }
 
 #ifdef _WIN32

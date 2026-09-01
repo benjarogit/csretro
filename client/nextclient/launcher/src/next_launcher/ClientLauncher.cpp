@@ -23,7 +23,6 @@
 #include <nitro_utils/string_utils.h>
 #include <utils/platform.h>
 #include <next_launcher/version.h>
-#include <steam_api_proxy/next_steam_api_proxy.h>
 
 #include "Analytics.h"
 #include "DefaultUserInfo.h"
@@ -209,28 +208,6 @@ ClientLauncher::EngineSessionResult ClientLauncher::RunEngine()
     auto [gameui_next, gameui_next_module] = LoadModule<IGameUINext>("cstrike\\cl_dlls\\gameui.dll", GAMEUI_NEXT_INTERFACE_VERSION);
     if (gameui_next == nullptr)
         return EngineSessionResult::Exit;
-
-    CSysModule* steam_proxy_module = Sys_LoadModule("steam_api.dll");
-    if (steam_proxy_module == nullptr)
-    {
-        std::string error = "Module steam_api.dll not found";
-
-        analytics_->SendCrashMonitoringEvent("LoadModule Error", error.c_str(), true);
-        MessageBoxA(NULL, error.c_str(), kErrorTitle, MB_OK | MB_ICONERROR | MB_DEFAULT_DESKTOP_ONLY);
-        return EngineSessionResult::Exit;
-    }
-
-    auto steam_proxy_set_seh = (NextSteamProxy_SetSEHFunc)GetProcAddress((HMODULE)steam_proxy_module, "NextSteamProxy_SetSEH");
-    if (steam_proxy_set_seh == nullptr)
-    {
-        std::string error = "NextSteamProxy_SetSEH not found in steam_api.dll.\n"
-                            "Make sure you use the steam_api.dll from NextClient and not the original steam_api.dll";
-
-        analytics_->SendCrashMonitoringEvent("LoadModule Error", error.c_str(), true);
-        MessageBoxA(NULL, error.c_str(), kErrorTitle, MB_OK | MB_ICONERROR | MB_DEFAULT_DESKTOP_ONLY);
-        return EngineSessionResult::Exit;
-    }
-    steam_proxy_set_seh(ExceptionHandler);
 
     filesystem->Mount();
     filesystem->AddSearchPath("", "ROOT");

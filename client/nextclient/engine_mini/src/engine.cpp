@@ -9,7 +9,6 @@
 #include <nitro_utils/poor_reflection_utils.h>
 #include <nitro_utils/string_utils.h>
 #include <service/matchmaking/MatchmakingService.h>
-#include <service/matchmaking/MatchmakingSteamComp.h>
 #include <taskcoro/TaskCoro.h>
 #include <taskcoro/impl/TaskCoroImpl.h>
 #include <tier2/tier2.h>
@@ -143,7 +142,6 @@ cvar_t* viewmodel_fov;
 bool g_bIsDedicatedServer;
 r_studio_interface_t* pStudioAPI;
 
-static std::unique_ptr<service::matchmaking::MatchmakingSteamComp> g_pMatchmakingServers;
 
 static std::shared_ptr<taskcoro::TaskCoroImpl> g_pTaskCoroImpl;
 static std::vector<std::shared_ptr<nitroapi::Unsubscriber>> g_Unsubs;
@@ -269,8 +267,6 @@ static void EngineMiniInitialize(nitroapi::NitroApiInterface* nitro_api, NextCli
     g_NextClientVersion = next_client_version;
     g_Analytics = analytics;
 
-    g_pMatchmakingServers = std::make_unique<service::matchmaking::MatchmakingSteamComp>();
-    
     registry = new CRegistry("Software\\Valve\\Half-Life\\Settings");
     registry->Init();
 }
@@ -664,8 +660,6 @@ public:
         if (g_Analytics)
             g_Analytics->AddBreadcrumb("info", BREADCRUMBS_TAG " EngineMini::Uninitialize");
 
-        g_pMatchmakingServers = nullptr;
-
         for (auto &unsubscriber : unsubs_)
             unsubscriber->Unsubscribe();
         unsubs_.clear();
@@ -706,7 +700,7 @@ public:
 
     ISteamMatchmakingServers* GetSteamMatchmakingServers() override
     {
-        return g_pMatchmakingServers.get();
+        return nullptr;
     }
     
     void SetNclmVerificator(NclmVerificatorInterface* handler) override

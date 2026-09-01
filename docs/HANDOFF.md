@@ -3,18 +3,19 @@
 Anderen Rechner arbeitsfähig machen. Diese Datei ist der **lebende Stand**.
 Nach jeder substantiellen Arbeit die Tabelle und „Offene Arbeit“ in **derselben Session** nachziehen.
 
-Details: `ROLLEN.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`, `PHASE1-ARCHITEKTUR.md`, `CHANGELOG.md`.
+Details: `ROLLEN.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`, `PHASE1-ARCHITEKTUR.md`, `PHASE2-SCHNITT.md`, `CHANGELOG.md`.
 
 ## Aktueller Stand
 
 | Feld | Wert |
 |------|------|
 | Datum | 2026-09-01 |
-| Phase | **1 + Gate A1** — als Nächstes **Phase 2** (Steam/Hooks). Kein Phase-3-Body-Code. |
+| Phase | **2 abgeschlossen** — als Nächstes **Phase 3** (A1-Body + eine Client-Lib). |
 | Körper-Quelle | **A1** (2026-09-01): Ref A nur als Client-Body. NextClient bleibt funktionale Zielbasis. |
+| Stapel | Xash3D-FWGS → CS-Retro-Export → A1-Body → NextClient-Funktionen |
 | GitHub | https://github.com/benjarogit/csretro (**privat**) |
 | Branch | `main` |
-| Release | `v0.1.3-a1` |
+| Release | `v0.1.4-phase2` |
 | Lokaler Worktree | `/home/benny/Dokumente/csretro` |
 | Cutover | 2026-09-01: Remote-`main` ersetzt (altes cs16-client-Monorepo gilt nicht mehr) |
 
@@ -44,6 +45,7 @@ Eine Client-Lib. Kein zweiter Client. Kein „cs16-client weiterentwickeln“.
 | Worktree | `/home/benny/Dokumente/csretro` |
 | Engine | `engine/` |
 | NextClient-Herkunft | `client/nextclient/` |
+| Exportvertrag | `client/export/csretro_cdll_export.h` |
 | Body (Phase 3) | `client/body/` — noch nicht angelegt |
 | Server | `server/` |
 | Bots | `bots/` (leer) |
@@ -54,7 +56,7 @@ Eine Client-Lib. Kein zweiter Client. Kein „cs16-client weiterentwickeln“.
 
 ## GitHub
 
-Remote: `https://github.com/benjarogit/csretro.git`. Privat (NextClient ohne LICENSE).
+Remote: `https://github.com/benjarogit/csretro.git`. Privat.
 
 **Nie pushen:** `CLAUDE.md`, `AGENTS.md`, `.cursor/`, `.claude/`, `gamedata/`, `valve/`, `cstrike/`, Builds, Steam-DLLs, WoltLab-Pakete.
 
@@ -81,12 +83,11 @@ Spielinhalte: `gamedata/valve` + `gamedata/cstrike`.
 
 ## Offene Arbeit
 
-1. **Phase 2:** Steam-/NitroApi-/8684-/Master-Schnitt. Direkte Xash-Anbindung vorbereiten. **Kein Body-Vendor.**
-2. **Phase 3:** A1-Allowlist nach `client/body/` (eine Lib). Attribution mitziehen. Dann NextClient-Features auf den Unterbau.
-3. GameDLL (`dlls/cs.so`) und Bots: eigene Entscheidungen, kein ReGameDLL/YaPB.
-4. Vor öffentlicher Distribution: vollständiger Lizenz-Audit (`docs/LIZENZEN.md`). Repo bleibt bis dahin privat.
+1. **Phase 3:** A1-Allowlist nach `client/body/` (eine Lib). `GetClientAPI` füllen. NextClient-Features (`GameHud`, View, FOV, …) auf den Unterbau, nicht cs16-client weiterentwickeln.
+2. GameDLL (`dlls/cs.so`) und Bots: eigene Entscheidungen, kein ReGameDLL/YaPB.
+3. Phase 4 nur bei Bedarf: NextClient-Menüs; Ref B ein Feature.
 
-Bind-Form: `docs/PHASE1-ARCHITEKTUR.md`. Körper-Quelle: A1, nicht wieder öffnen.
+Schnitt-Inventar: `docs/PHASE2-SCHNITT.md`. Körper-Quelle: A1, nicht wieder öffnen.
 
 ## Nicht anfassen
 
@@ -95,7 +96,7 @@ Bind-Form: `docs/PHASE1-ARCHITEKTUR.md`. Körper-Quelle: A1, nicht wieder öffne
 - Ref B vor Phase 4
 - `git submodule add` für Projektquellen
 - Steam-Deploy / VAC
-- Phase-3-Body-Code vor Abschluss von Phase 2
+- Steam-Bind wieder einbauen (`steam_api_proxy`, 8684-Provider, `hl1master`)
 - `CLAUDE.md` / Cursor-Attribution
 - alte Remote-Historie vor Cutover
 

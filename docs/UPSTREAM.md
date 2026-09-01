@@ -36,6 +36,10 @@ Ref A: Body-Quelle A1 (Allowlist). Pin unverändert, bis Phase 3 vendort. Dann n
 - `microsoft/vcpkg` (NextClient- und NitroApi-Submodule) — Package-Manager, Windows-Toolchain
 - Spielinhalte `valve/` / `cstrike/` — Valve-Copyright, lokal unter `gamedata/` ablegen
 
+## Phase-2-Schnitt im NextClient-Vendor (2026-09-01)
+
+Nicht im Upstream-Pin, lokaler Schnitt: `steam_api_proxy/` entfernt; 8684-Address-Provider entfernt; `MatchmakingSteamComp` entfernt. Auffrischen von NextClient/NitroApi muss diesen Schnitt erneut anwenden oder bewusst lassen. Details: `docs/PHASE2-SCHNITT.md`.
+
 ## Auffrischen
 
 Nicht automatisch. Neuer Import = neuer Pin in dieser Datei + Review, welche Dateien sich geändert haben. Kein `git submodule update`.

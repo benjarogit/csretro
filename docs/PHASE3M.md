@@ -46,7 +46,7 @@ Skripte: `./scripts/build-menu.sh`, `./scripts/vgui-v1-poc-runtime.sh`, manuell 
 | `ISystem` | `system_xash.cpp` + `system_shell_posix.cpp` | Win: `system_shell_win.cpp` noch Stub (ShellExecute später) |
 | `ILocalize` | vendort `LocalizedStringTable.cpp` | **Pflicht:** echte Texte; rohe Keys = Fehler |
 | `IFileSystem` / KV | `filesystem_xash.cpp`, `keyvalues_system.cpp` | |
-| Controls | `vgui_controls` intern gelinkt | NextClient-GameUI-Controls zusätzlich portieren |
+| Controls | `vgui_controls` + NextClient-GameUI-Controls (`Cvar*`/`KeyToggle`) | weitere Controls nur bedarfsweise |
 | Fonts | `font_resolver.cpp` | `CSRETRO_UI_FONTS` → gamedata `platform/resource/linux_fonts` → relative → System-**Verzeichnisse** |
 
 **Nicht im Produkt-Build:** `SurfaceNext.cpp`, `System.cpp`, `FontReplace.cpp`, `InputWin32.cpp`, `vgui_internal.cpp`, `key_values_export.cpp`.
@@ -86,7 +86,7 @@ Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextC
 
 ## Rekonstruktionsplan (Reihenfolge)
 
-1. **Options-Fundament:** NextClient-Controls (`Cvar*`) → `COptionsSubMouse` vollständig (Apply/OK/Cancel/Reset) → weitere Options-Seiten einzeln.
+1. **Options-Fundament:** NextClient-Controls portiert; `COptionsSubMouse` funktional aktiv — **visueller Gate offen** (Referenzseite vor Audio). Dann Audio → … einzeln.
 2. **Main Menu:** NextClient/`GameMenu.res` als echte VGUI2-Controls; Localization fixen; Interim-Textliste ersetzen.
 3. **Create Game:** `CreateMultiplayerGameDialog` + `ServerProfile` (eine Konfiguration).
 4. **Team/Class/Buy:** `.res` + V1-Core; Interim-Renderer entfernen sobald ersetzt.
@@ -99,10 +99,11 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 | Schritt | Status |
 |---------|--------|
 | Stub-Pages Mouse/Audio/Video | **entfernt** — keine Dummy-Tabs |
-| NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | als Nächstes |
-| `COptionsSubMouse` | erste echte Subpage |
-| Apply/Cancel/Reset/OK-Semantik | mit Mouse etablieren |
-| Audio → Video → Multiplayer → Keyboard → Voice → Misc | je eine Seite fertig → nächste |
+| NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | **portiert** → `client/menu/gameui/Controls/` + Xash `MenuEngine` |
+| `COptionsSubMouse` | **funktional portiert**; visueller + vollständiger Gate **offen** (Referenz vor Audio) |
+| CVar-Mapping | `m_filter` (GoldSrc/NextClient) → `look_filter` (Xash `engine/engine/client/input/input.c`, `CVAR_DEFINE_AUTO(look_filter,…)`; Filter Look-Events). Kein `m_filter` in vendortem Xash. |
+| Apply/Cancel/Reset/OK-Semantik | PropertyDialog + NextClient-Control-Reset/Apply; Persistenz-Gate offen |
+| Audio → Video → Multiplayer → Keyboard → Voice → Misc | **erst nach Mouse-Abnahme**; je eine Seite fertig → nächste |
 | Keyboard | Bind/Unbind Xash, keine Touch-first-UI |
 | Video | Xash-Optionen, keine toten D3D/32-Bit-Einträge |
 | CS-Retro-Advanced-Tab | leer bis Features existieren (kein FOV-UI vor FOV) |
@@ -145,10 +146,10 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 |-------|--------|
 | V1-Runtime-PoC | **bestanden** |
 | Menü-Lib | `menu_amd64.so` V1-Core + Controls + Xash-Backends |
-| Options | Controls + Mouse-Port als Nächstes; keine Stub-Tabs |
-| Hauptmenü / Create / Team | Interim-Bootstrap (Negativreferenz) |
+| Options Mouse | funktional portiert; visueller Gate + Localization/Persistenz offen |
+| Hauptmenü / Create / Team | Interim-Bootstrap (Negativreferenz) — bleibt bis echte VGUI2-Rekonstruktion |
 | In-Game Team/Buy | Interim-`.res`-Pfad bis VGUI2-Ersatz |
-| Tests | `vgui-v1-poc-runtime.sh`, `play.sh`, `build-menu.sh --sanitize` |
+| Tests | `vgui-v1-poc-runtime.sh`, `vgui-options-mouse-smoke.sh`, `play.sh`, `build-menu.sh --sanitize` |
 
 ## Nicht in 3M
 

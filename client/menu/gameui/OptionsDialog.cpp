@@ -1,4 +1,5 @@
 #include "OptionsDialog.h"
+#include "OptionsSubMouse.h"
 
 #include <vgui/KeyCode.h>
 #include <vgui_controls/PropertyPage.h>
@@ -19,8 +20,8 @@ COptionsDialog::COptionsDialog(Panel *parent)
 	if (GetPropertySheet())
 		GetPropertySheet()->SetTabWidth(84);
 
-	// Echte NextClient-Subpages werden hier registriert (zuerst Mouse).
-	// Keine Stub-/Dummy-Tabs.
+	// Nur echte Subpages — keine Stub-Tabs.
+	RegisterPage(new COptionsSubMouse(this), "Mouse", "#GameUI_Mouse");
 }
 
 COptionsDialog::~COptionsDialog() = default;

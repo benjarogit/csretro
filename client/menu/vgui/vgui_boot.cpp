@@ -171,6 +171,15 @@ void VGuiXash_Init()
 	if (g_pVGuiSchemeManager)
 		g_pVGuiSchemeManager->LoadSchemeFromFile("resource/ClientScheme.res", "ClientScheme");
 
+	if (g_pVGuiLocalize && ::g_pFullFileSystem)
+	{
+		g_pVGuiLocalize->AddFile(::g_pFullFileSystem, "resource/gameui_%language%.txt");
+		g_pVGuiLocalize->AddFile(::g_pFullFileSystem, "resource/vgui_%language%.txt");
+		g_pVGuiLocalize->AddFile(::g_pFullFileSystem, "resource/cstrike_%language%.txt");
+		g_pVGuiLocalize->AddFile(::g_pFullFileSystem, "platform/resource/vgui_%language%.txt");
+		g_pVGuiLocalize->AddFile(::g_pFullFileSystem, "platform/resource/platform_%language%.txt");
+	}
+
 	g_root = new vgui2::Panel(nullptr, "CsretroVguiRoot");
 	g_root->SetBounds(0, 0, gGlobals ? gGlobals->scrWidth : 640, gGlobals ? gGlobals->scrHeight : 480);
 	g_root->SetPaintBackgroundEnabled(false);
@@ -190,6 +199,18 @@ void VGuiXash_Init()
 			if (gEng.pfnSetKeyDest)
 				gEng.pfnSetKeyDest(2); // key_menu
 		}
+	}
+	else if (getenv("CSRETRO_OPTIONS_AUTO"))
+	{
+		// Smoke: echte Options-Subpages ohne PoC.
+		if (VGuiXash_ShowOptionsDialog())
+		{
+			gMenuVisible = true;
+			if (gEng.pfnSetKeyDest)
+				gEng.pfnSetKeyDest(2);
+		}
+		else
+			Menu_Con("CSRETRO_OPTIONS_INTERIM");
 	}
 }
 

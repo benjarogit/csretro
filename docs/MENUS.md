@@ -64,11 +64,9 @@ Xash-MainUI ist nur Bootstrap, bis die eigene Lib lädt.
 - Backends: Surface/Input/System/Localize/Filesystem → Xash / plattformneutral
 - NextClient-GameUI (Options/CreateMP/Browser) darauf portieren
 - In-Game: `GameMenuExports001` auf demselben Core
-- Compile-PoC: `./scripts/vgui-v1-poc-compile.sh` (Frame/PropertyDialog OK auf Linux x86_64)
+- V1-Runtime-PoC **bestanden** unter Xash (zeichnen + Maus/Tastatur/TextEntry/Tab/Escape/Resize, FreeType-Glyphen): `./scripts/vgui-v1-poc-runtime.sh`
 
-Der frühere Minimal-`.res`-Renderer in `client/menu/` bleibt Übergang, bis V1 unter Xash zeichnet. Kein paralleles zweites GUI-Framework dauerhaft.
-
-Variante V2 (alles selbst) nur bei konkretem Entkoppelungs-Blocker — der Gate hat keinen gezeigt.
+V1 zeichnet bereits. Der Text-/Rect-Bootstrap in `client/menu/` bleibt nur **pro UI-Bereich**, bis die jeweilige echte VGUI2-Rekonstruktion ihn ersetzt (Hauptmenü, Create, Team/Buy, …). Kein paralleles zweites GUI-Framework.
 
 ## Ressourcen
 

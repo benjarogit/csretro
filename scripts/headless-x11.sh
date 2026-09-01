@@ -31,12 +31,17 @@ csretro_headless_x11_wrap() {
 	fi
 	local W="${CSRETRO_GAMESCOPE_W:-640}"
 	local H="${CSRETRO_GAMESCOPE_H:-480}"
+	local envcmd=(env SDL_VIDEODRIVER=x11)
+	# gamescope startet Kind mit `env` — LD_PRELOAD/ASan explizit mitgeben.
+	[[ -n "${LD_PRELOAD:-}" ]] && envcmd+=(LD_PRELOAD="${LD_PRELOAD}")
+	[[ -n "${ASAN_OPTIONS:-}" ]] && envcmd+=(ASAN_OPTIONS="${ASAN_OPTIONS}")
+	[[ -n "${UBSAN_OPTIONS:-}" ]] && envcmd+=(UBSAN_OPTIONS="${UBSAN_OPTIONS}")
 	exec gamescope \
 		--backend headless \
 		-W "${W}" -H "${H}" \
 		-w "${W}" -h "${H}" \
 		-- \
-		env SDL_VIDEODRIVER=x11 \
+		"${envcmd[@]}" \
 		"$@"
 }
 

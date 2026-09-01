@@ -8,10 +8,11 @@ Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 Kein Phase-3-Tag. Kein FOV. 3C-Baseline (`v0.1.5`) bleibt gültig.
 
 - **V1-Runtime-PoC bestanden:** `vgui_controls` + Xash-Surface/Input + `.res`/Scheme + FreeType-Glyphen; Maus/Tastatur/TextEntry/Tab/Escape/Resize; ASan+UBSan; keine Steam-/vgui2-/Touch-Runtime. Nachweis: `./scripts/vgui-v1-poc-runtime.sh`, manuell `./scripts/play.sh`.
-- V1 ist die verbindliche UI-Basis (`docs/PHASE3M.md`). Rekonstruktion der Steam-CS-1.6-VGUI2-Oberfläche beginnt (Options/Controls → Main Menu → Create → Team/Buy).
+- V1 ist die verbindliche UI-Basis (`docs/PHASE3M.md`). Rekonstruktion der Steam-CS-1.6-VGUI2-Oberfläche beginnt.
+- **Options Mouse (funktional):** NextClient-Controls + `COptionsSubMouse` unter Xash (`look_filter` statt `m_filter`). Smoke: `./scripts/vgui-options-mouse-smoke.sh`. Visueller Gate / Localization-Abschluss offen.
 - Eine Menü-Lib `client/menu/` (`GetMenuAPI` + `GameMenuExports001`).
 - Font-Resolver: GameData `platform/resource/linux_fonts` (+ System-Fallback-Verzeichnisse).
-- Interim-Hauptmenü/Create/Team sind Bootstrap/Negativreferenz — nicht visuell abgenommen.
+- Interim-Hauptmenü/Create/Team: Bootstrap bis jeweilige VGUI2-Rekonstruktion — nicht visuell abgenommen.
 - `ShowMenu` bleibt Legacy. 3D erst nach 3M.
 
 ## 0.1.5 — 2026-09-01

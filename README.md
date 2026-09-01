@@ -5,6 +5,8 @@
 NextClient-Verhalten, Laufzeit **Xash3D-FWGS**. Kein Steam-GoldSrc, kein Wechsel auf cs16-client als Produkt.
 **64-Bit only** — Linux x86_64, Windows 10+ x86_64, macOS ARM64 (und Intel x86_64 soweit sinnvoll).
 
+**Voraussetzung:** lokal über Steam installiertes Counter-Strike 1.6 (AppID 10). Steam liefert nur die originalen `valve/`- und `cstrike/`-Daten; danach ist Steam keine Runtime. Bootstrap: `python3 ./scripts/bootstrap-gamedata.py` — siehe [`docs/GAMEDATA.md`](docs/GAMEDATA.md).
+
 Stand: [`docs/HANDOFF.md`](docs/HANDOFF.md) · Rollen: [`docs/ROLLEN.md`](docs/ROLLEN.md) · Plattformen: [`docs/PLATTFORMEN.md`](docs/PLATTFORMEN.md)
 
 ```
@@ -19,6 +21,8 @@ export CMAKE_ROOT=/usr/share/cmake   # CachyOS/CMake 4.4
 export CC=clang CXX=clang++
 ./scripts/build-engine.sh
 ./scripts/build-client.sh
+./scripts/build-gamedll.sh
+python3 ./scripts/bootstrap-gamedata.py
 ```
 
 ## Lizenz

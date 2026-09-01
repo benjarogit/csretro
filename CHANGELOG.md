@@ -3,9 +3,15 @@
 Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
 Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 
-## Unreleased — 3C interaktiv (2026-09-01)
+## Unreleased — Game-Data-Bootstrap (2026-09-01)
 
 Kein Phase-3-Abschluss-Tag. 3D nicht automatisch (FOV erst nach Freigabe).
+
+### Game-Data
+
+- Steam CS 1.6 (AppID 10) nur als read-only Quelle. Bootstrap: `scripts/bootstrap-gamedata.py`.
+- Manifest `data/gamedata-manifest.json` aus Runtime-Traces. RODIR = `gamedata/`, nicht Steam-HL.
+- User-Configs bleiben in BASEDIR. Steam-Updates: `--refresh` nur für Steam-sourced Dateien.
 
 ### 3C
 

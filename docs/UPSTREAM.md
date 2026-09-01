@@ -68,7 +68,7 @@ Engine-3rdparty (mitimportiert, kein Submodule): MultiEmulator, bzip2, xash-extr
 | https://github.com/dreamstalker/rehlds | ReGameDLL-Grundlage; nicht unsere Engine |
 | `microsoft/vcpkg` | Windows-Package-Manager, nicht im Tree |
 
-Spielinhalte `valve/` / `cstrike/`: lokal (`gamedata/` oder Steam-RODIR), nicht im Git.
+Spielinhalte `valve/` / `cstrike/`: externe Runtime-Datenquelle. Steam CS 1.6 (AppID 10) wird gelesen, nie geschrieben, und nicht als RODIR benutzt. Materialisiert: `gamedata/` (`docs/GAMEDATA.md`). Nicht im Git.
 Ref-A-`3rdparty/ReGameDLL_CS/`, Ref-A-YaPB, Ref-A-mainui: nicht die Produktquelle.
 
 Weitere Repos hier eintragen, sobald daraus Wissen, Code oder Verhalten tatsächlich verwendet wird.

@@ -10,7 +10,7 @@ Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md
 | Feld | Wert |
 |------|------|
 | Datum | 2026-09-01 |
-| Phase | **3A/3B/3C abgenommen** (Listen interaktiv auf `de_dust`). **3D nicht automatisch beginnen** (erstes Feature wäre FOV). |
+| Phase | **3A/3B/3C abgenommen.** Game-Data-Bootstrap: RODIR = `gamedata/`, nicht Steam-HL. **3D nicht automatisch** (FOV erst nach Freigabe). |
 | Körper-Quelle | **A1** — Manifest in `ROLLEN.md` |
 | GameDLL | `server/game/` — Pin `b088984`, Target `csretro_gamedll` |
 | Stapel | Xash → Export → A1-Body → (später) NextClient-Funktionen |
@@ -73,9 +73,10 @@ Abschluss-Release nur wenn die Phase wirklich fertig ist. Zwischenstand darf auf
 - Client: `./scripts/build-client.sh` → `build/client-cmake/client/client_amd64.so`
 - GameDLL: `./scripts/build-gamedll.sh` → `build/gamedll-cmake/cs_amd64.so`
 - Sanitizer: `./scripts/build-gamedll.sh --sanitize` → `build/gamedll-sanitize/cs_amd64.so`
-- Testdaten: `XASH3D_RODIR` = Steam-HL (nur Maps/WADs), `XASH3D_BASEDIR` = `build/run/`
-- ZBot-Runtime (nicht im Git): `BotProfile.db` / `BotChatter.db` aus ReGameDLL `extra/zBot/bot_profiles.zip`; `maps/*.nav` lokal unter `build/run/cstrike/`
-- Listen-`+map`: BASEDIR braucht `valve/valve.rc` + `cstrike/cstrike.rc` mit `stuffcmds` (schreibt das Smoke-/3C-Script)
+- Testdaten: `XASH3D_RODIR` = `gamedata/` (Bootstrap), `XASH3D_BASEDIR` = `build/run/`
+- Steam-HL nie als RODIR. Erkennung: `python3 ./scripts/bootstrap-gamedata.py --print-steam`
+- ZBot-Testdaten im Game-Data-Baum (`BotProfile.db`, `de_dust.nav`), nicht in Steam
+- Listen-`+map`: `.rc` mit `stuffcmds` in Game-Data und BASEDIR
 - Menü: Xash-MainUI (`libmenu.so`)
 - Steam-`dlls/cs_amd64.so` nicht laden (`executable stack`). Immer `-dll` auf unsere Lib oder Kopie unter `build/run/cstrike/dlls/`
 
@@ -88,17 +89,17 @@ export CC=clang CXX=clang++
 ./scripts/build-engine.sh
 ./scripts/build-client.sh
 ./scripts/build-gamedll.sh
+python3 ./scripts/bootstrap-gamedata.py
 ./scripts/smoke-gamedll.sh dedicated
 ./scripts/smoke-gamedll.sh listen
-./scripts/interactive-3c.sh          # Team/Spawn/Movement/Waffen/Round/Shutdown
+./scripts/interactive-3c.sh
 ```
 
-Inhalte: `gamedata/valve` + `gamedata/cstrike` oder Steam-HL als `XASH3D_RODIR`.
-Client: `-clientlib` auf `client_amd64.so`. GameDLL: `-dll` auf `cs_amd64.so`.
+Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-dll`.
 
 ## Offene Arbeit
 
-1. **3D nicht automatisch.** Erst nach Freigabe; erstes Feature wäre FOV. Kein Phase-3-Tag.
+1. **3D nicht automatisch.** Erst nach Freigabe; erstes Feature wäre FOV. Kein Phase-3-Tag. Game-Data-Baseline ohne Steam-RODIR steht.
 2. Windows x86_64 / macOS ARM64+x86_64: Compile-Gates (CMake ist vorbereitet, auf diesem Host nicht gebaut).
 3. Bot-Grenze analysieren und schrittweise nach `bots/` — nicht amputieren.
 4. Phase 4 nur bei Bedarf: NextClient-Menüs; Ref B ein Feature.
@@ -112,4 +113,5 @@ Client: `-clientlib` auf `client_amd64.so`. GameDLL: `-dll` auf `cs_amd64.so`.
 - AMXX/Metamod in die GameDLL backen
 - ZBot vor Funktionsübernahme löschen
 - 32-Bit-Targets, Steam-Bind, `git submodule add`
+- Steam-Installation beschreiben oder überschreiben
 - `CLAUDE.md` / Cursor-Attribution

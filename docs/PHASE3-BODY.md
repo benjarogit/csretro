@@ -62,8 +62,9 @@ HUD: `CS16Client` init; Warnung `sprites/hud.txt` 215 vs 190 (Daten, kein Crash)
 
 ZBot-Testdaten nur in `build/run/` (nicht Git): Profile aus ReGameDLL `bot_profiles.zip`, `de_dust.nav` lokal. Kein zweites Bot-System.
 
-Steam-RODIR-`cs_amd64.so` nicht verwenden. Immer `-dll` auf unsere Lib.
-Listen-`+map` braucht BASEDIR-`.rc` mit `stuffcmds` (Script schreibt das).
+`XASH3D_RODIR` = `gamedata/` nach `python3 ./scripts/bootstrap-gamedata.py`. Steam-HL nicht als RODIR.
+3C interaktiv 2026-09-01 ohne Steam-RODIR: Team/Spawn/Movement/Waffen/Round/Shutdown bestanden. strace: 0 Opens unter `steamapps/common/Half-Life`.
+Immer `-dll` / `-clientlib` auf unsere Libs. Listen-`+map`: `.rc` mit `stuffcmds`.
 
 ## 3D
 

@@ -30,7 +30,10 @@ if [[ "${SANITIZE}" -eq 1 ]]; then
 else
     GAMEDLL="${CSRETRO_GAMEDLL_SO:-${ROOT}/build/gamedll-cmake/cs_amd64.so}"
 fi
-HL="${XASH3D_RODIR:-${HOME}/.local/share/Steam/steamapps/common/Half-Life}"
+if [[ -f "${ROOT}/scripts/gamedata-env.sh" ]]; then
+    # shellcheck source=gamedata-env.sh
+    source "${ROOT}/scripts/gamedata-env.sh"
+fi
 
 fail() {
     echo "SMOKE FAIL: $*" >&2
@@ -44,8 +47,7 @@ ok() {
 
 [[ -x "${ENG}/game_launch/xash3d" ]] || fail "Engine fehlt (${ENG}/game_launch/xash3d). ./scripts/build-engine.sh"
 [[ -f "${GAMEDLL}" ]] || fail "GameDLL fehlt (${GAMEDLL}). ./scripts/build-gamedll.sh"
-[[ -d "${HL}/cstrike/maps" ]] || fail "RODIR ohne cstrike/maps: ${HL}"
-[[ -f "${HL}/cstrike/maps/${MAP}.bsp" ]] || fail "Map fehlt: ${HL}/cstrike/maps/${MAP}.bsp"
+GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${MAP}")" || fail "Game-Data-Bootstrap fehlt"
 
 mkdir -p "${RUN}/cstrike/dlls" "${RUN}/cstrike/cl_dlls" "${RUN}/valve"
 # Listen: +map/+exec nur nach stuffcmds aus einem .rc (BASEDIR, nicht nur Steam-RODIR).
@@ -64,8 +66,9 @@ ln -sfn "${ENG}/game_launch/xash3d" "${RUN}/xash3d"
 printf 'sv_lan 1\nmap %s\n' "${MAP}" > "${RUN}/cstrike/smoke.cfg"
 
 export LD_LIBRARY_PATH="${ENG}/engine:${ENG}/ref/gl:${ENG}/3rdparty/mainui:${ENG}/filesystem:${LD_LIBRARY_PATH:-}"
-export XASH3D_RODIR="${HL}"
+export XASH3D_RODIR="${GAMEDATA}"
 export XASH3D_BASEDIR="${RUN}"
+unset STEAM_RUNTIME STEAM_COMPAT_DATA_PATH 2>/dev/null || true
 
 LOG="${RUN}/engine.log"
 rm -f "${LOG}"

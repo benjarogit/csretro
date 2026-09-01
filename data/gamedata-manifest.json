@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "appid": 10,
+  "installdir": "Half-Life",
+  "gamedirs": ["valve", "cstrike"],
+  "trace": {
+    "date": "2026-09-01",
+    "host": "linux-x86_64",
+    "map": "de_dust",
+    "modes": ["dedicated", "listen"],
+    "method": "strace openat/open against Steam Half-Life",
+    "observed_files": "data/gamedata-observed.json",
+    "observed_count": 568
+  },
+  "copy_groups": [
+    {
+      "id": "cstrike.maps",
+      "root": "cstrike/maps",
+      "why": "Map-Gruppe. Trace öffnete de_dust.bsp und de_dust.txt."
+    },
+    {
+      "id": "cstrike.models",
+      "root": "cstrike/models",
+      "why": "Waffen-/Spieler-Precache im Dedicated-Trace."
+    },
+    {
+      "id": "cstrike.sound",
+      "root": "cstrike/sound",
+      "why": "Precache und materials/sentences."
+    },
+    {
+      "id": "cstrike.sprites",
+      "root": "cstrike/sprites",
+      "why": "Effekte im Trace; HUD-Sprites (hud.txt) gehören zur selben Gruppe."
+    },
+    {
+      "id": "cstrike.events",
+      "root": "cstrike/events",
+      "why": "Waffen-Events im Dedicated-Trace."
+    },
+    {
+      "id": "cstrike.gfx",
+      "root": "cstrike/gfx",
+      "why": "palette.lmp, shell/vgui (MainUI)."
+    },
+    {
+      "id": "cstrike.resource",
+      "root": "cstrike/resource",
+      "why": "cstrike_english.txt im Listen-Trace."
+    },
+    {
+      "id": "cstrike.overviews",
+      "root": "cstrike/overviews",
+      "why": "3C-Log: overviews/de_dust.txt gefordert."
+    },
+    {
+      "id": "valve.sound",
+      "root": "valve/sound",
+      "why": "Gemeinsame HL-Sounds im Dedicated-Trace; sentences greifen darüber hinaus."
+    },
+    {
+      "id": "valve.sprites",
+      "root": "valve/sprites",
+      "why": "Engine-Sprites (dot, muzzle, shellchrome)."
+    },
+    {
+      "id": "valve.models",
+      "root": "valve/models",
+      "why": "Geteilte Modelle im Dedicated-Trace."
+    },
+    {
+      "id": "valve.gfx",
+      "root": "valve/gfx",
+      "why": "vgui/shell im Listen-Trace."
+    },
+    {
+      "id": "valve.resource",
+      "root": "valve/resource",
+      "why": "valve_english.txt im Listen-Trace."
+    }
+  ],
+  "copy_globs": [
+    {"glob": "cstrike/*.wad", "why": "CS-WAD-Dateien, alle im Trace geöffnet."},
+    {"glob": "valve/*.wad", "why": "HL-WAD-Dateien, alle im Trace geöffnet."},
+    {"glob": "cstrike/liblist.gam", "why": "Mod-Metadaten. gamedll-Pfade werden nicht benutzt (-dll)."},
+    {"glob": "valve/liblist.gam", "why": "Basis-Metadaten."},
+    {"glob": "cstrike/delta.lst", "why": "Netz-Delta, Dedicated-Trace."},
+    {"glob": "cstrike/titles.txt", "why": "HUD-Titel, Listen-Trace."},
+    {"glob": "cstrike/game.tga", "why": "MainUI-Icon, Listen-Trace."},
+    {"glob": "valve/game.cfg", "why": "Default-CVars, Dedicated-Trace."}
+  ],
+  "replace": [
+    {
+      "id": "gamedll",
+      "paths": ["cstrike/dlls"],
+      "why": "CS-Retro-GameDLL statt Steam-cs.so/mp.dll/cs_amd64.so."
+    },
+    {
+      "id": "client",
+      "paths": ["cstrike/cl_dlls", "valve/cl_dlls"],
+      "why": "CS-Retro-Client statt Steam-client.dll/client.so."
+    },
+    {
+      "id": "startup_rc",
+      "paths": ["valve/valve.rc", "cstrike/cstrike.rc"],
+      "why": "CS-Retro stuffcmds; Steam-valve.rc liegt nur in RODIR und wird von FileExists oft nicht gesehen."
+    }
+  ],
+  "ignore": [
+    {"glob": "*.so", "why": "Steam/GoldSrc-Binaries (hw.so, steam_api, cef, engine_*)."},
+    {"glob": "*.dll", "why": "Steam/GoldSrc-DLLs."},
+    {"glob": "*.exe", "why": "GoldSrc-Executables."},
+    {"glob": "*.dylib", "why": "Steam-macOS-Binaries."},
+    {"glob": "hl_linux", "why": "Steam-Launcher."},
+    {"glob": "hl.sh", "why": "Steam-Launcher."},
+    {"glob": "hl.conf", "why": "Steam-Launcher."},
+    {"glob": "cef_gtk.pak", "why": "Steam-CEF, Listen-Trace, nicht unsere Runtime."},
+    {"glob": "**/steam.inf", "why": "Steam-Identität."},
+    {"glob": "**/steam_appid.txt", "why": "SteamAPI-AppID-Datei."},
+    {"glob": "**/steamcomm.lst", "why": "Steam-Master."},
+    {"glob": "cstrike/dlls/**", "why": "REPLACE durch CS-Retro-GameDLL."},
+    {"glob": "cstrike/cl_dlls/**", "why": "REPLACE durch CS-Retro-Client."},
+    {"glob": "valve/dlls/**", "why": "HL-GameDLL, ungenutzt."},
+    {"glob": "valve/cl_dlls/**", "why": "HL-Client, ungenutzt."},
+    {"glob": "valve/hw/**", "why": "GoldSrc-Renderer."},
+    {"glob": "platform/**", "why": "Steam-Platform-UI."},
+    {"glob": "redist/**", "why": "Steam-Redistributables."},
+    {"glob": "cstrike_hd/**", "why": "HD-Pack, im Trace nicht benutzt."},
+    {"glob": "valve/maps/**", "why": "HL-Kampagne; Trace nur Verzeichnis-Stat."},
+    {"glob": "**/config.cfg", "why": "User-Konfiguration, nicht aus Steam übernehmen."},
+    {"glob": "**/userconfig.cfg", "why": "User-Konfiguration."},
+    {"glob": "**/autoexec.cfg", "why": "User-Konfiguration."},
+    {"glob": "**/controller.cfg", "why": "User-/Device-Konfiguration."},
+    {"glob": "**/GameServerConfig.vdf", "why": "Steam-Server-UI."},
+    {"glob": "cstrike/manual/**", "why": "Steam-Handbuch, nicht Runtime."}
+  ],
+  "user_protect": [
+    "config.cfg",
+    "config.cfg.bak",
+    "userconfig.cfg",
+    "autoexec.cfg",
+    "opengl.cfg",
+    "video.cfg",
+    "custom.hpk",
+    "listenserver.cfg",
+    "game_init.cfg"
+  ],
+  "not_copied_groups": [
+    {
+      "root": "valve/maps",
+      "why": "Nur Verzeichnis-Stat, keine Datei. HL-Kampagnenkarten."
+    },
+    {
+      "root": "valve/media",
+      "why": "Nur Verzeichnis-Stat."
+    },
+    {
+      "root": "cstrike/classes",
+      "why": "Im Trace nicht geöffnet."
+    }
+  ]
+}

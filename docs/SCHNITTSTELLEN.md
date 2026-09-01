@@ -14,6 +14,12 @@ Vertrag: `engine/engine/cdll_exp.h`. CS-Retro füllt das in `client/export/csret
 
 `Initialize` bekommt `gEngfuncs` direkt von Xash. Kein NitroApi-Laufzeitbind, keine Valve-`client.dll`, kein `hw.dll`, kein Steam, keine 8684-Annahme.
 
+## Steam → Game-Data (kein Runtime-Bind)
+
+Steam CS 1.6 ist nur lokale Dateiquelle (VDF/`appmanifest_10.acf`). Kein SteamAPI, keine `steam_api`-Lib, kein Hook in Engine/Client/GameDLL.
+
+Nach dem Bootstrap zeigt `XASH3D_RODIR` auf den CS-Retro-Datenbaum. Die Steam-Half-Life-Installation ist read-only und zur Laufzeit nicht nötig. Details: `docs/GAMEDATA.md`.
+
 ## Engine → Menü
 
 `GetMenuAPI` (`cl_gameui.c`). Phase 3: Xash-`libmenu.so`. NextClient-GameUI/CEF nicht in Phase 3. `IClientVGUI` / `IBaseUI` ersetzen `GetClientAPI` nicht.

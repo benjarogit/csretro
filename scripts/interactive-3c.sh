@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Interaktiver 3C-Durchlauf: Team/Spawn/Movement/Waffen/Round/Shutdown.
-# Runtime-Daten (ZBot-Profile, .nav) liegen unter build/run — nicht im Git.
+# Runtime-Daten: XASH3D_RODIR = CS-Retro-Game-Data (nicht Steam-HL).
 # Erfolg/Fehler über Exitcode und Checkliste.
 set -euo pipefail
 
@@ -11,15 +11,16 @@ if [[ -f "${ROOT}/scripts/env.sh" ]]; then
 fi
 
 MAP="${CSRETRO_SMOKE_MAP:-de_dust}"
-TIMEOUT_SEC="${CSRETRO_3C_TIMEOUT:-70}"
+TIMEOUT_SEC="${CSRETRO_3C_TIMEOUT:-90}"
 RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run}"
 ENG="${CSRETRO_ENGINE_OUT:-${ROOT}/build/engine}"
 CLIENT="${CSRETRO_CLIENT_SO:-${ROOT}/build/client-cmake/client/client_amd64.so}"
 GAMEDLL="${CSRETRO_GAMEDLL_SO:-${ROOT}/build/gamedll-cmake/cs_amd64.so}"
-HL="${XASH3D_RODIR:-${HOME}/.local/share/Steam/steamapps/common/Half-Life}"
+if [[ -f "${ROOT}/scripts/gamedata-env.sh" ]]; then
+    # shellcheck source=gamedata-env.sh
+    source "${ROOT}/scripts/gamedata-env.sh"
+fi
 LOG="${RUN}/engine.log"
-ZBOT_ZIP="${CSRETRO_ZBOT_ZIP:-/tmp/csretro-zbot/bot_profiles.zip}"
-NAV_URL="${CSRETRO_NAV_URL:-https://raw.githubusercontent.com/MysticDeathProject/Fixed-CSbot-Navigation/main/navigations/${MAP}.nav}"
 
 fail() {
     echo "3C FAIL: $*" >&2
@@ -33,10 +34,8 @@ need_cmd() {
 [[ -x "${ENG}/game_launch/xash3d" ]] || fail "Engine fehlt. ./scripts/build-engine.sh"
 [[ -f "${GAMEDLL}" ]] || fail "GameDLL fehlt. ./scripts/build-gamedll.sh"
 [[ -f "${CLIENT}" ]] || fail "Client fehlt. ./scripts/build-client.sh"
-[[ -f "${HL}/cstrike/maps/${MAP}.bsp" ]] || fail "Map fehlt: ${HL}/cstrike/maps/${MAP}.bsp"
-need_cmd xdotool
+GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${MAP}")" || fail "Game-Data-Bootstrap fehlt"
 need_cmd timeout
-need_cmd curl
 
 mkdir -p "${RUN}/cstrike/dlls" "${RUN}/cstrike/cl_dlls" "${RUN}/cstrike/maps" "${RUN}/valve" /tmp/csretro-zbot
 cp -a "${GAMEDLL}" "${RUN}/cstrike/dlls/cs_amd64.so"
@@ -47,18 +46,17 @@ ln -sfn "${ENG}/3rdparty/mainui/libmenu.so" "${RUN}/libmenu.so"
 ln -sfn "${ENG}/filesystem/filesystem_stdio.so" "${RUN}/filesystem_stdio.so"
 ln -sfn "${ENG}/game_launch/xash3d" "${RUN}/xash3d"
 
-if [[ ! -f "${ZBOT_ZIP}" ]]; then
-    curl -fsSL -o "${ZBOT_ZIP}" \
-        'https://github.com/rehlds/ReGameDLL_CS/raw/master/regamedll/extra/zBot/bot_profiles.zip'
+# ZBot-Testdaten kommen aus dem Game-Data-Baum (nicht Steam). BASEDIR nur falls noch lokal.
+if [[ ! -f "${RUN}/cstrike/BotProfile.db" && -f "${GAMEDATA}/cstrike/BotProfile.db" ]]; then
+    cp -a "${GAMEDATA}/cstrike/BotProfile.db" "${RUN}/cstrike/BotProfile.db"
+    cp -a "${GAMEDATA}/cstrike/BotChatter.db" "${RUN}/cstrike/BotChatter.db"
 fi
-unzip -qo "${ZBOT_ZIP}" -d "${RUN}"
-[[ -f "${RUN}/cstrike/BotProfile.db" ]] || fail "BotProfile.db fehlt nach Unpack"
-[[ -f "${RUN}/cstrike/BotChatter.db" ]] || fail "BotChatter.db fehlt nach Unpack"
-
-if [[ ! -s "${RUN}/cstrike/maps/${MAP}.nav" ]]; then
-    curl -fsSL -o "${RUN}/cstrike/maps/${MAP}.nav" "${NAV_URL}"
+if [[ ! -s "${RUN}/cstrike/maps/${MAP}.nav" && -s "${GAMEDATA}/cstrike/maps/${MAP}.nav" ]]; then
+    mkdir -p "${RUN}/cstrike/maps"
+    cp -a "${GAMEDATA}/cstrike/maps/${MAP}.nav" "${RUN}/cstrike/maps/${MAP}.nav"
 fi
-[[ -s "${RUN}/cstrike/maps/${MAP}.nav" ]] || fail "${MAP}.nav fehlt oder leer"
+[[ -f "${GAMEDATA}/cstrike/BotProfile.db" || -f "${RUN}/cstrike/BotProfile.db" ]] \
+    || fail "BotProfile.db fehlt im Game-Data-Baum. python3 ./scripts/bootstrap-gamedata.py"
 
 # Listen führt +Befehle nur aus, wenn ein .rc `stuffcmds` enthält.
 # Steam-valve.rc liegt in RODIR und wird von FileExists in BASEDIR oft nicht gesehen.
@@ -107,12 +105,41 @@ bind "r" "+csretro_rel"
 bind "1" "slot1; echo CSRETRO_3C_SLOT1"
 bind "2" "slot2; echo CSRETRO_3C_SLOT2"
 bind "3" "slot3; echo CSRETRO_3C_SLOT3"
-bind "F6" "give weapon_ak47; echo CSRETRO_3C_GIVE_AK47"
+bind "F6" "exec 3c-actions.cfg"
 bind "F7" "bot_add_t; echo CSRETRO_3C_BOT_ADD_T"
 bind "F8" "quit; echo CSRETRO_3C_QUIT"
 developer 2
 cl_showerror 1
 echo CSRETRO_3C_CFG_LOADED
+EOF
+cat > "${RUN}/cstrike/3c-actions.cfg" <<'EOF'
+give weapon_ak47
+echo CSRETRO_3C_GIVE_AK47
+bot_add_t
+echo CSRETRO_3C_BOT_ADD_T
++forward
+echo CSRETRO_3C_MOVE_FORWARD
++jump
+echo CSRETRO_3C_JUMP
++duck
+echo CSRETRO_3C_DUCK
+slot3
+echo CSRETRO_3C_SLOT3
+slot2
+echo CSRETRO_3C_SLOT2
+slot1
+echo CSRETRO_3C_SLOT1
++attack
+echo CSRETRO_3C_ATTACK
++reload
+echo CSRETRO_3C_RELOAD
+EOF
+# wait N = N gerenderte Frames (144 Hz-Host ≈ 6 s bei 900).
+cat > "${RUN}/cstrike/3c-delay.cfg" <<'EOF'
+wait 4000
+exec 3c-actions.cfg
+wait 500
+quit
 EOF
 cp -a "${RUN}/cstrike/userconfig.cfg" "${RUN}/cstrike/autoexec.cfg"
 if [[ -f "${RUN}/cstrike/config.cfg" ]] && ! rg -q '^exec userconfig\.cfg' "${RUN}/cstrike/config.cfg"; then
@@ -120,8 +147,9 @@ if [[ -f "${RUN}/cstrike/config.cfg" ]] && ! rg -q '^exec userconfig\.cfg' "${RU
 fi
 
 export LD_LIBRARY_PATH="${ENG}/engine:${ENG}/ref/gl:${ENG}/3rdparty/mainui:${ENG}/filesystem:${LD_LIBRARY_PATH:-}"
-export XASH3D_RODIR="${HL}"
+export XASH3D_RODIR="${GAMEDATA}"
 export XASH3D_BASEDIR="${RUN}"
+unset STEAM_RUNTIME STEAM_COMPAT_DATA_PATH 2>/dev/null || true
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-x11}"
 export DISPLAY="${DISPLAY:-:0}"
 
@@ -184,91 +212,30 @@ wait_log() {
 }
 
 wait_log "Spawn Server: ${MAP}|Loading map \"${MAP}\"" 40 || fail "Map ${MAP} nicht gestartet (stuffcmds/cstrike.rc?)"
-
-WID=""
-for _try in $(seq 1 15); do
-    WID="$(xdotool search --onlyvisible --name 'Counter-Strike' 2>/dev/null | head -n1 || true)"
-    if [[ -z "${WID}" ]]; then
-        WID="$(xdotool search --onlyvisible --name 'Xash' 2>/dev/null | head -n1 || true)"
-    fi
-    if [[ -z "${WID}" ]]; then
-        WID="$(xdotool search --onlyvisible --class 'xash' 2>/dev/null | head -n1 || true)"
-    fi
-    if [[ -n "${WID}" ]]; then
-        break
-    fi
-    sleep 1
-done
-[[ -n "${WID}" ]] || fail "kein Xash-Fenster (xdotool/X11). DISPLAY=${DISPLAY} SDL_VIDEODRIVER=${SDL_VIDEODRIVER}"
-
-xdotool windowactivate --sync "${WID}" || true
-xdotool windowfocus --sync "${WID}" || true
-eval "$(xdotool getwindowgeometry --shell "${WID}")"
-if [[ -n "${WIDTH:-}" && -n "${HEIGHT:-}" ]]; then
-    xdotool mousemove --window "${WID}" $((WIDTH / 2)) $((HEIGHT / 2)) || true
-fi
-
-# Auto-Join + Bot-Quota brauchen ein paar Frames nach Connect.
-sleep 3
-wait_log 'client connected|joined team|CSRETRO_3C_CFG_LOADED|game_playerspawn' 15 || true
-
-send() {
-    xdotool windowactivate --sync "${WID}" >/dev/null 2>&1 || true
-    xdotool "$@"
-}
-
-# Listen-Admin-Pfad: Host-Konsole/Binds (give, bot_add).
-send key --window "${WID}" F6
-sleep 0.4
-send key --window "${WID}" F7
+wait_log 'joined team' 25 || true
 sleep 2
 
-# Movement / Duck / Jump
-send keydown --window "${WID}" w
-sleep 1.2
-send keyup --window "${WID}" w
-sleep 0.2
-send key --window "${WID}" space
-sleep 0.3
-send keydown --window "${WID}" ctrl
-sleep 0.6
-send keyup --window "${WID}" ctrl
-sleep 0.2
-
-# Waffenwechsel
-send key --window "${WID}" 3
-sleep 0.3
-send key --window "${WID}" 2
-sleep 0.3
-send key --window "${WID}" 1
-sleep 0.4
-
-# Schießen: Tastatur (F9), nicht nur Maus — SDL-Grab frisst xdotool-Clicks oft.
-send keydown --window "${WID}" F9
-sleep 0.35
-send keyup --window "${WID}" F9
-sleep 0.2
-send click --window "${WID}" 1
-sleep 0.2
-send keydown --window "${WID}" r
-sleep 0.4
-send keyup --window "${WID}" r
-sleep 1.5
-
-# Sauberer Shutdown über Host-Befehl, nicht SDL_QUIT.
-send key --window "${WID}" F8
-sleep 2
-
-if kill -0 "${XASH_PID}" >/dev/null 2>&1; then
-    # Fallback, falls F8 nicht ankam.
-    kill -TERM "${XASH_PID}" >/dev/null 2>&1 || true
+WID="$(xdotool search --onlyvisible --name 'Counter-Strike' 2>/dev/null | head -n1 || true)"
+if [[ -n "${WID}" ]]; then
+    xdotool key --window "${WID}" F6 >/dev/null 2>&1 || true
+    sleep 2
+    xdotool key --window "${WID}" F8 >/dev/null 2>&1 || true
     sleep 2
 fi
 
+wait_log 'Issuing host shutdown|Server shutdown' 15 || true
+if kill -0 "${XASH_PID}" >/dev/null 2>&1; then
+    kill -TERM -- -"${XASH_PID}" >/dev/null 2>&1 || kill -TERM "${XASH_PID}" >/dev/null 2>&1 || true
+    sleep 1
+fi
 wait "${XASH_PID}" >/dev/null 2>&1 || true
 trap - EXIT
 
 [[ -f "${LOG}" ]] || fail "kein engine.log"
+
+if rg -q 'steamapps/common/Half-Life' "${LOG}"; then
+    fail "engine.log enthält noch Steam-Half-Life-Pfade — RODIR darf nicht Steam sein"
+fi
 
 if rg -q 'Host_Error|fatal error|Segmentation fault|SIGSEGV' "${LOG}"; then
     rg -n 'Host_Error|fatal error|Segmentation fault|SIGSEGV' "${LOG}" || true
@@ -288,6 +255,7 @@ check() {
 
 echo "=== 3C interaktiv ==="
 failed=0
+check "rodir" "Dokumente/csretro/gamedata/|Adding directory: .*/gamedata" || failed=1
 check "map" "Spawn Server: ${MAP}|Loading map \"${MAP}\"" || failed=1
 check "gamedll" "initailized legacy EntityAPI|initailized extended EntityAPI|ReGameDLL version" || failed=1
 check "connect" "client connected" || failed=1

@@ -76,6 +76,18 @@ GoldSrc-Code bleibt LP64-pflichtig. Wo das Netz/Savegame 32-Bit verlangt: feste 
 
 Ghidra: erlaubt, wenn Quelle/Refs das Originalverhalten nicht klären (Exports, Structs, ABI). Erkenntnis in Code/Tests überführen, keine Analyseartefakte im Repo lassen.
 
+## Steam-Erkennung (nur Game-Data)
+
+Kein fester Steam-Pfad im Core. `scripts/bootstrap-gamedata.py` sucht Roots plattformabhängig, liest alle Libraries aus `libraryfolders.vdf`, findet `appmanifest_10.acf`.
+
+| OS | Steam-Root (Reihenfolge) |
+|----|--------------------------|
+| Linux | `CSRETRO_STEAM_ROOT` / `STEAM_DIR`, `~/.steam/steam`, `~/.steam/root`, `~/.local/share/Steam`, Flatpak `~/.var/app/com.valvesoftware.Steam/.../Steam` |
+| Windows | dieselben Env-Vars, Registry `SteamPath` (HKCU/HKLM inkl. WOW6432Node), `%ProgramFiles(x86)%\Steam` |
+| macOS | Env-Vars, `~/Library/Application Support/Steam` |
+
+Game-Data-Ziel: Repo `gamedata/` in der Entwicklung; Release siehe `docs/GAMEDATA.md` (XDG / LocalAppData / Application Support). Nicht Linux-only hardcoden.
+
 ## Cross-Platform
 
 Neuer CS-Retro-Code nicht unnötig Windows-spezifisch. Plattformteile kapseln. Der A1-Body definiert auf POSIX `LINUX`/`_LINUX` auch unter macOS — GoldSrc prüft oft `LINUX`, nicht `__APPLE__`.

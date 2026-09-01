@@ -3,6 +3,14 @@
 Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
 Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 
+## 0.1.2-gate — 2026-09-01
+
+### Dokumentation
+
+- Gate vor Phase 3: Körper-Quelle A0 (neu schreiben) oder A1 (Ref A nur als `cl_dll`-Körper, GPL-Attribution).
+- Option A bleibt die Form (Export + Körper + Features), nicht die stillschweigende Entscheidung „Körper von Null“.
+- `docs/PHASEN.md`; Architektur/Handoff/Lizenzen nachgezogen.
+
 ## 0.1.1-phase1 — 2026-09-01
 
 ### Dokumentation

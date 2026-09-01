@@ -7,7 +7,7 @@ Rollen: Basis = `client/` · Engine = `engine/` · Ref A = lesen · Ref B = unbe
 
 1. Xash lädt genau eine Client-Bibliothek und erwartet den GoldSrc-Client-Vertrag (`cldll_func_t`).
 2. NextClient liefert diesen Vertrag nicht. Es hängt sich an die geschlossene Steam-`client.dll` / `hw.dll` (8684, Windows x86).
-3. Referenz A beweist, dass ein HL1-SDK-Client nativ unter Xash läuft — **kein Copy**.
+3. Referenz A ist ein fertiger, unter Xash laufender CS-Client (GPL-2+ / Valve-Ausnahme). In Phase 1 nur gelesen. Ob er **Körper-Quelle** wird, ist das Gate vor Phase 3 — nicht still „kein Copy für immer“.
 4. `server/` ist AMXX/Metamod, nicht `dlls/cs.so`. Bleibt Phase 3, kein stiller ReGameDLL-Import.
 5. Repo privat (NextClient ohne LICENSE, Engine GPL-3).
 
@@ -54,19 +54,20 @@ SDK `IClientVGUI` / `IBaseUI` sind **kein** Xash-Client-Bind. Relevant erst, wen
 
 `refs/a-cs16-client/cl_dll/cdll_int.cpp` + `include/cl_dll.h`: dieselben `DLLEXPORT`-Namen, `Initialize` kopiert `gEngfuncs`, prüft `CLDLL_INTERFACE_VERSION`. CMake baut `client` als Shared Lib für Xash. Zusätzlich optionale Xash-Exports (`HUD_GetRenderInterface`, Mobility/`HUD_MobilityInterface`, MenuFactory).
 
-Das ist das **Muster der Bindung**, nicht eine Importquelle.
+In Phase 1: nur das **Muster der Bindung**. Ob derselbe Tree Körper-Quelle wird, steht im Gate vor Phase 3 (`docs/PHASEN.md`).
 
 ## 5. Vergleich der Wege
 
 | Weg | Urteil |
 |-----|--------|
-| **A. Eigener Export + eigener Körper + NextClient-Module** | Einziger Weg, der den Xash-Vertrag erfüllt, ohne Ref A zu kopieren und ohne Steam-Hooks | **Empfohlen** |
-| B. NitroApi auf Xash umschreiben | Braucht trotzdem einen Körper; Address-Provider wertlos; Windows-zentriert | verwerfen |
-| C. Ref-A-Client mergen | verboten | |
+| **A. Eine Client-Lib: Export + Körper + NextClient-Module** | Form, die den Xash-Vertrag erfüllt, ohne Steam-Hooks | **Form empfohlen** |
+| B. NitroApi auf Xash umschreiben | Braucht trotzdem einen Körper; Address-Provider wertlos | verwerfen |
+| C. Ref A blank mergen (inkl. YaPB/ReGameDLL/mainui) | Vermischung, verboten | |
 | D. Overlay ohne Körper | Xash hat nichts zum Laden | unmöglich |
-| E. Fremden Portable-Client als Körper vendoren | neue Rollen-Entscheidung, nicht Ref A; nur wenn A am Körper scheitert | später, nicht still |
 
-## 6. Entscheidung (Empfohlen)
+Option A sagt **nicht**, der Körper werde von Null geschrieben. Die Körper-Quelle (A0 neu vs. A1 Ref-A-`cl_dll`) ist ein eigenes Gate, siehe `docs/PHASEN.md`. A1 ist dasselbe wie „Portable-Client als Körper vendoren“ — der Kandidat ist Ref A, nicht eine dritte Quelle.
+
+## 6. Entscheidung (Form, nicht Körper-Quelle)
 
 CS Retro bekommt **eine** Client-Bibliothek, die Xash lädt (`cstrike/cl_dlls/client.so`). Innen drei Teile, ein Prozess, ein `gEngfuncs` aus `Initialize`:
 
@@ -83,7 +84,7 @@ Xash  --GetClientAPI / Named Exports-->  client/export/
 ```
 
 - **Export** füllt `cldll_func_t` bzw. exportiert die Pflicht-Namen. Kein NitroApi.
-- **Körper** ist neue CS-Retro-Implementierung. Ref A nur für Aufrufreihenfolge/Vertrag lesen. Kein Diff aus `refs/`.
+- **Körper** kommt aus A0 (neu) oder A1 (Ref-A-`cl_dll` vendort nach `client/body/`, GPL-Attribution). Ohne Gate-Eintrag kein Körper-Code.
 - **Features** kommen aus `client_mini` (und später ausgewählte `engine_mini`-Teile wie NCLM), umgeschrieben auf direkte `gEngfuncs`-Aufrufe statt Hooks.
 - **Phase 3 Menü:** vorhandenes Xash-`libmenu.so` (`GetMenuAPI`). NextClient-GameUI/CEF nicht in Phase 3.
 - **Phase 4:** NextClient-Menüs prüfen; Ref B nur wenn die nicht tragen — ein Feature, ein Diff.
@@ -94,26 +95,26 @@ Xash  --GetClientAPI / Named Exports-->  client/export/
 
 **Phase 2 (Steam raus, kein Körper-Schreiben):** Inventar und Schnitt der Overlay-Reste — `steam_api_proxy`, Master/Tsarvar, `tier2/steam_api.cpp`, Protector soweit Steam, CEF-Pfade. Bind-Architektur nicht wieder öffnen.
 
-**Phase 3 (minimal lauffähig):** Export + kleinster Körper, der alle `cdll_exports` bedient + Connect/Render/Input. Features nur soweit nötig, damit der Körper nicht leer ist (Vanilla-HUD). NextClient-HUD-Extras danach, einzeln.
+**Phase 3 (minimal lauffähig):** Erst nach dem Körper-Gate. Export + Körper (A0 oder A1) der alle `cdll_exports` bedient + Connect/Render/Input. NextClient-HUD-Extras danach, einzeln.
 
-**Körper-Umfang (offen, nicht jetzt bauen):** Ein kompletter CS-Client ist groß. Phase 3 kann mit Minimal-Körper (Init, leeres HUD, Move/Input-Stubs die nicht crashen, Connect) starten und den Körper schrittweise füllen. Nicht Ref A als Abkürzung.
+**Körper-Umfang:** Ein kompletter CS-`cl_dll` ist der größte Posten im Projekt. A0 = von Null. A1 = Ref A als Körper-Quelle (nur Client-Body, GPL-Attribution). Nicht still A0.
 
 ## 8. Anpassungen (Checkliste, kein Code)
 
 | # | Wo | Was |
 |---|-----|-----|
 | 1 | `client/` neu | `export/` mit `GetClientAPI` + Pflicht-Namen |
-| 2 | `client/` neu | `body/` — eigene Implementierung, Xash-Header nur über `csretro_engine_headers` |
+| 2 | `client/body/` | laut Gate A0 (neu) oder A1 (Ref-A-`cl_dll`); Xash-Header nur über `csretro_engine_headers` |
 | 3 | `client_mini` | Features von NitroApi lösen; `GameHud` ohne `NitroApiInterface*` |
 | 4 | `engine_mini` | kein Bind-Pfad; NCLM/Entity-Sync später einzeln bewerten |
 | 5 | GameUI | Phase 3: Xash MainUI; GameUI/VGUI2 zurückstellen |
 | 6 | CMake | `CSRETRO_BUILD_CLIENT` wird der neue Client, nicht NextClient-MSVC/vcpkg |
 | 7 | `server/` | unangetastet bis Phase-3-GameDLL-Entscheidung |
-| 8 | `refs/` | weiter eingefroren |
+| 8 | `refs/` | eingefroren, bis das Gate A1 ausdrücklich wählt (dann nur Body, nicht YaPB/ReGameDLL) |
 
 ## 9. Schwachstellen
 
-- Der Körper existiert noch nicht. Phase 3 ist deshalb größer als „NextClient kompilieren“.
+- Der Körper existiert in NextClient nicht. A0 unterschätzt den Aufwand (ganzer `cl_dll`). A1 ändert die Ref-A-Rolle — nur nach Gate-Eintrag.
 - `GameHud` liest heute Valve-`gHUD` (Sprite-Liste freigeben). Das muss am eigenen HUD hängen.
 - `engine_mini` fasst Engine-Interna (`cl`, `cls`, `sv`) — unter Xash nur über dokumentierte Engine-APIs, nicht über Pointer-Hooks.
 - ncl-hl1 `IClientVGUI`/`IBaseUI` erzeugen falsche Sicherheit: sie ersetzen `GetClientAPI` nicht.

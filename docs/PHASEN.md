@@ -13,7 +13,8 @@ Vor jeder Phase die Rollen bestätigen (Basis / Engine / Ref A / Ref B). Nicht m
 
 - NextClient ist Overlay auf Steam-`client.dll`, kein `GetClientAPI`-Körper.
 - Xash: alle Namen in `cdll_exports[]` Pflicht; Menü separat über `GetMenuAPI`.
-- Entscheidung: eigener Export + eigener Körper + NextClient-Features als Module. Ref A nur gelesen.
+- Form entschieden: ein Export + ein Körper + NextClient-Features als Module. Ref A in Phase 1 nur gelesen.
+- **Körper-Quelle offen** — siehe Gate vor Phase 3. „Körper neu schreiben“ ist keine stillschweigende Folge von Option A.
 - Server AMXX bleibt Phase-3-Lücke, kein ReGameDLL.
 - Text: `docs/PHASE1-ARCHITEKTUR.md`. Kein Feature-Port, kein Code-Copy.
 
@@ -28,9 +29,30 @@ Identifizieren und entfernen oder ersetzen:
 - NitroApi Address-Provider 8684 Windows
 - CEF/Steam-Pfade im Launcher
 
+## Gate — Körper-Quelle (pflicht vor Phase 3)
+
+Phase-1-Option A legt nur die **Form** fest (eine Client-Lib, Export, Körper, Features). Sie entscheidet **nicht**, woher der Körper kommt.
+
+Der Körper ist der gesamte CS-1.6-`cl_dll`-Umfang: Waffen, Prediction, Entities, Input, Vanilla-HUD, Tempents. Das ist der größte Einzelposten im Projekt — größer als Engine- und Server-Arbeit. NextClient enthält ihn nicht.
+
+Ref A (`refs/a-cs16-client/`, Velaron/cs16-client) ist genau das: ein fertiger, unter Xash laufender Client-Body, Lizenz **GPL-2.0-or-later + Valve-HL1-SDK-Ausnahme**. Die Engine ist bereits GPL-3; GPL-2+ führt keine neue Lizenz-Kategorie ein. Valve-SDK-Ausnahme und Attribution bleiben Pflicht. Bisherige Regel „Ref A kein Copy“ galt gegen stilles Mischen in Phase 0/1 — nicht als Lebenszeit-Verbot, nachdem der fehlende Körper feststeht.
+
+**Vor dem ersten Phase-3-Commit eine der beiden Zeilen wählen und hier eintragen. Ohne Eintrag kein Körper-Code.**
+
+| | Körper-Quelle | Folge |
+|---|----------------|--------|
+| **A0** | Komplett neu schreiben | `refs/a-cs16-client/` bleibt eingefroren, nur lesen. Monate Arbeit, keine Rollenänderung. |
+| **A1** | Ref A nur als Körper befördern | Rolle von Ref A ändert sich: `cl_dll` / `pm_shared` / zugehörige Client-Header dürfen nach `client/body/` (Vendor + GPL-Attribution). **Nicht** YaPB, **nicht** ReGameDLL, **nicht** mainui. Ein Körper im Tree, dann NextClient-Features drauf. |
+
+Gewählt: **(offen — Benny, vor Phase 3)**  
+Datum: —  
+Nicht still A0 annehmen.
+
+YaPB/ReGameDLL aus Ref A nach `bots/`/`server/` bleiben in beiden Varianten verboten.
+
 ## Phase 3 — Minimal lauffähig
 
-Connect, Render, Input unter Xash — ohne Feinschliff, ohne Ref-B-Features.
+Erst nach dem Gate. Connect, Render, Input unter Xash — Körper laut A0 oder A1. Ohne Feinschliff, ohne Ref-B-Features.
 
 ## Phase 4 — Gezielte Ports
 

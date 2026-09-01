@@ -11,10 +11,10 @@ Details nicht hier duplizieren: `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md
 | Feld | Wert |
 |------|------|
 | Datum | 2026-09-01 |
-| Phase | **1 abgeschlossen** — als Nächstes Phase 2 (Steam raus), dann Phase 3 (Körper+Export) |
+| Phase | **1 abgeschlossen** — als Nächstes Phase 2 (Steam). Vor Phase 3: Gate Körper-Quelle (A0/A1) |
 | GitHub | https://github.com/benjarogit/csretro (**privat**) |
 | Branch | `main` — einzige Arbeitslinie |
-| Release | `v0.1.1-phase1` (Changelog: `CHANGELOG.md`) |
+| Release | `v0.1.2-gate` (Changelog: `CHANGELOG.md`) |
 | Lokaler Worktree | `/home/benny/Dokumente/csretro` |
 | Cutover | 2026-09-01: Remote-`main` geleert/ersetzt. Alte Historie (Xash+cs16-client, Tag `v0.2.0`) gilt nicht mehr. |
 
@@ -73,15 +73,17 @@ Root-CMake (`CMakePresets.json`) ist vorbereitet, auf diesem Host aber nicht kon
 ## Offene Arbeit
 
 1. **Phase 2:** Steam-Schicht identifizieren und entfernen/ersetzen (`steam_api_proxy`, Master, 8684-Provider). Kein Körper-Schreiben.
-2. **Phase 3:** `GetClientAPI`-Export + kleinster eigener Client-Körper (alle `cdll_exports`). Menü = Xash MainUI. GameDLL (`dlls/cs.so`) eigene Entscheidung — nicht Ref-A-ReGameDLL, nicht AMXX als Xash-Server.
-3. NextClient-Features (`GameHud`, View, FOV, …) erst nach dem Körper, einzeln, ohne NitroApi-Hooks.
-4. NextClient ohne LICENSE — Repo bleibt privat; kein öffentliches GitHub.
+2. **Gate vor Phase 3:** Körper-Quelle A0 (neu) oder A1 (Ref-A-`cl_dll` + GPL-Attribution). Ohne Eintrag in `docs/PHASEN.md` kein Körper-Code. Nicht still A0.
+3. **Phase 3:** Export + Körper laut Gate. Menü = Xash MainUI. GameDLL (`dlls/cs.so`) eigene Entscheidung — nicht ReGameDLL, nicht AMXX als Xash-Server.
+4. NextClient-Features (`GameHud`, View, FOV, …) erst nach dem Körper, einzeln, ohne NitroApi-Hooks.
+5. NextClient ohne LICENSE — Repo bleibt privat; kein öffentliches GitHub.
 
-Bind-Entscheidung: `docs/PHASE1-ARCHITEKTUR.md`. Nicht wieder aufmachen.
+Bind-**Form**: `docs/PHASE1-ARCHITEKTUR.md` (nicht wieder aufmachen).  
+Körper-**Quelle**: offen, `docs/PHASEN.md` Gate A0/A1.
 
 ## Nicht anfassen
 
-- `refs/**` nicht weiterentwickeln, nicht nach Basis kopieren
+- `refs/**` nicht weiterentwickeln; kein Copy nach Basis, **außer** das Gate A1 ausdrücklich den Ref-A-Körper freigibt (nur `cl_dll`/`pm_shared`, nicht YaPB/ReGameDLL)
 - kein `git submodule add` für Projektquellen
 - kein Steam-Deploy, kein VAC-Pfad
 - kein YaPB/ReGameDLL-Import aus Ref A nach `bots/`/`server/`

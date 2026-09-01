@@ -1,7 +1,9 @@
-# Lizenzen (Stand Phase 0, 2026-09-01)
+# Lizenzen (Stand Phase 1 + Körper-Gate)
 
 Geprüft **bevor** irgendetwas aus Referenz A/B in die Basis wandert.
 Kein Code aus A/B ist bisher übernommen.
+
+Wenn das Gate vor Phase 3 **A1** wählt (Ref A als Körper): GPL-2.0-or-later-Attribution + Valve-HL1-SDK-LICENSE ins produktive `client/body/`. Engine ist schon GPL-3 — das ist keine neue Kategorie. Valve-Ausnahme (nur kostenlos) bleibt. YaPB/ReGameDLL aus demselben Tree sind davon **nicht** gedeckt und bleiben draußen. Ohne A1-Eintrag: kein Ref-A-Code in der Basis.
 
 ## Produktiv (wird entwickelt)
 

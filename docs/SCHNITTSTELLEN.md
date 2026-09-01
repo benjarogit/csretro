@@ -13,9 +13,9 @@ Xash lädt `cstrike/cl_dlls/client.so` (Name plattformabhängig) und holt Export
 Vertrag: `engine/engine/cdll_exp.h` (`cldll_func_t`).
 Erweiterungen gegenüber GoldSrc: `pfnGetRenderInterface`, Touch/Move/Look, Sound-API.
 
-**Referenz A (nur lesen):** `refs/a-cs16-client/cl_dll/cdll_int.cpp` exportiert `Initialize` / `HUD_VidInit` / … — das ist das Muster, das Xash erwartet.
+**Referenz A:** Bind-Muster in `cdll_int.cpp`. Ob derselbe `cl_dll` Körper-Quelle wird: Gate A0/A1 in `docs/PHASEN.md`.
 
-**Entscheidung (Phase 1):** NextClient bleibt Overlay-Quelle, nicht der Lade-Export. CS Retro liefert **eine** Client-Lib mit `GetClientAPI` / Pflicht-Namen aus `cdll_exports[]` (jeder Name ist Pflicht, sonst bricht `CL_LoadProgs` ab). Innen: eigener Körper + aus `client_mini` gelöste Features, ein `gEngfuncs` aus `Initialize`. NitroApi/8684-Hooks sind nicht der Bind-Pfad. Details: `docs/PHASE1-ARCHITEKTUR.md`.
+**Entscheidung (Phase 1, Form):** NextClient bleibt Overlay-Quelle. Eine Client-Lib, `GetClientAPI` / Pflicht-Namen, Features aus `client_mini`, ein `gEngfuncs` aus `Initialize`. Körper-Quelle nicht still „neu“. Details: `docs/PHASE1-ARCHITEKTUR.md`.
 
 ## Engine → Menü
 

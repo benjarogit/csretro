@@ -1,6 +1,22 @@
 # CS Retro — Handoff
 
-Anderen Rechner arbeitsfähig machen. Details: `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`.
+Anderen Rechner arbeitsfähig machen. Diese Datei ist der **lebende Stand**.
+Nach jeder substantiellen Arbeit (Phase, Deploy-Ziel, Upstream-Pin, Breaking Change)
+die Tabelle unten und „Offene Arbeit“ in **derselben Session** nachziehen.
+
+Details nicht hier duplizieren: `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`, `CHANGELOG.md`.
+
+## Aktueller Stand
+
+| Feld | Wert |
+|------|------|
+| Datum | 2026-09-01 |
+| Phase | **0 abgeschlossen** — als Nächstes Phase 1 (nur Analyse) |
+| GitHub | https://github.com/benjarogit/csretro (**privat**) |
+| Branch | `main` — einzige Arbeitslinie |
+| Release | `v0.1.0-phase0` (Changelog: `CHANGELOG.md`) |
+| Lokaler Worktree | `/home/benny/Dokumente/csretro` |
+| Cutover | 2026-09-01: Remote-`main` geleert/ersetzt. Alte Historie (Xash+cs16-client, Tag `v0.2.0`) gilt nicht mehr. |
 
 ## Was das ist
 
@@ -20,7 +36,18 @@ Refs in `refs/` sind eingefroren — kein Code-Copy.
 | Ref A | `refs/a-cs16-client/` |
 | Ref B | `refs/b-cs16-goldsrc/` |
 | Spielinhalte | lokal `gamedata/` (nicht im Git) — `valve/` + `cstrike/` aus legalem HL/CS |
-| Build | `build/` |
+| Build | `build/` (nicht im Git) |
+
+## GitHub — was hoch darf, was nie
+
+Remote: `git@github.com:benjarogit/csretro.git` bzw. HTTPS `https://github.com/benjarogit/csretro.git`.
+Repo bleibt **privat**, solange NextClient keine LICENSE hat.
+
+**Nie pushen:** `CLAUDE.md`, `AGENTS.md`, `.cursor/`, `.claude/`, `gamedata/`, `valve/`, `cstrike/`, Build-Artefakte, Steam-DLLs, WoltLab-Pakete. Siehe `.gitignore`.
+
+**Immer mitziehen:** `docs/HANDOFF.md` (diese Tabelle), `CHANGELOG.md`, bei Vendor-Änderung `docs/UPSTREAM.md`.
+
+Nach Commit+Push: GitHub-Release mit dem Changelog-Abschnitt der Version (privat ist in Ordnung). Kein öffentliches Repo, keine GitHub-Pages für den Quellstand.
 
 ## Runtime (dieser Rechner, 2026-09-01)
 
@@ -34,6 +61,8 @@ Refs in `refs/` sind eingefroren — kein Code-Copy.
 ## Quickstart
 
 ```bash
+git clone git@github.com:benjarogit/csretro.git
+cd csretro
 export CC=clang CXX=clang++
 ./scripts/build-engine.sh          # Xash 64-bit via Waf + Clang
 ```
@@ -47,7 +76,7 @@ Root-CMake (`CMakePresets.json`) ist vorbereitet, auf diesem Host aber nicht kon
 2. NextClient ist Steam-Hook (8684/Win), kein `GetClientAPI` — Bindung neu.
 3. Server ist AMXX, keine Xash-GameDLL.
 4. Steam-Code Phase 2 entfernen.
-5. NextClient ohne LICENSE — kein öffentlicher GitHub-Release.
+5. NextClient ohne LICENSE — Repo bleibt privat; kein öffentliches GitHub.
 
 ## Nicht anfassen
 
@@ -57,7 +86,9 @@ Root-CMake (`CMakePresets.json`) ist vorbereitet, auf diesem Host aber nicht kon
 - kein YaPB/ReGameDLL-Import aus Ref A nach `bots/`/`server/`
 - kein Ref-B-Menü vor Phase 4
 - `CLAUDE.md` / Cursor-Attribution nicht committen
+- Alte Remote-Historie vor dem Cutover nicht wiederherstellen, außer Benny fordert das explizit
 
-## Altes Monorepo
+## Cutover 2026-09-01 (erledigt)
 
-Der Ordner war leer. Es gibt hier keinen `cl_dll/csretro/`-Bestand zu retten.
+Vorher auf GitHub: Xash3D + Velaron/cs16-client-Monorepo, Release `v0.2.0`, README verwies auf GitHub Pages.
+Das war **Referenz-A-Arbeit**, nicht die NextClient-Basis. `main` wurde durch den Phase-0-Vendor ersetzt (Force-Push). Tag/Release `v0.2.0` entfernt, damit niemand den alten Stand als aktuell nimmt.

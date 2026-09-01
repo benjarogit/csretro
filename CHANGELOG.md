@@ -1,6 +1,14 @@
 # Changelog
 
+Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
+Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
+
 ## 0.1.0-phase0 — 2026-09-01
+
+### Repo
+
+- GitHub `benjarogit/csretro` `main` geleert und durch diesen Stand ersetzt.
+- Altes Xash+cs16-client-Monorepo und Release `v0.2.0` gelten nicht mehr.
 
 ### Hinzugefügt
 

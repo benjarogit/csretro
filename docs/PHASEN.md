@@ -2,9 +2,9 @@
 
 Vor jeder Phase die Rollen bestätigen (Basis / Engine / Ref A / Ref B). Nicht mischen.
 
-## Phase 0 — Rollen + Vendor (diese Session)
+## Phase 0 — Rollen + Vendor (abgeschlossen 2026-09-01)
 
-- Leerer Ordner, kein Alt-Monorepo vorhanden (nichts zu retten).
+- Lokaler Ordner war leer. GitHub `benjarogit/csretro` hatte noch das alte cs16-client-Monorepo — `main` am 2026-09-01 ersetzt.
 - Vier Bereiche + eingefrorene Refs vendort.
 - Einheitliches CMake orchestriert; Engine weiter über Waf (nativ).
 - NextClient-Upstream-CMake (MSVC/vcpkg) wird **nicht** als Default-Build verwendet.

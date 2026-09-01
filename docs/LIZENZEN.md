@@ -24,7 +24,7 @@ Kein Code aus A/B ist bisher übernommen.
 
 1. Xash3D ist GPL-3. Eine verteilte Binärkombination mit Valve-SDK-Teilen und NextClient (ohne Lizenz) ist **nicht sauber klärbar**.
 2. Valve Source/HL1-SDK: nur kostenlose Weitergabe, LICENSE-Datei Pflicht.
-3. NextClient ohne Lizenz: **kein öffentlicher GitHub-Release**, solange das ungeklärt ist.
+3. NextClient ohne Lizenz: Repo **privat** halten. Interne GitHub-Releases auf `benjarogit/csretro` sind in Ordnung. Kein öffentliches Repo / keine öffentlichen Pages, solange das ungeklärt ist.
 4. Server-MIT allein ist unproblematisch; die Kopplung an das Client-Protokoll ändert nichts an (1)–(3).
 
 ## Third-Party im Engine-Tree (Auszug)

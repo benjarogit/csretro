@@ -1,6 +1,9 @@
 # Upstream-Pins (Vendor, kein Submodule)
 
+**Unser Origin:** https://github.com/benjarogit/csretro (`main`, privat).
 Import 2026-09-01, shallow clone, `.git` entfernt. Kein `git submodule`.
+
+Altes Remote-`main` (Xash+cs16-client bis `8ece11c`, Tag `v0.2.0`) ist kein Upstream mehr.
 
 ## Basis
 

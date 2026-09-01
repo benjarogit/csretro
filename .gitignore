@@ -21,6 +21,7 @@ compile_commands.json
 # Editor / Agent-Leaks (nicht auf GitHub)
 .idea/
 .vscode/
+.cursor/
 *.user
 CLAUDE.md
 .claude/

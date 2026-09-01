@@ -2,6 +2,6 @@
 
 Eigener Bereich. Noch leer — absichtlich.
 
-- **Nicht** YaPB aus Referenz A hierher kopieren.
-- **Nicht** mit Client- oder Server-Code vermischen.
-- Eigene CS-Retro-Implementierung, sobald der Auftrag das verlangt.
+- **Nicht** YaPB oder ReGameDLL-ZBot still hierher kopieren.
+- Nur über dokumentiertes Interface zur GameDLL (`docs/SERVER.md`).
+- 64-Bit, dieselbe Architektur wie Engine/Client.

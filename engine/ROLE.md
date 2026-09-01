@@ -4,3 +4,4 @@
 - **Funktion:** einzige Laufzeitumgebung von CS Retro
 - **Nicht:** Steam-GoldSrc, nicht Referenz A/B
 - **Anpassungen:** nur Bindung, Build und Interface-Layer — kein Feature-Import aus Refs
+- **Architektur:** immer 64-Bit (Waf `-8`). Matrix: `docs/PLATTFORMEN.md`

@@ -5,4 +5,4 @@
 export CMAKE_ROOT="${CMAKE_ROOT:-/usr/share/cmake}"
 export CC="${CC:-clang}"
 export CXX="${CXX:-clang++}"
-export CMAKE_GENERATOR="${CMAKE_GENERATOR:-Ninja}"
+# CMAKE_GENERATOR nicht exportieren: CMake 4.4 auf diesem Host verliert sonst CMAKE_ROOT.

@@ -15,36 +15,55 @@
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CSRETRO_ENGINE_64BIT": "ON",
         "CSRETRO_BUILD_ENGINE": "ON",
         "CSRETRO_BUILD_CLIENT": "OFF",
-        "CSRETRO_BUILD_SERVER": "OFF"
+        "CSRETRO_BUILD_SERVER": "OFF",
+        "CSRETRO_BUILD_XASH_CLIENT": "ON"
       }
     },
     {
-      "name": "linux-clang-i686",
-      "displayName": "Linux Clang i686 (Cross)",
+      "name": "windows-clang-x86_64",
+      "displayName": "Windows Clang x86_64 (Compile-Gate, Win10+)",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/linux-clang-i686",
-      "toolchainFile": "${sourceDir}/cmake/toolchain-linux-i686.cmake",
+      "binaryDir": "${sourceDir}/build/windows-clang-x86_64",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CSRETRO_ENGINE_64BIT": "OFF",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
         "CSRETRO_BUILD_ENGINE": "ON",
-        "CSRETRO_BUILD_CLIENT": "OFF"
+        "CSRETRO_BUILD_CLIENT": "OFF",
+        "CSRETRO_BUILD_SERVER": "OFF",
+        "CSRETRO_BUILD_XASH_CLIENT": "ON"
       }
     },
     {
-      "name": "linux-clang-aarch64",
-      "displayName": "Linux Clang aarch64 (Cross)",
+      "name": "macos-clang-arm64",
+      "displayName": "macOS Clang ARM64 (Compile-Gate)",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/linux-clang-aarch64",
-      "toolchainFile": "${sourceDir}/cmake/toolchain-linux-aarch64.cmake",
+      "binaryDir": "${sourceDir}/build/macos-clang-arm64",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CSRETRO_ENGINE_64BIT": "ON",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
         "CSRETRO_BUILD_ENGINE": "ON",
-        "CSRETRO_BUILD_CLIENT": "OFF"
+        "CSRETRO_BUILD_CLIENT": "OFF",
+        "CSRETRO_BUILD_SERVER": "OFF",
+        "CSRETRO_BUILD_XASH_CLIENT": "ON"
+      }
+    },
+    {
+      "name": "macos-clang-x86_64",
+      "displayName": "macOS Clang Intel x86_64 (Compile-Gate)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-clang-x86_64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CSRETRO_BUILD_ENGINE": "ON",
+        "CSRETRO_BUILD_CLIENT": "OFF",
+        "CSRETRO_BUILD_SERVER": "OFF",
+        "CSRETRO_BUILD_XASH_CLIENT": "ON"
       }
     }
   ],
@@ -52,17 +71,22 @@
     {
       "name": "linux-clang-x86_64",
       "configurePreset": "linux-clang-x86_64",
-      "targets": ["engine"]
+      "targets": ["csretro_client"]
     },
     {
-      "name": "linux-clang-i686",
-      "configurePreset": "linux-clang-i686",
-      "targets": ["engine"]
+      "name": "windows-clang-x86_64",
+      "configurePreset": "windows-clang-x86_64",
+      "targets": ["csretro_client"]
     },
     {
-      "name": "linux-clang-aarch64",
-      "configurePreset": "linux-clang-aarch64",
-      "targets": ["engine"]
+      "name": "macos-clang-arm64",
+      "configurePreset": "macos-clang-arm64",
+      "targets": ["csretro_client"]
+    },
+    {
+      "name": "macos-clang-x86_64",
+      "configurePreset": "macos-clang-x86_64",
+      "targets": ["csretro_client"]
     }
   ]
 }

@@ -1,23 +1,23 @@
 # CS Retro — Handoff
 
 Anderen Rechner arbeitsfähig machen. Diese Datei ist der **lebende Stand**.
-Nach jeder substantiellen Arbeit die Tabelle und „Offene Arbeit“ in **derselben Session** nachziehen.
+Nach substantieller Arbeit Tabelle und „Offene Arbeit“ in derselben Session nachziehen.
 
-Details: `ROLLEN.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`, `PHASE1-ARCHITEKTUR.md`, `PHASE2-SCHNITT.md`, `CHANGELOG.md`.
+Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`, `PHASE3-BODY.md` (nur während Phase 3), `CHANGELOG.md`.
 
 ## Aktueller Stand
 
 | Feld | Wert |
 |------|------|
 | Datum | 2026-09-01 |
-| Phase | **2 abgeschlossen** — als Nächstes **Phase 3** (A1-Body + eine Client-Lib). |
-| Körper-Quelle | **A1** (2026-09-01): Ref A nur als Client-Body. NextClient bleibt funktionale Zielbasis. |
-| Stapel | Xash3D-FWGS → CS-Retro-Export → A1-Body → NextClient-Funktionen |
+| Phase | **3A/3B abgenommen.** 3C unvollständig (keine eigene GameDLL). **3D nicht beginnen.** |
+| Körper-Quelle | **A1** — Manifest in `ROLLEN.md` |
+| Stapel | Xash → Export → A1-Body → (später) NextClient-Funktionen |
+| Plattform | **64-Bit only** — `docs/PLATTFORMEN.md` |
 | GitHub | https://github.com/benjarogit/csretro (**privat**) |
 | Branch | `main` |
-| Release | `v0.1.4-phase2` |
+| Letztes Release | `v0.1.4-phase2` — Phase 3 ist **kein** Abschluss-Release |
 | Lokaler Worktree | `/home/benny/Dokumente/csretro` |
-| Cutover | 2026-09-01: Remote-`main` ersetzt (altes cs16-client-Monorepo gilt nicht mehr) |
 
 ## Rollen (Kurz)
 
@@ -26,17 +26,17 @@ Details: `ROLLEN.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN
 | CS Retro | Produkt-Worktree |
 | Xash3D-FWGS | Engine (`engine/`) |
 | NextClient | funktionales Zielverhalten |
-| Ref A | Xash-Client-Body-Quelle (Allowlist) |
+| Ref A | Client-Body-Quelle (A1-Manifest) |
 | Ref B | bedingte Menü-Referenz, Phase 4 |
-| Server / Bots | getrennte Bereiche |
-
-Vollständig: `docs/ROLLEN.md`.
+| Server | GameDLL geplant `server/game/` — `docs/SERVER.md` |
+| Bots | leer, eigenes Interface |
 
 ```
-Xash3D-FWGS → Export → Body (Ref A) → NextClient-Funktionen
+Xash3D-FWGS → Export → Body (A1) → NextClient-Funktionen
+Xash3D-FWGS → GameDLL → optional Module → separat Bots
 ```
 
-Eine Client-Lib. Kein zweiter Client. Kein „cs16-client weiterentwickeln“.
+Eine Client-Lib, eine GameDLL. Kein „cs16-client weiterentwickeln“.
 
 ## Pfade
 
@@ -45,12 +45,12 @@ Eine Client-Lib. Kein zweiter Client. Kein „cs16-client weiterentwickeln“.
 | Worktree | `/home/benny/Dokumente/csretro` |
 | Engine | `engine/` |
 | NextClient-Herkunft | `client/nextclient/` |
-| Exportvertrag | `client/export/csretro_cdll_export.h` |
-| Body (Phase 3) | `client/body/` — noch nicht angelegt |
-| Server | `server/` |
+| Export | `client/export/` (`GetClientAPI`) |
+| Body | `client/body/` |
+| Server-AMXX-Herkunft | `server/` |
+| GameDLL (geplant) | `server/game/` — noch nicht vendort |
 | Bots | `bots/` (leer) |
-| Ref A | `refs/a-cs16-client/` |
-| Ref B | `refs/b-cs16-goldsrc/` |
+| Ref A / B | `refs/a-cs16-client/` · `refs/b-cs16-goldsrc/` |
 | Spielinhalte | `gamedata/` (nicht im Git) |
 | Build | `build/` (nicht im Git) |
 
@@ -62,13 +62,16 @@ Remote: `https://github.com/benjarogit/csretro.git`. Privat.
 
 **Immer:** diese Tabelle, `CHANGELOG.md`, bei Vendor `UPSTREAM.md`.
 
-Nach Commit+Push: privates GitHub-Release mit Changelog-Abschnitt.
+Abschluss-Release nur wenn die Phase wirklich fertig ist. 3A/3B-Zwischenstand darf auf `main` liegen ohne Phase-3-Tag.
 
-## Runtime (dieser Rechner, 2026-09-01)
+## Runtime (dieser Rechner)
 
-- CachyOS x86_64 · Clang 22.1.8 · Waf-Engine-Build OK
-- CMake 4.4.3 `--preset` defekt (`CMAKE_ROOT`) — Engine über `./scripts/build-engine.sh`
-- Cross i686/aarch64: Toolchains da, Compiler nicht installiert
+- CachyOS x86_64 · Clang 22.1.8
+- CMake 4.4.3: `CMAKE_ROOT=/usr/share/cmake` (sonst `--preset`/`-S` bricht)
+- Engine: `./scripts/build-engine.sh` → `build/engine/`
+- Client: `./scripts/build-client.sh` → `build/client-cmake/client/client_amd64.so`
+- Testdaten: `XASH3D_RODIR` = Steam-HL (nur Maps/WADs), `XASH3D_BASEDIR` = `build/run/`
+- Menü: Xash-MainUI (`libmenu.so`)
 
 ## Quickstart
 
@@ -77,29 +80,26 @@ git clone git@github.com:benjarogit/csretro.git
 cd csretro
 export CC=clang CXX=clang++
 ./scripts/build-engine.sh
+./scripts/build-client.sh
 ```
 
-Spielinhalte: `gamedata/valve` + `gamedata/cstrike`.
+Inhalte: `gamedata/valve` + `gamedata/cstrike` oder Steam-HL als `XASH3D_RODIR`.
+Client: `-clientlib` auf `client_amd64.so`. Keine Steam-`client.dll`.
 
 ## Offene Arbeit
 
-1. **Phase 3:** A1-Allowlist nach `client/body/` (eine Lib). `GetClientAPI` füllen. NextClient-Features (`GameHud`, View, FOV, …) auf den Unterbau, nicht cs16-client weiterentwickeln.
-2. GameDLL (`dlls/cs.so`) und Bots: eigene Entscheidungen, kein ReGameDLL/YaPB.
-3. Phase 4 nur bei Bedarf: NextClient-Menüs; Ref B ein Feature.
-
-Schnitt-Inventar: `docs/PHASE2-SCHNITT.md`. Körper-Quelle: A1, nicht wieder öffnen.
+1. **GameDLL-Gate umsetzen:** `rehlds/ReGameDLL_CS` nach `server/game/` vendorn (`docs/SERVER.md`). Nicht Ref-A-ReGameDLL. Keine Bots mitziehen.
+2. Linux x86_64: GameDLL bauen, Xash laden, **Listen-Server + Map** — dann 3C (Render/Input/Movement/HUD/Waffen/Connect) zuende.
+3. **3D erst danach.** Erstes Feature: FOV.
+4. Windows x86_64 / macOS ARM64+x86_64: Compile-Gates, sobald GameDLL im Tree ist.
+5. Phase 4 nur bei Bedarf: NextClient-Menüs; Ref B ein Feature.
 
 ## Nicht anfassen
 
-- Ref A außer A1-Allowlist (`cl_dll`, `pm_shared`, zwingende Client-Header/`wpn_shared`)
-- YaPB, ReGameDLL, mainui aus Ref A
+- 3D / NextClient-Feature-Port vor vollständiger 3C
+- Ref A außerhalb des A1-Manifests
+- Ref-A-ReGameDLL / YaPB / Ref-A-mainui
 - Ref B vor Phase 4
-- `git submodule add` für Projektquellen
-- Steam-Deploy / VAC
-- Steam-Bind wieder einbauen (`steam_api_proxy`, 8684-Provider, `hl1master`)
+- AMXX/Metamod in die GameDLL backen
+- 32-Bit-Targets, Steam-Bind, `git submodule add`
 - `CLAUDE.md` / Cursor-Attribution
-- alte Remote-Historie vor Cutover
-
-## Cutover 2026-09-01 (erledigt)
-
-Altes GitHub-`main` war Xash+cs16-client (`8ece11c`, `v0.2.0`). Ersetzt. A1 holt daraus später nur den Body, nicht das alte Produktziel.

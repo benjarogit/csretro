@@ -1,7 +1,6 @@
 # Rolle: CS-Retro-Client (Produkt)
 
-- **Funktionale Zielbasis:** NextClient (`nextclient/`) — Verhalten und Features, die wir wollen.
-- **Unterbau (A1, ab Phase 3):** Body aus Ref A nach `body/` — nicht cs16-client als Produkt weiterentwickeln.
-- **Nicht:** YaPB, ReGameDLL, mainui aus Ref A. Kein zweiter Client.
-- Phase 2: Steam-Bind (`steam_api_proxy`, 8684, Steam-Master) entfernt. Feature-Quellen bleiben.
-- Arbeit nach dem Body: NextClient-Funktionen auf Xash + diesen Unterbau setzen.
+- **Funktionale Zielbasis:** NextClient (`nextclient/`) — Port-Quelle, bis Features in CS Retro liegen.
+- **Unterbau (A1):** `body/` laut Manifest in `docs/ROLLEN.md`.
+- **Export:** `export/GetClientAPI` — eine 64-Bit-Lib unter Xash.
+- **Nicht:** YaPB, ReGameDLL, mainui aus Ref A. Kein zweiter Client. Kein 32-Bit. Kein Steam-Laufzeitbind.

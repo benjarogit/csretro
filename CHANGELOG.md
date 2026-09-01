@@ -3,6 +3,28 @@
 Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
 Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 
+## Unreleased — 3A/3B-Zwischenstand (2026-09-01)
+
+Kein Phase-3-Abschluss-Tag. 3C In-Game und 3D fehlen.
+
+### 3A/3B Client
+
+- A1-Body aus Ref A `bb60674` nach `client/body/` (Manifest: `docs/ROLLEN.md`).
+- Eine Lib `csretro_client` → `client_amd64.so`; `GetClientAPI`.
+- Steam-Include → `archtypes.h`; Versionscheck akzeptiert Dev-`Q_buildnum()` `-1`.
+- Xash lädt die Lib (Init/MainUI/`+quit`). In-Game nicht verifiziert.
+
+### Leitplanken
+
+- 64-Bit-only: `docs/PLATTFORMEN.md`. i686-Preset/Toolchain entfernt. CMake bricht bei 32-Bit ab.
+- Leichen entfernt: `F()`, `voice_gamemgr.cpp`, `ev_hldm.cpp`, `inputw32.cpp`, `input_sdl.cpp`, `cs_baseentity.cpp`, Ref-A-`cl_dll`-CMake/DSP.
+- PHASE1/PHASE2-Detaildateien konsolidiert und gelöscht. Neu: `PLATTFORMEN.md`, `SERVER.md`.
+- GameDLL-Gate: rehlds/ReGameDLL_CS empfohlen, noch nicht vendort.
+
+### Nicht enthalten
+
+- Keine eigene GameDLL, kein 3D-Feature-Port, kein Phase-3-Release.
+
 ## 0.1.4-phase2 — 2026-09-01
 
 ### Schnitt
@@ -15,7 +37,6 @@ Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 ### Behalten
 
 - Feature-Quellen: `client_mini` (GameHud, View, FOV, …), `engine_mini` NCLM/HTTP-Master, GameUI als Quelle.
-- Inventar: `docs/PHASE2-SCHNITT.md`.
 
 ### Nicht enthalten
 
@@ -48,7 +69,7 @@ Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 
 - Phase-1-Analyse: NextClient ist Overlay, kein Client-Körper.
 - Entscheidung: eigener `GetClientAPI`-Export + eigener Körper + Features aus `client_mini` als Module. Ref A nur gelesen.
-- `docs/PHASE1-ARCHITEKTUR.md`; Handoff/Schnittstellen/Phasen nachgezogen.
+- Architektur festgehalten (heute: `docs/PHASEN.md`, `docs/SCHNITTSTELLEN.md`).
 
 ### Nicht enthalten
 
@@ -71,7 +92,7 @@ Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
   - `refs/a-cs16-client/` — Velaron/cs16-client `bb60674` (eingefroren)
   - `refs/b-cs16-goldsrc/` — FuryBaM/cs16-goldsrc-client `b662acc` (eingefroren)
 - `bots/` als leerer, getrennter Bereich.
-- Einheitliches CMake-Gerüst (Clang, Presets x86_64 / i686 / aarch64).
+- Einheitliches CMake-Gerüst (Clang; 32-Bit-Presets später entfernt).
 - Engine-Build-Skript (Waf + Clang, 64-bit); erster erfolgreicher Clang-Build der Engine.
 - Rollen-, Lizenz-, Upstream-, Schnittstellen- und Handoff-Doku.
 

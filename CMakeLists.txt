@@ -5,14 +5,14 @@ project(CSRetro VERSION 0.1.0 LANGUAGES C CXX)
 set(CSRETRO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 
 include(cmake/ClangDefaults.cmake)
+include(cmake/CsretroPlatform.cmake)
 include(cmake/CsretroInterfaces.cmake)
 include(cmake/CsretroClient.cmake)
 
 option(CSRETRO_BUILD_ENGINE "Xash3D-FWGS über Waf bauen" ON)
-option(CSRETRO_BUILD_CLIENT "NextClient-Upstream-CMake (MSVC/vcpkg) — aus; Client ist Phase 3" OFF)
-option(CSRETRO_BUILD_SERVER "NextClientServerApi (AMXX, typisch i386)" OFF)
+option(CSRETRO_BUILD_CLIENT "NextClient-Upstream-CMake (MSVC/vcpkg) — tot, nicht einschalten" OFF)
+option(CSRETRO_BUILD_SERVER "NextClientServerApi — optional, nicht die GameDLL" OFF)
 option(CSRETRO_BUILD_BOTS "Bots — Bereich ist leer" OFF)
-option(CSRETRO_ENGINE_64BIT "Xash mit -8 (64-bit)" ON)
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
@@ -24,9 +24,7 @@ if(CSRETRO_BUILD_ENGINE)
         --out "${CSRETRO_ENGINE_OUT}"
         --check-c-compiler clang
         --check-cxx-compiler clang++)
-    if(CSRETRO_ENGINE_64BIT)
-        list(APPEND CSRETRO_WAF_CONFIGURE -8)
-    endif()
+    list(APPEND CSRETRO_WAF_CONFIGURE -8)
 
     add_custom_target(engine-configure
         COMMAND ${CMAKE_COMMAND} -E env
@@ -53,9 +51,9 @@ endif()
 # NextClient-Upstream-CMake bleibt tot (MSVC/vcpkg, Steam-Pfad). Eine Client-Lib = Phase 3.
 if(CSRETRO_BUILD_CLIENT)
     message(FATAL_ERROR
-        "CSRETRO_BUILD_CLIENT ist absichtlich aus: client/CMakeLists.txt ist der "
-        "alte Windows/vcpkg-Upstream. Die Xash-Client-Lib kommt in Phase 3 "
-        "(client/export + body). steam_api_proxy/8684 sind entfernt.")
+        "CSRETRO_BUILD_CLIENT ist tot: client/CMakeLists.txt ist der alte "
+        "Windows/vcpkg-Upstream. Produkt-Client: CSRETRO_BUILD_XASH_CLIENT "
+        "(client/export + body).")
 endif()
 
 if(CSRETRO_BUILD_SERVER)
@@ -67,6 +65,7 @@ if(CSRETRO_BUILD_BOTS)
 endif()
 
 message(STATUS "CS Retro ${PROJECT_VERSION}")
-message(STATUS "  Engine Waf: ${CSRETRO_BUILD_ENGINE} (64-bit=${CSRETRO_ENGINE_64BIT})")
-message(STATUS "  Client-Upstream: ${CSRETRO_BUILD_CLIENT} (sollte OFF sein)")
-message(STATUS "  Server-AMXX: ${CSRETRO_BUILD_SERVER}")
+message(STATUS "  Engine Waf: ${CSRETRO_BUILD_ENGINE} (immer 64-Bit -8)")
+message(STATUS "  Xash-Client: ${CSRETRO_BUILD_XASH_CLIENT}")
+message(STATUS "  Client-Upstream: ${CSRETRO_BUILD_CLIENT} (muss OFF bleiben)")
+message(STATUS "  Server-AMXX-Herkunft: ${CSRETRO_BUILD_SERVER}")

@@ -24,21 +24,28 @@ Engine-3rdparty (mitimportiert, kein Submodule mehr): MultiEmulator, bzip2, xash
 
 ## Referenzen
 
-Ref A: Body-Quelle A1 (Allowlist). Pin unverändert, bis Phase 3 vendort. Dann neuer Pin unter `client/body/` + Attribution.
+Ref A: Body-Quelle A1. Pin `bb60674` unverändert unter `refs/a-cs16-client/` (Referenz, nicht gebaut). Vendort nach `client/body/` (3A). Attribution: `client/body/ATTRIBUTION.md`.
 
 | Baum | Repo | Commit | Datum |
 |------|------|--------|-------|
 | `refs/a-cs16-client/` | https://github.com/Velaron/cs16-client | `bb60674c120ae9bf8fa7854018bea8a77e71c17f` | 2026-08-24 |
 | `refs/b-cs16-goldsrc/` | https://github.com/FuryBaM/cs16-goldsrc-client | `b662acca3ce74c2c9851cc842592c58661d95799` | 2026-08-27 |
 
+## Geplant (GameDLL-Gate, noch nicht im Tree)
+
+| Baum | Repo | Hinweis |
+|------|------|---------|
+| `server/game/` | https://github.com/rehlds/ReGameDLL_CS | empfohlen, `XASH_COMPAT`; Pin beim Vendor setzen. Nicht Ref-A-`3rdparty/ReGameDLL_CS/` |
+
 ## Bewusst nicht vendort
 
-- `microsoft/vcpkg` (NextClient- und NitroApi-Submodule) — Package-Manager, Windows-Toolchain
-- Spielinhalte `valve/` / `cstrike/` — Valve-Copyright, lokal unter `gamedata/` ablegen
+- `microsoft/vcpkg` — Package-Manager, Windows-Toolchain
+- Spielinhalte `valve/` / `cstrike/` — lokal unter `gamedata/`
+- Ref-A-ReGameDLL / YaPB / Ref-A-mainui
 
-## Phase-2-Schnitt im NextClient-Vendor (2026-09-01)
+## NextClient-Vendor nach Phase 2
 
-Nicht im Upstream-Pin, lokaler Schnitt: `steam_api_proxy/` entfernt; 8684-Address-Provider entfernt; `MatchmakingSteamComp` entfernt. Auffrischen von NextClient/NitroApi muss diesen Schnitt erneut anwenden oder bewusst lassen. Details: `docs/PHASE2-SCHNITT.md`.
+Lokaler Schnitt gegenüber dem Pin: `steam_api_proxy/` weg, 8684-Provider weg, `MatchmakingSteamComp` weg. Auffrischen von NextClient/NitroApi muss das wiederholen oder bewusst lassen.
 
 ## Auffrischen
 

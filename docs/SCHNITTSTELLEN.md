@@ -1,47 +1,46 @@
-# Schnittstellen zwischen den vier Bereichen
+# Schnittstellen
 
-Bereiche inkludieren sich **nur** über diese Verträge, nicht über Ad-hoc-Pfade quer durch den Tree.
+Bereiche inkludieren sich nur über diese Verträge.
 
 ## Engine → Client
 
-Xash lädt `cstrike/cl_dlls/client.so` (Name plattformabhängig) und holt Exports in `engine/engine/client/dll_int/cl_game.c`:
+Xash lädt `cstrike/cl_dlls/client_amd64.so` (Name: `docs/PLATTFORMEN.md`) in `CL_LoadProgs`:
 
-1. `GetClientAPI(cldll_func_t *)` oder gesicherte Variante `F`
-2. sonst einzelne exportierte Funktionen
+1. `GetClientAPI(cldll_func_t *)` — einzig aktiver Tabellen-Export
+2. sonst einzelne Namen aus `cdll_exports[]`
 3. Pflicht: `pfnInitialize(&gEngfuncs, CLDLL_INTERFACE_VERSION)`
 
-Vertrag: `engine/engine/cdll_exp.h` (`cldll_func_t`).
-Erweiterungen gegenüber GoldSrc: `pfnGetRenderInterface`, Touch/Move/Look, Sound-API.
+Vertrag: `engine/engine/cdll_exp.h`. CS-Retro füllt das in `client/export/csretro_cdll_export.cpp` (eigenes Struct, gleiches Layout). Ref-A-`F()` ist entfernt: deren `cldll_func_t` hat `HUD_GetPlayerTeam` dort, wo Xash `pfnGetRenderInterface` erwartet.
 
-**A1 (2026-09-01):** Ref-A-`cl_dll` ist die Body-Quelle. NextClient bleibt das funktionale Ziel. Eine Lib: Export → Body → NextClient-Features. Allowlist: `docs/ROLLEN.md`.
+`Initialize` bekommt `gEngfuncs` direkt von Xash. Kein NitroApi-Laufzeitbind, keine Valve-`client.dll`, kein `hw.dll`, kein Steam, keine 8684-Annahme.
 
 ## Engine → Menü
 
-Xash spricht MainUI über `GetMenuAPI` (`cl_gameui.c`), nicht über Source-`GameUI007` / `IBaseUI`.
-Phase 3: vorhandenes Xash-`libmenu.so`. NextClient-GameUI (VGUI2/CEF, Steam-Factories) nicht in Phase 3.
-`IClientVGUI` / `IBaseUI` ersetzen `GetClientAPI` nicht.
+`GetMenuAPI` (`cl_gameui.c`). Phase 3: Xash-`libmenu.so`. NextClient-GameUI/CEF nicht in Phase 3. `IClientVGUI` / `IBaseUI` ersetzen `GetClientAPI` nicht.
 
-## Client → SDK (intern, Basis)
+## Engine → GameDLL
 
-- `IClientVGUI` — `client/dep/NclNitroApi/dep/ncl-hl1-source-sdk/public/IClientVGUI.h`
-- `IBaseUI` — dieselbe SDK-`public/`-Leiste
-- NitroApi-Hooks / 8684-Address-Provider: Phase 2 entfernt. Kein Bind-Pfad.
+`GiveFnptrsToDll` + `GetEntityAPI` / `GetEntityAPI2` (`sv_game.c`). Eine Lib für Listen und Dedicated. Konfig: `server.cfg` / `listenserver.cfg`. Details: `docs/SERVER.md`.
 
-## Server
+## Client intern
 
-`server/` ist ein AMXX/Metamod-Modul (GoldSrc/ReHLDS), kein Xash-`dlls/cs.so`.
-Protokollseite: NCLM / NextClient-Verifikation.
+NextClient-`client_mini` bleibt Port-Quelle. NitroApi-Typen dürfen Compile-Hilfe sein, nicht Laufzeitbind. Nach verifiziertem Feature-Port: Hook-Weg löschen.
 
-Xash-GameDLL (Spieler-Logik) ist **nicht** dieser Baum. Referenz A hat ReGameDLL — nicht kopieren. Server-Anbindung an Xash: eigene Entscheidung ab Phase 3, nicht stillschweigend ReGameDLL pullen.
+SDK-`IClientVGUI` / `IBaseUI` sind kein Xash-Client-Bind.
 
-## Bots → Server
+## Servermodule / Bots
 
-Noch kein Vertrag. Später nur über eine dokumentierte Server-Schnittstelle, nicht durch `#include` aus `client/`.
+Module optional, nicht in die GameDLL gebacken. Bots nur über dokumentiertes Interface, nicht `#include` aus `client/`.
 
-## CMake-Interface-Targets
+## Analyse (Ghidra)
+
+Erlaubt, wenn Quelle und Refs das Originalverhalten nicht klären: CS-Client, GameDLL, Menü, Exports, ABI/Structs. Ergebnis in Code oder Tests. Keine dauerhaften Ghidra-Projekte im Repo.
+
+## CMake-Targets
 
 | Target | Gibt frei |
 |--------|-----------|
-| `csretro_engine_headers` | `engine/common`, `engine/public`, `engine/pm_shared`, `engine/engine` |
-| `csretro_client_sdk_headers` | ncl-hl1-source-sdk `public/`, NitroApi `include/` |
-| `csretro_client_export` | `client/export/` (Vertrag; Implementierung Phase 3) |
+| `csretro_engine_headers` | Xash-Header — **nicht** `-I` für den A1-Body |
+| `csretro_client_sdk_headers` | ncl-hl1 `public/`, NitroApi `include/` (Port-Quelle) |
+| `csretro_client_export` | `client/export/` |
+| `csretro_client` | Body + Export → eine 64-Bit-Lib |

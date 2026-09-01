@@ -1,4 +1,5 @@
-# Cross ARM64. Cross-Compiler muss auf dem Host liegen.
+# Optionales 64-Bit-Linux-ARM. Kein Produkt-Desktopziel (siehe docs/PLATTFORMEN.md).
+# 32-Bit-ARM ist verboten; CsretroPlatform.cmake bricht bei void*!=8 ab.
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
 

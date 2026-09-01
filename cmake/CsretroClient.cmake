@@ -1,10 +1,13 @@
-# Phase 2: nur der Exportvertrag. Phase 3 hängt hier die eine Client-Lib an.
-# Kein add_subdirectory(refs/...), kein Body, kein NextClient-MSVC-Upstream.
+# Eine 64-Bit-Client-Lib unter Xash. Kein add_subdirectory(refs/...), kein NextClient-MSVC.
 
 add_library(csretro_client_export INTERFACE)
 target_include_directories(csretro_client_export INTERFACE
     "${CSRETRO_ROOT}/client/export"
 )
-target_link_libraries(csretro_client_export INTERFACE
-    csretro_engine_headers
-)
+# Kein csretro_engine_headers am Body: Xash-Header (STATIC_CHECK_SIZEOF) zerlegen den Compile.
+
+option(CSRETRO_BUILD_XASH_CLIENT "CS-Retro-Client (Export + A1-Body) gegen Xash" ON)
+
+if(CSRETRO_BUILD_XASH_CLIENT)
+    add_subdirectory("${CSRETRO_ROOT}/client/body" "${CMAKE_BINARY_DIR}/client")
+endif()

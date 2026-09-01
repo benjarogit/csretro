@@ -11,7 +11,7 @@ mkdir -p "${OUT}"
 
 cd "${ROOT}/engine"
 
-echo "CS Retro: Waf configure (Clang, 64-bit) → ${OUT}"
+echo "CS Retro: Waf configure (Clang, immer 64-Bit -8) → ${OUT}"
 python3 ./waf configure -8 --out "${OUT}" \
   --check-c-compiler clang --check-cxx-compiler clang++ \
   "$@"

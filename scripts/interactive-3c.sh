@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Interaktiver 3C-Durchlauf: Team/Spawn/Movement/Waffen/Round/Shutdown.
 # Runtime-Daten: XASH3D_RODIR = CS-Retro-Game-Data (nicht Steam-HL).
+# Läuft headless (gamescope, kein Desktop-Fenster). CSRETRO_FOREGROUND=1 = sichtbar.
 # Erfolg/Fehler über Exitcode und Checkliste.
 set -euo pipefail
 
@@ -16,10 +17,13 @@ RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run}"
 ENG="${CSRETRO_ENGINE_OUT:-${ROOT}/build/engine}"
 CLIENT="${CSRETRO_CLIENT_SO:-${ROOT}/build/client-cmake/client/client_amd64.so}"
 GAMEDLL="${CSRETRO_GAMEDLL_SO:-${ROOT}/build/gamedll-cmake/cs_amd64.so}"
+MENU="${CSRETRO_MENU_SO:-${ROOT}/build/client-cmake/menu/menu_amd64.so}"
 if [[ -f "${ROOT}/scripts/gamedata-env.sh" ]]; then
     # shellcheck source=gamedata-env.sh
     source "${ROOT}/scripts/gamedata-env.sh"
 fi
+# shellcheck source=headless-x11.sh
+source "${ROOT}/scripts/headless-x11.sh"
 LOG="${RUN}/engine.log"
 
 fail() {
@@ -37,13 +41,21 @@ need_cmd() {
 GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${MAP}")" || fail "Game-Data-Bootstrap fehlt"
 need_cmd timeout
 need_cmd xdotool
+if [[ "${CSRETRO_FOREGROUND:-0}" != 1 ]]; then
+    need_cmd gamescope
+fi
 
 mkdir -p "${RUN}/cstrike/dlls" "${RUN}/cstrike/cl_dlls" "${RUN}/cstrike/maps" "${RUN}/valve" /tmp/csretro-zbot
 cp -a "${GAMEDLL}" "${RUN}/cstrike/dlls/cs_amd64.so"
 cp -a "${CLIENT}" "${RUN}/cstrike/cl_dlls/client_amd64.so"
 ln -sfn "${ENG}/engine/libxash.so" "${RUN}/libxash.so"
 ln -sfn "${ENG}/ref/gl/libref_gl.so" "${RUN}/libref_gl.so"
-ln -sfn "${ENG}/3rdparty/mainui/libmenu.so" "${RUN}/libmenu.so"
+if [[ -f "${MENU}" ]]; then
+    cp -a "${MENU}" "${RUN}/menu_amd64.so"
+    ln -sfn "${MENU}" "${RUN}/libmenu.so"
+else
+    ln -sfn "${ENG}/3rdparty/mainui/libmenu.so" "${RUN}/libmenu.so"
+fi
 ln -sfn "${ENG}/filesystem/filesystem_stdio.so" "${RUN}/filesystem_stdio.so"
 ln -sfn "${ENG}/game_launch/xash3d" "${RUN}/xash3d"
 
@@ -146,19 +158,25 @@ export LD_LIBRARY_PATH="${ENG}/engine:${ENG}/ref/gl:${ENG}/3rdparty/mainui:${ENG
 export XASH3D_RODIR="${GAMEDATA}"
 export XASH3D_BASEDIR="${RUN}"
 unset STEAM_RUNTIME STEAM_COMPAT_DATA_PATH 2>/dev/null || true
-export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-x11}"
-export DISPLAY="${DISPLAY:-:0}"
+CSRETRO_GAMESCOPE_LOG="${RUN}/gamescope.log"
+csretro_headless_x11_prepare || fail "gamescope fehlt — oder CSRETRO_FOREGROUND=1 für sichtbares Fenster"
 
 rm -f "${LOG}"
 killall -q xash3d 2>/dev/null || true
 sleep 0.4
 
+MENU_ARGS=()
+if [[ -f "${MENU}" ]]; then
+    MENU_ARGS=(-menu "${MENU}")
+fi
+
 cd "${RUN}"
 set +e
-setsid ./xash3d \
+csretro_headless_x11_wrap ./xash3d \
     -game cstrike \
     -dll "${GAMEDLL}" \
     -clientlib "${CLIENT}" \
+    "${MENU_ARGS[@]}" \
     -windowed -width 640 -height 480 \
     -dev 2 \
     -log \
@@ -166,9 +184,11 @@ setsid ./xash3d \
     +sv_lan 1 \
     +map "${MAP}" \
     +exec userconfig.cfg \
-    >/dev/null 2>&1 &
+    >/dev/null 2>>"${CSRETRO_GAMESCOPE_LOG}" &
 XASH_PID=$!
+CSRETRO_GAMESCOPE_PID="${XASH_PID}"
 set -e
+csretro_headless_x11_wait_display || fail "headless-X11 nicht bereit"
 
 (
     sleep "${TIMEOUT_SEC}"
@@ -180,6 +200,7 @@ WATCHDOG_PID=$!
 
 cleanup() {
     kill "${WATCHDOG_PID}" >/dev/null 2>&1 || true
+    csretro_headless_x11_stop
     if kill -0 "${XASH_PID}" >/dev/null 2>&1; then
         kill -TERM -- -"${XASH_PID}" >/dev/null 2>&1 || kill -TERM "${XASH_PID}" >/dev/null 2>&1 || true
         sleep 1
@@ -210,21 +231,25 @@ wait_log 'CSRETRO_3C_CFG_LOADED' 15 || true
 
 WID=""
 for _ in $(seq 1 20); do
-    WID="$(xdotool search --onlyvisible --name 'CS Retro' 2>/dev/null | head -n1 || true)"
+    WID="$(xdotool search --name 'CS Retro' 2>/dev/null | head -n1 || true)"
     if [[ -z "${WID}" ]]; then
-        WID="$(xdotool search --onlyvisible --name 'Counter-Strike' 2>/dev/null | head -n1 || true)"
+        WID="$(xdotool search --name 'Counter-Strike' 2>/dev/null | head -n1 || true)"
+    fi
+    if [[ -z "${WID}" ]]; then
+        WID="$(xdotool search --class 'xash' 2>/dev/null | head -n1 || true)"
     fi
     if [[ -n "${WID}" ]]; then
         break
     fi
     sleep 0.25
 done
-[[ -n "${WID}" ]] || fail "kein CS-Retro-/Counter-Strike-Fenster"
+[[ -n "${WID}" ]] || fail "kein Fenster auf DISPLAY=${DISPLAY:-?} (headless Xwayland?)"
 # Kein windowactivate: XWayland liefert sonst oft SDL_QUIT.
 # F6 früh senden — ein unfokussiertes XWayland-Fenster stirbt sonst nach wenigen Sekunden.
 xdotool key --window "${WID}" F6 >/dev/null 2>&1 || true
 
 wait_log 'joined team' 25 || true
+xdotool key --window "${WID}" F6 >/dev/null 2>&1 || true
 
 wait_log 'Issuing host shutdown|Server shutdown' 15 || true
 if kill -0 "${XASH_PID}" >/dev/null 2>&1; then

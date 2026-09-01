@@ -21,7 +21,7 @@ Vor öffentlicher Distribution: vollständiger Audit. Repo bis dahin privat.
 | Pfad | Lizenz | Nutzung |
 |------|--------|---------|
 | `refs/a-cs16-client/` | GPL-2+ + Valve-Ausnahme | Body-Quelle A1; Rest nur lesen |
-| `refs/b-cs16-goldsrc/` | GPL-3.0 | Phase 4, Feature für Feature |
+| `refs/b-cs16-goldsrc/` | GPL-3.0 | 3M-Referenz; gezielte Ports Feature für Feature |
 
 ## Was das heißt (nicht „geklärt“)
 

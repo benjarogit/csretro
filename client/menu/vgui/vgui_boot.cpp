@@ -1,0 +1,366 @@
+#include "vgui_boot.h"
+#include "../gameui/OptionsDialog.h"
+
+#include <cstdlib>
+#include <cstring>
+
+#include "FileSystem.h"
+#include "KeyValues.h"
+#include "keydefs.h"
+#include "tier0/dbg.h"
+#include "tier1/interface.h"
+#include "vgui/IInputInternal.h"
+#include "vgui/ILocalize.h"
+#include "vgui/IPanel.h"
+#include "vgui/ISchemeNext.h"
+#include "vgui/ISurfaceNext.h"
+#include "vgui/ISystem.h"
+#include "vgui/IVGui.h"
+#include "vgui/KeyCode.h"
+#include "vgui/MouseCode.h"
+#include "vgui_controls/Controls.h"
+#include "vgui_controls/Panel.h"
+#include "vgui_internal.h"
+#include "vgui_key_translation.h"
+#include "vstdlib/IKeyValuesSystem.h"
+
+#include "surface_xash.h"
+#include "../src/menu_priv.h"
+
+void Csretro_SystemSetCommandLine(const char *cmd);
+
+// tier2 accessors (do not also link tier2.cpp — KeyValues uses our keyvalues()).
+IFileSystem *g_pFullFileSystem = nullptr;
+IBaseUI *g_pBaseUI = nullptr;
+IEngineVGui *g_pEngineVGui = nullptr;
+IGameUIFuncs *g_pGameUIFuncs = nullptr;
+vgui2::ISurfaceNext *g_pVGuiSurface = nullptr;
+vgui2::IInputInternal *g_pVGuiInput = nullptr;
+vgui2::IVGui *g_pVGui = nullptr;
+vgui2::IPanel *g_pVGuiPanel = nullptr;
+vgui2::ILocalize *g_pVGuiLocalize = nullptr;
+vgui2::ISchemeManagerNext *g_pVGuiSchemeManager = nullptr;
+vgui2::ISystem *g_pVGuiSystem = nullptr;
+
+namespace
+{
+bool g_inited = false;
+vgui2::Panel *g_root = nullptr;
+}
+
+bool PocDialog_Show(vgui2::Panel *parent);
+void PocDialog_Hide();
+bool PocDialog_IsActive();
+
+// tier2 globals (normally ConnectTier2Libraries) — defined in tier2.cpp if linked,
+// otherwise we need definitions. Provide weak-safe assignment targets by defining
+// here when CSRETRO_VGUI_OWN_TIER2_GLOBALS is set; otherwise use linked tier2.cpp.
+#ifndef CSRETRO_VGUI_SKIP_TIER2_DEFS
+// If tier2.cpp is linked, these are already defined — do not redefine.
+// Boot only assigns. Definitions stay in tier2/tier2.cpp.
+#endif
+
+namespace vgui2
+{
+IPanel *g_pIPanel = nullptr;
+IFileSystem *g_pFullFileSystem = nullptr;
+ILocalize *g_pVGuiLocalize = nullptr;
+void *g_MainWindow = nullptr;
+
+HScheme VGui_GetDefaultScheme()
+{
+	return 0;
+}
+
+bool VGui_InternalLoadInterfaces(CreateInterfaceFn *factoryList, int numFactories)
+{
+	if (!g_pIPanel)
+		g_pIPanel = static_cast<IPanel *>(Sys_GetFactoryThis()(VGUI_PANEL_INTERFACE_VERSION_GS, nullptr));
+
+	if (!g_pSurface)
+		g_pSurface = static_cast<ISurface *>(InitializeInterface(VGUI_SURFACE_INTERFACE_VERSION_GS, factoryList, numFactories));
+	if (!g_pSurfaceNext)
+		g_pSurfaceNext = static_cast<ISurfaceNext *>(InitializeInterface(VGUI_SURFACE_NEXT_INTERFACE_VERSION, factoryList, numFactories));
+	if (!g_pFullFileSystem)
+		g_pFullFileSystem = static_cast<IFileSystem *>(InitializeInterface(FILESYSTEM_INTERFACE_VERSION, factoryList, numFactories));
+	if (!g_pVGuiLocalize)
+		g_pVGuiLocalize = static_cast<ILocalize *>(InitializeInterface(VGUI_LOCALIZE_INTERFACE_VERSION, factoryList, numFactories));
+
+	return g_pIPanel && g_pSurface && g_pFullFileSystem && g_pVGuiLocalize;
+}
+} // namespace vgui2
+
+static void WireFactories(CreateInterfaceFn factory)
+{
+	::g_pFullFileSystem = static_cast<IFileSystem *>(factory(FILESYSTEM_INTERFACE_VERSION, nullptr));
+	g_pVGuiSurface = static_cast<vgui2::ISurfaceNext *>(factory(VGUI_SURFACE_NEXT_INTERFACE_VERSION, nullptr));
+	g_pVGuiInput = static_cast<vgui2::IInputInternal *>(factory(VGUI_INPUTINTERNAL_INTERFACE_VERSION, nullptr));
+	g_pVGui = static_cast<vgui2::IVGui *>(factory(VGUI_IVGUI_INTERFACE_VERSION_GS, nullptr));
+	g_pVGuiPanel = static_cast<vgui2::IPanel *>(factory(VGUI_PANEL_INTERFACE_VERSION_GS, nullptr));
+	g_pVGuiLocalize = static_cast<vgui2::ILocalize *>(factory(VGUI_LOCALIZE_INTERFACE_VERSION, nullptr));
+	g_pVGuiSchemeManager = static_cast<vgui2::ISchemeManagerNext *>(factory(VGUI_SCHEME_NEXT_INTERFACE_VERSION, nullptr));
+	g_pVGuiSystem = static_cast<vgui2::ISystem *>(factory(VGUI_SYSTEM_INTERFACE_VERSION_GS, nullptr));
+
+	vgui2::g_pFullFileSystem = ::g_pFullFileSystem;
+	vgui2::g_pSurfaceNext = g_pVGuiSurface;
+	vgui2::g_pSurface = g_pVGuiSurface;
+	vgui2::g_pSystem = g_pVGuiSystem;
+	vgui2::g_pInput = g_pVGuiInput;
+	vgui2::g_pIVgui = g_pVGui;
+	vgui2::g_pIPanel = g_pVGuiPanel;
+	vgui2::g_pVGuiLocalize = g_pVGuiLocalize;
+	vgui2::g_pScheme = g_pVGuiSchemeManager;
+
+	keyvalues()->RegisterSizeofKeyValues(sizeof(KeyValues));
+}
+
+static void AddDefaultSearchPaths()
+{
+	IFileSystem *fs = ::g_pFullFileSystem;
+	if (!fs)
+		return;
+
+	const char *rodir = getenv("XASH3D_RODIR");
+	const char *basedir = getenv("XASH3D_BASEDIR");
+	char buf[1024];
+
+	if (rodir && *rodir)
+	{
+		snprintf(buf, sizeof(buf), "%s/cstrike", rodir);
+		fs->AddSearchPath(buf, "GAME");
+		snprintf(buf, sizeof(buf), "%s/valve", rodir);
+		fs->AddSearchPathNoWrite(buf, "GAME");
+		snprintf(buf, sizeof(buf), "%s/platform", rodir);
+		fs->AddSearchPathNoWrite(buf, "PLATFORM");
+	}
+	if (basedir && *basedir)
+	{
+		fs->AddSearchPath(basedir, "GAMECONFIG");
+		fs->AddSearchPath(basedir, "DEFAULTGAME");
+	}
+
+	const char *overrideEnv = getenv("CSRETRO_UI_OVERRIDE");
+	if (overrideEnv && *overrideEnv)
+		fs->AddSearchPath(overrideEnv, "GAME");
+}
+
+void VGuiXash_Init()
+{
+	if (g_inited)
+		return;
+
+	CreateInterfaceFn thisFactory = Sys_GetFactoryThis();
+	CreateInterfaceFn factories[1] = {thisFactory};
+
+	WireFactories(thisFactory);
+	AddDefaultSearchPaths();
+	Csretro_SystemSetCommandLine(getenv("CSRETRO_CMDLINE"));
+
+	if (g_pVGuiSystem)
+		g_pVGuiSystem->SetUserConfigFile("csretro_vgui_settings.vdf", "GAMECONFIG");
+
+	if (!vgui2::VGui_InitInterfacesList("csretro_menu", factories, 1))
+	{
+		Warning("VGui_InitInterfacesList failed\n");
+		return;
+	}
+
+	if (g_pVGui)
+		g_pVGui->Init(factories, 1);
+
+	if (g_pVGuiSchemeManager)
+		g_pVGuiSchemeManager->LoadSchemeFromFile("resource/ClientScheme.res", "ClientScheme");
+
+	g_root = new vgui2::Panel(nullptr, "CsretroVguiRoot");
+	g_root->SetBounds(0, 0, gGlobals ? gGlobals->scrWidth : 640, gGlobals ? gGlobals->scrHeight : 480);
+	g_root->SetPaintBackgroundEnabled(false);
+	g_root->SetVisible(true);
+	if (g_pVGuiSurface)
+		g_pVGuiSurface->SetEmbeddedPanel(g_root->GetVPanel());
+
+	g_inited = true;
+	Menu_Con("VGUI Xash runtime initialized");
+	if (getenv("CSRETRO_V1POC"))
+	{
+		Menu_Con("CSRETRO_V1POC_READY");
+		// Auto-Show sofort nach Init (nicht erst UI_SetActiveMenu) für Runtime-Skript.
+		if (PocDialog_Show(g_root))
+		{
+			gMenuVisible = true;
+			if (gEng.pfnSetKeyDest)
+				gEng.pfnSetKeyDest(2); // key_menu
+		}
+	}
+}
+
+void VGuiXash_Shutdown()
+{
+	if (!g_inited)
+		return;
+	PocDialog_Hide();
+	if (g_root)
+	{
+		g_root->DeletePanel();
+		g_root = nullptr;
+	}
+	if (g_pVGui)
+		g_pVGui->Shutdown();
+	g_inited = false;
+}
+
+void VGuiXash_RunFrame()
+{
+	if (!g_inited || !g_pVGui)
+		return;
+	if (g_root && gGlobals)
+		g_root->SetBounds(0, 0, gGlobals->scrWidth, gGlobals->scrHeight);
+	g_pVGui->RunFrame();
+
+	if (PocDialog_IsActive() && g_pVGuiInput)
+	{
+		static int s_focusFrames = 0;
+		if (++s_focusFrames >= 30)
+		{
+			s_focusFrames = 0;
+			vgui2::VPANEL focus = g_pVGuiInput->GetFocus();
+			const char *name = "(none)";
+			if (focus && g_pVGuiPanel)
+			{
+				const char *n = g_pVGuiPanel->GetName(focus);
+				if (n && n[0])
+					name = n;
+			}
+			Menu_Con("CSRETRO_V1POC_FOCUS %s", name);
+		}
+	}
+}
+
+void VGuiXash_Paint()
+{
+	if (!g_inited || !g_pVGuiSurface)
+		return;
+	vgui2::VPANEL embedded = g_pVGuiSurface->GetEmbeddedPanel();
+	if (!embedded)
+		return;
+	g_pVGuiSurface->PaintTraverse(embedded);
+}
+
+bool VGuiXash_ShowPocDialog()
+{
+	if (!g_inited)
+		VGuiXash_Init();
+	return PocDialog_Show(g_root);
+}
+
+void VGuiXash_HidePocDialog() { PocDialog_Hide(); }
+bool VGuiXash_IsPocActive() { return PocDialog_IsActive(); }
+
+namespace
+{
+COptionsDialog *g_options = nullptr;
+}
+
+bool VGuiXash_ShowOptionsDialog()
+{
+	if (!g_inited)
+		VGuiXash_Init();
+	if (!g_root)
+		return false;
+	PocDialog_Hide();
+	if (!g_options)
+		g_options = new COptionsDialog(g_root);
+	if (!g_options->HasPages())
+	{
+		// Keine Stub-Tabs: ohne echte Subpage kein Options-VGUI.
+		return false;
+	}
+	int sw = 640, sh = 480;
+	if (g_pVGuiSurface)
+		g_pVGuiSurface->GetScreenSize(sw, sh);
+	int w = 545, h = 406;
+	g_options->SetSize(w, h);
+	g_options->SetPos((sw - w) / 2, (sh - h) / 2);
+	g_options->Activate();
+	return true;
+}
+
+void VGuiXash_HideOptionsDialog()
+{
+	if (!g_options)
+		return;
+	g_options->SetVisible(false);
+	g_options->Close();
+}
+
+bool VGuiXash_IsOptionsActive()
+{
+	return g_options && g_options->IsVisible();
+}
+
+bool VGuiXash_IsUiActive()
+{
+	return VGuiXash_IsPocActive() || VGuiXash_IsOptionsActive();
+}
+
+void VGuiXash_Key(int key, int down)
+{
+	if (!g_inited || !g_pVGuiInput)
+		return;
+
+	// Mouse buttons arrive as Xash key events.
+	vgui2::MouseCode mouse = vgui2::MOUSE_LAST;
+	if (key == K_MOUSE1)
+		mouse = vgui2::MOUSE_LEFT;
+	else if (key == K_MOUSE2)
+		mouse = vgui2::MOUSE_RIGHT;
+	else if (key == K_MOUSE3)
+		mouse = vgui2::MOUSE_MIDDLE;
+	else if (key == K_MOUSE4)
+		mouse = vgui2::MOUSE_4;
+	else if (key == K_MOUSE5)
+		mouse = vgui2::MOUSE_5;
+
+	if (mouse != vgui2::MOUSE_LAST)
+	{
+		if (down)
+			g_pVGuiInput->InternalMousePressed(mouse);
+		else
+			g_pVGuiInput->InternalMouseReleased(mouse);
+		return;
+	}
+
+	vgui2::KeyCode code = KeyCode_VirtualKeyToVGUI(key);
+	if (code == vgui2::KEY_NONE)
+		return;
+	// PoC proof: TAB/BACKSPACE even when a child (TextEntry) holds focus.
+	if (down && PocDialog_IsActive())
+	{
+		if (code == vgui2::KEY_TAB)
+			Menu_Con("CSRETRO_V1POC_TAB");
+		else if (code == vgui2::KEY_BACKSPACE)
+			Menu_Con("CSRETRO_V1POC_BACKSPACE");
+	}
+	if (down)
+	{
+		g_pVGuiInput->InternalKeyCodePressed(code);
+		g_pVGuiInput->InternalKeyCodeTyped(code);
+	}
+	else
+		g_pVGuiInput->InternalKeyCodeReleased(code);
+}
+
+void VGuiXash_MouseMove(int x, int y)
+{
+	if (!g_inited || !g_pVGuiInput)
+		return;
+	g_pVGuiInput->InternalCursorMoved(x, y);
+	if (g_pVGuiSurface)
+		static_cast<vgui2::CSurfaceXash *>(g_pVGuiSurface)->SetCursorPosInternal(x, y);
+}
+
+void VGuiXash_Char(int ch)
+{
+	if (!g_inited || !g_pVGuiInput)
+		return;
+	g_pVGuiInput->InternalKeyTyped(static_cast<wchar_t>(ch));
+}

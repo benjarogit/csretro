@@ -28,10 +28,11 @@ Arbeitsdokument: `docs/PHASE3-BODY.md`. Plattform: `docs/PLATTFORMEN.md`. Server
 | 3B nackte Client-Lib unter Xash | abgenommen |
 | 3C In-Game-Baseline | **abgenommen** — Listen interaktiv `de_dust` (Team/Spawn/Movement/Waffen/Round/Shutdown) |
 | GameDLL-Gate | vendort `server/game/` Pin `b088984`, Target `csretro_gamedll` |
-| 3D NextClient-Features | **nicht automatisch** — 3C-Gate erfüllt; FOV erst nach Freigabe |
+| **3M VGUI2 / Desktop-UI** | **in Arbeit** — V1-Runtime-PoC **bestanden**; Steam-CS-1.6-VGUI2-Rekonstruktion aktiv (Options/Controls zuerst). `docs/PHASE3M.md` |
+| 3D NextClient-Features | **nach 3M** — erstes Feature FOV, nur nach Freigabe |
 
-3C vollständig heißt: Listen-Server, Map, Rendering, Input, Movement, Prediction, Vanilla-HUD, Waffen, Connect, Shutdown — alles auf derselben 64-Bit-Architektur.
+3C vollständig heißt: Listen-Server, Map, Rendering, Input, Movement, Prediction, Vanilla-HUD, Waffen, Connect, Shutdown — alles auf derselben 64-Bit-Architektur. 3C wird für 3M **nicht** neu aufgerollt. `ShowMenu` bleibt Legacy-Kompatibilität.
 
 ## Phase 4 — Gezielte Ports
 
-Nur Ref B oder NextClient-Menüs, ein Feature pro Durchgang, eigener Diff.
+Ref B ist **bereits in Phase 3M** Menü-/VGUI-Referenz (In-Game-Verhalten / `.res`-Mapping). Phase 4 ist nur für gezielte zusätzliche Feature-Ports, die nach 3M übrig bleiben — nicht der erste Ref-B-Einstieg. NextClient-GameUI-Ports laufen in **3M**, nicht als zweiter Stapel.

@@ -8,6 +8,7 @@ include(cmake/ClangDefaults.cmake)
 include(cmake/CsretroPlatform.cmake)
 include(cmake/CsretroInterfaces.cmake)
 include(cmake/CsretroClient.cmake)
+include(cmake/CsretroMenu.cmake)
 include(cmake/CsretroGameDll.cmake)
 
 option(CSRETRO_BUILD_ENGINE "Xash3D-FWGS über Waf bauen" ON)

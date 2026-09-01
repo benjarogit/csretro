@@ -1,45 +1,111 @@
 # Menüs
 
 Lebende Architektur. Rollen: `docs/ROLLEN.md`. Schnittstelle: `docs/SCHNITTSTELLEN.md`.
+Phase: `docs/PHASEN.md` · Arbeitsdokument: `docs/PHASE3M.md`.
 
 CS Retro ist **64-Bit-Desktop** (Linux x86_64, Windows 10+ x86_64, macOS ARM64/x86_64). Kein Android, iOS, Switch, Vita, keine Touch-/Mobile-UI.
 
-## Entscheidung
+## Endziel
 
-**Eine** langfristige Menü-Library ist das Ziel:
+Optik und Bedienung: klassisches **Steam Counter-Strike 1.6 mit VGUI2**, nicht WON-Hauptmenü und nicht Textmenü als Primär-UI.
+
+Branding: **CS Retro**. Zusätzliche Funktionen nur in diesem Stil, und nur wenn das Backend existiert.
+
+**Eine** Menü-Library:
 
 ```
-Xash → GetMenuAPI → CS-Retro-Hauptmenü
-Client → Xash MenuFactory → CreateInterface → GameMenuExports001 → In-Game-Menüs
+Xash
+ ├─ GetMenuAPI
+ │      ↓
+ │   CS-Retro GameUI / Hauptmenü
+ │
+ └─ MenuFactory
+        ↓
+    CreateInterface
+        ↓
+ GameMenuExports001
+        ↓
+ CS-Retro In-Game-VGUI
 ```
 
-Xash stellt `MenuFactory` als plattformübergreifendes Native Object bereit (CreateInterface-Pointer der geladenen Menü-Lib). Das ist kein Android-API.
+Kein dauerhaftes Nebeneinander aus Xash-MainUI, Textmenü, Ref-A-Touch, NextClient-GameUI-DLL und einem zweiten In-Game-Menü.
 
-Die aktuell geladene Phase-3-Lib (`libmenu.so` / Xash-MainUI) exportiert `GetMenuAPI`, aber **kein** `CreateInterface` / `GameMenuExports001`. Deshalb ist `IGameMenuExports` im A1-Body **optional**: kein modaler `pfnSys_Warn`. Das ist ein Kompatibilitätsfallback, keine Aussage „CS Retro nutzt GameMenuExports nie“.
+## Funktionale Quelle
 
-Ref-A-mainui wird nicht übernommen. Ref B bleibt Menü-Referenz für das spätere klassische VGUI-Erscheinungsbild. NextClient bleibt funktionale Zielbasis.
+`client/nextclient/gameui/` ist die **primäre funktionale Quelle**. Nicht von Null beginnen.
 
-## Jetzt (Phase-3-Desktop)
+Erhalten (Verhalten): BasePanel, Server Browser, Options (Multiplayer/Keyboard/Mouse/Audio/Video/Voice/Misc), Create Multiplayer (Server/Game/Bots), später Module.
 
-| Fläche | Implementierung |
-|--------|-----------------|
-| Hauptmenü (New Game, Browser, Options, Quit, Escape außerhalb einer Map) | Xash-MainUI über `GetMenuAPI` |
-| Team / Klasse / Buy / Radio | GoldSrc-`ShowMenu` im Client (`CHudMenu`), Texte aus `cstrike/titles.txt` |
-| Escape während eines In-Game-Menüs | schließt das HUD-Menü (`menuselect 0` wenn Slot 0 gilt), öffnet nicht sofort MainUI |
+Ersetzen (Anbindung): Steam-/GoldSrc-GameUI, `HWND`/`SetWindowLongPtr`, `next_engine_mini.dll`, NitroApi-/Steam-Bind, `-m32`, Win32-only-Libs, CEF außer später bewusstem Cross-Platform-Bedarf.
 
-Die GameDLL sendet `ShowMenu` mit `#Team_Select`, `#Buy`, `#RadioA`, … sobald Userinfo `_vgui_menus` 0 ist. Das ist der originale CS-1.6-Pfad für Clients ohne VGUI. `VGUIMenu` wird, falls es trotzdem ankommt, auf dieselben `titles.txt`-Schlüssel abgebildet.
+Ziel: **NextClient-GameUI-Verhalten → native CS-Retro/Xash-Desktop-UI.**
 
-Kein `exec touch/*.cfg`. Keine Touch-Buttons.
+## Jetzt vs. Bootstrap (3C)
 
-## Quellen
+| Zustand | Hauptmenü | In-Game Team/Klasse/Buy/Radio |
+|---------|-----------|-------------------------------|
+| **3C-Baseline** (Release `v0.1.5`, bleibt gültig) | Xash-MainUI (`GetMenuAPI`, kein `CreateInterface`) | GoldSrc-`ShowMenu` + `titles.txt` (`_vgui_menus` 0) |
+| **3M-Ziel** | CS-Retro-Menü-Lib, `GameMenu.res` + ClientScheme | VGUI-Viewport über `GameMenuExports001` |
+| **3M jetzt** (dieser Host) | CS-Retro-Lib (`-menu menu_amd64.so`) | Team/Klasse/Buy = `.res`-VGUI; Radio = `ShowMenu` |
 
-1. Original-CS / ReGameDLL: `ShowVGUIMenu` → `ShowMenu`, wenn `!m_bVGUIMenus` (`server/game/regamedll/dlls/client.cpp`). Ghidra nicht nötig, der Vendor ist eindeutig.
-2. `titles.txt` aus dem Game-Data-Baum: klassische Nummerntafeln inkl. `\y`/`\w`/`\R`.
-3. Ref B: Escape-Reihenfolge und ShowMenu-Zeichnung (Escape-Tokens) — übernommen als Desktop-Verhalten, nicht deren VGUI2-Viewport.
-4. NextClient-GameUI: späteres Zielbild, nicht Phase-3-Lader.
+`ShowMenu` wird **nicht gelöscht**. Es bleibt Kompatibilität für serverseitige Textmenüs, Plugins, später AMXX/Metamod. Es ist **nicht** die primäre CS-Retro-Team-/Buy-/Radio-Oberfläche.
+
+Xash-MainUI ist nur Bootstrap, bis die eigene Lib lädt.
+
+## VGUI2-Modell (Entscheidung)
+
+**Kein** Steam-`vgui2.dll` / `vgui2.so` als Runtime.
+
+`MenuFactory` ist nur der Factory-Weg der geladenen Menü-Lib, keine VGUI2-Implementierung.
+
+**Reuse-Gate 2026-09-01: Variante V1** (`docs/PHASE3M.md`):
+
+- vendorter VGUI2-Core + `vgui_controls` aus `ncl-hl1-source-sdk` **intern** in die eine Menü-Lib
+- Backends: Surface/Input/System/Localize/Filesystem → Xash / plattformneutral
+- NextClient-GameUI (Options/CreateMP/Browser) darauf portieren
+- In-Game: `GameMenuExports001` auf demselben Core
+- Compile-PoC: `./scripts/vgui-v1-poc-compile.sh` (Frame/PropertyDialog OK auf Linux x86_64)
+
+Der frühere Minimal-`.res`-Renderer in `client/menu/` bleibt Übergang, bis V1 unter Xash zeichnet. Kein paralleles zweites GUI-Framework dauerhaft.
+
+Variante V2 (alles selbst) nur bei konkretem Entkoppelungs-Blocker — der Gate hat keinen gezeigt.
+
+## Ressourcen
+
+1. Steam-materialisiert: `gamedata/cstrike/resource/` (inkl. `UI/`), `gamedata/valve/resource/`
+2. Bei Bedarf: `gamedata/platform/resource/` (TrackerScheme, Rahmen-Icons, Localization, Fonts) — **keine** Platform-Binaries, kein `vgui2.dll`, kein SteamAPI
+3. CS-Retro-Overrides: `data/ui-overrides/` (Bootstrap kopiert darüber)
+4. User-Configs: `XASH3D_BASEDIR`
+
+Nicht distributieren. Steam bleibt read-only Quelle.
+
+## Serverprofil
+
+Ein Modell für Listen/LAN und Dedicated:
+
+```
+ServerProfile
+ ├─ Server     (Map, Hostname, Password, MaxPlayers, LAN)
+ ├─ Gameplay   (Round/Freeze, FF, Balance, …)
+ ├─ Bots       (Quota, Difficulty, Team, Waffen, …)
+ └─ Modules    (none / Profil; Metamod/AMXX später, optional)
+```
+
+New Game / LAN und Dedicated schreiben dasselbe Profil. Keine doppelte Serverkonfiguration.
+
+## Quellen (Priorität)
+
+1. NextClient `gameui/` — Funktion
+2. Lokale Steam-CS-1.6-Resources — Optik
+3. Ref B — Menü-/VGUI-Referenz bereits in Phase 3M (In-Game-Verhalten / `.res`-Mapping); gezielte zusätzliche Feature-Ports später
+4. Xash MenuAPI / MenuFactory
+5. `kungfulon/fwgs-vgui2-support` — nur Forschung (`docs/UPSTREAM.md`)
+6. Ghidra auf lokalen Original-Binaries — nur wenn 1–5 nicht reicht
 
 ## Nicht
 
 - Touch-CFG als Desktop-Fallback
 - Ref-A-mainui pauschal
+- Steam-`vgui2` als Abhängigkeit
+- nicht funktionierende Placeholder-Optionen (FOV/Crosshair erst mit Backend)
 - parallele Menüsysteme für dieselbe Funktion

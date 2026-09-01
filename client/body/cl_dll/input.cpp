@@ -368,8 +368,12 @@ Return 1 to allow engine to process the key, otherwise, act on it as needed
 */
 int DLLEXPORT HUD_Key_Event( int down, int keynum, const char *pszCurrentBinding )
 {
-	if( g_pMenu )
+	if( g_pMenu && g_pMenu->IsActive() && !g_pMenu->IsMainMenuActive() )
+	{
 		g_pMenu->Key( keynum, down );
+		if( down && ( keynum == K_ESCAPE || ( keynum >= '0' && keynum <= '9' ) ) )
+			return 0;
+	}
 
 	if( down && keynum == K_ESCAPE && gHUD.m_Menu.HandleEscape() )
 		return 0;

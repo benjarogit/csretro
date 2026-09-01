@@ -303,8 +303,8 @@ void CHud :: Init( void )
 	gEngfuncs.pfnHookUserMsg( "WeatherPos", __MsgFunc_WeatherPos );
 	gEngfuncs.pfnHookUserMsg( "ReceiveW", __MsgFunc_ReceiveW );
 
-	CVAR_CREATE( "_vgui_menus", "0", FCVAR_ARCHIVE | FCVAR_USERINFO );
-	gEngfuncs.Cvar_Set( "_vgui_menus", "0" );
+	CVAR_CREATE( "_vgui_menus", g_pMenu ? "1" : "0", FCVAR_ARCHIVE | FCVAR_USERINFO );
+	gEngfuncs.Cvar_Set( "_vgui_menus", g_pMenu ? "1" : "0" );
 	CVAR_CREATE( "_cl_autowepswitch", "1", FCVAR_ARCHIVE | FCVAR_USERINFO );
 	CVAR_CREATE( "_ah", "0", FCVAR_ARCHIVE | FCVAR_USERINFO );
 

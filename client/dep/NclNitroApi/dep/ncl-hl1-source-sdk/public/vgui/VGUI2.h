@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright ù 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: Basic header for using vgui
 //
@@ -11,6 +11,8 @@
 #ifdef _WIN32
 #pragma once
 #endif
+
+#include <stdint.h>
 
 #ifndef NULL
 #ifdef __cplusplus
@@ -44,7 +46,12 @@ namespace vgui2
 {
 // handle to an internal vgui panel
 // this is the only handle to a panel that is valid across dll boundaries
+// CS Retro: on LP64 the SDK casts VPanel* ? VPANEL; uint32 truncates (NextClient was -m32).
+#if defined( PLATFORM_64BITS ) || defined( __LP64__ ) || defined( _WIN64 )
+typedef uintptr_t VPANEL;
+#else
 typedef unsigned int VPANEL;
+#endif
 
 // handles to vgui objects
 // NULL_HANDLE values signify an invalid value

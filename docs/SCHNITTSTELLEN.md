@@ -22,9 +22,11 @@ Nach dem Bootstrap zeigt `XASH3D_RODIR` auf den CS-Retro-Datenbaum. Die Steam-Ha
 
 ## Engine → Menü
 
-Xash `MenuFactory` ist ein plattformübergreifendes Native Object und liefert den `CreateInterface`-Pointer der geladenen Menü-Lib (`cl_gameui.c` / `UI_GetMenuFactory`).
+Xash `MenuFactory` ist ein plattformübergreifendes Native Object und liefert den `CreateInterface`-Pointer der geladenen Menü-Lib (`cl_gameui.c` / `UI_GetMenuFactory`). Das ist keine VGUI2-Implementierung.
 
-Phase-3-Hauptmenü: Xash-`GetMenuAPI` (`libmenu.so`). Diese Lib exportiert derzeit kein `CreateInterface` / `GameMenuExports001`. `IGameMenuExports` im Client ist deshalb optional (kein Modal). In-Game: GoldSrc-`ShowMenu` / `titles.txt`. Ziel: eine CS-Retro-Menü-Lib mit beiden Exporten. Details: `docs/MENUS.md`. NextClient-GameUI/CEF nicht in Phase 3. `IClientVGUI` / `IBaseUI` ersetzen `GetClientAPI` nicht.
+**3M-Ziel:** eine Lib `client/menu/` mit `GetMenuAPI` **und** `CreateInterface` (`GameMenuExports001`). Xash-MainUI nur Bootstrap. NextClient-GameUI ist Port-Quelle, nicht Runtime-`GameUI.dll`. `IClientVGUI` / `IBaseUI` ersetzen `GetClientAPI` nicht. Kein Steam-`vgui2`. Details: `docs/MENUS.md`, `docs/PHASE3M.md`.
+
+**3C-Baseline:** MainUI ohne `CreateInterface`; In-Game `ShowMenu`. `IGameMenuExports` optional (kein Modal). `ShowMenu` bleibt Legacy.
 
 ## Engine → GameDLL
 

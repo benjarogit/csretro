@@ -139,8 +139,17 @@ void CUtlBlockMemory<T,I>::Swap( CUtlBlockMemory< T, I > &mem )
 {
 	std::swap( m_pMemory, mem.m_pMemory );
     std::swap( m_nBlocks, mem.m_nBlocks );
-    std::swap( m_nIndexMask, mem.m_nIndexMask );
-    std::swap( m_nIndexShift, mem.m_nIndexShift );
+	// Bitfields: cannot bind non-const refs for std::swap (Clang/GCC).
+	{
+		int a = m_nIndexMask, b = mem.m_nIndexMask;
+		m_nIndexMask = b;
+		mem.m_nIndexMask = a;
+	}
+	{
+		int a = m_nIndexShift, b = mem.m_nIndexShift;
+		m_nIndexShift = b;
+		mem.m_nIndexShift = a;
+	}
 }
 
 

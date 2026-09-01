@@ -537,6 +537,7 @@ public:
 	CHudUserCmd(OldStyleMenuClose);
 	CHudUserCmd(OldStyleMenuOpen);
 	CHudUserCmd(ShowVGUIMenu);
+	CHudUserCmd(MenuSelect);
 
 	void ShowVGUIMenu( int menuType );
 	void OpenLocalized( const char *titleKey, int bitsValidSlots, int displayTime );

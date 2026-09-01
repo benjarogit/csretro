@@ -7,7 +7,7 @@
 
 #include <cstdio>
 
-#include <steam/steam_api.h>
+#include "steam_language.h"
 
 #include <vgui/VGUI2.h>
 #include <vgui/ISchemeNext.h>
@@ -23,7 +23,6 @@
 #include "vgui_border.h"
 #include "vgui_internal.h"
 #include "Bitmap.h"
-#include "FontManager.h"
 
 
 // memdbgon must be the last include file in a .cpp file!!!
@@ -779,8 +778,8 @@ void CScheme::ReloadFontGlyphs()
                     }
                 }
 
-                // final fallback: the platform broad-coverage font, unless it already is the primary
-                const char* lastResort = FontManager().GetForeignFallbackFontName();
+                // final fallback: DejaVu Sans on Linux (was FontManager foreign fallback / Tahoma)
+                const char* lastResort = "DejaVu Sans";
                 if (lastResort && *lastResort && stricmp(lastResort, fontdata->GetString("name")) != 0)
                 {
                     g_pSurfaceNext->AddGlyphSetToFont(m_FontAliases[i]._font, lastResort, tall, fontWeight, blur, scanlines, flags, 0x0000, 0xFFFF);
@@ -1294,7 +1293,7 @@ const char* CScheme::LookupSchemeSetting(const char* pchSetting)
 //-----------------------------------------------------------------------------
 int CScheme::GetMinimumFontHeightForCurrentLanguage()
 {
-    const char* user_language = SteamApps()->GetCurrentGameLanguage();
+    const char* user_language = Csretro_GetUiLanguage();
 
     if (!stricmp(user_language, "korean")
         || !stricmp(user_language, "tchinese")

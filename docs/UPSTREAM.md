@@ -53,7 +53,7 @@ Wenn Upstream A, B und CS Retro dieselbe Funktion haben: alle Varianten vergleic
 | `engine/` | https://github.com/FWGS/xash3d-fwgs | einzige Engine | `1442d14a69093780389104dcb7369aa3685945cf` | 2026-08-27 |
 | `client/body/` | https://github.com/Velaron/cs16-client | A1-Client-Body (Manifest) | `bb60674c120ae9bf8fa7854018bea8a77e71c17f` | 2026-09-01 (Vendor) |
 | `refs/a-cs16-client/` | https://github.com/Velaron/cs16-client | Body-Referenz, nicht gebaut | derselbe Pin | 2026-08-24 |
-| `refs/b-cs16-goldsrc/` | https://github.com/FuryBaM/cs16-goldsrc-client | bedingte Menü-Referenz, Phase 4 | `b662acca3ce74c2c9851cc842592c58661d95799` | 2026-08-27 |
+| `refs/b-cs16-goldsrc/` | https://github.com/FuryBaM/cs16-goldsrc-client | Menü-/VGUI-Referenz bereits in Phase 3M; gezielte zusätzliche Feature-Ports später | `b662acca3ce74c2c9851cc842592c58661d95799` | 2026-08-27 |
 | `server/game/` | https://github.com/rehlds/ReGameDLL_CS | GameDLL-Körper | `b0889847fe6d03898be88acc9e366660efb40ab5` | 2026-09-01 |
 
 Zuletzt geprüft (Clone/Vergleich, kein Sync): ReGameDLL_CS 2026-09-01 = Pin.
@@ -67,6 +67,7 @@ Engine-3rdparty (mitimportiert, kein Submodule): MultiEmulator, bzip2, xash-extr
 | https://github.com/yapb/yapb | Bot-Ideenquelle; später mit ZBot und weiteren vergleichen |
 | https://github.com/dreamstalker/rehlds | ReGameDLL-Grundlage; nicht unsere Engine |
 | `microsoft/vcpkg` | Windows-Package-Manager, nicht im Tree |
+| https://github.com/kungfulon/fwgs-vgui2-support | historische Xash-VGUI2-Forschung (Steam-`vgui2` + originale `client.dll`). Deprecated zugunsten kungfulon/xash3d-fwgs. **Nicht** Produktgrundlage, nicht vendort. Analyse: `docs/PHASE3M.md` |
 
 Spielinhalte `valve/` / `cstrike/`: externe Runtime-Datenquelle. Steam CS 1.6 (AppID 10) wird gelesen, nie geschrieben, und nicht als RODIR benutzt. Materialisiert: `gamedata/` (`docs/GAMEDATA.md`). Nicht im Git.
 Ref-A-`3rdparty/ReGameDLL_CS/`, Ref-A-YaPB, Ref-A-mainui: nicht die Produktquelle.
@@ -79,7 +80,7 @@ Konkrete Fixes/Commits, nicht jede Idee.
 
 | Quelle | Upstream-Commit/PR | Was übernommen | CS-Retro-Commit |
 |--------|--------------------|----------------|-----------------|
-| — | — | noch keine selektiven Ports nach dem Erst-Vendor | — |
+| — | ncl-hl1-source-sdk | 64-Bit-VGUI-Patches: `VPANEL`→`uintptr_t`, Bitfield-Swap, mempool/threadtools | 2026-09-01 |
 
 ## NextClient-Vendor nach Phase 2
 

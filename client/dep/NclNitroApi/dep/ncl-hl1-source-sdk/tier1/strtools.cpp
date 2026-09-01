@@ -2004,7 +2004,7 @@ bool V_ExtractFilePath (const char *path, char *dest, int destSize )
 		src--;
 	}
 
-	int copysize = std::min( src - path, destSize - 1 );
+	int copysize = std::min( static_cast<int>( src - path ), destSize - 1 );
 	memcpy( dest, path, copysize );
 	dest[copysize] = 0;
 

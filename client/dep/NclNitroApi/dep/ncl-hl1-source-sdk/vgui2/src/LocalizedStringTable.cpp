@@ -7,13 +7,13 @@
 
 
 #pragma warning( disable: 4018 ) // '==' : signed/unsigned mismatch in rbtree
-#include <windows.h>
 #include <cwchar>
 
+#include "win_charset.h"
 #include "FileSystem.h"
 
 #include <string_utils.h>
-#include <steam/steam_api.h>
+#include "steam_language.h"
 
 #include "vgui_internal.h"
 #include "vgui/ILocalize.h"
@@ -244,7 +244,7 @@ std::vector<std::string> CLocalizedStringTable::GetFilesToLoad(const std::string
     std::vector<std::string> result;
     result.emplace_back(hlsdk_utils::replace_all_copy(filename, LANGUAGE_STRING, ENGLISH_STRING));
 
-    const char* user_language = SteamApps()->GetCurrentGameLanguage();
+    const char* user_language = Csretro_GetUiLanguage();
 
     if (V_stricmp(user_language, ENGLISH_STRING) != 0)
         result.emplace_back(hlsdk_utils::replace_all_copy(filename, LANGUAGE_STRING, user_language));
@@ -907,16 +907,12 @@ void CLocalizedStringTable::ConstructString(wchar_t* unicodeOutput, int unicodeB
             if (argindex < numFormatParameters)
             {
                 wchar_t* param = NULL;
-                if (IsPC())
-                {
-                    param = va_argByIndex(argList, wchar_t *, argindex);
-                }
-                else
-                {
-                    // X360TBD: convert string to new %var% format if this assert hits
-                    Assert(argindex == curArgIdx++);
-                    param = va_arg(argList, wchar_t*);
-                }
+                // CS Retro: va_argByIndex breaks on wchar_t* tokenizing; use va_arg.
+                param = va_arg(argList, wchar_t*);
+#ifdef _DEBUG
+                curArgIdx++;
+                (void)curArgIdx;
+#endif
 
                 if (!param)
                 {

@@ -77,6 +77,11 @@
       "id": "valve.resource",
       "root": "valve/resource",
       "why": "valve_english.txt im Listen-Trace."
+    },
+    {
+      "id": "platform.resource",
+      "root": "platform/resource",
+      "why": "VGUI2-Schemes/Icons/Fonts (TrackerScheme). Keine Platform-Binaries."
     }
   ],
   "copy_globs": [
@@ -128,7 +133,12 @@
     {"glob": "valve/dlls/**", "why": "HL-GameDLL, ungenutzt."},
     {"glob": "valve/cl_dlls/**", "why": "HL-Client, ungenutzt."},
     {"glob": "valve/hw/**", "why": "GoldSrc-Renderer."},
-    {"glob": "platform/**", "why": "Steam-Platform-UI."},
+    {"glob": "platform/steam/**", "why": "Steam-Platform, keine Runtime."},
+    {"glob": "platform/servers/**", "why": "Steam-Serverbrowser-Cache."},
+    {"glob": "platform/config/**", "why": "Steam-Platform-Config."},
+    {"glob": "platform/gl_shaders/**", "why": "Steam-GL-Shader."},
+    {"glob": "platform/resource/icon_steam*", "why": "Steam-Markenicon, nicht nötig."},
+    {"glob": "platform/resource/VAC_shield.tga", "why": "Steam-VAC-Icon."},
     {"glob": "redist/**", "why": "Steam-Redistributables."},
     {"glob": "cstrike_hd/**", "why": "HD-Pack, im Trace nicht benutzt."},
     {"glob": "valve/maps/**", "why": "HL-Kampagne; Trace nur Verzeichnis-Stat."},

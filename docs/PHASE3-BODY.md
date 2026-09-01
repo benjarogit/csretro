@@ -49,9 +49,9 @@ Build: `./scripts/build-client.sh`
 | `engine/cdll_int.h` | `steam/steamtypes.h` → `archtypes.h` | kein Steam im aktiven Build |
 | `cl_dll/cdll_int.cpp` | Versionscheck nur wenn `g_iXash > 0` | Waf-`Q_buildnum()` ist `-1` |
 | `cl_dll/cdll_int.cpp` | `F()` entfernt | Xash nutzt `GetClientAPI`; altes Layout falsch |
-| `cl_dll/cdll_int.cpp` | kein Modal bei fehlendem `GameMenuExports001` | Xash `MenuFactory` existiert; Phase-3-`libmenu.so` exportiert kein `CreateInterface` |
-| `cl_dll/menu.cpp` | Desktop-`ShowMenu` / `titles.txt` | Touch-`exec touch/*.cfg` entfernt |
-| `cl_dll/hud.cpp` | `_vgui_menus` 0 | GameDLL sendet GoldSrc-`ShowMenu` |
+| `cl_dll/cdll_int.cpp` | kein Modal bei fehlendem `GameMenuExports001` | 3C: MainUI ohne Factory. 3M: `client/menu/` exportiert `GameMenuExports001` |
+| `cl_dll/menu.cpp` | 3C: `ShowMenu`. 3M: VGUI wenn `g_pMenu` | Touch-`exec touch/*.cfg` entfernt. `ShowMenu` bleibt Legacy |
+| `cl_dll/hud.cpp` | `_vgui_menus` 1 wenn `g_pMenu` | 3C-Baseline war 0; 3M schaltet den GameDLL-VGUI-Pfad wieder ein |
 
 ## 3C — Stand
 
@@ -72,4 +72,4 @@ Immer `-dll` / `-clientlib` auf unsere Libs. Listen-`+map`: `.rc` mit `stuffcmds
 
 ## 3D
 
-3C-Gate erfüllt. Nicht automatisch starten. Ein Feature pro Durchgang, erstes wäre FOV.
+3C-Gate erfüllt. **Nicht vor Abschluss von 3M** (`docs/PHASE3M.md`). Ein Feature pro Durchgang, erstes wäre FOV.

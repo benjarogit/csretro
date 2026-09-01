@@ -256,7 +256,7 @@ template <typename T>
 class CInterlockedIntT
 {
 public:
-	CInterlockedIntT() : m_value( 0 ) 				{ COMPILE_TIME_ASSERT( sizeof(T) == sizeof(long) ); }
+	CInterlockedIntT() : m_value( 0 ) 				{ COMPILE_TIME_ASSERT( sizeof(T) == sizeof(int32) || sizeof(T) == sizeof(long) ); }
 	CInterlockedIntT( T value ) : m_value( value ) 	{}
 
 	operator T() const				{ return m_value; }

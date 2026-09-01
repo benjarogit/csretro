@@ -13,7 +13,7 @@
 *
 ****/
 //
-// menu.cpp — Desktop-In-Game-Menüs (GoldSrc ShowMenu / titles.txt)
+// menu.cpp — In-Game: VGUI über g_pMenu, sonst GoldSrc ShowMenu / titles.txt (Legacy)
 //
 #include "hud.h"
 #include "cl_util.h"
@@ -22,6 +22,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "draw_util.h"
 #include "strl.h"
 
@@ -143,6 +144,7 @@ int CHudMenu::Init( void )
 	HOOK_COMMAND( gHUD.m_Menu, "client_buy_open", OldStyleMenuOpen );
 	HOOK_COMMAND( gHUD.m_Menu, "client_buy_close", OldStyleMenuClose );
 	HOOK_COMMAND( gHUD.m_Menu, "showvguimenu", ShowVGUIMenu );
+	HOOK_COMMAND( gHUD.m_Menu, "menuselect", MenuSelect );
 
 	InitHUDData();
 	m_bAllowSpec = true;
@@ -237,17 +239,50 @@ int CHudMenu::Draw( float flTime )
 
 void CHudMenu::SelectMenuItem( int menu_item )
 {
+	if( g_pMenu && g_pMenu->IsActive() && !g_pMenu->IsMainMenuActive() )
+	{
+		const int key = ( menu_item == 10 ) ? '0' : ( '0' + menu_item );
+		g_pMenu->Key( key, 1 );
+		Close();
+		return;
+	}
 	if( ( menu_item > 0 ) && ( m_bitsValidSlots & ( 1 << ( menu_item - 1 ) ) ) )
 	{
 		char szbuf[32];
 		sprintf( szbuf, "menuselect %d\n", menu_item );
-		ClientCmd( szbuf );
+		ServerCmd( szbuf );
 		Close();
 	}
 }
 
+void CHudMenu::UserCmd_MenuSelect()
+{
+	if( gEngfuncs.Cmd_Argc() < 2 )
+		return;
+	const int slot = atoi( gEngfuncs.Cmd_Argv( 1 ) );
+	if( g_pMenu && g_pMenu->IsActive() && !g_pMenu->IsMainMenuActive() )
+	{
+		SelectMenuItem( slot );
+		return;
+	}
+	if( m_fMenuDisplayed )
+	{
+		SelectMenuItem( slot );
+		return;
+	}
+	char szbuf[32];
+	sprintf( szbuf, "menuselect %d\n", slot );
+	ServerCmd( szbuf );
+}
+
 bool CHudMenu::HandleEscape( void )
 {
+	if( g_pMenu && g_pMenu->IsActive() )
+	{
+		g_pMenu->HideVGUIMenu();
+		Close();
+		return true;
+	}
 	if( !m_fMenuDisplayed )
 		return false;
 
@@ -317,6 +352,8 @@ int CHudMenu::MsgFunc_ShowMenu( const char *pszName, int iSize, void *pbuf )
 
 	if( !NeedMore )
 	{
+		if( g_pMenu )
+			g_pMenu->HideVGUIMenu();
 		strlcpy( g_szMenuString, gHUD.m_TextMessage.BufferedLocaliseTextString( g_szPrelocalisedMenuString ), sizeof( g_szMenuString ) );
 		if( KB_ConvertString( g_szMenuString, &temp ) )
 		{
@@ -337,6 +374,16 @@ int CHudMenu::MsgFunc_VGUIMenu( const char *pszName, int iSize, void *pbuf )
 	BufferReader reader( pszName, pbuf, iSize );
 	const int menuType = reader.ReadByte();
 	m_bitsValidSlots = reader.ReadShort();
+
+	if( g_pMenu )
+	{
+		g_pMenu->ShowVGUIMenu( menuType, 0, 0 );
+		if( g_pMenu->IsActive() )
+		{
+			Close();
+			return 1;
+		}
+	}
 
 	const char *title = VguiMenuTitle( menuType, m_bitsValidSlots );
 	if( !title )
@@ -378,6 +425,12 @@ void CHudMenu::UserCmd_OldStyleMenuClose()
 
 void CHudMenu::ShowVGUIMenu( int menuType )
 {
+	if( g_pMenu )
+	{
+		g_pMenu->ShowVGUIMenu( menuType, 0, 0 );
+		if( g_pMenu->IsActive() )
+			return;
+	}
 	const char *title = VguiMenuTitle( menuType, m_bitsValidSlots ? m_bitsValidSlots : 0x3FF );
 	if( !title )
 		return;

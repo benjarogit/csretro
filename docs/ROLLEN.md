@@ -9,7 +9,7 @@ NextClient bleibt die funktionale Zielbasis. Ref A liefert nur den fehlenden Xas
 | **Xash3D-FWGS** | einzige Engine | `engine/` | Bindung, Build, Interface |
 | **NextClient** | funktionales Zielverhalten des Clients | `client/nextclient/` (+ NitroApi/SDK als Port-Quelle) | Features herauslösen, auf Xash umbauen |
 | **Ref A** (Velaron/cs16-client) | Xash-kompatible **Client-Body-Quelle** | `refs/a-cs16-client/` | nur A1-Manifest, siehe unten |
-| **Ref B** (FuryBaM) | bedingte UI-/Menü-Referenz | `refs/b-cs16-goldsrc/` | erst Phase 4, ein Feature |
+| **Ref B** (FuryBaM) | Menü-/VGUI-Referenz bereits in Phase 3M; gezielte zusätzliche Feature-Ports später | `refs/b-cs16-goldsrc/` | 3M lesen, nicht als zweiten Stapel übernehmen |
 | **Server** | GameDLL + optionale Module | `server/game/` (AMXX-Herkunft: `server/`) | `docs/SERVER.md` |
 | **Bots** | später eigener Bereich | `bots/` (leer) | ZBot liegt **in** der GameDLL (Migration); kein YaPB-Copy |
 
@@ -22,6 +22,7 @@ Xash3D-FWGS
   → CS-Retro Client-Export
     → CS-Client-Body (A1, client/body/)
       → darauf integrierte NextClient-Funktionen
+  → CS-Retro-Menü-Lib (client/menu/, GetMenuAPI + GameMenuExports001)
 
 Xash3D-FWGS
   → CS-Retro GameDLL

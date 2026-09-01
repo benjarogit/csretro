@@ -3564,7 +3564,11 @@ void Panel::RequestFocus(int direction)
 //-----------------------------------------------------------------------------
 void Panel::OnRequestFocus(VPANEL subFocus, VPANEL defaultPanel)
 {
-	CallParentFunction(new KeyValues("OnRequestFocus", "subFocus", subFocus, "defaultPanel", defaultPanel));
+	// 64-bit: VPANEL is uintptr_t — never pack into KeyValues int (truncates → hang/UB).
+	KeyValues *kv = new KeyValues("OnRequestFocus");
+	kv->SetUint64("subFocus", static_cast<uint64>(subFocus));
+	kv->SetUint64("defaultPanel", static_cast<uint64>(defaultPanel));
+	CallParentFunction(kv);
 }
 
 //-----------------------------------------------------------------------------
@@ -5321,6 +5325,11 @@ void Panel::OnMessage(const KeyValues *params, VPANEL ifromPanel)
 						typedef void (Panel::*MessageFunc_IntInt_t)(int, int);
 						(this->*((MessageFunc_IntInt_t)pMap->func))( param1->GetInt(), param2->GetInt() );
 					}
+					else if ( (DATATYPE_UINT64 == pMap->firstParamType) && (DATATYPE_UINT64 == pMap->secondParamType) )
+					{
+						typedef void (Panel::*MessageFunc_U64U64_t)(uint64, uint64);
+						(this->*((MessageFunc_U64U64_t)pMap->func))( param1->GetUint64(), param2->GetUint64() );
+					}
 					else if ( (DATATYPE_PTR == pMap->firstParamType) && (DATATYPE_INT == pMap->secondParamType) )
 					{
 						typedef void (Panel::*MessageFunc_PtrInt_t)(void *, int);
@@ -5418,6 +5427,11 @@ void Panel::OnOldMessage(KeyValues *params, VPANEL ifromPanel)
 					{
 						typedef void (Panel::*MessageFunc_IntInt_t)(int, int);
 						(this->*((MessageFunc_IntInt_t)pMessageMap[i].func))( params->GetInt(pMessageMap[i].firstParamName), params->GetInt(pMessageMap[i].secondParamName) );
+					}
+					else if ( (DATATYPE_UINT64 == pMessageMap[i].firstParamType) && (DATATYPE_UINT64 == pMessageMap[i].secondParamType) )
+					{
+						typedef void (Panel::*MessageFunc_U64U64_t)(uint64, uint64);
+						(this->*((MessageFunc_U64U64_t)pMessageMap[i].func))( params->GetUint64(pMessageMap[i].firstParamName), params->GetUint64(pMessageMap[i].secondParamName) );
 					}
 					else if ( (DATATYPE_PTR == pMessageMap[i].firstParamType) && (DATATYPE_INT == pMessageMap[i].secondParamType) )
 					{

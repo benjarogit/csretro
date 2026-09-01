@@ -60,7 +60,9 @@
 template <typename T>
 inline T AlignValue( T val, unsigned alignment )
 {
-	return (T)( ( (unsigned)val + alignment - 1 ) & ~( alignment - 1 ) );
+	// CS Retro 64-Bit: use unsigned long (LP64 pointer-sized) instead of unsigned.
+	typedef unsigned long align_t;
+	return (T)( ( (align_t)val + alignment - 1 ) & ~( (align_t)alignment - 1 ) );
 }
 #endif
 

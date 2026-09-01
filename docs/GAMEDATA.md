@@ -54,11 +54,13 @@ Windows zusätzlich: Registry `SteamPath`. Linux: inkl. Flatpak-Pfad. macOS: `~/
 
 ## Klassen
 
-**COPY** — beobachtete Content-Gruppen und Dateien (Maps, Models, Sounds, Sprites, Events, gfx, resource, WADs, `delta.lst`, `titles.txt`). `valve/liblist.gam` bleibt HL-Metadaten. Gruppen, von denen der Trace nur ein Verzeichnis sah (`valve/maps`, `valve/media`), werden nicht kopiert.
+**COPY** — beobachtete Content-Gruppen und Dateien (Maps, Models, Sounds, Sprites, Events, gfx, resource, WADs, `delta.lst`, `titles.txt`). `valve/liblist.gam` bleibt HL-Metadaten. Gruppen, von denen der Trace nur ein Verzeichnis sah (`valve/maps`, `valve/media`), werden nicht kopiert. Für VGUI2 zusätzlich **`platform/resource/`** (TrackerScheme, Icons, Localization, Fonts) — nicht `platform/steam`, nicht Platform-Binaries.
 
 **REPLACE** — `cstrike/dlls`, `cstrike/cl_dlls`, `valve/cl_dlls`, `valve.rc` / `cstrike.rc`, **`cstrike/liblist.gam`**. GameDLL/Client sind CS-Retro; `liblist.gam` ist CS-Retro-owned (Name „CS Retro“, `gamedll_linux "dlls/cs.so"` — Xash hängt `_amd64` an).
 
-**IGNORE** — Steam-/GoldSrc-Binaries (`*.so`/`*.dll`/`*.exe`, `hl_linux`, `hw.so`, `steam_api`, CEF), `platform/`, `redist/`, `cstrike_hd/`, Steam-`config.cfg`, `steam.inf` / `steam_appid.txt`.
+**IGNORE** — Steam-/GoldSrc-Binaries (`*.so`/`*.dll`/`*.exe`, `hl_linux`, `hw.so`, `steam_api`, CEF), `platform/steam`, `platform/servers`, `platform/config`, `platform/gl_shaders`, `redist/`, `cstrike_hd/`, Steam-`config.cfg`, `steam.inf` / `steam_appid.txt`.
+
+**OVERRIDE** — `data/ui-overrides/` (Git) wird nach der Steam-Kopie über `gamedata/` gelegt (Branding, zusätzliche Menüeinträge). Originalressourcen bleiben unangetastet.
 
 Nicht als Runtime übernehmen: Valve-Engine, `client.dll`/`client.so`, Steam-`cs_amd64.so`, `hw.dll`, SteamAPI.
 

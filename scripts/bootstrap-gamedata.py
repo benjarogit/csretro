@@ -427,6 +427,34 @@ edicts\t"1800"
 """
 
 
+def apply_ui_overrides(dest_root: Path) -> list[str]:
+    src_root = repo_root() / "data" / "ui-overrides"
+    if not src_root.is_dir():
+        return []
+    copied: list[str] = []
+    for path in src_root.rglob("*"):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(src_root).as_posix()
+        dest = dest_root / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, dest)
+        copied.append(rel)
+    return copied
+
+
+def ensure_platform_resource(source: Path, dest_root: Path, manifest: dict) -> list[str]:
+    if (dest_root / "platform" / "resource" / "TrackerScheme.res").is_file():
+        return []
+    copied: list[str] = []
+    for path in iter_source_files(source, "platform/resource"):
+        rel = rel_to_source(source, path)
+        if is_ignored(rel, manifest) or is_user_protect(rel, manifest):
+            continue
+        copied.append(copy_file(source, dest_root, path))
+    return copied
+
+
 def write_liblist(dest_root: Path) -> str:
     path = dest_root / "cstrike" / "liblist.gam"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -528,6 +556,8 @@ def do_import(args: argparse.Namespace) -> int:
                     write_origin(dest_root, origin)
             if not args.skip_extras:
                 install_zbot_extras(dest_root, args.map)
+            ensure_platform_resource(source, dest_root, manifest)
+            apply_ui_overrides(dest_root)
             print(f"XASH3D_RODIR={dest_root}")
             return 0
         if not same:
@@ -558,6 +588,9 @@ def do_import(args: argparse.Namespace) -> int:
             client if client.is_file() else None,
             gamedll if gamedll.is_file() else None,
         )
+
+    copied.extend(ensure_platform_resource(source, dest_root, manifest))
+    copied.extend(apply_ui_overrides(dest_root))
 
     write_origin(
         dest_root,

@@ -2156,7 +2156,8 @@ bool KeyValues::WriteAsBinary( CUtlBuffer &buffer )
 			}
 		case TYPE_PTR:
 			{
-				buffer.PutUnsignedInt( (int)dat->m_pValue );
+				// CS Retro 64-Bit: store pointer as 64-bit in buffer when available.
+				buffer.PutUnsignedInt( (unsigned int)(uintptr_t)dat->m_pValue );
 			}
 
 		default:

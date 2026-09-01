@@ -107,7 +107,7 @@ Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-
 
 ## Offene Arbeit
 
-1. **Phase 3M** — V1 bestanden. **`COptionsSubMouse` abgenommen** (Referenzseite). **Audio noch nicht begonnen.** Interim-Hauptmenü = Negativreferenz. Kein FOV, kein Phase-3-Tag.
+1. **Phase 3M** — V1 bestanden. **Mouse + Audio abgenommen.** Nächste Options-Subpage voraussichtlich Video. Interim-Hauptmenü = Negativreferenz. Kein FOV, kein Phase-3-Tag.
 2. Danach erst 3D (FOV als erstes NextClient-Feature), nach Freigabe.
 3. Windows x86_64 / macOS ARM64+x86_64: Compile-Gates (CMake ist vorbereitet, auf diesem Host nicht gebaut).
 4. Bot-Grenze analysieren und schrittweise nach `bots/` — nicht amputieren.

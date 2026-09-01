@@ -467,6 +467,18 @@ void CSurfaceXash::DrawUnicodeChar(wchar_t wch)
 			DrawFilledRect(x0 + 2, y0 + s - 4, x0 + s - 2, y0 + s - 2);
 		else if (ch == '1' || ch == '2') // maximize / restore
 			DrawOutlinedRect(x0 + 2, y0 + 2, x0 + s - 2, y0 + s - 2);
+		else if (ch == 'u' || ch == 'U') // combo dropdown ▼
+		{
+			const int mid = x0 + s / 2;
+			DrawLine(x0 + 3, y0 + s / 3, mid, y0 + (2 * s) / 3);
+			DrawLine(mid, y0 + (2 * s) / 3, x0 + s - 3, y0 + s / 3);
+		}
+		else if (ch == 't' || ch == 'T') // ▲
+		{
+			const int mid = x0 + s / 2;
+			DrawLine(x0 + 3, y0 + (2 * s) / 3, mid, y0 + s / 3);
+			DrawLine(mid, y0 + s / 3, x0 + s - 3, y0 + (2 * s) / 3);
+		}
 		m_textX += s;
 		return;
 	}

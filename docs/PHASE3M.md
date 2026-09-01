@@ -43,7 +43,7 @@ Skripte: `./scripts/build-menu.sh`, `./scripts/vgui-v1-poc-runtime.sh`, manuell 
 | `ISurface` / `ISurfaceNext` | `surface_xash.cpp` → `ui_enginefuncs_t` | FreeType-Glyphen verbindlich |
 | `IInput` / `IInputInternal` | `input_core.cpp` + `key_translation_xash.cpp` | Xash Key/Mouse/Char |
 | `IScheme` | vendort `Scheme.cpp` | Default **`TrackerScheme`** (GameUI); `ClientScheme` parallel geladen; Fonts über Resolver |
-| `ISystem` | `system_xash.cpp` + `system_shell_posix.cpp` | Win: `system_shell_win.cpp` noch Stub (ShellExecute später) |
+| `ISystem` | `system_xash.cpp` + `system_shell_posix.cpp` | Win: `system_shell_win.cpp` — `Csretro_PlatformShellOpen` ist **No-Op-Stub** (ShellExecuteW ausstehend); Posix öffnet via `xdg-open`/`open` |
 | `ILocalize` | vendort `LocalizedStringTable.cpp` | **Pflicht:** echte Texte; rohe Keys = Fehler |
 | `IFileSystem` / KV | `filesystem_xash.cpp`, `keyvalues_system.cpp` | |
 | Controls | `vgui_controls` + NextClient-GameUI-Controls (`Cvar*`/`KeyToggle`) | weitere Controls nur bedarfsweise |
@@ -86,7 +86,7 @@ Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextC
 
 ## Rekonstruktionsplan (Reihenfolge)
 
-1. **Options-Fundament:** `COptionsSubMouse` **Referenzseite abgenommen** (funktionell + visuell). Als Nächstes Audio — dasselbe Muster, keine Stub-Seite.
+1. **Options-Fundament:** `COptionsSubMouse` + `COptionsSubAudio` abgenommen. Nächste Seite per Dependency-Closure (voraussichtlich Video).
 2. **Main Menu:** NextClient/`GameMenu.res` als echte VGUI2-Controls; Localization fixen; Interim-Textliste ersetzen.
 3. **Create Game:** `CreateMultiplayerGameDialog` + `ServerProfile` (eine Konfiguration).
 4. **Team/Class/Buy:** `.res` + V1-Core; Interim-Renderer entfernen sobald ersetzt.
@@ -100,13 +100,15 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 |---------|--------|
 | Stub-Pages Mouse/Audio/Video | **entfernt** — keine Dummy-Tabs |
 | NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | **portiert** → `client/menu/gameui/Controls/` + Xash `MenuEngine` |
-| `COptionsSubMouse` | **abgenommen** — funktionell + Loc + TrackerScheme + zentriert 640/800/1024/1280×720 |
-| Effektives Scheme | `platform/resource/TrackerScheme.res` (Default); `cstrike/resource/ClientScheme.res` geladen, nicht Default |
-| Effektive `.res` | `data/ui-overrides/cstrike/resource/OptionsSubMouse.res` (NextClient-Layout; Steam-valve ohne MouseLook/Raw) |
-| CVar-Mapping | `m_filter` → `look_filter` (Xash `input.c`; Runtime `m_filter` absent). Joystick = Desktop-CVars, nicht Touch |
-| Apply/Cancel/Reset/OK/Persistenz | `./scripts/vgui-options-mouse-gate.sh` — `host_writeconfig` → BASEDIR `config.cfg` |
-| Localization | UTF-16→wchar_t; gameui/vgui/cstrike/platform; EN: `#GameUI_Mouse` → „Aim“ (Steam-Original) |
-| Audio → … | **nächste** echte Subpage; kein Stub, kein Surface auf Vorrat |
+| `COptionsSubMouse` | **abgenommen** — Referenzseite |
+| `COptionsSubAudio` | **abgenommen** — TrackerScheme; `volume`/`MP3Volume`; `hisound`→`room_hires` (High=2/Low=1); kein EAX/A3D/Miles; HEV in CS ausgeblendet |
+| Effektives Scheme | `platform/resource/TrackerScheme.res` (Default); `ClientScheme` parallel |
+| Effektive `.res` | Mouse/Audio unter `data/ui-overrides/cstrike/resource/` |
+| CVar-Mapping Mouse | `m_filter` → `look_filter` |
+| CVar-Mapping Audio | `hisound` → `room_hires` (Semantik 0/1 → 1/2); `mp3volume` → `MP3Volume` |
+| Apply/Cancel/Reset/OK/Persistenz | `./scripts/vgui-options-mouse-gate.sh`, `./scripts/vgui-options-audio-gate.sh` |
+| Localization | UTF-16→wchar_t; gameui/vgui/cstrike/platform |
+| Video → … | **nächste** echte Subpage nach Dependency-Closure; kein Stub |
 | Keyboard | Bind/Unbind Xash, keine Touch-first-UI |
 | Video | Xash-Optionen, keine toten D3D/32-Bit-Einträge |
 | CS-Retro-Advanced-Tab | leer bis Features existieren (kein FOV-UI vor FOV) |
@@ -149,7 +151,8 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 |-------|--------|
 | V1-Runtime-PoC | **bestanden** |
 | Menü-Lib | `menu_amd64.so` V1-Core + Controls + Xash-Backends |
-| Options Mouse | **abgenommen** (Referenz); Audio noch nicht gestartet |
+| Options Mouse | **abgenommen** (Referenz) |
+| Options Audio | **abgenommen**; Video voraussichtlich als Nächstes |
 | Hauptmenü / Create / Team | Interim-Bootstrap (Negativreferenz) — bleibt bis echte VGUI2-Rekonstruktion |
 | In-Game Team/Buy | Interim-`.res`-Pfad bis VGUI2-Ersatz |
 | Tests | `vgui-v1-poc-runtime.sh`, `vgui-options-mouse-smoke.sh`, `vgui-options-mouse-gate.sh`, `play.sh`, `build-menu.sh --sanitize` |

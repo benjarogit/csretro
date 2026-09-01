@@ -1,6 +1,7 @@
 #include "vgui_boot.h"
 #include "../gameui/OptionsDialog.h"
 #include "../gameui/OptionsMouseGate.h"
+#include "../gameui/OptionsAudioGate.h"
 #include "../gameui/Controls/MenuEngine.h"
 
 #include <cstdlib>
@@ -208,8 +209,14 @@ void VGuiXash_Init()
 		const char *probes[] = {
 			"GameUI_Options",
 			"GameUI_Mouse",
+			"GameUI_Audio",
 			"GameUI_ReverseMouse",
 			"GameUI_MouseFilter",
+			"GameUI_SoundEffectVolume",
+			"GameUI_MP3Volume",
+			"GameUI_SoundQuality",
+			"GameUI_High",
+			"GameUI_Low",
 			"PropertyDialog_OK",
 			"PropertyDialog_Cancel",
 			"PropertyDialog_Apply",
@@ -244,7 +251,8 @@ void VGuiXash_Init()
 				gEng.pfnSetKeyDest(2); // key_menu
 		}
 	}
-	else if (getenv("CSRETRO_OPTIONS_AUTO") || getenv("CSRETRO_OPTIONS_GATE"))
+	else if (getenv("CSRETRO_OPTIONS_AUTO") || getenv("CSRETRO_OPTIONS_GATE") ||
+		 getenv("CSRETRO_OPTIONS_AUDIO_GATE"))
 	{
 		// Smoke / Gate: echte Options-Subpages ohne PoC.
 		if (VGuiXash_ShowOptionsDialog())
@@ -321,13 +329,17 @@ void VGuiXash_RunFrame()
 		++g_optionsGateFrame;
 		if (g_optionsGateFrame == 45)
 		{
-			OptionsMouse_RunFunctionalGate(g_options);
+			if (getenv("CSRETRO_OPTIONS_AUDIO_GATE"))
+				OptionsAudio_RunFunctionalGate(g_options);
+			else
+				OptionsMouse_RunFunctionalGate(g_options);
 		}
 		else if (g_optionsGateFrame == 60)
 		{
 			// zweites Screenshot nach erneutem Paint
 			MenuEngine::ClientCmd("screenshot\n");
-			Menu_Con("CSRETRO_MOUSE_GATE_SHOT_TAKEN");
+			Menu_Con(getenv("CSRETRO_OPTIONS_AUDIO_GATE") ? "CSRETRO_AUDIO_GATE_SHOT_TAKEN"
+									 : "CSRETRO_MOUSE_GATE_SHOT_TAKEN");
 			g_optionsGateFrame = -1;
 		}
 	}
@@ -393,7 +405,7 @@ bool VGuiXash_ShowOptionsDialog()
 	int px = 0, py = 0;
 	g_options->GetPos(px, py);
 	// Gate nach einigen Paint-Frames (Client-CVars + Framebuffer).
-	if (getenv("CSRETRO_OPTIONS_GATE"))
+	if (getenv("CSRETRO_OPTIONS_GATE") || getenv("CSRETRO_OPTIONS_AUDIO_GATE"))
 	{
 		Menu_Con("CSRETRO_OPTIONS_POPUPS %d visible=%d size=%dx%d pos=%d,%d screen=%dx%d",
 			g_pVGuiSurface ? g_pVGuiSurface->GetPopupCount() : -1,

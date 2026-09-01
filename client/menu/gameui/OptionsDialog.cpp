@@ -1,4 +1,5 @@
 #include "OptionsDialog.h"
+#include "OptionsSubAudio.h"
 #include "OptionsSubMouse.h"
 
 #include <vgui/KeyCode.h>
@@ -20,8 +21,9 @@ COptionsDialog::COptionsDialog(Panel *parent)
 	if (GetPropertySheet())
 		GetPropertySheet()->SetTabWidth(84);
 
-	// Nur echte Subpages — keine Stub-Tabs.
+	// Nur echte Subpages — keine Stub-Tabs. Reihenfolge wie Steam: … Mouse, Audio …
 	RegisterPage(new COptionsSubMouse(this), "Mouse", "#GameUI_Mouse");
+	RegisterPage(new COptionsSubAudio(this), "Audio", "#GameUI_Audio");
 }
 
 COptionsDialog::~COptionsDialog() = default;

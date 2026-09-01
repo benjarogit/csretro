@@ -90,5 +90,5 @@ Root-CMake (`CMakePresets.json`) ist vorbereitet, auf diesem Host aber nicht kon
 
 ## Cutover 2026-09-01 (erledigt)
 
-Vorher auf GitHub: Xash3D + Velaron/cs16-client-Monorepo, Release `v0.2.0`, README verwies auf GitHub Pages.
-Das war **Referenz-A-Arbeit**, nicht die NextClient-Basis. `main` wurde durch den Phase-0-Vendor ersetzt (Force-Push). Tag/Release `v0.2.0` entfernt, damit niemand den alten Stand als aktuell nimmt.
+Vorher auf GitHub: Xash3D + Velaron/cs16-client-Monorepo (`8ece11c`), Release `v0.2.0`, README verwies auf GitHub Pages.
+Das war **Referenz-A-Arbeit**, nicht die NextClient-Basis. Force-Push `8ece11c` → `8e378f0`. Tag/Release `v0.2.0` entfernt. Neuer Stand: Tag `v0.1.0-phase0`.

@@ -173,7 +173,17 @@ void VGuiXash_Init()
 		g_pVGui->Init(factories, 1);
 
 	if (g_pVGuiSchemeManager)
-		g_pVGuiSchemeManager->LoadSchemeFromFile("resource/ClientScheme.res", "ClientScheme");
+	{
+		// Steam-CS-1.6-GameUI: TrackerScheme (olive VGUI2). ClientScheme ist HUD-/Ingame-
+		// Overlay mit ControlBG alpha 0 — ungeeignet als Options-Default.
+		const vgui2::HScheme tracker =
+			g_pVGuiSchemeManager->LoadSchemeFromFile("resource/TrackerScheme.res", "TrackerScheme");
+		Menu_Con("CSRETRO_SCHEME_TrackerScheme %s", tracker ? "OK" : "FAIL");
+		const vgui2::HScheme client =
+			g_pVGuiSchemeManager->LoadSchemeFromFile("resource/ClientScheme.res", "ClientScheme");
+		Menu_Con("CSRETRO_SCHEME_ClientScheme %s", client ? "OK" : "FAIL");
+		(void)client;
+	}
 
 	if (g_pVGuiLocalize && ::g_pFullFileSystem)
 	{
@@ -271,6 +281,23 @@ void VGuiXash_RunFrame()
 		g_root->SetBounds(0, 0, gGlobals->scrWidth, gGlobals->scrHeight);
 	g_pVGui->RunFrame();
 
+	// Options nachziehen, falls Screen-Size nach dem ersten Show wächst (Init oft noch 640×480).
+	if (g_options && g_options->IsVisible() && g_pVGuiSurface)
+	{
+		int sw = 0, sh = 0;
+		g_pVGuiSurface->GetScreenSize(sw, sh);
+		const int w = 545, h = 406;
+		const int wantX = (sw - w) / 2;
+		const int wantY = (sh - h) / 2;
+		int px = 0, py = 0, cw = 0, ch = 0;
+		g_options->GetBounds(px, py, cw, ch);
+		if (cw != w || ch != h || px != wantX || py != wantY)
+		{
+			g_options->SetSize(w, h);
+			g_options->SetPos(wantX, wantY);
+		}
+	}
+
 	if (PocDialog_IsActive() && g_pVGuiInput)
 	{
 		static int s_focusFrames = 0;
@@ -311,9 +338,25 @@ void VGuiXash_Paint()
 	if (!g_inited || !g_pVGuiSurface)
 		return;
 	vgui2::VPANEL embedded = g_pVGuiSurface->GetEmbeddedPanel();
-	if (!embedded)
-		return;
-	g_pVGuiSurface->PaintTraverse(embedded);
+	if (embedded)
+	{
+		// forceApplySchemeSettings: sonst bleibt NEEDS_SCHEME_UPDATE → kein Layout, BgColor alpha 0.
+		g_pVGuiSurface->SolveTraverse(embedded, true);
+		g_pVGuiSurface->PaintTraverse(embedded);
+	}
+	// Frame/PropertyDialog default to MakePopup — parent-Traverse überspringt Popups.
+	if (g_pVGuiPanel)
+	{
+		const int n = g_pVGuiSurface->GetPopupCount();
+		for (int i = 0; i < n; ++i)
+		{
+			vgui2::VPANEL p = g_pVGuiSurface->GetPopup(i);
+			if (!p || !g_pVGuiPanel->IsVisible(p))
+				continue;
+			g_pVGuiSurface->SolveTraverse(p, true);
+			g_pVGuiSurface->PaintTraverse(p);
+		}
+	}
 }
 
 bool VGuiXash_ShowPocDialog()
@@ -347,9 +390,17 @@ bool VGuiXash_ShowOptionsDialog()
 	g_options->SetSize(w, h);
 	g_options->SetPos((sw - w) / 2, (sh - h) / 2);
 	g_options->Activate();
+	int px = 0, py = 0;
+	g_options->GetPos(px, py);
 	// Gate nach einigen Paint-Frames (Client-CVars + Framebuffer).
 	if (getenv("CSRETRO_OPTIONS_GATE"))
+	{
+		Menu_Con("CSRETRO_OPTIONS_POPUPS %d visible=%d size=%dx%d pos=%d,%d screen=%dx%d",
+			g_pVGuiSurface ? g_pVGuiSurface->GetPopupCount() : -1,
+			g_options->IsVisible() ? 1 : 0,
+			g_options->GetWide(), g_options->GetTall(), px, py, sw, sh);
 		g_optionsGateFrame = 0;
+	}
 	return true;
 }
 

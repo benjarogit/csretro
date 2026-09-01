@@ -27,7 +27,7 @@ Linux x86_64 zuerst.
 | `vgui_controls` (Frame, Label, Button, TextEntry, …) | gelinkt in `menu_amd64.so` |
 | Xash-Surface | `client/menu/vgui/surface_xash.cpp` |
 | Xash-Input | `input_core.cpp` + `key_translation_xash.cpp` |
-| `.res` / Scheme | `CsretroV1Poc.res`, `ClientScheme.res` |
+| `.res` / Scheme | PoC: `CsretroV1Poc.res`; GameUI-Default: **`TrackerScheme.res`** (ClientScheme nur HUD/Ingame) |
 | FreeType-Glyphen | Face → Glyph → TGA → `pfnPIC_*` (`CSRETRO_V1POC_FREETYPE_GLYPHS`) |
 | Maus / Tastatur / TextEntry / Tab / Escape / Resize | `./scripts/vgui-v1-poc-runtime.sh` |
 | ASan+UBSan | `./scripts/build-menu.sh --sanitize` + derselbe PoC |
@@ -42,7 +42,7 @@ Skripte: `./scripts/build-menu.sh`, `./scripts/vgui-v1-poc-runtime.sh`, manuell 
 | `IVGui` / `IPanel` | vendorter VGUI2-Core (`vgui.cpp`, `VPanel`, `VPanelWrapper`) in `menu_*` | 64-Bit-Patches; **kein** Steam-`vgui2` |
 | `ISurface` / `ISurfaceNext` | `surface_xash.cpp` → `ui_enginefuncs_t` | FreeType-Glyphen verbindlich |
 | `IInput` / `IInputInternal` | `input_core.cpp` + `key_translation_xash.cpp` | Xash Key/Mouse/Char |
-| `IScheme` | vendort `Scheme.cpp` | Steam-`ClientScheme` / Tracker; Fonts über Resolver |
+| `IScheme` | vendort `Scheme.cpp` | Default **`TrackerScheme`** (GameUI); `ClientScheme` parallel geladen; Fonts über Resolver |
 | `ISystem` | `system_xash.cpp` + `system_shell_posix.cpp` | Win: `system_shell_win.cpp` noch Stub (ShellExecute später) |
 | `ILocalize` | vendort `LocalizedStringTable.cpp` | **Pflicht:** echte Texte; rohe Keys = Fehler |
 | `IFileSystem` / KV | `filesystem_xash.cpp`, `keyvalues_system.cpp` | |
@@ -86,7 +86,7 @@ Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextC
 
 ## Rekonstruktionsplan (Reihenfolge)
 
-1. **Options-Fundament:** NextClient-Controls portiert; `COptionsSubMouse` funktional aktiv — **visueller Gate offen** (Referenzseite vor Audio). Dann Audio → … einzeln.
+1. **Options-Fundament:** `COptionsSubMouse` **Referenzseite abgenommen** (funktionell + visuell). Als Nächstes Audio — dasselbe Muster, keine Stub-Seite.
 2. **Main Menu:** NextClient/`GameMenu.res` als echte VGUI2-Controls; Localization fixen; Interim-Textliste ersetzen.
 3. **Create Game:** `CreateMultiplayerGameDialog` + `ServerProfile` (eine Konfiguration).
 4. **Team/Class/Buy:** `.res` + V1-Core; Interim-Renderer entfernen sobald ersetzt.
@@ -100,11 +100,13 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 |---------|--------|
 | Stub-Pages Mouse/Audio/Video | **entfernt** — keine Dummy-Tabs |
 | NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | **portiert** → `client/menu/gameui/Controls/` + Xash `MenuEngine` |
-| `COptionsSubMouse` | **Gate grün** (funktionell + Loc + Screenshots 640/800/1024/16:9); Referenzseite vor Audio |
-| CVar-Mapping | `m_filter` (GoldSrc/NextClient) → `look_filter` (Xash `engine/engine/client/input/input.c` L45/L122/L595; Look-Events glätten). Runtime: `m_filter` absent. |
+| `COptionsSubMouse` | **abgenommen** — funktionell + Loc + TrackerScheme + zentriert 640/800/1024/1280×720 |
+| Effektives Scheme | `platform/resource/TrackerScheme.res` (Default); `cstrike/resource/ClientScheme.res` geladen, nicht Default |
+| Effektive `.res` | `data/ui-overrides/cstrike/resource/OptionsSubMouse.res` (NextClient-Layout; Steam-valve ohne MouseLook/Raw) |
+| CVar-Mapping | `m_filter` → `look_filter` (Xash `input.c`; Runtime `m_filter` absent). Joystick = Desktop-CVars, nicht Touch |
 | Apply/Cancel/Reset/OK/Persistenz | `./scripts/vgui-options-mouse-gate.sh` — `host_writeconfig` → BASEDIR `config.cfg` |
-| Localization | UTF-16→wchar_t-Fix in `LocalizedStringTable.cpp`; geladen: gameui/vgui/cstrike/platform `*_english.txt` |
-| Audio → … | **nach Mouse-Abnahme**; je eine Seite fertig → nächste |
+| Localization | UTF-16→wchar_t; gameui/vgui/cstrike/platform; EN: `#GameUI_Mouse` → „Aim“ (Steam-Original) |
+| Audio → … | **nächste** echte Subpage; kein Stub, kein Surface auf Vorrat |
 | Keyboard | Bind/Unbind Xash, keine Touch-first-UI |
 | Video | Xash-Optionen, keine toten D3D/32-Bit-Einträge |
 | CS-Retro-Advanced-Tab | leer bis Features existieren (kein FOV-UI vor FOV) |
@@ -147,7 +149,7 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 |-------|--------|
 | V1-Runtime-PoC | **bestanden** |
 | Menü-Lib | `menu_amd64.so` V1-Core + Controls + Xash-Backends |
-| Options Mouse | Gate: funktionell + Localization + Screenshots; Audio als Nächstes |
+| Options Mouse | **abgenommen** (Referenz); Audio noch nicht gestartet |
 | Hauptmenü / Create / Team | Interim-Bootstrap (Negativreferenz) — bleibt bis echte VGUI2-Rekonstruktion |
 | In-Game Team/Buy | Interim-`.res`-Pfad bis VGUI2-Ersatz |
 | Tests | `vgui-v1-poc-runtime.sh`, `vgui-options-mouse-smoke.sh`, `vgui-options-mouse-gate.sh`, `play.sh`, `build-menu.sh --sanitize` |

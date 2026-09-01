@@ -45,7 +45,7 @@ Ziel: **NextClient-GameUI-Verhalten → native CS-Retro/Xash-Desktop-UI.**
 | Zustand | Hauptmenü | In-Game Team/Klasse/Buy/Radio |
 |---------|-----------|-------------------------------|
 | **3C-Baseline** (Release `v0.1.5`, bleibt gültig) | Xash-MainUI (`GetMenuAPI`, kein `CreateInterface`) | GoldSrc-`ShowMenu` + `titles.txt` (`_vgui_menus` 0) |
-| **3M-Ziel** | CS-Retro-Menü-Lib, `GameMenu.res` + ClientScheme | VGUI-Viewport über `GameMenuExports001` |
+| **3M-Ziel** | CS-Retro-Menü-Lib, `GameMenu.res` + **TrackerScheme** (GameUI) | VGUI-Viewport über `GameMenuExports001` |
 | **3M jetzt** (dieser Host) | CS-Retro-Lib (`-menu menu_amd64.so`) | Team/Klasse/Buy = `.res`-VGUI; Radio = `ShowMenu` |
 
 `ShowMenu` wird **nicht gelöscht**. Es bleibt Kompatibilität für serverseitige Textmenüs, Plugins, später AMXX/Metamod. Es ist **nicht** die primäre CS-Retro-Team-/Buy-/Radio-Oberfläche.

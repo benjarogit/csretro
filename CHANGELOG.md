@@ -9,7 +9,7 @@ Kein Phase-3-Tag. Kein FOV. 3C-Baseline (`v0.1.5`) bleibt gültig.
 
 - **V1-Runtime-PoC bestanden:** `vgui_controls` + Xash-Surface/Input + `.res`/Scheme + FreeType-Glyphen; Maus/Tastatur/TextEntry/Tab/Escape/Resize; ASan+UBSan; keine Steam-/vgui2-/Touch-Runtime. Nachweis: `./scripts/vgui-v1-poc-runtime.sh`, manuell `./scripts/play.sh`.
 - V1 ist die verbindliche UI-Basis (`docs/PHASE3M.md`). Rekonstruktion der Steam-CS-1.6-VGUI2-Oberfläche beginnt.
-- **Options Mouse Gate:** Localization (UTF-16 Loc-Fix), Apply/OK/Cancel/Reset/Persistenz, Screenshots 640/800/1024/16:9; `./scripts/vgui-options-mouse-gate.sh`. `look_filter` statt `m_filter`.
+- **Options Mouse abgenommen:** TrackerScheme-Default, Popup-Paint + Scheme-Apply, Zentrierung, Loc, Apply/OK/Cancel/Reset/Persistenz, Screenshots 640/800/1024/16:9; `./scripts/vgui-options-mouse-gate.sh`. `look_filter` statt `m_filter`. Audio noch nicht gestartet.
 - Eine Menü-Lib `client/menu/` (`GetMenuAPI` + `GameMenuExports001`).
 - Font-Resolver: GameData `platform/resource/linux_fonts` (+ System-Fallback-Verzeichnisse).
 - Interim-Hauptmenü/Create/Team: Bootstrap bis jeweilige VGUI2-Rekonstruktion — nicht visuell abgenommen.

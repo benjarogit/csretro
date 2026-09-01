@@ -445,9 +445,35 @@ void CSurfaceXash::DrawUnicodeChar(wchar_t wch)
 	if (wch == L'\0')
 		return;
 
+	FontInfo *fi = GetFont(m_textFont);
+	// Marlett-Symbole (Frame-Title-Buttons) ohne TTF: Linien-X / Striche.
+	if (fi && fi->ok && !fi->face && fi->name == "Marlett")
+	{
+		int ox, oy;
+		CurrentOffset(ox, oy);
+		const int aRaw = static_cast<int>(m_textA * m_alphaMult);
+		const int a = aRaw > 0 ? aRaw : 255;
+		const int s = fi->tall > 0 ? fi->tall : 12;
+		const int x0 = ox + m_textX;
+		const int y0 = oy + m_textY;
+		DrawSetColor(m_textR, m_textG, m_textB, a);
+		const int ch = static_cast<int>(wch);
+		if (ch == 'r' || ch == 'R') // close
+		{
+			DrawLine(x0 + 2, y0 + 2, x0 + s - 2, y0 + s - 2);
+			DrawLine(x0 + s - 2, y0 + 2, x0 + 2, y0 + s - 2);
+		}
+		else if (ch == '0') // minimize
+			DrawFilledRect(x0 + 2, y0 + s - 4, x0 + s - 2, y0 + s - 2);
+		else if (ch == '1' || ch == '2') // maximize / restore
+			DrawOutlinedRect(x0 + 2, y0 + 2, x0 + s - 2, y0 + s - 2);
+		m_textX += s;
+		return;
+	}
+
 	const uint32_t cp = static_cast<uint32_t>(wch);
 	GlyphEntry *glyph = EnsureGlyph(m_textFont, cp);
-	FontInfo *fi = GetFont(m_textFont);
+	fi = GetFont(m_textFont);
 
 	if (glyph)
 	{
@@ -573,6 +599,11 @@ void CSurfaceXash::GetScreenSize(int &wide, int &tall)
 {
 	wide = gGlobals ? gGlobals->scrWidth : 640;
 	tall = gGlobals ? gGlobals->scrHeight : 480;
+	// Menu kann vor dem ersten Video-Mode-Callback laufen (scrWidth noch 0).
+	if (wide <= 0)
+		wide = 640;
+	if (tall <= 0)
+		tall = 480;
 }
 
 void CSurfaceXash::SetAsTopMost(VPANEL, bool) {}
@@ -681,6 +712,19 @@ bool CSurfaceXash::AddGlyphSetToFont(HFont font, const char *windowsFontName, in
 		fi->face = nullptr;
 	}
 
+	// Marlett: kein Linux-TTF in gamedata — geometrische Title-Buttons, kein DejaVu-„r“.
+	if (windowsFontName && !strcasecmp(windowsFontName, "Marlett"))
+	{
+		fi->ok = true;
+		fi->ascent = fi->tall * 3 / 4;
+		if (!g_loggedGlyphPath)
+		{
+			g_loggedGlyphPath = true;
+			Menu_Con("CSRetro font: Marlett → geometric fallback");
+		}
+		return true;
+	}
+
 	std::string path = Csretro_ResolveFontFile(windowsFontName, weight);
 	if (path.empty() || FT_New_Face(g_ft, path.c_str(), 0, &fi->face) != 0)
 	{
@@ -738,10 +782,13 @@ void CSurfaceXash::GetCharABCwide(HFont font, int ch, int &a, int &b, int &c)
 
 int CSurfaceXash::GetCharacterWidth(HFont font, int ch)
 {
+	FontInfo *fi = GetFont(font);
+	if (fi && fi->ok && !fi->face && fi->name == "Marlett")
+		return fi->tall > 0 ? fi->tall : 12;
 	GlyphEntry *glyph = EnsureGlyph(font, static_cast<uint32_t>(ch));
 	if (glyph && glyph->advance > 0)
 		return glyph->advance;
-	FontInfo *fi = GetFont(font);
+	fi = GetFont(font);
 	int tall = fi ? fi->tall : 12;
 	return std::max(1, tall / 2);
 }
@@ -773,7 +820,13 @@ VPANEL CSurfaceXash::GetPopup(int index)
 	return g_popups[static_cast<size_t>(index)];
 }
 
-bool CSurfaceXash::ShouldPaintChildPanel(VPANEL) { return true; }
+bool CSurfaceXash::ShouldPaintChildPanel(VPANEL child)
+{
+	// Valve-Verhalten: Popups nicht über Parent-Traverse malen — eigener Popup-Pass.
+	if (child && g_pIPanel && g_pIPanel->IsPopup(child))
+		return false;
+	return true;
+}
 bool CSurfaceXash::RecreateContext(VPANEL) { return true; }
 void CSurfaceXash::AddPanel(VPANEL) {}
 void CSurfaceXash::ReleasePanel(VPANEL panel)

@@ -26,9 +26,9 @@ Arbeitsdokument: `docs/PHASE3-BODY.md`. Plattform: `docs/PLATTFORMEN.md`. Server
 |------|--------|
 | 3A A1-Body vendorn | abgenommen |
 | 3B nackte Client-Lib unter Xash | abgenommen |
-| 3C In-Game-Baseline | **teilweise** — GameDLL lädt, Listen+Map+Connect+Shutdown. Interaktiv (laufen/schießen/Runde) offen |
+| 3C In-Game-Baseline | **abgenommen** — Listen interaktiv `de_dust` (Team/Spawn/Movement/Waffen/Round/Shutdown) |
 | GameDLL-Gate | vendort `server/game/` Pin `b088984`, Target `csretro_gamedll` |
-| 3D NextClient-Features | **gesperrt** bis 3C interaktiv vollständig |
+| 3D NextClient-Features | **nicht automatisch** — 3C-Gate erfüllt; FOV erst nach Freigabe |
 
 3C vollständig heißt: Listen-Server, Map, Rendering, Input, Movement, Prediction, Vanilla-HUD, Waffen, Connect, Shutdown — alles auf derselben 64-Bit-Architektur.
 

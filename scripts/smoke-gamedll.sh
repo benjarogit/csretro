@@ -47,7 +47,10 @@ ok() {
 [[ -d "${HL}/cstrike/maps" ]] || fail "RODIR ohne cstrike/maps: ${HL}"
 [[ -f "${HL}/cstrike/maps/${MAP}.bsp" ]] || fail "Map fehlt: ${HL}/cstrike/maps/${MAP}.bsp"
 
-mkdir -p "${RUN}/cstrike/dlls" "${RUN}/cstrike/cl_dlls"
+mkdir -p "${RUN}/cstrike/dlls" "${RUN}/cstrike/cl_dlls" "${RUN}/valve"
+# Listen: +map/+exec nur nach stuffcmds aus einem .rc (BASEDIR, nicht nur Steam-RODIR).
+printf '%s\n' 'exec autoexec.cfg' 'stuffcmds' > "${RUN}/valve/valve.rc"
+printf '%s\n' 'exec autoexec.cfg' 'stuffcmds' > "${RUN}/cstrike/cstrike.rc"
 cp -a "${GAMEDLL}" "${RUN}/cstrike/dlls/cs_amd64.so"
 if [[ -f "${CLIENT}" ]]; then
     cp -a "${CLIENT}" "${RUN}/cstrike/cl_dlls/client_amd64.so"

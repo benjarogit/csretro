@@ -29,8 +29,8 @@ Plus CS-Retro `client/export/` (`GetClientAPI`).
 |------|--------|
 | 3A Vendor | erledigt |
 | 3B eine Client-Lib | erledigt — `GetClientAPI`, lädt unter Xash |
-| 3C Baseline | **teilweise** — eigene GameDLL, Listen+Map+Connect+Shutdown. Interaktiv offen |
-| 3D NextClient-Features | **gesperrt** |
+| 3C Baseline | **abgenommen** — interaktiver Listen-Lauf `de_dust` |
+| 3D NextClient-Features | **nicht automatisch beginnen** |
 
 ## 3B — eine Lib
 
@@ -52,12 +52,19 @@ Build: `./scripts/build-client.sh`
 
 ## 3C — Stand
 
-GameDLL `cs_amd64.so` unter Xash. Smoke: `./scripts/smoke-gamedll.sh dedicated|listen` (`de_dust`).
-Listen-Log: EntityAPI 140, Map, Waffen-Precache, `client connected`, `game_playerjoin`, sauberer Shutdown.
-Interaktiv (Movement/Waffen/Runde) nicht durchgespielt — Team-Menü, dann Fenster zu.
+GameDLL `cs_amd64.so` unter Xash. Smoke: `./scripts/smoke-gamedll.sh dedicated|listen`.
+Interaktiv: `./scripts/interactive-3c.sh` (`de_dust`, 640×480, xdotool).
 
-Steam-RODIR-`cs_amd64.so` nicht verwenden (`executable stack`). Immer unsere Lib (`-dll`).
+Nachweis im `engine.log`: Auto-Join CT, ZBot T, `Game_Commencing` / `Round_Start`, Movement/Duck/Jump, Slot 1–3, Attack, Reload, `give weapon_ak47`, Host-`quit`.
+Listen-Admin soweit vorhanden = Host-Konsole/Binds (`give`, `bot_add_t`, `sv_cheats`), kein AMXX-Admin.
+Prediction: `cl_showerror 1`, kein `prediction error:` im Log (Notify-Overlay nicht mitgeschnitten).
+HUD: `CS16Client` init; Warnung `sprites/hud.txt` 215 vs 190 (Daten, kein Crash).
+
+ZBot-Testdaten nur in `build/run/` (nicht Git): Profile aus ReGameDLL `bot_profiles.zip`, `de_dust.nav` lokal. Kein zweites Bot-System.
+
+Steam-RODIR-`cs_amd64.so` nicht verwenden. Immer `-dll` auf unsere Lib.
+Listen-`+map` braucht BASEDIR-`.rc` mit `stuffcmds` (Script schreibt das).
 
 ## 3D
 
-Erst nach vollständiger **interaktiver** 3C. Ein Feature pro Durchgang. Jetzt gesperrt.
+3C-Gate erfüllt. Nicht automatisch starten. Ein Feature pro Durchgang, erstes wäre FOV.

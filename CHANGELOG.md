@@ -3,9 +3,15 @@
 Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
 Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 
-## Unreleased — GameDLL-Vendor (2026-09-01)
+## Unreleased — 3C interaktiv (2026-09-01)
 
-Kein Phase-3-Abschluss-Tag. 3D gesperrt. 3C interaktiv (laufen/schießen/Runde) offen.
+Kein Phase-3-Abschluss-Tag. 3D nicht automatisch (FOV erst nach Freigabe).
+
+### 3C
+
+- Interaktiver Listen-Lauf `de_dust`: Team, Spawn, Movement, Duck/Jump, Waffenwechsel, Schießen, Reload, HUD, Round/GameRules, Host-Admin-Binds, Shutdown.
+- Script: `./scripts/interactive-3c.sh`. ZBot-Runtime-Daten nur unter `build/run/`.
+- Listen-`+map`: BASEDIR `valve.rc`/`cstrike.rc` mit `stuffcmds` (auch im Smoke).
 
 ### GameDLL
 

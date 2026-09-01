@@ -10,7 +10,7 @@ Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md
 | Feld | Wert |
 |------|------|
 | Datum | 2026-09-01 |
-| Phase | **3A/3B abgenommen.** GameDLL vendort + Linux-x86_64-Baseline (Load/Listen/Map). **3C interaktiv nicht vollständig. 3D nicht beginnen.** |
+| Phase | **3A/3B/3C abgenommen** (Listen interaktiv auf `de_dust`). **3D nicht automatisch beginnen** (erstes Feature wäre FOV). |
 | Körper-Quelle | **A1** — Manifest in `ROLLEN.md` |
 | GameDLL | `server/game/` — Pin `b088984`, Target `csretro_gamedll` |
 | Stapel | Xash → Export → A1-Body → (später) NextClient-Funktionen |
@@ -74,6 +74,8 @@ Abschluss-Release nur wenn die Phase wirklich fertig ist. Zwischenstand darf auf
 - GameDLL: `./scripts/build-gamedll.sh` → `build/gamedll-cmake/cs_amd64.so`
 - Sanitizer: `./scripts/build-gamedll.sh --sanitize` → `build/gamedll-sanitize/cs_amd64.so`
 - Testdaten: `XASH3D_RODIR` = Steam-HL (nur Maps/WADs), `XASH3D_BASEDIR` = `build/run/`
+- ZBot-Runtime (nicht im Git): `BotProfile.db` / `BotChatter.db` aus ReGameDLL `extra/zBot/bot_profiles.zip`; `maps/*.nav` lokal unter `build/run/cstrike/`
+- Listen-`+map`: BASEDIR braucht `valve/valve.rc` + `cstrike/cstrike.rc` mit `stuffcmds` (schreibt das Smoke-/3C-Script)
 - Menü: Xash-MainUI (`libmenu.so`)
 - Steam-`dlls/cs_amd64.so` nicht laden (`executable stack`). Immer `-dll` auf unsere Lib oder Kopie unter `build/run/cstrike/dlls/`
 
@@ -88,6 +90,7 @@ export CC=clang CXX=clang++
 ./scripts/build-gamedll.sh
 ./scripts/smoke-gamedll.sh dedicated
 ./scripts/smoke-gamedll.sh listen
+./scripts/interactive-3c.sh          # Team/Spawn/Movement/Waffen/Round/Shutdown
 ```
 
 Inhalte: `gamedata/valve` + `gamedata/cstrike` oder Steam-HL als `XASH3D_RODIR`.
@@ -95,15 +98,14 @@ Client: `-clientlib` auf `client_amd64.so`. GameDLL: `-dll` auf `cs_amd64.so`.
 
 ## Offene Arbeit
 
-1. **3C interaktiv:** Movement, Prediction, Waffen feuern, Round — Smoke beweist Load/Map/Connect/Shutdown, nicht das Durchspielen.
-2. **3D erst danach.** Erstes Feature: FOV.
-3. Windows x86_64 / macOS ARM64+x86_64: Compile-Gates (CMake ist vorbereitet, auf diesem Host nicht gebaut).
-4. Bot-Grenze analysieren und schrittweise nach `bots/` — nicht amputieren.
-5. Phase 4 nur bei Bedarf: NextClient-Menüs; Ref B ein Feature.
+1. **3D nicht automatisch.** Erst nach Freigabe; erstes Feature wäre FOV. Kein Phase-3-Tag.
+2. Windows x86_64 / macOS ARM64+x86_64: Compile-Gates (CMake ist vorbereitet, auf diesem Host nicht gebaut).
+3. Bot-Grenze analysieren und schrittweise nach `bots/` — nicht amputieren.
+4. Phase 4 nur bei Bedarf: NextClient-Menüs; Ref B ein Feature.
 
 ## Nicht anfassen
 
-- 3D / NextClient-Feature-Port vor vollständiger interaktiver 3C
+- 3D / NextClient-Feature-Port (FOV, View, Camera, Inspect) ohne ausdrückliche Freigabe
 - Ref A außerhalb des A1-Manifests
 - Ref-A-ReGameDLL / YaPB / Ref-A-mainui
 - Ref B vor Phase 4

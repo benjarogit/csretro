@@ -57,6 +57,8 @@ Endzustand: `bots/` = Bot-System, `server/game/` = Spiellogik.
 
 **Jetzt:** ZBot vollständig in der GameDLL mitgebaut (`dlls/bot/*`, `game_shared/bot/*`). Hostage-Nav teilt sich diesen Code. Nicht amputieren. Vorübergehende Redundanz ist dokumentierte Migration.
 
+Runtime-Testdaten (nicht im Git): `BotProfile.db` / `BotChatter.db` aus Upstream `regamedll/extra/zBot/bot_profiles.zip`; Map-`.nav` unter `build/run/cstrike/maps/`. Kein YaPB als Ersatz-Bot.
+
 Später: alle Bot-Quellen vergleichen → eigener CS-Retro-Bot → erst dann alte Implementierungen entfernen.
 
 ## 64-Bit-Audit (aktives Manifest)

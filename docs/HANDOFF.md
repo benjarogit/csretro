@@ -107,8 +107,8 @@ Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-
 
 ## Offene Arbeit
 
-1. **Phase 3M** — Classic Preferred Size **512×406 implementiert** (`OptionsClassicMetrics.h`). Mouse+Audio-Gate (640/800/1024/1366) nach Patch. Video erst nach grünem Gate. FOV gesperrt.
-2. Nach Gate-Grün: Video freigeben.
+1. **Phase 3M** — Preferred Size **512×406** live; Mouse+Audio-Gate **grün** (640–1366). **Video freigegeben.** FOV weiter gesperrt. Tabs/Fonts eigener Pass.
+2. Video-Options-Seite (NextClient-Port) — nächster UI-Schritt.
 3. Windows/macOS Compile-Gates. **`Csretro_PlatformShellOpen` Windows = offenes Plattform-Gate**.
 4. Bot-Grenze → `bots/`.
 

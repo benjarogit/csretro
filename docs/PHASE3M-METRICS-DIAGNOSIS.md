@@ -372,4 +372,14 @@ Weiter nur HD-/Responsive-Research (optional 1366); nicht Classic-Ziel.
 
 Mouse + Audio bei gleicher Auflösung gegen Golden/Classic → wenn grün, Video freigeben. FOV/3D gesperrt. Kein Phase-3-Tag.
 
-**Status:** Decision freigegeben und Preferred Size **implementiert** (`CsretroOptionsClassic::kPreferredWide/Tall` → `SetBounds(512,406)`). Nicht Max; Responsive/HiDPI später. Mouse+Audio-Gate nach Patch.
+## Mouse + Audio Gate nach Preferred-Size-Patch (2026-09-02)
+
+**Funktional:** PASS — `vgui-options-mouse-gate.sh` + `vgui-options-audio-gate.sh` bei **640×480, 800×600, 1024×768, 1366×768** (Apply/OK/Cancel/Reset/Persist/Controls/Loc).
+
+**Runtime:** Dialog **512×406** zentriert (z. B. @800: 144,97; @640: 64,37). Sheet **496×338**, Mouse-Page **496×310**. OK/Cancel/Apply 72×24 unten rechts.
+
+**Visuell (Shots `build/options-*-shots/`):** kein Text-Clip, keine Überlappung, Frame/Tabs/Slider/Checks/Symbole OK. Miles-Footer **absichtlich hidden** (kein Miles-Backend) — nicht in sichtbare Layoutabnahme.
+
+**Fix-Nachtrag:** `vgui_boot.cpp` hatte noch hart `SetSize(545,406)` (Show + RunFrame-Zentrierung) — auf `CsretroOptionsClassic` umgestellt.
+
+**Video:** freigegeben nach diesem Gate. FOV/3D weiterhin gesperrt. Kein Phase-3-Tag.

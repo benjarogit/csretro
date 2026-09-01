@@ -86,7 +86,7 @@ Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextC
 
 ## Rekonstruktionsplan (Reihenfolge)
 
-1. **Options-Fundament:** `COptionsSubMouse` + `COptionsSubAudio` funktional/symbol-grün, **visuell noch nicht 1:1**. Zuerst gemeinsames **Metrics-/Scheme-/Font-Gate** schließen. Video danach.
+1. **Options-Fundament:** `COptionsSubMouse` + `COptionsSubAudio` funktional + Preferred-Size-Gate grün. **Video** als nächste echte Subpage.
 2. **Main Menu:** NextClient/`GameMenu.res` als echte VGUI2-Controls; Localization fixen; Interim-Textliste ersetzen.
 3. **Create Game:** `CreateMultiplayerGameDialog` + `ServerProfile` (eine Konfiguration).
 4. **Team/Class/Buy:** `.res` + V1-Core; Interim-Renderer entfernen sobald ersetzt.
@@ -100,8 +100,8 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 |---------|--------|
 | Stub-Pages Mouse/Audio/Video | **entfernt** — keine Dummy-Tabs |
 | NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | **portiert** → `client/menu/gameui/Controls/` + Xash `MenuEngine` |
-| `COptionsSubMouse` | funktional abgenommen; **visuell Metrics-Gate offen** |
-| `COptionsSubAudio` | funktional abgenommen; **visuell Metrics-Gate offen**; `MP3 volume *` original |
+| `COptionsSubMouse` | Gate grün (funktional + Preferred 512×406 @640–1366) |
+| `COptionsSubAudio` | Gate grün; `MP3 volume *` original; Miles hidden (kein Backend) |
 | Effektives Scheme (Runtime-Winner) | `gamedata/valve/resource/TrackerScheme.res` (= Current Steam `valve/…`); `platform/…/TrackerScheme.res` nur Fallback; `ClientScheme` parallel (HUD) |
 | Effektive `.res` | Mouse/Audio unter `data/ui-overrides/cstrike/resource/` |
 | CVar-Mapping Mouse | `m_filter` → `look_filter` |
@@ -151,11 +151,11 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 |-------|--------|
 | V1-Runtime-PoC | **bestanden** |
 | Menü-Lib | `menu_amd64.so` V1-Core + Controls + Xash-Backends |
-| Options Mouse | funktional + Symbole OK; **visuell Metrics-Gate offen** |
-| Options Audio | funktional + Symbole OK; **visuell Metrics-Gate offen**; `MP3 volume *` = Steam-Loc (behalten) |
+| Options Mouse | Gate **PASS** Preferred 512×406 @640/800/1024/1366 |
+| Options Audio | Gate **PASS**; Miles absichtlich hidden |
 | VGUI2 Symbol-Controls | **Gate grün** — `vgui_symbols.cpp` |
-| VGUI2 Metrics/Scheme/Font | **in Arbeit** — Golden Ref Build 5971; siehe Abschnitt unten |
-| Video | **gesperrt** bis Metrics-Gate grün |
+| VGUI2 Metrics Preferred Size | **512×406** (`OptionsClassicMetrics.h`) — Classic Preferred, nicht Max |
+| Video | **freigegeben** — nächste Subpage; FOV weiter gesperrt |
 | Windows ShellOpen | **offenes Plattform-Gate** (`system_shell_win.cpp` No-Op) |
 | Hauptmenü / Create / Team | Interim-Bootstrap (Negativreferenz) |
 | In-Game Team/Buy | Interim-`.res`-Pfad bis VGUI2-Ersatz |
@@ -177,7 +177,7 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 | Belegt aus Shot | Tab **Mouse**; Video aktiv |
 | Nicht belegt | 5971 HD/prop-State; Byte-Identität Scheme/Loc/GameUI mit Current Steam |
 
-**Führender Classic-Dialog-Kandidat → Decision:** 512×406 Preferred (Fit geprüft). Endgültig implementieren erst nach Abnahme des Decision Reports in `docs/PHASE3M-METRICS-DIAGNOSIS.md`. Kein blindes `SetBounds`-Patch ohne Freigabe.
+**Classic Preferred Size:** 512×406 implementiert (`CsretroOptionsClassic`). Mouse+Audio-Gate grün. Details: `docs/PHASE3M-METRICS-DIAGNOSIS.md`.
 
 ### Produktziel (dauerhaft)
 

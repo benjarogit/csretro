@@ -1,5 +1,6 @@
 #include "vgui_boot.h"
 #include "../gameui/OptionsDialog.h"
+#include "../gameui/OptionsClassicMetrics.h"
 #include "../gameui/OptionsMouseGate.h"
 #include "../gameui/OptionsAudioGate.h"
 #include "../gameui/Controls/MenuEngine.h"
@@ -296,7 +297,8 @@ void VGuiXash_RunFrame()
 	{
 		int sw = 0, sh = 0;
 		g_pVGuiSurface->GetScreenSize(sw, sh);
-		const int w = 545, h = 406;
+		const int w = CsretroOptionsClassic::kPreferredWide;
+		const int h = CsretroOptionsClassic::kPreferredTall;
 		const int wantX = (sw - w) / 2;
 		const int wantY = (sh - h) / 2;
 		int px = 0, py = 0, cw = 0, ch = 0;
@@ -400,7 +402,8 @@ bool VGuiXash_ShowOptionsDialog()
 	int sw = 640, sh = 480;
 	if (g_pVGuiSurface)
 		g_pVGuiSurface->GetScreenSize(sw, sh);
-	int w = 545, h = 406;
+	int w = CsretroOptionsClassic::kPreferredWide;
+	int h = CsretroOptionsClassic::kPreferredTall;
 	g_options->SetSize(w, h);
 	g_options->SetPos((sw - w) / 2, (sh - h) / 2);
 	g_options->Activate();

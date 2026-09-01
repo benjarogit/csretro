@@ -11,7 +11,7 @@ Kein Phase-3-Tag. Kein FOV. 3C-Baseline (`v0.1.5`) bleibt gültig.
 - V1 ist die verbindliche UI-Basis (`docs/PHASE3M.md`). Rekonstruktion der Steam-CS-1.6-VGUI2-Oberfläche beginnt.
 - **Options Mouse/Audio funktional** (Gates); visuell Classic-Abnahme erst nach Metrics-Gate.
 - **VGUI2 Symbol-Control-Gate grün:** `vgui_symbols.cpp` — Marlett geometrisch; kein Windows-Marlett.ttf; Scheme-lastResort überschreibt Symbolfonts nicht.
-- **Metrics-/Classic-Gate:** Preferred Size **512×406** umgesetzt (`CsretroOptionsClassic` in `OptionsClassicMetrics.h`). Decision Report + Golden Artifact. Mouse+Audio-Gate nach Patch (640–1366). Video gesperrt bis Gate grün.
+- **Metrics-/Classic-Gate:** Preferred Size **512×406** (`OptionsClassicMetrics.h` + `vgui_boot` Zentrierung). Mouse+Audio-Gate **PASS** @640/800/1024/1366; Metrics Sheet 496×338. Miles hidden (kein Backend). **Video freigegeben.** FOV gesperrt.
 - **Windows ShellOpen:** offenes Plattform-Gate (No-Op).
 - Eine Menü-Lib `client/menu/` (`GetMenuAPI` + `GameMenuExports001`).
 - Font-Resolver: GameData `platform/resource/linux_fonts` (+ System-Fallback-Verzeichnisse); Liberation vor DejaVu (Kandidat, nicht Endurteil).

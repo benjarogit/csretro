@@ -167,7 +167,7 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 
 | Feld | Wert |
 |------|------|
-| Rolle | **nur** visuelle Zieloptik (Screenshot-Pin) |
+| Rolle | **nur** visuelle Zieloptik (Screenshot-Pin); proportional/HD-Interna **unknown** |
 | Produkt | Steam Counter-Strike 1.6 |
 | Build | **5971** (`Exe build: 11:45:32 Mar 1 2013` laut Console im Ref-Shot) |
 | Sprache | English |
@@ -179,7 +179,7 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 
 | Feld | Wert |
 |------|------|
-| Rolle | Live Build Mode, Resource-SHA, GameUI-Binary-Analyse |
+| Rolle | Live Build Mode, Resource-SHA, GameUI-Binary (**HL25-era/current HD reference**) |
 | Steam AppID / appmanifest buildid | 10 / **12934623** |
 | `cstrike/steam.inf` | `PatchVersion=1.1.2.7` |
 | Engine-Binary-String (`hw.so`) | `Exe build: 01:35:13 Oct  8 2024` |

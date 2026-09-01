@@ -1,6 +1,6 @@
 # Phase 3M — VGUI2 Metrics / Classic Gate — Diagnosebericht
 
-Stand: 2026-09-01 (Provenance-Cleanup + Current-Steam-Codeanalyse). **Video gesperrt.** Mouse/Audio funktional abgenommen; **visuelle** Classic-Abnahme offen.
+Stand: 2026-09-02. **Video gesperrt.** Mouse/Audio funktional abgenommen; **visuelle** Classic-Abnahme offen.
 
 Ziel: gemeinsamen VGUI2-Unterbau korrekt machen — keine kosmetischen `.res`-/Dialog-Patches.
 
@@ -12,7 +12,7 @@ Ziel: gemeinsamen VGUI2-Unterbau korrekt machen — keine kosmetischen `.res`-/D
 4. NextClient (funktionale GameUI)  
 5. Valve Developer Community — VGUI/VGUI2-Doku (Konzept; nicht ungeprüft Source-Engine-APIs)  
 6. Research: CKF3Alpha, OpenGoldSrc, Ref B, fwgs-vgui2-support, MetaHookSv/VGUI2Extension, Ref A (Desktop)  
-7. Ghidra nur bei Restlücke nach 1–6  
+7. Ghidra nur bei Restlücke nach 1–6 — und **nur** für den untersuchten Binary-Stand (Current Steam 2024 beantwortet nur Current-Fragen; **keine** Ableitung von 5971-Interna daraus)  
 
 Build Mode Shortcut (Valve-Doku): **Ctrl+Shift+Alt+B**
 
@@ -24,7 +24,7 @@ Build Mode Shortcut (Valve-Doku): **Ctrl+Shift+Alt+B**
 
 | Feld | Wert |
 |------|------|
-| Rolle | **nur** visuelle Zieloptik (Screenshot-Pin) |
+| Rolle | **nur** visuelle Zieloptik (Screenshot-Pin); proportional/HD-Interna **unknown** |
 | Build | **5971** (`Exe build: 11:45:32 Mar 1 2013` laut Console im Ref-Shot) |
 | Sprache / Auflösung (Shot) | English / **1366×768** |
 | Aus Shot belegt | u. a. Tab-Text **Mouse** |
@@ -34,12 +34,12 @@ Build Mode Shortcut (Valve-Doku): **Ctrl+Shift+Alt+B**
 
 | Feld | Wert |
 |------|------|
-| Rolle | Live Resources, Binary-Analyse, künftiger Build-Mode-Messlauf |
+| Rolle | Live Resources, Binary-Analyse, Build-Mode-Messlauf (**HL25-era/current HD reference**) |
 | AppID / appmanifest `buildid` | 10 / **12934623** |
 | `cstrike/steam.inf` | `PatchVersion=1.1.2.7` |
-| Engine (`hw.so` String) | `Exe build: 01:35:13 Oct  8 2024` |
-| Protocol | Console-`version` bei laufendem Steam-Client; Stand 2026-09-01: Headless-`hl_linux` ohne Steam-Pipe abgebrochen — **noch offen** (nicht mit appmanifest-buildid verwechseln) |
-| Sprache | Steam UserConfig **english** |
+| Runtime Console `version` (2026-09-02, 800×600, english) | **Protocol version 48** · **Exe version 1.1.2.7/Stdio (cstrike)** · **Exe build: 01:35:13 Oct 8 2024 (10211)** |
+| Sprache | Steam UserConfig **english**; UI-Tab **Aim** (nicht Mouse) |
+| Auflösung Messlauf | **800×600** windowed (Shots: `build/steam-bm-shots/`) |
 | `valve/cl_dlls/gameui.so` SHA-256 | `6473a660d1f10c0de35c80fd328110266bb5eeb5d1d7eb07697a4867eda2ce0a` |
 
 **Warnung:** Current Steam ≠ Golden 5971. Keine Formulierung „Build 5971 Scheme = aktueller SHA“.
@@ -67,15 +67,19 @@ Scheme-Suchreihenfolge CS Retro: `cstrike` → **`valve` (HIT)** → `platform` 
 
 ---
 
-## Classic Proportional Base
+## Classic Proportional Base / HD — Quellen getrennt
 
 | | Wert |
 |--|------|
-| Historische VGUI-Basis (Classic-Gate) | **640×480** |
-| Kurze Fehlentscheidung | `GetProportionalBase` global auf HD 1280×720 |
-| Status | **zurückgenommen** — Classic-Gate fest **640×480** |
-| Current Steam GameUI | ruft `SetHDProportional(true)` auf OptionsDialog — **andere** Generation als Classic-Baseline |
-| MetaHookSv HiDPI | alle Elemente proportional — Research only, nicht Classic-Baseline |
+| CS-Retro Classic-Gate `GetProportionalBase` | fest **640×480** (keine globale HD-Umschaltung) |
+| Kurze Fehlentscheidung (zurückgenommen) | global HD 1280×720 als Classic-Kompensation |
+| **Current Steam 2024** | HL25-era/current HD reference: GameUI `SetHDProportional(true)`, Basen **522×444**, TabWidth-Basis **72** |
+| MetaHook / Surface | `GetHDProportionalBase` / `SetHDProportionalBase` in `ISurface_HL25` als **HL25-added** dokumentiert (`hzqst/MetaHookSv` `include/Interface/VGUI/ISurface.h`, Pin in `UPSTREAM.md`) |
+| MetaHook HiDPI-Modus | bewusst alle Panels proportional — Research only, nicht Classic-Ziel |
+| **Golden 5971 proportional/HD behavior** | **currently unknown** — Build ist älter; ob GameUI damals bereits eine frühere HD-Proportional-Form nutzte, ist **nicht** nachgewiesen |
+| Verboten | „5971 = definitiv non-HD“ |
+
+Current-Steam-BuildMode = Kontroll-/Forschungsdatensatz, **nicht** automatisch CS-Retro-Classic-Ziel.
 
 ---
 
@@ -87,9 +91,9 @@ Scheme-Suchreihenfolge CS Retro: `cstrike` → **`valve` (HIT)** → `platform` 
 2. `SetBounds(0, 0, GetProportionalScaledValue(522), GetProportionalScaledValue(444))`
 3. `GetPropertySheet()->SetTabWidth(GetProportionalScaledValue(72))`
 
-Das sind **Current-Steam-Codebasen**, keine Golden-5971-Werte.
+Das sind **Current-Steam-Codebasen** (HL25-era/current HD reference), keine Golden-5971-Werte und kein Beweis für 5971-Interna.
 
-Klassische Rekonstruktionen (CKF3Alpha / OpenGoldSrc, gepinnte Commits in `UPSTREAM.md`): hart `512×406` + `SetTabWidth(84)` **ohne** HD-Proportional — ebenfalls nicht automatisch = 5971, aber näher am klassischen GameUI-Muster.
+Klassische Rekonstruktionen (CKF3Alpha / OpenGoldSrc, gepinnte Commits in `UPSTREAM.md`): hart `512×406` + `SetTabWidth(84)` ohne sichtbares `SetHDProportional` im Quelltext — **Evidenz**, nicht Garantie dass 5971 identisch war.
 
 NextClient / CS Retro: hart `545×406` + `SetTabWidth(84)`, Options-Baum `IsProportional=0`.
 
@@ -122,39 +126,52 @@ Scheme-Herkunft Runtime: `valve/resource/TrackerScheme.res` (SHA oben). Proporti
 
 Legende Spalten:
 
-1. **Current Steam Resource/Code** — `.res` bzw. `gameui.so`-Ctor (nicht 5971)  
-2. **Current Steam Runtime** — Build Mode bzw. skaliertes Ergebnis; interaktive BM-Werte noch ergänzen  
+1. **Current Steam Resource/Code** — `.res` bzw. `gameui.so`-Ctor (HL25-era/current; nicht 5971)  
+2. **Current Steam Runtime** — Build Mode und/oder Pixelmessung bei dokumentierter Auflösung  
 3. **CS-Retro Resource/Code**  
 4. **CS-Retro Runtime** — Metrics-Dump  
 
-Auflösung Referenzzeile: **800×600** (CS-Retro gemessen). Current-Steam-Runtime für HD-Skalierung: `value * screen / HD-Base` — absolutes Build-Mode-Ergebnis bei gleicher Auflösung **noch zu erfassen** (nicht aus 5971-Shot schätzen).
+Messung Current Steam 2026-09-02: **800×600**, english, Protocol **48**, Exe **Oct 8 2024 (10211)**, appmanifest **12934623**. Shots unter `build/steam-bm-shots/`.
 
-| Control | Current Steam Resource/Code | Current Steam Runtime (BM) | CS-Retro Resource/Code | CS-Retro Runtime (800×600) |
-|---------|----------------------------|----------------------------|------------------------|----------------------------|
-| OptionsDialog size | HD-prop. Basen **522×444** | BM bei 800×600: **offen** | NextClient `SetBounds(545,406)` | **545×406** prop=0 @ 127,97 |
-| OptionsDialog HD/prop | `SetHDProportional(true)` | BM: offen | kein HD; prop=0 | prop=0 |
-| Tab width | Code-Basis **72** (danach HD-scale) | BM: offen | `SetTabWidth(84)` | Sheet 8,30 529×338; Tab-Content y=**28** |
-| Tab height | Code Default **28** | BM: offen | Default 28 | Page Mouse y-offset **28** |
-| OK / Cancel / Apply | PropertyDialog 72×24 | BM: offen | dasselbe | OK 297,372 · Cancel 377,372 · Apply 457,372 · je 72×24 |
-| ReverseMouse | xpos**30** ypos32 wide**160** tall28 | BM: offen | xpos**36** ypos32 wide**155** tall28 | **36,32 155×28** prop=0 |
-| MouseFilter | xpos30 ypos**56** … | BM: offen | xpos36 ypos**76** … (+ MouseLook) | **36,76 155×28** |
-| MouseLook | (nicht in current Steam Mouse.res) | — | xpos36 ypos54 | **36,54 155×28** |
-| Sensitivity Slider | xpos34 ypos222 wide272 tall40 | BM: offen | xpos40 ypos222 wide272 tall40 | **40,222 272×40** |
-| Audio SFX Slider | xpos40 ypos37 wide420 tall36 | BM: offen | gleich | **40,37 420×36** |
-| Audio sfx label | wide **160** | BM: offen | wide **240** | **42,14 240×24** |
-| Sound Quality Combo | xpos40 ypos226 wide180 tall24 | BM: offen | gleich | **40,226 180×24** |
-| Default font tall | TrackerScheme Tahoma 16, weight 0, kein AA | Win32 CreateFont | Liberation/DejaVu Resolver, AA=0, REAL_DIM | GetFontTall **16** |
-| `#GameUI_Mouse` | current Loc **Aim** | UI „Aim“ | CS-Retro Override **Mouse** (5971-Visual-Pin) | Tab „Mouse“ |
-| Scheme file | current valve TrackerScheme SHA | geladen | gleicher Winner in CS Retro | valve HIT |
-| proportionalBase | Current Steam: HD-Pfad (Surface HD-Base) | BM: offen | Classic **640×480** | dump: **640×480** |
+| Control | Current Steam Resource/Code | Current Steam Runtime (800×600) | CS-Retro Resource/Code | CS-Retro Runtime (800×600) |
+|---------|----------------------------|----------------------------------|------------------------|----------------------------|
+| OptionsDialog size | HD-prop. Basen **522×444** | Pixel/Kanten ≈ **520×444** (≈ Basen; bestätigt Code→Runtime) | NextClient `SetBounds(545,406)` | **545×406** prop=0 @ 127,97 |
+| OptionsDialog HD/prop | `SetHDProportional(true)` | HD-Pfad aktiv (Basen ≈ Runtime bei 800×600) | kein HD; prop=0 | prop=0 |
+| Tab width | Code-Basis **72** (HD-scale) | BM-OCR TabWidth am OptionsDialog noch unvollständig; 7 Tabs inkl. **Aim** sichtbar | `SetTabWidth(84)` | Sheet 8,30 529×338; Tab-Content y=**28** |
+| Tab height | Code Default **28** | optisch Tab-Zeile vorhanden | Default 28 | Page Mouse y-offset **28** |
+| OK / Cancel / Apply | PropertyDialog 72×24 | sichtbar, rechts unten | dasselbe | OK 297,372 · Cancel 377,372 · Apply 457,372 · je 72×24 |
+| Mouse / Aim page | Steam `OptionsSubMouse.res` | Tab-Label **Aim**; Detail-BM Controls noch offen | NextClient Mouse `.res` (+ MouseLook) | ReverseMouse **36,32 155×28** etc. |
+| Audio page | Steam `OptionsSubAudio.res` | Tab sichtbar; Detail-BM noch offen | Audio Override | SFX Slider **40,37 420×36** |
+| Default font tall | TrackerScheme Tahoma 16 | optisch Tahoma-ähnlich | Liberation/DejaVu, REAL_DIM | GetFontTall **16** |
+| `#GameUI_Mouse` | Loc **Aim** | UI „Aim“ | Override **Mouse** | Tab „Mouse“ |
+| Scheme | current valve TrackerScheme | geladen | gleicher Winner | valve HIT |
+| proportionalBase | HD Surface-Pfad (HL25) | Runtime: Basen 522×444 ≈ Dialoggröße | Classic **640×480** | dump: **640×480** |
 
-**Golden 5971:** nur Visual; Dialoggröße/Tabs **nicht** aus Shot als Zahlen übernommen. Rekonstruktions-Hinweis (CKF/OGS): 512×406 + TabWidth 84 — Entscheidungsgrundlage erst nach Current-BM **und** Abgleich mit Classic-Ziel.
+Build Mode zusätzlich belegt (andere Panels, nicht OptionsDialog): `GameConsole` wide/tall **560×400**; `ConsoleHistory` **544×324** (xpos8 ypos36). OptionsDialog-Felder in BM: Fokus/OCR noch nachziehen bei 1024/1366.
+
+**1024×768 / 1366×768:** Current-Steam-Messlauf noch ausstehend (nur 800×600 abgeschlossen).
+
+---
+
+## Evidenztabelle (Classic-Entscheidung — alle Ziele offen)
+
+Nur belegte Zellen. Keine Screenshot-Zahlen für 5971 erfinden. Current Steam = Forschungsdatensatz, **nicht** automatisch Classic-Ziel.
+
+| Metrik | Golden 5971 | Current Steam 2024 | CKF / OpenGoldSrc | NextClient | CS-Retro aktuell | Zielentscheidung |
+|--------|-------------|--------------------|-------------------|------------|------------------|------------------|
+| Dialog | visuell (keine Zahl) | Code **522×444** HD; Runtime@800≈**520×444** | **512×406** hart | **545×406** hart | **545×406** | **offen** |
+| TabWidth | visuell | Code-Basis **72** HD | **84** | **84** | **84** | **offen** |
+| Proportional / HD | **unknown** | HD (`SetHDProportional`) | nein (Quelltext) | nein | nein (Classic-Gate 640×480) | **offen** |
+| Mouse-Tab Loc | Shot: **Mouse** | **Aim** | (Rekonstruktion) | Aim/Mouse je Loc | Override **Mouse** | **offen** (Pin bewusst) |
+| Mouse `.res` | unknown (5971-Bytes) | Steam valve SHA | — | NextClient-Layout | Override ≠ Steam | **offen** |
+
+Gewichtungsregel: Quellen getrennt; weder Current-2024 noch CKF/OGS allein = Wahrheit für 5971.
 
 ---
 
 ## Localization
 
-- Current Steam Loc-Datei: `GameUI_Mouse` = **Aim** (SHA oben).  
+- Current Steam Loc-Datei: `GameUI_Mouse` = **Aim** (SHA oben); Runtime-Tab **Aim** bestätigt.  
 - Golden 5971 Visual: Tab **Mouse** sichtbar — **einzelner** Beleg, keine Ableitung der gesamten historischen Loc.  
 - CS-Retro: bewusster Override nur dieses Keys.
 
@@ -167,12 +184,21 @@ Auflösung Referenzzeile: **800×600** (CS-Retro gemessen). Current-Steam-Runtim
 
 ---
 
+## Ghidra
+
+- Current Steam 2024 / `gameui.so` / `vgui2.so`: nur Current-Fragen.  
+- **Nicht** daraus 5971-Interna ableiten.  
+- Historische 5971-Binary erst analysieren, wenn lokal nachweisbar vorliegend; sonst Punkt = **unknown**, konservativ aus übrigen Quellen.
+
+---
+
 ## Nächste Schritte (kein Video)
 
-1. Current Steam bei **gleicher** Auflösung mit laufendem Steam-Client: Console `version` (Protocol + Exe) + Build Mode für OptionsDialog / Sheet / Tabs / OK·Cancel·Apply / Mouse·Audio-Controls — Runtime-Spalte füllen.  
-2. Entscheidung **nach** Tabelle: 545 vs 522-HD vs klassisch-512; TabWidth 84 vs 72-HD; Steam-`.res` vs NextClient-`.res`; Font-ABC vs Win32.  
-3. NextClient-**Funktion** behalten; Layoutabweichungen nicht als Originaloptik dokumentieren.  
-4. Zentrale Core-Fixes — dann Mouse+Audio erneut bei gleicher Auflösung abnehmen → Video freigeben.
+1. Current Steam Build Mode: OptionsDialog-Felder + Aim/Audio-Controls bei **1024×768** und **1366×768** nachziehen.  
+2. Evidenztabelle füllen — **keine** Layoutwahl (545/522/512, Tab 84/72) vor Abschluss.  
+3. Danach zentrale Metrics-/Font-/Scheme-Entscheidung.  
+4. NextClient-**Funktion** behalten; Layoutabweichungen nicht als Originaloptik.  
+5. Mouse+Audio erneut bei gleicher Auflösung abnehmen → Video freigeben.
 
 ## Research References
 

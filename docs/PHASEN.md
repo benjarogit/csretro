@@ -1,6 +1,6 @@
 # Phasen
 
-Vor jeder Phase die Rollen bestätigen (Basis / Engine / Ref A / Ref B). Nicht mischen.
+Vor jeder Phase die Rollen in `docs/ROLLEN.md` bestätigen. Nicht mischen.
 
 ## Phase 0 — Rollen + Vendor (abgeschlossen 2026-09-01)
 
@@ -13,21 +13,21 @@ Vor jeder Phase die Rollen bestätigen (Basis / Engine / Ref A / Ref B). Nicht m
 
 - NextClient ist Overlay auf Steam-`client.dll`, kein `GetClientAPI`-Körper.
 - Xash: alle Namen in `cdll_exports[]` Pflicht; Menü separat über `GetMenuAPI`.
-- Form entschieden: ein Export + ein Körper + NextClient-Features als Module. Ref A in Phase 1 nur gelesen.
-- **Körper-Quelle offen** — siehe Gate vor Phase 3. „Körper neu schreiben“ ist keine stillschweigende Folge von Option A.
+- Form entschieden: ein Export + ein Körper + NextClient-Features als Module.
+- Körper-Quelle: Gate **A1** (2026-09-01) — siehe unten.
 - Server AMXX bleibt Phase-3-Lücke, kein ReGameDLL.
-- Text: `docs/PHASE1-ARCHITEKTUR.md`. Kein Feature-Port, kein Code-Copy.
+- Text: `docs/PHASE1-ARCHITEKTUR.md`. In Phase 1 noch kein Feature-Port und kein Body-Vendor.
 
-## Phase 2 — Steam raus
+## Phase 2 — Steam-/Hook-/Proxy-Schnitt (als Nächstes)
 
-Identifizieren und entfernen oder ersetzen:
+Kein Körper-Code. Keine Architekturänderung. Linux und Xash-Plattformen mitdenken.
 
-- `client/nextclient/steam_api_proxy/`
-- Steam-Master (`platform/config/MasterServer.vdf`, tsarvar/hl1master)
-- Protector, soweit Steam-spezifisch
-- `tier2/steam_api.cpp` im SDK
-- NitroApi Address-Provider 8684 Windows
-- CEF/Steam-Pfade im Launcher
+- Steam-Abhängigkeiten identifizieren und entfernen/ersetzen
+- NitroApi- / Build-8684-Abhängigkeiten entfernen
+- Steam-Master- / Steam-Pfade entfernen
+- direkte Xash-Anbindung vorbereiten (Inventar, nicht Body-Vendor)
+
+Konkret u. a.: `steam_api_proxy/`, Master/Tsarvar, Protector soweit Steam, `tier2/steam_api.cpp`, 8684-Address-Provider, CEF/Steam-Launcher-Pfade.
 
 ## Gate — Körper-Quelle (pflicht vor Phase 3)
 
@@ -37,22 +37,19 @@ Der Körper ist der gesamte CS-1.6-`cl_dll`-Umfang: Waffen, Prediction, Entities
 
 Ref A (`refs/a-cs16-client/`, Velaron/cs16-client) ist genau das: ein fertiger, unter Xash laufender Client-Body, Lizenz **GPL-2.0-or-later + Valve-HL1-SDK-Ausnahme**. Die Engine ist bereits GPL-3; GPL-2+ führt keine neue Lizenz-Kategorie ein. Valve-SDK-Ausnahme und Attribution bleiben Pflicht. Bisherige Regel „Ref A kein Copy“ galt gegen stilles Mischen in Phase 0/1 — nicht als Lebenszeit-Verbot, nachdem der fehlende Körper feststeht.
 
-**Vor dem ersten Phase-3-Commit eine der beiden Zeilen wählen und hier eintragen. Ohne Eintrag kein Körper-Code.**
+**Gewählt: A1 — Ref A als Client-Body**  
+**Datum: 2026-09-01**
 
-| | Körper-Quelle | Folge |
-|---|----------------|--------|
-| **A0** | Komplett neu schreiben | `refs/a-cs16-client/` bleibt eingefroren, nur lesen. Monate Arbeit, keine Rollenänderung. |
-| **A1** | Ref A nur als Körper befördern | Rolle von Ref A ändert sich: `cl_dll` / `pm_shared` / zugehörige Client-Header dürfen nach `client/body/` (Vendor + GPL-Attribution). **Nicht** YaPB, **nicht** ReGameDLL, **nicht** mainui. Ein Körper im Tree, dann NextClient-Features drauf. |
+NextClient bleibt die funktionale Zielbasis. Ref A ersetzt sie nicht.
+Allowlist und Stapel: `docs/ROLLEN.md`. Lizenz: `docs/LIZENZEN.md` (A1 dokumentiert, nicht als vollständig geklärt markiert).
 
-Gewählt: **(offen — Benny, vor Phase 3)**  
-Datum: —  
-Nicht still A0 annehmen.
+Kein Phase-3-Body-Code, bevor diese Doku steht (erledigt mit diesem Eintrag). Body-Vendor erst in Phase 3.
 
-YaPB/ReGameDLL aus Ref A nach `bots/`/`server/` bleiben in beiden Varianten verboten.
+YaPB / ReGameDLL / mainui aus Ref A bleiben verboten.
 
 ## Phase 3 — Minimal lauffähig
 
-Erst nach dem Gate. Connect, Render, Input unter Xash — Körper laut A0 oder A1. Ohne Feinschliff, ohne Ref-B-Features.
+Erst nach Phase 2. Body laut A1 vendorn, dann **eine** Client-Lib. Connect, Render, Input unter Xash. NextClient-Features auf den Unterbau, nicht cs16-client weiterentwickeln. Ohne Ref-B-Features.
 
 ## Phase 4 — Gezielte Ports
 

@@ -1,10 +1,11 @@
-# EINGEFROREN — Referenz A
+# Referenz A — Velaron/cs16-client
 
-**Velaron/cs16-client** — nur Nachschlagewerk für:
+Nicht das Produktziel. NextClient bleibt die funktionale Basis.
 
-- CMake-Setup und Header-Layout
-- wie ein HL1-SDK-Client `GetClientAPI` / `Initialize` gegen Xash3D exportiert
-- Submodule-Idee (bei uns vendort, nicht als Submodule)
+**A1 (2026-09-01):** Allowlist darf in Phase 3 nach `client/body/`:
+`cl_dll/`, `pm_shared/`, plus `common/`, `public/`, `game_shared/`, `dlls/wpn_shared/` soweit der Client-Build das braucht.
 
-**Verboten:** Code von hier nach `client/`, `engine/`, `server/` oder `bots/` kopieren.
-**Verboten:** hier weiterentwickeln.
+**Verboten:** YaPB, ReGameDLL, mainui, restliches `dlls/`, stille Imports.
+**Verboten:** diesen Tree weiterentwickeln oder als zweiten Client bauen.
+
+Lizenztexte beim Vendor mitnehmen. Audit vor öffentlicher Distribution.

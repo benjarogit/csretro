@@ -1,38 +1,44 @@
-# Lizenzen (Stand Phase 1 + Körper-Gate)
+# Lizenzen
 
-Geprüft **bevor** irgendetwas aus Referenz A/B in die Basis wandert.
-Kein Code aus A/B ist bisher übernommen.
+Geprüft, bevor Code wandert. **A1 (2026-09-01) ist dokumentiert, nicht als vollständig geklärt markiert.**
+Vor einer öffentlichen Distribution: vollständiger Lizenz-Audit. Repo bis dahin privat.
 
-Wenn das Gate vor Phase 3 **A1** wählt (Ref A als Körper): GPL-2.0-or-later-Attribution + Valve-HL1-SDK-LICENSE ins produktive `client/body/`. Engine ist schon GPL-3 — das ist keine neue Kategorie. Valve-Ausnahme (nur kostenlos) bleibt. YaPB/ReGameDLL aus demselben Tree sind davon **nicht** gedeckt und bleiben draußen. Ohne A1-Eintrag: kein Ref-A-Code in der Basis.
+Kein Ref-A-Code ist bisher in `client/body/` (Phase 3). Attribution/Lizenztexte beim späteren Vendor **mitkopieren**, nicht ersetzen.
 
-## Produktiv (wird entwickelt)
+## Produktiv
 
 | Bereich | Upstream | SPDX / Text | Einschränkung |
 |---------|----------|-------------|---------------|
-| Engine | FWGS/xash3d-fwgs | **GPL-3.0-or-later** (Header in `Documentation/gpl_copyright_header.h`; GitHub-API ohne SPDX) | Ableitungen der Engine bleiben GPL-3 |
-| Client | CS-NextClient/NextClient | **keine LICENSE-Datei**, GitHub `license: null` | rechtlich ungeklärt — nur privater Fork, keine Weitergabe ohne Klärung |
-| Client-SDK | CS-NextClient/ncl-hl1-source-sdk | **Source 1 SDK License** (Valve) | nur kostenlos verteilbar; LICENSE + `thirdpartylegalnotices.txt` mitliefern |
-| NitroApi | CS-NextClient/NclNitroApi | keine eigene LICENSE im Root | an NextClient gebunden |
-| Server | CS-NextClient/NextClientServerApi | **MIT** (Copyright 2022 Next21 Team) | MIT-Notice behalten |
+| Engine | FWGS/xash3d-fwgs | **GPL-3.0-or-later** | Ableitungen bleiben GPL-3 |
+| Features / Zielverhalten | CS-NextClient/NextClient | **keine LICENSE** | ungeklärt — privater Fork |
+| Client-SDK (NextClient) | ncl-hl1-source-sdk | **Source 1 SDK** (Valve) | nur kostenlos; LICENSE + thirdparty notices |
+| NitroApi | NclNitroApi | keine Root-LICENSE | an NextClient gebunden |
+| Server | NextClientServerApi | **MIT** | Notice behalten |
+| Body (A1, ab Phase 3) | Velaron/cs16-client Allowlist | **GPL-2.0-or-later** + Valve HL1-SDK-Ausnahme | Attribution Pflicht; YaPB/ReGameDLL/mainui nicht übernommen |
 
-## Eingefroren (nur lesen)
+## Referenzen
 
-| Pfad | Upstream | Lizenz | Hinweis |
-|------|----------|--------|---------|
-| `refs/a-cs16-client/` | Velaron/cs16-client | **GPL-2.0-or-later** + Valve HL1-SDK-Ausnahme | plus eingebettetes HL1-SDK |
-| `refs/b-cs16-goldsrc/` | FuryBaM/cs16-goldsrc-client | **GPL-3.0** (`LICENSE.txt`) | Phase 4: vor jedem Port prüfen, ob der Nachbau GPL-kompatibel bleibt |
+| Pfad | Lizenz | Nutzung |
+|------|--------|---------|
+| `refs/a-cs16-client/` | GPL-2+ + Valve-Ausnahme | Body-Quelle A1; Rest nur lesen |
+| `refs/b-cs16-goldsrc/` | GPL-3.0 | Phase 4, Feature für Feature |
 
-## Konflikt (nicht wegbügeln)
+## A1 — was das lizenzrechtlich heißt (nicht „geklärt“)
 
-1. Xash3D ist GPL-3. Eine verteilte Binärkombination mit Valve-SDK-Teilen und NextClient (ohne Lizenz) ist **nicht sauber klärbar**.
-2. Valve Source/HL1-SDK: nur kostenlose Weitergabe, LICENSE-Datei Pflicht.
-3. NextClient ohne Lizenz: Repo **privat** halten. Interne GitHub-Releases auf `benjarogit/csretro` sind in Ordnung. Kein öffentliches Repo / keine öffentlichen Pages, solange das ungeklärt ist.
-4. Server-MIT allein ist unproblematisch; die Kopplung an das Client-Protokoll ändert nichts an (1)–(3).
+- Engine ist schon GPL-3. GPL-2+ am Body führt keine neue Kategorie ein, ersetzt aber keinen Audit.
+- Valve-HL1-SDK-Ausnahme: nur kostenlose Weitergabe; LICENSE der übernommenen Dateien behalten.
+- NextClient ohne LICENSE bleibt der Blocker für ein öffentliches Repo — unabhängig von A1.
+- Kombination Engine (GPL-3) + Body (GPL-2+/Valve) + NextClient (keine Lizenz) + Server (MIT) ist **nicht** pauschal verteilsicher.
+- YaPB/ReGameDLL aus Ref A: nicht Teil von A1, eigene Lizenzen, bleiben draußen.
 
-## Third-Party im Engine-Tree (Auszug)
+## Konflikt (unverändert)
 
-Opus, Ogg, Vorbis, mbedTLS, bzip2, mainui_cpp, vgui_support, gl4es, … — jeweils eigene Dateien im jeweiligen 3rdparty-Ordner. Nicht entfernen.
+1. NextClient ohne Lizenz + Valve-SDK + GPL-Engine = keine saubere öffentliche Binärdistribution.
+2. Interne Releases auf dem privaten Repo sind in Ordnung.
+3. Server-MIT allein ist unproblematisch.
 
-## vcpkg
+## Third-Party Engine
 
-Microsoft vcpkg wurde **nicht** vendort (Package-Manager, keine Projektquelle).
+Opus, Ogg, Vorbis, mbedTLS, bzip2, mainui_cpp, vgui_support, … — Notices in den 3rdparty-Ordnern behalten.
+
+vcpkg nicht vendort.

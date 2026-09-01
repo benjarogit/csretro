@@ -22,7 +22,9 @@ Altes Remote-`main` (Xash+cs16-client bis `8ece11c`, Tag `v0.2.0`) ist kein Upst
 
 Engine-3rdparty (mitimportiert, kein Submodule mehr): MultiEmulator, bzip2, xash-extras, gl-wes-v2, gl4es, libbacktrace, libogg, library_suffix, maintui, mainui (+ miniutl), mbedtls, nanogl, opus, opusfile, vgui_support (+ vgui-dev), vorbis.
 
-## Referenzen (eingefroren)
+## Referenzen
+
+Ref A: Body-Quelle A1 (Allowlist). Pin unverändert, bis Phase 3 vendort. Dann neuer Pin unter `client/body/` + Attribution.
 
 | Baum | Repo | Commit | Datum |
 |------|------|--------|-------|

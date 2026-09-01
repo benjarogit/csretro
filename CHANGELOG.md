@@ -3,6 +3,19 @@
 Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
 Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 
+## 0.1.3-a1 — 2026-09-01
+
+### Dokumentation
+
+- Gate: **A1 — Ref A als Client-Body** (2026-09-01).
+- NextClient bleibt funktionale Zielbasis. cs16-client nur Xash-Unterbau (Allowlist).
+- `docs/ROLLEN.md`; Handoff, Phasen, Lizenzen, Architektur, Refs nachgezogen.
+- A1-Lizenz dokumentiert, nicht als vollständig geklärt markiert.
+
+### Nicht enthalten
+
+- Kein Phase-3-Body-Code, kein Ref-A-Vendor nach `client/body/`.
+
 ## 0.1.2-gate — 2026-09-01
 
 ### Dokumentation

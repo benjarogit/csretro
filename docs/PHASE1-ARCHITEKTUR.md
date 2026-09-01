@@ -1,13 +1,13 @@
 # Phase 1 — Architektur: NextClient hinter `GetClientAPI`
 
-Nur Analyse. Kein Code aus Referenz A oder B übernommen.
-Rollen: Basis = `client/` · Engine = `engine/` · Ref A = lesen · Ref B = unberührt · Server = Lücke, keine Entscheidung.
+Analyse + Gate. Kein Body-Code in dieser Datei.
+Rollen: `docs/ROLLEN.md`. NextClient = funktionales Ziel. Ref A = Body-Quelle (A1, 2026-09-01).
 
 ## 1. Prämissen
 
 1. Xash lädt genau eine Client-Bibliothek und erwartet den GoldSrc-Client-Vertrag (`cldll_func_t`).
 2. NextClient liefert diesen Vertrag nicht. Es hängt sich an die geschlossene Steam-`client.dll` / `hw.dll` (8684, Windows x86).
-3. Referenz A ist ein fertiger, unter Xash laufender CS-Client (GPL-2+ / Valve-Ausnahme). In Phase 1 nur gelesen. Ob er **Körper-Quelle** wird, ist das Gate vor Phase 3 — nicht still „kein Copy für immer“.
+3. Referenz A ist der Xash-fähige CS-Client-Unterbau (GPL-2+ / Valve-Ausnahme). **A1 (2026-09-01):** nur Allowlist als Body. NextClient bleibt die funktionale Zielbasis.
 4. `server/` ist AMXX/Metamod, nicht `dlls/cs.so`. Bleibt Phase 3, kein stiller ReGameDLL-Import.
 5. Repo privat (NextClient ohne LICENSE, Engine GPL-3).
 
@@ -50,11 +50,11 @@ Menü ist **ein zweiter Ladeweg**: `UI_LoadProgs` sucht `GetMenuAPI` (`cl_gameui
 
 SDK `IClientVGUI` / `IBaseUI` sind **kein** Xash-Client-Bind. Relevant erst, wenn GameUI später gehostet werden soll.
 
-## 4. Referenz A (nur gelesen)
+## 4. Referenz A (Body-Quelle A1, nicht Produktziel)
 
-`refs/a-cs16-client/cl_dll/cdll_int.cpp` + `include/cl_dll.h`: dieselben `DLLEXPORT`-Namen, `Initialize` kopiert `gEngfuncs`, prüft `CLDLL_INTERFACE_VERSION`. CMake baut `client` als Shared Lib für Xash. Zusätzlich optionale Xash-Exports (`HUD_GetRenderInterface`, Mobility/`HUD_MobilityInterface`, MenuFactory).
+`refs/a-cs16-client/cl_dll/cdll_int.cpp` + `include/cl_dll.h`: Pflicht-Namen, `Initialize` kopiert `gEngfuncs`. Das ist der Unterbau, den NextClient aus Steam-`client.dll` vorausgesetzt hat.
 
-In Phase 1: nur das **Muster der Bindung**. Ob derselbe Tree Körper-Quelle wird, steht im Gate vor Phase 3 (`docs/PHASEN.md`).
+A1 erlaubt später nur die Allowlist nach `client/body/`. Kein YaPB/ReGameDLL/mainui. Kein „cs16-client weiterentwickeln“.
 
 ## 5. Vergleich der Wege
 
@@ -65,27 +65,22 @@ In Phase 1: nur das **Muster der Bindung**. Ob derselbe Tree Körper-Quelle wird
 | C. Ref A blank mergen (inkl. YaPB/ReGameDLL/mainui) | Vermischung, verboten | |
 | D. Overlay ohne Körper | Xash hat nichts zum Laden | unmöglich |
 
-Option A sagt **nicht**, der Körper werde von Null geschrieben. Die Körper-Quelle (A0 neu vs. A1 Ref-A-`cl_dll`) ist ein eigenes Gate, siehe `docs/PHASEN.md`. A1 ist dasselbe wie „Portable-Client als Körper vendoren“ — der Kandidat ist Ref A, nicht eine dritte Quelle.
+Körper-Quelle **A1** (2026-09-01): Ref-A-Allowlist. Form A unverändert.
 
-## 6. Entscheidung (Form, nicht Körper-Quelle)
+## 6. Entscheidung (Form A + Quelle A1)
 
-CS Retro bekommt **eine** Client-Bibliothek, die Xash lädt (`cstrike/cl_dlls/client.so`). Innen drei Teile, ein Prozess, ein `gEngfuncs` aus `Initialize`:
+**Eine** Client-Bibliothek. NextClient-Verhalten auf Xash, nicht zwei Clients.
 
 ```
-Xash  --GetClientAPI / Named Exports-->  client/export/
-                                              |
-                         +--------------------+--------------------+
-                         |                                         |
-                   client/body/                              client/features/
-                   (CS-Retro-Körper:                         (aus NextClient gelöst:
-                    Pflicht-Exports,                          GameHud, View, FOV,
-                    Prediction, Entities,                     Inspect, Studio-Overrides,
-                    Vanilla-HUD, Input)                       NCLM-Clientseite)
+Xash3D-FWGS
+  → CS-Retro Client-Export
+    → CS-Client-Body aus Ref A  (Phase 3: client/body/)
+      → darauf integrierte NextClient-Funktionen
 ```
 
-- **Export** füllt `cldll_func_t` bzw. exportiert die Pflicht-Namen. Kein NitroApi.
-- **Körper** kommt aus A0 (neu) oder A1 (Ref-A-`cl_dll` vendort nach `client/body/`, GPL-Attribution). Ohne Gate-Eintrag kein Körper-Code.
-- **Features** kommen aus `client_mini` (und später ausgewählte `engine_mini`-Teile wie NCLM), umgeschrieben auf direkte `gEngfuncs`-Aufrufe statt Hooks.
+- **Export:** `GetClientAPI` / Pflicht-Namen. Kein NitroApi.
+- **Körper:** A1-Allowlist, wird CS-Retro-Code (GPL-Attribution). `refs/a-cs16-client/` danach nicht als zweiter Client bauen.
+- **Features:** aus `client_mini` lösen, `gEngfuncs` direkt, NextClient-Verhalten behalten; bei Redundanz eine CS-Retro-Implementierung (`docs/ROLLEN.md`).
 - **Phase 3 Menü:** vorhandenes Xash-`libmenu.so` (`GetMenuAPI`). NextClient-GameUI/CEF nicht in Phase 3.
 - **Phase 4:** NextClient-Menüs prüfen; Ref B nur wenn die nicht tragen — ein Feature, ein Diff.
 - **NitroApi, steam_api_proxy, 8684-Provider, Launcher-als-cstrike.exe:** nicht der Bind-Pfad. Phase 2 entfernen oder ersetzen.
@@ -95,26 +90,26 @@ Xash  --GetClientAPI / Named Exports-->  client/export/
 
 **Phase 2 (Steam raus, kein Körper-Schreiben):** Inventar und Schnitt der Overlay-Reste — `steam_api_proxy`, Master/Tsarvar, `tier2/steam_api.cpp`, Protector soweit Steam, CEF-Pfade. Bind-Architektur nicht wieder öffnen.
 
-**Phase 3 (minimal lauffähig):** Erst nach dem Körper-Gate. Export + Körper (A0 oder A1) der alle `cdll_exports` bedient + Connect/Render/Input. NextClient-HUD-Extras danach, einzeln.
+**Phase 3:** Nach Phase 2. A1-Allowlist vendorn. Eine Lib. NextClient-Features auf den Unterbau, nicht cs16-client pflegen.
 
-**Körper-Umfang:** Ein kompletter CS-`cl_dll` ist der größte Posten im Projekt. A0 = von Null. A1 = Ref A als Körper-Quelle (nur Client-Body, GPL-Attribution). Nicht still A0.
+**Körper-Umfang:** A1 gewählt. Lizenz dokumentiert, nicht audit-fertig.
 
 ## 8. Anpassungen (Checkliste, kein Code)
 
 | # | Wo | Was |
 |---|-----|-----|
 | 1 | `client/` neu | `export/` mit `GetClientAPI` + Pflicht-Namen |
-| 2 | `client/body/` | laut Gate A0 (neu) oder A1 (Ref-A-`cl_dll`); Xash-Header nur über `csretro_engine_headers` |
+| 2 | `client/body/` | Phase 3: A1-Allowlist; Xash-Header über `csretro_engine_headers` |
 | 3 | `client_mini` | Features von NitroApi lösen; `GameHud` ohne `NitroApiInterface*` |
 | 4 | `engine_mini` | kein Bind-Pfad; NCLM/Entity-Sync später einzeln bewerten |
 | 5 | GameUI | Phase 3: Xash MainUI; GameUI/VGUI2 zurückstellen |
 | 6 | CMake | `CSRETRO_BUILD_CLIENT` wird der neue Client, nicht NextClient-MSVC/vcpkg |
 | 7 | `server/` | unangetastet bis Phase-3-GameDLL-Entscheidung |
-| 8 | `refs/` | eingefroren, bis das Gate A1 ausdrücklich wählt (dann nur Body, nicht YaPB/ReGameDLL) |
+| 8 | `refs/a-cs16-client/` | Referenz; Phase 3 nur Allowlist. YaPB/ReGameDLL/mainui nie |
 
 ## 9. Schwachstellen
 
-- Der Körper existiert in NextClient nicht. A0 unterschätzt den Aufwand (ganzer `cl_dll`). A1 ändert die Ref-A-Rolle — nur nach Gate-Eintrag.
+- NextClient hat keinen Körper. A1 liefert ihn; das Produktziel bleibt NextClient.
 - `GameHud` liest heute Valve-`gHUD` (Sprite-Liste freigeben). Das muss am eigenen HUD hängen.
 - `engine_mini` fasst Engine-Interna (`cl`, `cls`, `sv`) — unter Xash nur über dokumentierte Engine-APIs, nicht über Pointer-Hooks.
 - ncl-hl1 `IClientVGUI`/`IBaseUI` erzeugen falsche Sicherheit: sie ersetzen `GetClientAPI` nicht.

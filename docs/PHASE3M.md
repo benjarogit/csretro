@@ -40,7 +40,7 @@ Skripte: `./scripts/build-menu.sh`, `./scripts/vgui-v1-poc-runtime.sh`, manuell 
 | Interface | Ist-Implementierung | Hinweis |
 |-----------|---------------------|---------|
 | `IVGui` / `IPanel` | vendorter VGUI2-Core (`vgui.cpp`, `VPanel`, `VPanelWrapper`) in `menu_*` | 64-Bit-Patches; **kein** Steam-`vgui2` |
-| `ISurface` / `ISurfaceNext` | `surface_xash.cpp` + `vgui_symbols.cpp` → `ui_enginefuncs_t` | FreeType mit Win32-naher Zellhöhe (`REAL_DIM`) + `FONTFLAG_ANTIALIAS`; Marlett = `vgui_symbols`; HD-`GetProportionalBase` |
+| `ISurface` / `ISurfaceNext` | `surface_xash.cpp` + `vgui_symbols.cpp` → `ui_enginefuncs_t` | FreeType mit Win32-naher Zellhöhe (`REAL_DIM`) + `FONTFLAG_ANTIALIAS`; Marlett = `vgui_symbols`; Classic-`GetProportionalBase` **640×480** (kein HD-Base im Classic-Gate) |
 | `IInput` / `IInputInternal` | `input_core.cpp` + `key_translation_xash.cpp` | Xash Key/Mouse/Char |
 | `IScheme` | vendort `Scheme.cpp` | Default **`TrackerScheme`** (GameUI); `ClientScheme` parallel geladen; Fonts über Resolver |
 | `ISystem` | `system_xash.cpp` + `system_shell_posix.cpp` | **Offenes Windows-Plattform-Gate:** `system_shell_win.cpp` = No-Op-Stub für `Csretro_PlatformShellOpen` (blockiert Linux-3M nicht; vor Windows-Runtime-Gate muss ShellExecuteW real sein — kein permanenter Stub im Endprodukt). Posix: `xdg-open`/`open` |

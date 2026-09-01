@@ -127,6 +127,7 @@ add_library(csretro_menu SHARED
     "${VGUI}/poc_dialog.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsDialog.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubMouse.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsMouseGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/Controls/MenuEngine.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/Controls/CvarToggleCheckButton.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/Controls/CvarNegateCheckButton.cpp"

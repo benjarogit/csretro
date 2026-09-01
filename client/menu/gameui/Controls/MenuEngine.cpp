@@ -2,10 +2,22 @@
 
 #include "../../src/menu_priv.h"
 
+#include <cstdio>
 #include <cstring>
 
 namespace MenuEngine
 {
+namespace
+{
+void EnsureCvar(const char *name, const char *defValue)
+{
+	if (!name || !*name || !gEng.pfnRegisterVariable)
+		return;
+	// MenuAPI: get-or-create (needed before client.dll registers sensitivity etc.)
+	gEng.pfnRegisterVariable(name, defValue ? defValue : "0", 0);
+}
+} // namespace
+
 float GetCvarFloat(const char *name)
 {
 	if (!name || !*name || !gEng.pfnGetCvarFloat)
@@ -25,6 +37,7 @@ void CvarSetValue(const char *name, float value)
 {
 	if (!name || !*name || !gEng.pfnCvarSetValue)
 		return;
+	EnsureCvar(name, "0");
 	gEng.pfnCvarSetValue(name, value);
 }
 
@@ -32,6 +45,7 @@ void CvarSet(const char *name, const char *value)
 {
 	if (!name || !*name || !value || !gEng.pfnCvarSetString)
 		return;
+	EnsureCvar(name, value);
 	gEng.pfnCvarSetString(name, value);
 }
 
@@ -47,7 +61,6 @@ bool IsKeyDown(const char *keyName, bool &isDown)
 	isDown = false;
 	if (!keyName || !*keyName || !gEng.pfnKeyGetState)
 		return false;
-	// kbutton_t: state low bit = down (GoldSrc / Xash client).
 	struct LocalKButton
 	{
 		int down[2];

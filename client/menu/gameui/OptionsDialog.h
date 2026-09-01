@@ -22,4 +22,9 @@ public:
 
 	void RegisterPage(vgui2::PropertyPage *page, const char *tabKey, const char *tabTitle);
 	bool HasPages() const;
+
+	// Functional gate (CSRETRO_OPTIONS_GATE)
+	void Gate_Apply();
+	void Gate_OK();
+	void Gate_Cancel();
 };

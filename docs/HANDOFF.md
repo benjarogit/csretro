@@ -107,7 +107,7 @@ Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-
 
 ## Offene Arbeit
 
-1. **Phase 3M** — V1-Runtime-PoC **bestanden**. Options Mouse funktional portiert; **visueller + vollständiger Gate** (Localization, Steam-Vergleich, Persistenz) vor Audio. Interim-UI = Negativreferenz. Kein FOV, kein Phase-3-Tag.
+1. **Phase 3M** — V1 bestanden. Options Mouse Gate (Loc/Apply/Screenshots) grün; **Audio** als nächste Subpage. Interim-UI = Negativreferenz. Kein FOV, kein Phase-3-Tag.
 2. Danach erst 3D (FOV als erstes NextClient-Feature), nach Freigabe.
 3. Windows x86_64 / macOS ARM64+x86_64: Compile-Gates (CMake ist vorbereitet, auf diesem Host nicht gebaut).
 4. Bot-Grenze analysieren und schrittweise nach `bots/` — nicht amputieren.

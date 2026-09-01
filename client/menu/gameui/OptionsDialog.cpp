@@ -39,6 +39,10 @@ bool COptionsDialog::HasPages() const
 	return m_tabNames.Count() > 0;
 }
 
+void COptionsDialog::Gate_Apply() { OnCommand("Apply"); }
+void COptionsDialog::Gate_OK() { OnCommand("OK"); }
+void COptionsDialog::Gate_Cancel() { OnCommand("Cancel"); }
+
 void COptionsDialog::OnKeyCodeTyped(KeyCode code)
 {
 	if (code == KEY_ESCAPE)

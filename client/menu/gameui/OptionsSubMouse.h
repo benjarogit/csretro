@@ -24,6 +24,15 @@ public:
 	void OnResetData() override;
 	void OnApplyChanges() override;
 
+	// Functional gate helpers (CSRETRO_OPTIONS_GATE)
+	void Gate_SetSensitivityPending(float value);
+	float Gate_GetSensitivityPending() const;
+	void Gate_SetFilterPending(bool on);
+	bool Gate_GetFilterPending() const;
+	void Gate_SetRawInputPending(bool on);
+	void Gate_SetReverseMousePending(bool on);
+	void Gate_SyncLabelFromSlider();
+
 protected:
 	void ApplySchemeSettings(vgui2::IScheme *pScheme) override;
 

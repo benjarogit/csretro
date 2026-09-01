@@ -100,10 +100,11 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 |---------|--------|
 | Stub-Pages Mouse/Audio/Video | **entfernt** — keine Dummy-Tabs |
 | NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | **portiert** → `client/menu/gameui/Controls/` + Xash `MenuEngine` |
-| `COptionsSubMouse` | **funktional portiert**; visueller + vollständiger Gate **offen** (Referenz vor Audio) |
-| CVar-Mapping | `m_filter` (GoldSrc/NextClient) → `look_filter` (Xash `engine/engine/client/input/input.c`, `CVAR_DEFINE_AUTO(look_filter,…)`; Filter Look-Events). Kein `m_filter` in vendortem Xash. |
-| Apply/Cancel/Reset/OK-Semantik | PropertyDialog + NextClient-Control-Reset/Apply; Persistenz-Gate offen |
-| Audio → Video → Multiplayer → Keyboard → Voice → Misc | **erst nach Mouse-Abnahme**; je eine Seite fertig → nächste |
+| `COptionsSubMouse` | **Gate grün** (funktionell + Loc + Screenshots 640/800/1024/16:9); Referenzseite vor Audio |
+| CVar-Mapping | `m_filter` (GoldSrc/NextClient) → `look_filter` (Xash `engine/engine/client/input/input.c` L45/L122/L595; Look-Events glätten). Runtime: `m_filter` absent. |
+| Apply/Cancel/Reset/OK/Persistenz | `./scripts/vgui-options-mouse-gate.sh` — `host_writeconfig` → BASEDIR `config.cfg` |
+| Localization | UTF-16→wchar_t-Fix in `LocalizedStringTable.cpp`; geladen: gameui/vgui/cstrike/platform `*_english.txt` |
+| Audio → … | **nach Mouse-Abnahme**; je eine Seite fertig → nächste |
 | Keyboard | Bind/Unbind Xash, keine Touch-first-UI |
 | Video | Xash-Optionen, keine toten D3D/32-Bit-Einträge |
 | CS-Retro-Advanced-Tab | leer bis Features existieren (kein FOV-UI vor FOV) |
@@ -146,10 +147,10 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 |-------|--------|
 | V1-Runtime-PoC | **bestanden** |
 | Menü-Lib | `menu_amd64.so` V1-Core + Controls + Xash-Backends |
-| Options Mouse | funktional portiert; visueller Gate + Localization/Persistenz offen |
+| Options Mouse | Gate: funktionell + Localization + Screenshots; Audio als Nächstes |
 | Hauptmenü / Create / Team | Interim-Bootstrap (Negativreferenz) — bleibt bis echte VGUI2-Rekonstruktion |
 | In-Game Team/Buy | Interim-`.res`-Pfad bis VGUI2-Ersatz |
-| Tests | `vgui-v1-poc-runtime.sh`, `vgui-options-mouse-smoke.sh`, `play.sh`, `build-menu.sh --sanitize` |
+| Tests | `vgui-v1-poc-runtime.sh`, `vgui-options-mouse-smoke.sh`, `vgui-options-mouse-gate.sh`, `play.sh`, `build-menu.sh --sanitize` |
 
 ## Nicht in 3M
 

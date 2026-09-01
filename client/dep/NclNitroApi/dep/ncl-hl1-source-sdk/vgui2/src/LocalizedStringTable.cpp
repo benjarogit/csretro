@@ -28,6 +28,8 @@
 #include "UnicodeFileHelpers.h"
 #include "byteswap.h"
 
+#include <cstdint>
+
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -406,33 +408,44 @@ bool CLocalizedStringTable::AddFileInternal(const char* szFileName)
 
     // read into a memory block
     int fileSize = g_pFullFileSystem->Size(hFile);
-
-    wchar_t* memBlock = (wchar_t*)malloc(fileSize + sizeof(wchar_t));
-    bool bReadOK = g_pFullFileSystem->Read(memBlock, fileSize, hFile);
-
-    // finished with file
-    g_pFullFileSystem->Close(hFile);
-
-    // null-terminate the stream
-    memBlock[fileSize / sizeof(wchar_t)] = 0x0000;
-
-    // check the first character, make sure this a little-endian unicode file
-    wchar_t* data = memBlock;
-    wchar_t signature = LittleShort(data[0]);
-    if (!bReadOK || signature != 0xFEFF)
+    if (fileSize < 2)
     {
-        Msg("Ignoring non-unicode close caption file %s\n", szFileName);
-        free(memBlock);
+        g_pFullFileSystem->Close(hFile);
         return false;
     }
 
-    // ensure little-endian unicode reads correctly on all platforms
-    CByteswap byteSwap;
-    byteSwap.SetTargetBigEndian(false);
-    byteSwap.SwapBufferToTargetEndian(data, data, fileSize / sizeof(wchar_t));
+    unsigned char* rawBytes = (unsigned char*)malloc(fileSize + 2);
+    bool bReadOK = g_pFullFileSystem->Read(rawBytes, fileSize, hFile);
+    g_pFullFileSystem->Close(hFile);
+    if (!bReadOK)
+    {
+        free(rawBytes);
+        return false;
+    }
 
+    // Valve localization files are UTF-16 LE (UCS-2). On POSIX wchar_t is often 32-bit —
+    // convert code units so BOM/signature and ReadUnicodeToken work.
+    const int ucs2Count = fileSize / 2;
+    auto *ucs2 = reinterpret_cast<uint16_t *>(rawBytes);
+    if (LittleShort(ucs2[0]) != 0xFEFF)
+    {
+        Msg("Ignoring non-unicode localization file %s\n", szFileName);
+        free(rawBytes);
+        return false;
+    }
+
+    wchar_t* memBlock = (wchar_t*)malloc((ucs2Count + 1) * sizeof(wchar_t));
+    for (int i = 0; i < ucs2Count; ++i)
+        memBlock[i] = (wchar_t)LittleShort(ucs2[i]);
+    memBlock[ucs2Count] = 0;
+    free(rawBytes);
+
+    wchar_t* data = memBlock;
     // skip past signature
     data++;
+
+    // ensure little-endian unicode reads correctly on all platforms
+    (void)0; // already LittleShort'd during UCS-2 → wchar_t convert
 
     // parse out a token at a time
     enum states_e

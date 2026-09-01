@@ -116,3 +116,43 @@ void COptionsSubMouse::UpdateSensitivityLabel(float value)
 	Q_snprintf(buf, sizeof(buf), " %.2f", value);
 	m_pMouseSensitivityLabel->SetText(buf);
 }
+
+void COptionsSubMouse::Gate_SetSensitivityPending(float value)
+{
+	m_pMouseSensitivitySlider->SetSliderValue(value);
+	UpdateSensitivityLabel(value);
+	PostActionSignal(new KeyValues("ApplyButtonEnable"));
+}
+
+float COptionsSubMouse::Gate_GetSensitivityPending() const
+{
+	return m_pMouseSensitivitySlider->GetSliderValue();
+}
+
+void COptionsSubMouse::Gate_SetFilterPending(bool on)
+{
+	m_pMouseFilterCheckBox->SetSelected(on);
+	PostActionSignal(new KeyValues("ApplyButtonEnable"));
+}
+
+bool COptionsSubMouse::Gate_GetFilterPending() const
+{
+	return m_pMouseFilterCheckBox->IsSelected();
+}
+
+void COptionsSubMouse::Gate_SetRawInputPending(bool on)
+{
+	m_pMouseRawInputCheckBox->SetSelected(on);
+	PostActionSignal(new KeyValues("ApplyButtonEnable"));
+}
+
+void COptionsSubMouse::Gate_SetReverseMousePending(bool on)
+{
+	m_pReverseMouseCheckBox->SetSelected(on);
+	PostActionSignal(new KeyValues("ApplyButtonEnable"));
+}
+
+void COptionsSubMouse::Gate_SyncLabelFromSlider()
+{
+	UpdateSensitivityLabel(m_pMouseSensitivitySlider->GetSliderValue());
+}

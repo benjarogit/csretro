@@ -1,5 +1,7 @@
 #include "vgui_boot.h"
 #include "../gameui/OptionsDialog.h"
+#include "../gameui/OptionsMouseGate.h"
+#include "../gameui/Controls/MenuEngine.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -46,6 +48,8 @@ namespace
 {
 bool g_inited = false;
 vgui2::Panel *g_root = nullptr;
+COptionsDialog *g_options = nullptr;
+int g_optionsGateFrame = -1;
 }
 
 bool PocDialog_Show(vgui2::Panel *parent);
@@ -173,11 +177,41 @@ void VGuiXash_Init()
 
 	if (g_pVGuiLocalize && ::g_pFullFileSystem)
 	{
-		g_pVGuiLocalize->AddFile(::g_pFullFileSystem, "resource/gameui_%language%.txt");
-		g_pVGuiLocalize->AddFile(::g_pFullFileSystem, "resource/vgui_%language%.txt");
-		g_pVGuiLocalize->AddFile(::g_pFullFileSystem, "resource/cstrike_%language%.txt");
-		g_pVGuiLocalize->AddFile(::g_pFullFileSystem, "platform/resource/vgui_%language%.txt");
-		g_pVGuiLocalize->AddFile(::g_pFullFileSystem, "platform/resource/platform_%language%.txt");
+		// Search-Roots: cstrike/, valve/, platform/ — relative Pfade ohne doppeltes „platform/“.
+		struct LocFile
+		{
+			const char *path;
+			const char *tag;
+		};
+		const LocFile files[] = {
+			{"resource/gameui_%language%.txt", "gameui"},
+			{"resource/vgui_%language%.txt", "vgui"},
+			{"resource/cstrike_%language%.txt", "cstrike"},
+			{"resource/platform_%language%.txt", "platform"},
+		};
+		for (const LocFile &lf : files)
+		{
+			const bool ok = g_pVGuiLocalize->AddFile(::g_pFullFileSystem, lf.path);
+			Menu_Con("CSRETRO_LOC_%s %s", lf.tag, ok ? "OK" : "FAIL");
+		}
+		// Probe: fehlender String darf nicht still als #Token durchgehen.
+		const char *probes[] = {
+			"GameUI_Options",
+			"GameUI_Mouse",
+			"GameUI_ReverseMouse",
+			"GameUI_MouseFilter",
+			"PropertyDialog_OK",
+			"PropertyDialog_Cancel",
+			"PropertyDialog_Apply",
+		};
+		for (const char *tok : probes)
+		{
+			wchar_t *w = g_pVGuiLocalize->Find(tok);
+			if (!w || !w[0])
+				Menu_Con("CSRETRO_LOC_MISSING %s", tok);
+			else
+				Menu_Con("CSRETRO_LOC_HIT %s", tok);
+		}
 	}
 
 	g_root = new vgui2::Panel(nullptr, "CsretroVguiRoot");
@@ -200,9 +234,9 @@ void VGuiXash_Init()
 				gEng.pfnSetKeyDest(2); // key_menu
 		}
 	}
-	else if (getenv("CSRETRO_OPTIONS_AUTO"))
+	else if (getenv("CSRETRO_OPTIONS_AUTO") || getenv("CSRETRO_OPTIONS_GATE"))
 	{
-		// Smoke: echte Options-Subpages ohne PoC.
+		// Smoke / Gate: echte Options-Subpages ohne PoC.
 		if (VGuiXash_ShowOptionsDialog())
 		{
 			gMenuVisible = true;
@@ -254,6 +288,22 @@ void VGuiXash_RunFrame()
 			Menu_Con("CSRETRO_V1POC_FOCUS %s", name);
 		}
 	}
+
+	if (g_optionsGateFrame >= 0 && g_options)
+	{
+		++g_optionsGateFrame;
+		if (g_optionsGateFrame == 45)
+		{
+			OptionsMouse_RunFunctionalGate(g_options);
+		}
+		else if (g_optionsGateFrame == 60)
+		{
+			// zweites Screenshot nach erneutem Paint
+			MenuEngine::ClientCmd("screenshot\n");
+			Menu_Con("CSRETRO_MOUSE_GATE_SHOT_TAKEN");
+			g_optionsGateFrame = -1;
+		}
+	}
 }
 
 void VGuiXash_Paint()
@@ -276,11 +326,6 @@ bool VGuiXash_ShowPocDialog()
 void VGuiXash_HidePocDialog() { PocDialog_Hide(); }
 bool VGuiXash_IsPocActive() { return PocDialog_IsActive(); }
 
-namespace
-{
-COptionsDialog *g_options = nullptr;
-}
-
 bool VGuiXash_ShowOptionsDialog()
 {
 	if (!g_inited)
@@ -302,6 +347,9 @@ bool VGuiXash_ShowOptionsDialog()
 	g_options->SetSize(w, h);
 	g_options->SetPos((sw - w) / 2, (sh - h) / 2);
 	g_options->Activate();
+	// Gate nach einigen Paint-Frames (Client-CVars + Framebuffer).
+	if (getenv("CSRETRO_OPTIONS_GATE"))
+		g_optionsGateFrame = 0;
 	return true;
 }
 

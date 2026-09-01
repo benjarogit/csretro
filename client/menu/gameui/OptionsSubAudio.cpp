@@ -39,7 +39,7 @@ COptionsSubAudio::COptionsSubAudio(Panel *parent) : PropertyPage(parent, "Option
 	if (m_pHEVSlider)
 		m_pHEVSlider->SetVisible(false);
 
-	// Miles-Branding gehört nicht zur Xash-Audio-Runtime.
+	// Miles-Branding: absichtlich hidden — kein Miles-Backend unter Xash; nicht Layout-Abnahme.
 	if (Panel *miles = FindChildByName("MilesAudioLabel"))
 		miles->SetVisible(false);
 }

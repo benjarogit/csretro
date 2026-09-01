@@ -65,6 +65,7 @@ export XASH3D_RODIR="${GAMEDATA}"
 export XASH3D_BASEDIR="${RUN}"
 export CSRETRO_UI_OVERRIDE="${ROOT}/data/ui-overrides/cstrike"
 export CSRETRO_OPTIONS_AUDIO_GATE=1
+export CSRETRO_VGUI_METRICS_DUMP=1
 unset CSRETRO_V1POC CSRETRO_OPTIONS_AUTO CSRETRO_OPTIONS_GATE 2>/dev/null || true
 export CSRETRO_RUN_DIR="${RUN}"
 
@@ -159,7 +160,7 @@ run_one() {
 	echo "OPTIONS_AUDIO_GATE PASS ${W}x${H} shot=${shot}"
 }
 
-RES_LIST=("640x480" "800x600" "1024x768" "1280x720")
+RES_LIST=("640x480" "800x600" "1024x768" "1366x768")
 if [[ -n "${CSRETRO_GATE_RES:-}" ]]; then
 	RES_LIST=("${CSRETRO_GATE_RES}")
 fi

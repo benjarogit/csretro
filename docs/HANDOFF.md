@@ -107,8 +107,8 @@ Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-
 
 ## Offene Arbeit
 
-1. **Phase 3M** — Metrics: Diagnose + Current-Steam@800×600 (Protocol 48, Exe Oct 8 2024/10211, Dialog≈522×444 HD). Golden 5971 proportional/HD = **unknown**. Current = HL25-era HD reference (nicht Classic-Ziel). Layoutwahl offen. Video gesperrt. Scheme-Winner `valve/TrackerScheme`. Kein FOV.
-2. Danach erst 3D (FOV), nach Freigabe.
+1. **Phase 3M** — Classic Preferred Size **512×406 implementiert** (`OptionsClassicMetrics.h`). Mouse+Audio-Gate (640/800/1024/1366) nach Patch. Video erst nach grünem Gate. FOV gesperrt.
+2. Nach Gate-Grün: Video freigeben.
 3. Windows/macOS Compile-Gates. **`Csretro_PlatformShellOpen` Windows = offenes Plattform-Gate**.
 4. Bot-Grenze → `bots/`.
 

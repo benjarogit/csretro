@@ -11,6 +11,16 @@ Optik und Bedienung: klassisches **Steam Counter-Strike 1.6 mit VGUI2**, nicht W
 
 Branding: **CS Retro**. Zusätzliche Funktionen nur in diesem Stil, und nur wenn das Backend existiert.
 
+**Drei Ebenen (nicht gegeneinander ausspielen):**
+
+| Ebene | Rolle |
+|-------|--------|
+| Original-CS-1.6 | visuelle und interaktive **Baseline**, nicht Funktionsdeckel |
+| NextClient | funktionale **Basis** |
+| CS Retro | moderne und zusätzliche Funktionen (Desktop/HiDPI/Responsive, ServerProfile, Module, …) |
+
+Classic-Metriken = 100%-Referenz und Regressionstest; danach kontrollierte Skalierung (Linux/Windows/macOS, Auflösungen, HiDPI) als bewusste CS-Retro-Schicht — keine globale historische Proportional-Skalierung, die Controls nur aufbläht.
+
 **Eine** Menü-Library:
 
 ```
@@ -34,7 +44,9 @@ Kein dauerhaftes Nebeneinander aus Xash-MainUI, Textmenü, Ref-A-Touch, NextClie
 
 `client/nextclient/gameui/` ist die **primäre funktionale Quelle**. Nicht von Null beginnen.
 
-Erhalten (Verhalten): BasePanel, Server Browser, Options (Multiplayer/Keyboard/Mouse/Audio/Video/Voice/Misc), Create Multiplayer (Server/Game/Bots), später Module.
+Erhalten (Verhalten): BasePanel, Server Browser, Options, Create Multiplayer (Server/Game/Bots), später Module.
+
+**Options (erweiterbar):** klassische Seiten + CS-Retro/NextClient — u. a. Keyboard/Bindings, Mouse, Audio, Video, Voice, Multiplayer, Gameplay, HUD, Radar, Crosshair-Fine-Tuning, Network, später portierte NextClient-Funktionen. Feature-UI erst sichtbar, wenn das Backend existiert (keine toten Optionen). Classic-Dialogbreite (Kandidat 512×406) und Zusatzcontrols bewusst integrieren, nicht Funktionen streichen.
 
 Ersetzen (Anbindung): Steam-/GoldSrc-GameUI, `HWND`/`SetWindowLongPtr`, `next_engine_mini.dll`, NitroApi-/Steam-Bind, `-m32`, Win32-only-Libs, CEF außer später bewusstem Cross-Platform-Bedarf.
 
@@ -79,17 +91,21 @@ Nicht distributieren. Steam bleibt read-only Quelle.
 
 ## Serverprofil
 
-Ein Modell für Listen/LAN und Dedicated:
+Ein Modell für Listen/LAN und Dedicated — speicher- und wiederverwendbar. Create-Game-VGUI2 ist zentrale Serverkonfiguration, keine UI-Sonderlösung:
 
 ```
 ServerProfile
- ├─ Server     (Map, Hostname, Password, MaxPlayers, LAN)
- ├─ Gameplay   (Round/Freeze, FF, Balance, …)
- ├─ Bots       (Quota, Difficulty, Team, Waffen, …)
- └─ Modules    (none / Profil; Metamod/AMXX später, optional)
+ ├─ Server     (Map, Mode, Hostname, Password, MaxPlayers/Slots, LAN)
+ ├─ Gameplay   (GameRules, Round/Freeze/Buy, Team/FF/Balance, …)
+ ├─ Bots       (über Bot-Konfigurationsschnittstelle; nicht dauerhaft ZBot-only;
+ │              Quota/Difficulty/Team/… + implementationsspezifische Advanced)
+ ├─ Modules    (optional; Core ohne Plugins lauffähig;
+ │              Metamod / AMX Mod X: Aktivierung, Plugin-Auswahl, Profile;
+ │              strukturierte Seiten für bekannte Plugins später möglich)
+ └─ Advanced   (Server-CVars)
 ```
 
-New Game / LAN und Dedicated schreiben dasselbe Profil. Keine doppelte Serverkonfiguration.
+New Game / LAN und Dedicated konsumieren dasselbe Profil.
 
 ## Quellen (Priorität)
 

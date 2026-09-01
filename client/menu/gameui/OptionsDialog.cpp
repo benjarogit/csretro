@@ -1,4 +1,5 @@
 #include "OptionsDialog.h"
+#include "OptionsClassicMetrics.h"
 #include "OptionsSubAudio.h"
 #include "OptionsSubMouse.h"
 #include "OptionsMetricsDump.h"
@@ -15,12 +16,13 @@ COptionsDialog::COptionsDialog(Panel *parent)
 	: PropertyDialog(parent, "OptionsDialog")
 {
 	SetDeleteSelfOnClose(false);
-	SetBounds(0, 0, 545, 406);
+	// Classic Preferred Size — not a max; PropertyDialog/Sheet layout fills ClientArea.
+	SetBounds(0, 0, CsretroOptionsClassic::kPreferredWide, CsretroOptionsClassic::kPreferredTall);
 	SetSizeable(false);
 	SetTitle("#GameUI_Options", true);
 	SetApplyButtonVisible(true);
 	if (GetPropertySheet())
-		GetPropertySheet()->SetTabWidth(84);
+		GetPropertySheet()->SetTabWidth(84); // minimum tab width, not fixed render width
 
 	// Nur echte Subpages — keine Stub-Tabs. Reihenfolge wie Steam: … Mouse, Audio …
 	RegisterPage(new COptionsSubMouse(this), "Mouse", "#GameUI_Mouse");

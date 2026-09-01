@@ -167,13 +167,21 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 
 | Feld | Wert |
 |------|------|
-| Rolle | **nur** visuelle Zieloptik (Screenshot-Pin); proportional/HD-Interna **unknown** |
+| Rolle | visuelle Zieloptik + screenshot-derived pixel metrics; proportional/HD-Interna **unknown** |
 | Produkt | Steam Counter-Strike 1.6 |
 | Build | **5971** (`Exe build: 11:45:32 Mar 1 2013` laut Console im Ref-Shot) |
 | Sprache | English |
-| Auflösung (Ref-Shot) | **1366×768** |
-| Belegt aus Shot | u. a. Tab-Label **Mouse** |
-| Nicht belegt | Byte-Identität von TrackerScheme / kompletter Loc / GameUI-Binary mit heutigem Steam |
+| Logische Auflösung | **1366×768** |
+| Artifact | `docs/research/golden-5971/` (SHA-256 in README / Diagnose) |
+| OptionsDialog rendered | **512×406** (x=825..1336, y=13..418) — Rendered-Pixel, nicht Constructor-Beweis |
+| Belegt aus Shot | Tab **Mouse**; Video aktiv |
+| Nicht belegt | 5971 HD/prop-State; Byte-Identität Scheme/Loc/GameUI mit Current Steam |
+
+**Führender Classic-Dialog-Kandidat → Decision:** 512×406 Preferred (Fit geprüft). Endgültig implementieren erst nach Abnahme des Decision Reports in `docs/PHASE3M-METRICS-DIAGNOSIS.md`. Kein blindes `SetBounds`-Patch ohne Freigabe.
+
+### Produktziel (dauerhaft)
+
+Classic-Metrics-Gate = historische **Basis**, nicht Funktionsdeckel. Ziel: klassische CS-1.6-VGUI2-Optik/Bedienlogik + NextClient-Funktion + CS-Retro-Erweiterungen + moderne Desktop-/HiDPI-/Responsive-Schicht. Original = visuelle Baseline; NextClient = funktionale Basis; CS Retro ergänzt — Ebenen nicht gegeneinander ausspielen. Feature-UI nur mit Backend. Create Game über gemeinsames ServerProfile; Bots über Abstraktion; Module optional. Siehe `docs/MENUS.md`, Diagnose-Abschnitt „Produktziel“.
 
 ### Current Steam Resource / BuildMode Reference (dieser Host)
 

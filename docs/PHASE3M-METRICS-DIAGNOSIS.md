@@ -24,11 +24,18 @@ Build Mode Shortcut (Valve-Doku): **Ctrl+Shift+Alt+B**
 
 | Feld | Wert |
 |------|------|
-| Rolle | **nur** visuelle Zieloptik (Screenshot-Pin); proportional/HD-Interna **unknown** |
+| Rolle | visuelle Zieloptik + screenshot-derived pixel metrics; proportional/HD-Interna **unknown** |
 | Build | **5971** (`Exe build: 11:45:32 Mar 1 2013` laut Console im Ref-Shot) |
-| Sprache / Auflösung (Shot) | English / **1366×768** |
-| Aus Shot belegt | u. a. Tab-Text **Mouse** |
-| Nicht belegt | Byte-Identität von TrackerScheme, vollständiger Loc-Datei oder GameUI-Binary mit heutigem Steam |
+| Sprache / logische Auflösung | English / **1366×768** |
+| Artifact | `docs/research/golden-5971/ref-cs16-5971-options-video-1366x768.jpg` |
+| SHA-256 | `0f73bd7b45c3980a780c8abfe6f25e779c0893b8935723fff5697199c6f12cfd` |
+| Dateiformat | JPEG; gespeicherte Matrix **1024×575** (Downscale der logischen 1366×768-Referenz) — siehe `docs/research/golden-5971/README.md` |
+| OptionsDialog rendered | **512×406** — äußere Frame-Bounds im logischen 1366×768-Raum: x=825..1336, y=13..418 |
+| Aus Shot belegt | Tab **Mouse**; Video-Tab aktiv; Build Mode auf `OptionsSubVideo.res` / ComboBox `Renderer` |
+| Nicht belegt | 5971-Constructor/Proportional-State; Byte-Identität Scheme/Loc/GameUI mit Current Steam |
+
+**Wichtig:** 512×406 ist **Rendered-Pixel-Evidence**, kein Beweis für den internen 5971-Constructor oder HD/prop-State.
+
 
 ### B) Current Steam Resource / BuildMode Reference (dieser Host)
 
@@ -93,7 +100,7 @@ Current-Steam-BuildMode = Kontroll-/Forschungsdatensatz, **nicht** automatisch C
 
 Das sind **Current-Steam-Codebasen** (HL25-era/current HD reference), keine Golden-5971-Werte und kein Beweis für 5971-Interna.
 
-Klassische Rekonstruktionen (CKF3Alpha / OpenGoldSrc, gepinnte Commits in `UPSTREAM.md`): hart `512×406` + `SetTabWidth(84)` ohne sichtbares `SetHDProportional` im Quelltext — **Evidenz**, nicht Garantie dass 5971 identisch war.
+Klassische Rekonstruktionen (CKF3Alpha / OpenGoldSrc, gepinnte Commits in `UPSTREAM.md`): hart `512×406` + `SetTabWidth(84)` ohne sichtbares `SetHDProportional` im Quelltext. Unabhängig dazu Golden-5971-Shot: **512×406 rendered** — Konvergenz, aber kein blindes Patchen und kein Beweis für 5971-Constructor/HD-State.
 
 NextClient / CS Retro: hart `545×406` + `SetTabWidth(84)`, Options-Baum `IsProportional=0`.
 
@@ -135,7 +142,7 @@ Messung Current Steam 2026-09-02: **800×600**, english, Protocol **48**, Exe **
 
 | Control | Current Steam Resource/Code | Current Steam Runtime (800×600) | CS-Retro Resource/Code | CS-Retro Runtime (800×600) |
 |---------|----------------------------|----------------------------------|------------------------|----------------------------|
-| OptionsDialog size | HD-prop. Basen **522×444** | Pixel/Kanten ≈ **520×444** (≈ Basen; bestätigt Code→Runtime) | NextClient `SetBounds(545,406)` | **545×406** prop=0 @ 127,97 |
+| OptionsDialog size | HD-prop. Basen **522×444** | Pixel/Kanten ≈ **520×444** (≈ Basen; bestätigt Code→Runtime) | NextClient `SetBounds(545,406)` | **545×406** prop=0 @ 127,97; Golden rendered **512×406** |
 | OptionsDialog HD/prop | `SetHDProportional(true)` | HD-Pfad aktiv (Basen ≈ Runtime bei 800×600) | kein HD; prop=0 | prop=0 |
 | Tab width | Code-Basis **72** (HD-scale) | BM-OCR TabWidth am OptionsDialog noch unvollständig; 7 Tabs inkl. **Aim** sichtbar | `SetTabWidth(84)` | Sheet 8,30 529×338; Tab-Content y=**28** |
 | Tab height | Code Default **28** | optisch Tab-Zeile vorhanden | Default 28 | Page Mouse y-offset **28** |
@@ -153,19 +160,57 @@ Build Mode zusätzlich belegt (andere Panels, nicht OptionsDialog): `GameConsole
 
 ---
 
-## Evidenztabelle (Classic-Entscheidung — alle Ziele offen)
+## Evidenztabelle (Classic — Dialog-Kandidat, Entscheidung noch offen)
 
-Nur belegte Zellen. Keine Screenshot-Zahlen für 5971 erfinden. Current Steam = Forschungsdatensatz, **nicht** automatisch Classic-Ziel.
+Current Steam = HL25-era Vergleich, **nicht** Classic-Ziel. Keine Screenshot-Zahlen erfinden.
 
 | Metrik | Golden 5971 | Current Steam 2024 | CKF / OpenGoldSrc | NextClient | CS-Retro aktuell | Zielentscheidung |
 |--------|-------------|--------------------|-------------------|------------|------------------|------------------|
-| Dialog | visuell (keine Zahl) | Code **522×444** HD; Runtime@800≈**520×444** | **512×406** hart | **545×406** hart | **545×406** | **offen** |
-| TabWidth | visuell | Code-Basis **72** HD | **84** | **84** | **84** | **offen** |
+| Dialog | **512×406** rendered (Shot) | Code **522×444** HD; Runtime@800≈**520×444** | **512×406** code | **545×406** code | **545×406** | **führender Classic-Kandidat 512×406**; endgültig erst mit Tabs/Fonts/Insets/NextClient-Extras |
+| TabWidth / Tab-Semantik | kompakt (rendered); Einzelbreiten **unknown** | Code-Basis **72** HD | **84** (min. via `SetTabWidth`) | **84** | **84** | **offen** — `SetTabWidth` ≠ garantierte Renderbreite |
 | Proportional / HD | **unknown** | HD (`SetHDProportional`) | nein (Quelltext) | nein | nein (Classic-Gate 640×480) | **offen** |
-| Mouse-Tab Loc | Shot: **Mouse** | **Aim** | (Rekonstruktion) | Aim/Mouse je Loc | Override **Mouse** | **offen** (Pin bewusst) |
+| Mouse-Tab Loc | Shot: **Mouse** | **Aim** | (Rekonstruktion) | Aim/Mouse je Loc | Override **Mouse** | Pin bewusst |
 | Mouse `.res` | unknown (5971-Bytes) | Steam valve SHA | — | NextClient-Layout | Override ≠ Steam | **offen** |
 
-Gewichtungsregel: Quellen getrennt; weder Current-2024 noch CKF/OGS allein = Wahrheit für 5971.
+**Konvergenz:** Golden rendered + CKF + OpenGoldSrc → **512×406** als starker Classic-Kandidat. **Nicht** blind `SetBounds(512,406)` patchen, bevor Tabs/Fonts/Insets und NextClient-Zusatzcontrols geklärt sind.
+
+---
+
+## Golden 5971 — screenshot-derived pixel metrics
+
+Kennzeichnung: **Golden 5971 screenshot-derived pixel metrics** — nicht mit BuildMode-/Codewerten gleichsetzen. Unklare Grenzen = **unknown**.
+
+Quelle: Artifact oben; äußere Bounds Benutzer-Messung im logischen 1366×768-Raum. Subpixel aus dem 1024×575-Downscale nur wo eindeutig.
+
+| Element | Screenshot-derived (logisch 1366×768 / Dialog-lokal) | Hinweis |
+|---------|------------------------------------------------------|---------|
+| Äußere Frame-Bounds (Screen) | x=825..1336, y=13..418 | Benutzer-Messung |
+| OptionsDialog wide×tall | **512×406** | rendered |
+| Titlebar-Höhe | **unknown** | Downscale unscharf |
+| PropertySheet / Content-Bereich | **unknown** | Frame vs. Sheet-Kante nicht eindeutig |
+| Tab-Zeilenhöhe | **unknown** (visuell kompakter als CS Retro) | Code-Default `tabheight` **28** = nicht Shot-Beweis |
+| Einzelne Tab-Bounds | **unknown** | JPEG/Downscale |
+| OK / Cancel / Apply | sichtbar unten rechts; exakte px **unknown** | PropertyDialog-Code typisch 72×24 |
+| Renderer Combo (Build Mode **Resource**) | fieldName `Renderer`, xpos**40**, ypos**52**, wide**160**, tall**24** | aus BM-Editor im selben Shot — **Resource**, nicht Screen-Pixel des Frames |
+| Resolution / Display Mode Combo | sichtbar; exakte rendered Bounds **unknown** | |
+| CheckButtons (Video) | sichtbar rechts; exakte Bounds **unknown** | |
+| Brightness / Gamma Slider | sichtbar; exakte Bounds **unknown** | |
+| Horizontale / vertikale Insets | **unknown** (nicht eindeutig) | |
+
+---
+
+## PropertySheet / Tab-Semantik (vendortes VGUI2)
+
+`PropertySheet.cpp` / `PageTab`:
+
+- `m_iSpecifiedTabHeight` Default **28** (`tabheight`), Small **14**.
+- Bei `IsProportional()`: `m_iTabHeight = GetProportionalScaledValue(specified)`.
+- `SetTabWidth(n)` setzt `PageTab::m_bMaxTabWidth` (Name irreführend).
+- In `PageTab::ApplySchemeSettings`: `wide = max(m_bMaxTabWidth, contentWide + 10)`.
+
+Daraus: **`SetTabWidth(84)` erzwingt keine feste Renderbreite 84** — es ist eine **Mindestbreite**; kürzere Labels werden auf mindestens 84 gestreckt, längere können breiter sein. Fontmetrik (`contentWide`) bestimmt die sichtbare Kompaktheit mit.
+
+Vergleich später: Golden rendered tab bounds (noch unknown) vs. CKF/OGS vs. NextClient vs. CS-Retro Runtime — **keine** manuellen Tabbreiten in `.res`.
 
 ---
 
@@ -186,20 +231,145 @@ Gewichtungsregel: Quellen getrennt; weder Current-2024 noch CKF/OGS allein = Wah
 
 ## Ghidra
 
-- Current Steam 2024 / `gameui.so` / `vgui2.so`: nur Current-Fragen.  
-- **Nicht** daraus 5971-Interna ableiten.  
-- Historische 5971-Binary erst analysieren, wenn lokal nachweisbar vorliegend; sonst Punkt = **unknown**, konservativ aus übrigen Quellen.
+- Für **5971 OptionsDialog size** aktuell **nicht nötig** (Screenshot 512×406 + CKF/OGS konsistent).  
+- Current Steam 2024: nur Current-Fragen.  
+- Historische 5971-Binary erst bei konkreter Restfrage und lokal verfügbarem Stand.
+
+---
+
+## Produktziel (dauerhaft) — Classic ≠ Funktionsdeckel
+
+Der Classic-Metrics-Gate rekonstruiert die historische CS-1.6-VGUI2-**Basis**. Er beschränkt die endgültige CS-Retro-UI **nicht** auf starre historische Fenster oder nur Original-Seiten.
+
+Zielbild:
+
+**klassische CS-1.6-VGUI2-Optik und Bedienlogik** + **NextClient-Funktionalität** + **CS-Retro-Erweiterungen** + **moderne Desktop-/HiDPI-/Responsive-Unterstützung**.
+
+| Ebene | Rolle |
+|-------|--------|
+| Original-CS-1.6 | visuelle und interaktive **Baseline**, nicht Funktionsdeckel |
+| NextClient | funktionale **Basis** |
+| CS Retro | ergänzt moderne und zusätzliche Funktionen |
+
+Keine der drei Ebenen gegeneinander ausspielen.
+
+### Classic vs. Modern
+
+- Classic-Metriken = **100%-Referenz** und Regressionstest.  
+- Danach kontrolliert skalieren: Linux / Windows / macOS, Desktop-Auflösungen, HiDPI/Retina.  
+- Keine globale historische Proportional-Skalierung, die Controls nur aufbläht.  
+- Responsive-/HiDPI als **bewusste CS-Retro-Schicht** (nicht MetaHook-HiDPI unbesehen).
+
+### Erweiterbare Options
+
+Neben klassischen Seiten vorgesehen (Feature-UI erst mit Backend, keine toten Optionen): Keyboard/Bindings, Mouse, Audio, Video, Voice, Multiplayer, Gameplay, HUD, Radar, Crosshair-Fine-Tuning, Network, später portierte NextClient-Funktionen.
+
+NextClient-Zusatzcontrols in die Classic-Metrik **integrieren**, nicht Funktionen streichen, falls 512er Breite eng wird — dann bewusstes CS-Retro-Layout.
+
+### Create Game / Server
+
+Echte zentrale Serverkonfiguration über gemeinsames **ServerProfile** (Listen/LAN + Dedicated): Map/Mode/Slots/LAN, GameRules, Round/Freeze/Buy, Team/FF/Balance, Bots, optionale Module (Metamod/AMXX), Plugin-Auswahl, Advanced CVars. Profile speicher- und wiederverwendbar.
+
+### Bots
+
+Bot-UI nicht dauerhaft an ZBot koppeln — gemeinsame Bot-Konfigurationsschnittstelle; implementationsspezifische Advanced-Optionen zusätzlich.
+
+### Plugins / Module
+
+Core ohne Plugins lauffähig. Module optional aus Profil. AMXX später: Aktivierung, Plugin-Auswahl, Profile; strukturierte Seiten für bekannte Plugins möglich.
+
+Details auch: `docs/PHASE3M.md`, `docs/MENUS.md`.
 
 ---
 
 ## Nächste Schritte (kein Video)
 
-1. Current Steam Build Mode: OptionsDialog-Felder + Aim/Audio-Controls bei **1024×768** und **1366×768** nachziehen.  
-2. Evidenztabelle füllen — **keine** Layoutwahl (545/522/512, Tab 84/72) vor Abschluss.  
-3. Danach zentrale Metrics-/Font-/Scheme-Entscheidung.  
-4. NextClient-**Funktion** behalten; Layoutabweichungen nicht als Originaloptik.  
-5. Mouse+Audio erneut bei gleicher Auflösung abnehmen → Video freigeben.
+1. Golden screenshot-derived Tab-/Control-Bounds verfeinern (idealerweise vollauflösendes 1366×768-Original, falls verfügbar).  
+2. Tab-Runtime CS-Retro vs. Golden-Kompaktheit (Font/`contentWide`/`SetTabWidth`-Semantik) — keine `.res`-Kosmetik.  
+3. Classic-Core-Entscheidung (Dialog-Kandidat 512×406 + Tabs/Fonts/Insets) zentral.  
+4. Mouse+Audio erneut bei gleicher Auflösung abnehmen → Video.  
+5. Current 1024/1366 nur wenn für HD-Pfad nötig — nicht Priorität.
 
-## Research References
+FOV/3D gesperrt. Kein Phase-3-Tag.
 
-Siehe `docs/UPSTREAM.md` Abschnitt „VGUI2 Research References (Phase 3M)“ und `CREDITS.md` (Research/VGUI2).
+---
+
+## Classic Core Decision Report (2026-09-02) — **Empfehlung, noch nicht implementiert**
+
+### Entscheidung
+
+**Ja: 512×406 als Classic Preferred / Reference Size** für `COptionsDialog`.
+
+Nicht: erzwungene Maximalgröße für alle Zukunft. Nicht: Current-Steam-522×444. Nicht: NextClient-545 als Optikziel.
+
+### Warum 512×406
+
+| Evidenz | Rolle |
+|---------|--------|
+| Golden 5971 rendered ≈512×406 (logisch; Downscale 384×304 → skaliert konsistent) | Pixel-Wahrheit Classic |
+| CKF3Alpha / OpenGoldSrc `SetBounds(512,406)` | unabhängige Code-Rekonstruktion |
+| NextClient / CS Retro `545×406` | Abweichung / Slack, nicht Classic |
+| Current Steam `522×444` HD | Modernisierungs-/HD-Referenz |
+
+Höhe **406** ist bereits NextClient = Classic; nur die **+33 px Breite** (545−512) ist die bewusste Zurücknahme.
+
+### Fit-Prüfung NextClient-Funktion in 512×406
+
+Runtime-Ist @545 (Metrics-Dump): Sheet **529×338**, Mouse-Page **529×310**, Tab-Content-Y **28**, `prop=0`.
+
+Erwartet @512 (gleiche Insets ±8): Sheet/Page-Breite ≈ **496**, Höhe unverändert ≈310.
+
+| Page / Bereich | .res max extent (relevant) | Passt in ≈496×310? | Bemerkung |
+|----------------|----------------------------|--------------------|-----------|
+| **Mouse** (CS-Retro/NC, inkl. MouseLook) | interaktiv bis ≈312; Labels `wide` bis 500 | **ja** | Label-`wide=300` ist Textfeld, kein Pflicht-Inhalt; ~4 px Soft-Clip unerheblich |
+| **Audio** | Slider bis 460; Miles-Label 486× bis y342 | **Breite ja**; Miles unten wie schon @545 | Miles-Fußzeile ragt vertikal über Page — **höhenbedingt**, nicht durch 512 vs 545 |
+| Keyboard (klassisch geplant) | List 480×258 | **ja** | |
+| Video / Voice (klassisch) | ≤490 / ≤460 | **ja** | |
+| Multiplayer (klassisch) | Guides/Controls bis ~529 | **knapp** | beim Port: Pinning/AutoResize/`.res`, ggf. Dialog **bewusst wachsen** — nicht dauerhaft 545-Slack |
+| NextClient Miscellaneous | Controls ≤500 | **ja** in Preferred; Extra-Tab | bei vielen Tabs: Kompaktheit über Font/`SetTabWidth`-Minimum, nicht Dialog-Leerbreite |
+| OK/Cancel/Apply | PropertyDialog unten rechts | **ja** | Layout bereits parent-relativ |
+
+**Fazit Fit:** Der vorhandene NextClient-Umfang (Mouse+Audio) und die klassischen Standard-Pages lassen sich in 512×406 **ohne Funktionsentfernung und ohne Übereinanderquetschen** unterbringen. Die 545er Breite ist keine funktionale Notwendigkeit für diese Seiten.
+
+### Bewusst zurücknehmen
+
+- Hartes `SetBounds(…, 545, 406)` als Preferred-Optik (NextClient-Slack).
+- Implizite Annahme „breiter = classic-näher“.
+
+### Funktionalität erhalten
+
+- Alle Mouse-/Audio-Controls und CVar-/KeyToggle-Logik (inkl. MouseLook, RawInput, …).
+- PropertyDialog Apply/OK/Cancel, `RegisterPage`/`AddPage`.
+- NextClient als funktionale Basis; zusätzliche Pages später.
+- `SetTabWidth` als **Mindestbreite**-Semantik (kein `.res`-Tabbreiten-Hack).
+
+### Nötige Core-/Layoutänderungen (nach Freigabe dieser Decision)
+
+1. Preferred Size **512×406** setzen (benannte Konstante / klarer Kommentar: Classic Preferred, nicht Max).  
+2. PropertySheet weiter über `PropertyDialog::PerformLayout` füllen lassen (ClientArea − `sheetinset_bottom`) — keine per-Dialog-Pixelhacks.  
+3. Pages datengetrieben per `.res`; eng werdende künftige Pages: Pinning/AutoResize oder **kontrolliertes Wachstum** des Dialogs.  
+4. Tabs: Kompaktheit aus Fontmetrik / ContentWidth / Padding / Scheme / Tab-Minimum — **nicht** aus Dialog-Extra-Breite.  
+5. Keine globale HD-/Proportional-Umschaltung für Classic.
+
+### Classic Preferred vs. Responsive / HiDPI (getrennt)
+
+| Schicht | Aufgabe |
+|---------|---------|
+| **Classic Preferred 512×406** | 100%-Referenz + Regression (Golden) |
+| **Content-driven grow** | einzelne CS-Retro-/dichte Pages dürfen Dialog bewusst vergrößern |
+| **Responsive Desktop** | sinnvolle Platzierung/Größe je Auflösung — ohne Controls nur aufzublasen |
+| **HiDPI (später)** | eigene CS-Retro-Skalierungsschicht — nicht MetaHook/HL25-HD unbesehen |
+
+### Tabs (unverändert festgehalten)
+
+`SetTabWidth(n)` = Mindestbreite (`max(n, contentWide+10)`), keine garantierte Renderbreite. 7×84 px würden selbst 545er Sheet (~529) sprengen — **545 löst das Tab-Problem nicht**. Tab-Pass separat nach Preferred-Size-Core.
+
+### Current Steam
+
+Weiter nur HD-/Responsive-Research (optional 1366); nicht Classic-Ziel.
+
+### Gate nach Implementierung
+
+Mouse + Audio bei gleicher Auflösung gegen Golden/Classic → wenn grün, Video freigeben. FOV/3D gesperrt. Kein Phase-3-Tag.
+
+**Status:** Decision freigegeben und Preferred Size **implementiert** (`CsretroOptionsClassic::kPreferredWide/Tall` → `SetBounds(512,406)`). Nicht Max; Responsive/HiDPI später. Mouse+Audio-Gate nach Patch.

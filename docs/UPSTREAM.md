@@ -67,24 +67,27 @@ Engine-3rdparty (mitimportiert, kein Submodule): MultiEmulator, bzip2, xash-extr
 | https://github.com/yapb/yapb | Bot-Ideenquelle; später mit ZBot und weiteren vergleichen |
 | https://github.com/dreamstalker/rehlds | ReGameDLL-Grundlage; nicht unsere Engine |
 | `microsoft/vcpkg` | Windows-Package-Manager, nicht im Tree |
-| https://github.com/kungfulon/fwgs-vgui2-support | historische Xash-VGUI2-Forschung (Steam-`vgui2` + originale `client.dll`). Deprecated zugunsten kungfulon/xash3d-fwgs. **Nicht** Produktgrundlage, nicht vendort. Analyse: `docs/PHASE3M.md` |
 
 ### VGUI2 Research References (Phase 3M)
 
-Dokumentations- und Vergleichsquellen. **Vendort ≠ Produkt-Build ≠ Runtime-Abhängigkeit.**
+Dokumentations- und Vergleichsquellen. **Vendort ≠ Produkt-Build ≠ Runtime-Abhängigkeit.** Research-Quelle darf bei Bedarf reproduzierbar in den Worktree vendort werden (Analyse/Port) — ohne sie als Runtime-Abhängigkeit oder stillschweigende Classic-Baseline zu übernehmen.
 
-| Upstream / URL | Stand | Rolle | Erkenntnis / Nutzung |
-|----------------|-------|-------|----------------------|
-| Valve Developer Community — [VGUI Documentation](https://developer.valvesoftware.com/wiki/VGUI_Documentation), [Understanding VGUI2 Resource Files](https://developer.valvesoftware.com/wiki/Understanding_VGUI2_Resource_Files), [VGUI2: Creating a panel](https://developer.valvesoftware.com/wiki/VGUI2:_Creating_a_panel) | laufend (Wiki) | Hersteller-Doku: Panel-Hierarchie, Lifecycle, Scheme/Fonts, Loc, Proportionality, `.res`, Build Mode (**Ctrl+Shift+Alt+B**) | Allgemeine VGUI2-Semantik. **Nicht** ungeprüft Source-only (`PANEL_CLIENTDLL`, `SourceScheme`, BaseViewport) übernehmen. Bei Widerspruch: Original-CS-1.6. |
-| NextClient GameUI | Pin `client/` oben | funktionale Options/BasePanel-Basis | `COptionsDialog` **545×406**, `SetTabWidth(84)` — NextClient-Metrik, nicht automatisch Valve-Original |
-| Ref B / FuryBaM `refs/b-cs16-goldsrc/` | Pin oben | Menü-/VGUI-Referenz; später Team/Buy | Steam-`vgui2` nicht als Runtime |
-| https://github.com/kungfulon/fwgs-vgui2-support | beobachtet | historische Xash+Steam-vgui2-Forschung | nur Analyse |
-| CKFDevPowered / CKF3Alpha | lokal geprüft: `~/Downloads/CKF3_Alpha4` (nicht im Repo) | klassische rekonstruierte GoldSrc-GameUI | Options-/GameMenu-Strukturvergleich; ggf. später selektiv vendorn |
-| Counter-Strike-16 / OpenGoldSrc | beobachtet, nicht vendort | GoldSrc-/GameUI-Rekonstruktion, Scaling | Vergleich — Pin nach erstem konkreten Port |
-| hzqst / MetaHookSv VGUI2Extension | beobachtet, nicht vendort | Scheme/Resource-Injection; **HiDPI = bewusst alle Panels proportional** | Vergleichsmuster — **nicht** Classic-Baseline |
-| Ref A `refs/a-cs16-client/` | Pin oben | Desktop-/Client-Erkenntnisse | kein Ref-A-mainui als Produkt |
+Prüfdatum aller Pins unten: **2026-09-01**, sofern nicht anders angegeben.
 
-Golden Classic / Metrics-Diagnose: `docs/PHASE3M-METRICS-DIAGNOSIS.md`.
+| Upstream | URL | Commit / Stand | Rolle | Konkrete Erkenntnis |
+|----------|-----|----------------|-------|---------------------|
+| Valve Developer Community — VGUI Documentation | https://developer.valvesoftware.com/wiki/VGUI_Documentation | Wiki, geprüft 2026-09-01; **oldid** wegen Bot-Schutz der History-API nicht abrufbar — vor nächstem Cite erneut History speichern | Hersteller-Doku: Panel-Hierarchie, Lifecycle, Scheme/Fonts, Loc, Proportionality, Build Mode (**Ctrl+Shift+Alt+B**) | Allgemeine VGUI2-Semantik. **Nicht** ungeprüft Source-only (`PANEL_CLIENTDLL`, `SourceScheme`, BaseViewport) übernehmen. Bei Widerspruch: Original-CS-1.6. |
+| Understanding VGUI2 Resource Files | https://developer.valvesoftware.com/wiki/Understanding_VGUI2_Resource_Files | Wiki, geprüft 2026-09-01 (oldid s. o.) | `.res`-Struktur, Position/Size, Parent, AutoResize/Pinning | Resource-Semantik für Options-Seiten |
+| VGUI2: Creating a panel | https://developer.valvesoftware.com/wiki/VGUI2:_Creating_a_panel | Wiki, geprüft 2026-09-01 (oldid s. o.) | Panel, EditablePanel, LoadControlSettings, SetScheme, SetProportional, Build Mode | Bestätigt Build-Mode-Shortcut |
+| NextClient GameUI | Pin `client/` oben | funktional Options/BasePanel | `COptionsDialog` **545×406**, `SetTabWidth(84)` — NextClient-Layout; Funktion behalten, Optik nicht automatisch = Valve |
+| Ref B / FuryBaM | `refs/b-cs16-goldsrc/` Pin oben | Menü-/VGUI; später Team/Buy | Steam-`vgui2` nicht als Runtime |
+| kungfulon/fwgs-vgui2-support | https://github.com/kungfulon/fwgs-vgui2-support | `91868378f21ebb39aefd255db5ae6e21b74a4a3b` (2019-01-21, HEAD zum Prüfdatum) | historische Xash + Steam-`vgui2`-Forschung | Analyse only; deprecated zugunsten kungfulon/xash3d-fwgs; **nicht** Produktgrundlage |
+| CKFDevPowered/CKF3Alpha | https://github.com/CKFDevPowered/CKF3Alpha | `4e1ee1bdb2aeebe3548eb57b104f2a9cf4dccf97` (2020-02-04) | klassische rekonstruierte GoldSrc-GameUI (BasePanel, GameMenu, Options, …) | `OptionsDialog.cpp`: `SetBounds(0,0,512,406)` + `SetTabWidth(84)` — Rekonstruktion, nicht Golden-5971-Binary |
+| Counter-Strike-16/OpenGoldSrc | https://github.com/Counter-Strike-16/OpenGoldSrc | `9f7bbee933a1ea337758d8e03dfdd2c0515bb41c` (2017-07-25) | GoldSrc-/GameUI-Rekonstruktion, VGUI2/BaseUI | `ogs/gameui/default/OptionsDialog.cpp`: ebenfalls **512×406** + `SetTabWidth(84)` |
+| hzqst/MetaHookSv (VGUI2Extension) | https://github.com/hzqst/MetaHookSv | `bb5f7833cd6908638ab48c7315f6b0240c6caafb` (2026-08-30); Doku `docs/VGUI2Extension.md` | Scheme/Resource-Injection; HiDPI | HiDPI: **bewusst alle** VGUI2-Elemente proportional (`-high_dpi` / `-no_high_dpi`) — **Vergleich**, nicht Classic-Baseline |
+| Ref A | `refs/a-cs16-client/` Pin oben | Desktop-/Client-Erkenntnisse | kein Ref-A-mainui als Produkt |
+
+Golden Visual vs Current Steam Resources / Metrics: `docs/PHASE3M-METRICS-DIAGNOSIS.md`.
 
 Spielinhalte `valve/` / `cstrike/`: externe Runtime-Datenquelle. Steam CS 1.6 (AppID 10) wird gelesen, nie geschrieben, und nicht als RODIR benutzt. Materialisiert: `gamedata/` (`docs/GAMEDATA.md`). Nicht im Git.
 Ref-A-`3rdparty/ReGameDLL_CS/`, Ref-A-YaPB, Ref-A-mainui: nicht die Produktquelle.

@@ -107,7 +107,7 @@ Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-
 
 ## Offene Arbeit
 
-1. **Phase 3M** — V1 + **Symbol-Control-Gate** grün. **Metrics-/Classic-Gate: Diagnose** (`docs/PHASE3M-METRICS-DIAGNOSIS.md`). Mouse/Audio nicht visuell 1:1 abgenommen. Video gesperrt. Golden Visual = Build **5971**; Current Steam BuildMode = buildid **12934623** (getrennt). Classic-ProportionalBase = **640×480**. Kein FOV.
+1. **Phase 3M** — V1 + Symbol-Control grün. Metrics-Diagnose + Provenance-Cleanup: `docs/PHASE3M-METRICS-DIAGNOSIS.md`. Mouse/Audio **funktional** abgenommen; **visuelle** Classic-Abnahme offen; **Video gesperrt**. Golden Visual = Build **5971** (nur Shot). Current Steam = appmanifest **12934623** + Exe `Oct 8 2024` + `gameui.so` HD-Bases 522×444 — getrennt. Classic-ProportionalBase = **640×480**. Scheme-Winner = `valve/resource/TrackerScheme.res`. Kein FOV.
 2. Danach erst 3D (FOV), nach Freigabe.
 3. Windows/macOS Compile-Gates. **`Csretro_PlatformShellOpen` Windows = offenes Plattform-Gate**.
 4. Bot-Grenze → `bots/`.

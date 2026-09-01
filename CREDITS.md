@@ -101,4 +101,14 @@ sowie alle weiteren signifikanten Contributors des Projekts.
 - [YaPB](https://github.com/yapb/yapb) (jeefo und Contributors) — beobachtet als Bot-Quelle; noch nicht vendort
 - ZBot in ReGameDLL — mitvendort, später mit YaPB und weiteren vergleichen
 
+## Research / VGUI2-Referenzen (Phase 3M)
+
+Technische Pins, Commits und Erkenntnisse: `docs/UPSTREAM.md` (Abschnitt „VGUI2 Research References“). Hier nur Würdigung — keine Ersatz-Provenance.
+
+- [Valve Developer Community](https://developer.valvesoftware.com/wiki/VGUI_Documentation) — VGUI/VGUI2-Dokumentation (Panel, Resources, Scheme, Build Mode)
+- [CKFDevPowered/CKF3Alpha](https://github.com/CKFDevPowered/CKF3Alpha) und Contributors — klassische GoldSrc-GameUI-Rekonstruktion (Options/GameMenu-Vergleich)
+- [Counter-Strike-16/OpenGoldSrc](https://github.com/Counter-Strike-16/OpenGoldSrc) und Contributors — GoldSrc-/GameUI-/VGUI2-Rekonstruktion
+- [hzqst/MetaHookSv](https://github.com/hzqst/MetaHookSv) und Contributors — VGUI2Extension, Scheme/Resource-Hooks, HiDPI-Vergleich (nicht Classic-Baseline)
+- [kungfulon/fwgs-vgui2-support](https://github.com/kungfulon/fwgs-vgui2-support) — historische Xash-VGUI2-Forschung
+
 Jedes weitere Projekt, aus dem wir später Code oder Verhalten übernehmen, hier und in `docs/UPSTREAM.md` nachtragen.

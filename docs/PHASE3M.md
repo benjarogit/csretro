@@ -102,7 +102,7 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 | NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | **portiert** → `client/menu/gameui/Controls/` + Xash `MenuEngine` |
 | `COptionsSubMouse` | funktional abgenommen; **visuell Metrics-Gate offen** |
 | `COptionsSubAudio` | funktional abgenommen; **visuell Metrics-Gate offen**; `MP3 volume *` original |
-| Effektives Scheme | `platform/resource/TrackerScheme.res` (Default); `ClientScheme` parallel |
+| Effektives Scheme (Runtime-Winner) | `gamedata/valve/resource/TrackerScheme.res` (= Current Steam `valve/…`); `platform/…/TrackerScheme.res` nur Fallback; `ClientScheme` parallel (HUD) |
 | Effektive `.res` | Mouse/Audio unter `data/ui-overrides/cstrike/resource/` |
 | CVar-Mapping Mouse | `m_filter` → `look_filter` |
 | CVar-Mapping Audio | `hisound` → `room_hires` (Semantik 0/1 → 1/2); `mp3volume` → `MP3Volume` |
@@ -161,17 +161,34 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 | In-Game Team/Buy | Interim-`.res`-Pfad bis VGUI2-Ersatz |
 | Tests | `vgui-v1-poc-runtime.sh`, `vgui-options-mouse-gate.sh`, `vgui-options-audio-gate.sh`, `play.sh`, `build-menu.sh --sanitize` |
 
-## Golden Visual Reference (Phase 3M Basis-Schema)
+## Golden Visual vs Current Steam (strikt getrennt)
+
+### Golden Classic Visual Reference A
 
 | Feld | Wert |
 |------|------|
+| Rolle | **nur** visuelle Zieloptik (Screenshot-Pin) |
 | Produkt | Steam Counter-Strike 1.6 |
-| Build | **5971** (`Exe build: 11:45:32 Mar 1 2013`) |
+| Build | **5971** (`Exe build: 11:45:32 Mar 1 2013` laut Console im Ref-Shot) |
 | Sprache | English |
-| Auflösung | **1366×768** (Vergleichsshots zusätzlich 800×600 / 1024×768) |
-| Scheme | `valve/resource/TrackerScheme.res` (Runtime-Winner; = Steam valve) |
-| Loc-Pin | Tab **Mouse** (nicht aktuelles Steam-`GameUI_Mouse`=`Aim`) via `data/ui-overrides/.../csretro_gameui_english.txt` |
-| Build Mode | Original VGUI Build Mode Editor als Layout-Messwerkzeug (xpos/ypos/wide/tall) ausdrücklich nutzen |
+| Auflösung (Ref-Shot) | **1366×768** |
+| Belegt aus Shot | u. a. Tab-Label **Mouse** |
+| Nicht belegt | Byte-Identität von TrackerScheme / kompletter Loc / GameUI-Binary mit heutigem Steam |
+
+### Current Steam Resource / BuildMode Reference (dieser Host)
+
+| Feld | Wert |
+|------|------|
+| Rolle | Live Build Mode, Resource-SHA, GameUI-Binary-Analyse |
+| Steam AppID / appmanifest buildid | 10 / **12934623** |
+| `cstrike/steam.inf` | `PatchVersion=1.1.2.7` |
+| Engine-Binary-String (`hw.so`) | `Exe build: 01:35:13 Oct  8 2024` |
+| Sprache (Steam UserConfig) | english |
+| Scheme Runtime-Winner (CS Retro + gamedata) | `valve/resource/TrackerScheme.res` — SHA siehe Diagnose; **≠** Golden-5971-Beweis |
+| Loc current | `GameUI_Mouse`=**Aim**; CS-Retro Classic-Pin Override → **Mouse** |
+| Build Mode | Ctrl+Shift+Alt+B; Messwerte klar als **current** labeln |
+
+Vergleichsshots nur bei **gleicher** Auflösung (640/800/1024/1280|1366).
 
 Späterer transparenterer Steam-Stil = optionale Scheme-Variante **nach** korrektem klassischem Tracker-Stil.
 

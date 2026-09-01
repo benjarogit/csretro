@@ -80,5 +80,14 @@ void OptionsMetrics_DumpTree(COptionsDialog *dialog)
 	DumpPanelLine("CancelButton", dialog->FindChildByName("CancelButton", true));
 	DumpPanelLine("ApplyButton", dialog->FindChildByName("ApplyButton", true));
 
+	static const char *kControls[] = {
+		"ReverseMouse", "MouseFilter", "MouseLook", "Joystick", "JoystickLook",
+		"Slider", "SensitivityLabel",
+		"SFX Slider", "MP3 Volume", "Suit Slider", "Sound Quality",
+		"sfx label", "mp3 label", "suit label",
+	};
+	for (const char *name : kControls)
+		DumpPanelLine(name, dialog->FindChildByName(name, true));
+
 	Menu_Con("CSRETRO_METRICS_END");
 }

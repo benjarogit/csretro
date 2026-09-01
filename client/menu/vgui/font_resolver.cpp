@@ -143,14 +143,14 @@ void MapFamilyCandidates(const char *family, int weight, std::vector<const char 
 		return;
 	}
 
-	// Tahoma / Verdana / Arial / Trebuchet MS / generic sans → DejaVu / Liberation
+	// Tahoma / Verdana / Arial / Trebuchet MS → Liberation (Arial-Metrik) vor DejaVu (breiter).
 	if (bold)
 	{
-		out.push_back("DejaVuSans-Bold.ttf");
 		out.push_back("LiberationSans-Bold.ttf");
+		out.push_back("DejaVuSans-Bold.ttf");
 	}
-	out.push_back("DejaVuSans.ttf");
 	out.push_back("LiberationSans-Regular.ttf");
+	out.push_back("DejaVuSans.ttf");
 }
 
 bool LooksLikeFontFile(const char *s)

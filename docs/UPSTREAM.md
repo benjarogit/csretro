@@ -69,6 +69,23 @@ Engine-3rdparty (mitimportiert, kein Submodule): MultiEmulator, bzip2, xash-extr
 | `microsoft/vcpkg` | Windows-Package-Manager, nicht im Tree |
 | https://github.com/kungfulon/fwgs-vgui2-support | historische Xash-VGUI2-Forschung (Steam-`vgui2` + originale `client.dll`). Deprecated zugunsten kungfulon/xash3d-fwgs. **Nicht** Produktgrundlage, nicht vendort. Analyse: `docs/PHASE3M.md` |
 
+### VGUI2 Research References (Phase 3M)
+
+Dokumentations- und Vergleichsquellen. **Vendort ≠ Produkt-Build ≠ Runtime-Abhängigkeit.**
+
+| Upstream / URL | Stand | Rolle | Erkenntnis / Nutzung |
+|----------------|-------|-------|----------------------|
+| Valve Developer Community — [VGUI Documentation](https://developer.valvesoftware.com/wiki/VGUI_Documentation), [Understanding VGUI2 Resource Files](https://developer.valvesoftware.com/wiki/Understanding_VGUI2_Resource_Files), [VGUI2: Creating a panel](https://developer.valvesoftware.com/wiki/VGUI2:_Creating_a_panel) | laufend (Wiki) | Hersteller-Doku: Panel-Hierarchie, Lifecycle, Scheme/Fonts, Loc, Proportionality, `.res`, Build Mode (**Ctrl+Shift+Alt+B**) | Allgemeine VGUI2-Semantik. **Nicht** ungeprüft Source-only (`PANEL_CLIENTDLL`, `SourceScheme`, BaseViewport) übernehmen. Bei Widerspruch: Original-CS-1.6. |
+| NextClient GameUI | Pin `client/` oben | funktionale Options/BasePanel-Basis | `COptionsDialog` **545×406**, `SetTabWidth(84)` — NextClient-Metrik, nicht automatisch Valve-Original |
+| Ref B / FuryBaM `refs/b-cs16-goldsrc/` | Pin oben | Menü-/VGUI-Referenz; später Team/Buy | Steam-`vgui2` nicht als Runtime |
+| https://github.com/kungfulon/fwgs-vgui2-support | beobachtet | historische Xash+Steam-vgui2-Forschung | nur Analyse |
+| CKFDevPowered / CKF3Alpha | lokal geprüft: `~/Downloads/CKF3_Alpha4` (nicht im Repo) | klassische rekonstruierte GoldSrc-GameUI | Options-/GameMenu-Strukturvergleich; ggf. später selektiv vendorn |
+| Counter-Strike-16 / OpenGoldSrc | beobachtet, nicht vendort | GoldSrc-/GameUI-Rekonstruktion, Scaling | Vergleich — Pin nach erstem konkreten Port |
+| hzqst / MetaHookSv VGUI2Extension | beobachtet, nicht vendort | Scheme/Resource-Injection; **HiDPI = bewusst alle Panels proportional** | Vergleichsmuster — **nicht** Classic-Baseline |
+| Ref A `refs/a-cs16-client/` | Pin oben | Desktop-/Client-Erkenntnisse | kein Ref-A-mainui als Produkt |
+
+Golden Classic / Metrics-Diagnose: `docs/PHASE3M-METRICS-DIAGNOSIS.md`.
+
 Spielinhalte `valve/` / `cstrike/`: externe Runtime-Datenquelle. Steam CS 1.6 (AppID 10) wird gelesen, nie geschrieben, und nicht als RODIR benutzt. Materialisiert: `gamedata/` (`docs/GAMEDATA.md`). Nicht im Git.
 Ref-A-`3rdparty/ReGameDLL_CS/`, Ref-A-YaPB, Ref-A-mainui: nicht die Produktquelle.
 

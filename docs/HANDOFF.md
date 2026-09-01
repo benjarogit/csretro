@@ -3,7 +3,7 @@
 Anderen Rechner arbeitsfähig machen. Diese Datei ist der **lebende Stand**.
 Nach substantieller Arbeit Tabelle und „Offene Arbeit“ in derselben Session nachziehen.
 
-Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `MENUS.md`, `GAMEDATA.md`, `PHASEN.md`, `PHASE3-BODY.md` (nur während Phase 3), `CHANGELOG.md`. Danksagung: `CREDITS.md`.
+Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `MENUS.md`, `GAMEDATA.md`, `PHASEN.md`, `PHASE3-BODY.md` (nur während Phase 3), `PHASE3M.md`, `PHASE3M-METRICS-DIAGNOSIS.md`, `CHANGELOG.md`. Danksagung: `CREDITS.md`.
 
 ## Aktueller Stand
 
@@ -107,10 +107,10 @@ Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-
 
 ## Offene Arbeit
 
-1. **Phase 3M** — V1 bestanden. **Mouse + Audio abgenommen.** Nächste Options-Subpage voraussichtlich Video. Interim-Hauptmenü = Negativreferenz. Kein FOV, kein Phase-3-Tag.
-2. Danach erst 3D (FOV als erstes NextClient-Feature), nach Freigabe.
-3. Windows x86_64 / macOS ARM64+x86_64: Compile-Gates (CMake ist vorbereitet, auf diesem Host nicht gebaut).
-4. Bot-Grenze analysieren und schrittweise nach `bots/` — nicht amputieren.
+1. **Phase 3M** — V1 + **Symbol-Control-Gate** grün. **Metrics-/Classic-Gate: Diagnose** (`docs/PHASE3M-METRICS-DIAGNOSIS.md`). Mouse/Audio nicht visuell 1:1 abgenommen. Video gesperrt. Golden Visual = Build **5971**; Current Steam BuildMode = buildid **12934623** (getrennt). Classic-ProportionalBase = **640×480**. Kein FOV.
+2. Danach erst 3D (FOV), nach Freigabe.
+3. Windows/macOS Compile-Gates. **`Csretro_PlatformShellOpen` Windows = offenes Plattform-Gate**.
+4. Bot-Grenze → `bots/`.
 
 ## Nicht anfassen
 

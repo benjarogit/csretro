@@ -252,8 +252,6 @@ static void Localize_InitLanguage( const char *language )
 
 void Localize_Init( void )
 {
-	gEngfuncs.pfnClientCmd( "exec mainui.cfg\n" );
-
 	hashed_cmds.Purge();
 
 	// always load default language translation

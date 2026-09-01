@@ -9,12 +9,14 @@ Kein Phase-3-Tag. Kein FOV. 3C-Baseline (`v0.1.5`) bleibt gültig.
 
 - **V1-Runtime-PoC bestanden:** `vgui_controls` + Xash-Surface/Input + `.res`/Scheme + FreeType-Glyphen; Maus/Tastatur/TextEntry/Tab/Escape/Resize; ASan+UBSan; keine Steam-/vgui2-/Touch-Runtime. Nachweis: `./scripts/vgui-v1-poc-runtime.sh`, manuell `./scripts/play.sh`.
 - V1 ist die verbindliche UI-Basis (`docs/PHASE3M.md`). Rekonstruktion der Steam-CS-1.6-VGUI2-Oberfläche beginnt.
-- **Options Mouse abgenommen:** TrackerScheme-Default, Popup-Paint + Scheme-Apply, Zentrierung, Loc, Apply/OK/Cancel/Reset/Persistenz, Screenshots 640/800/1024/16:9; `./scripts/vgui-options-mouse-gate.sh`. `look_filter` statt `m_filter`.
-- **Options Audio abgenommen:** `COptionsSubAudio` + `CLabeledCommandComboBox`; `volume`/`MP3Volume`; `hisound`→`room_hires`; kein EAX/A3D/Miles; HEV in CS ausgeblendet; `./scripts/vgui-options-audio-gate.sh`.
+- **Options Mouse/Audio funktional** (Gates); visuell Classic-Abnahme erst nach Metrics-Gate.
+- **VGUI2 Symbol-Control-Gate grün:** `vgui_symbols.cpp` — Marlett geometrisch; kein Windows-Marlett.ttf; Scheme-lastResort überschreibt Symbolfonts nicht.
+- **Metrics-/Classic-Gate (Diagnose):** `docs/PHASE3M-METRICS-DIAGNOSIS.md`. Classic-ProportionalBase wieder **640×480** (HD-Umschaltung zurückgenommen). Current Steam BuildMode buildid **12934623** ≠ Golden Visual **5971**. Options-Baum `IsProportional=0`. Loc-Pin Mouse. `mainui.cfg`-Warnung entfernt. Video gesperrt.
+- **Windows ShellOpen:** offenes Plattform-Gate (No-Op).
 - Eine Menü-Lib `client/menu/` (`GetMenuAPI` + `GameMenuExports001`).
-- Font-Resolver: GameData `platform/resource/linux_fonts` (+ System-Fallback-Verzeichnisse).
-- Interim-Hauptmenü/Create/Team: Bootstrap bis jeweilige VGUI2-Rekonstruktion — nicht visuell abgenommen.
-- `ShowMenu` bleibt Legacy. 3D erst nach 3M.
+- Font-Resolver: GameData `platform/resource/linux_fonts` (+ System-Fallback-Verzeichnisse); Liberation vor DejaVu (Kandidat, nicht Endurteil).
+- Interim-Hauptmenü/Create/Team: Bootstrap — nicht visuell abgenommen.
+- `ShowMenu` bleibt Legacy. 3D erst nach 3M. **Video noch nicht begonnen.**
 
 ## 0.1.5 — 2026-09-01
 

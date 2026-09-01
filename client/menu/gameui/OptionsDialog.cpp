@@ -1,6 +1,7 @@
 #include "OptionsDialog.h"
 #include "OptionsSubAudio.h"
 #include "OptionsSubMouse.h"
+#include "OptionsMetricsDump.h"
 
 #include <vgui/KeyCode.h>
 #include <vgui_controls/PropertyPage.h>
@@ -72,6 +73,7 @@ void COptionsDialog::Activate()
 	SetKeyBoardInputEnabled(true);
 	MoveToFront();
 	Menu_Con("CSRETRO_OPTIONS_VISIBLE");
+	OptionsMetrics_DumpTree(this);
 }
 
 void COptionsDialog::OnClose()

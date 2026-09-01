@@ -199,6 +199,8 @@ void VGuiXash_Init()
 			{"resource/vgui_%language%.txt", "vgui"},
 			{"resource/cstrike_%language%.txt", "cstrike"},
 			{"resource/platform_%language%.txt", "platform"},
+			// CS-Retro pin: Steam Build 5971 tab „Mouse“ (aktuelles Steam-gameui hat „Aim“).
+			{"resource/csretro_gameui_%language%.txt", "csretro_gameui"},
 		};
 		for (const LocFile &lf : files)
 		{

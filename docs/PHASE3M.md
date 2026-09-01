@@ -40,10 +40,10 @@ Skripte: `./scripts/build-menu.sh`, `./scripts/vgui-v1-poc-runtime.sh`, manuell 
 | Interface | Ist-Implementierung | Hinweis |
 |-----------|---------------------|---------|
 | `IVGui` / `IPanel` | vendorter VGUI2-Core (`vgui.cpp`, `VPanel`, `VPanelWrapper`) in `menu_*` | 64-Bit-Patches; **kein** Steam-`vgui2` |
-| `ISurface` / `ISurfaceNext` | `surface_xash.cpp` → `ui_enginefuncs_t` | FreeType-Glyphen verbindlich |
+| `ISurface` / `ISurfaceNext` | `surface_xash.cpp` + `vgui_symbols.cpp` → `ui_enginefuncs_t` | FreeType mit Win32-naher Zellhöhe (`REAL_DIM`) + `FONTFLAG_ANTIALIAS`; Marlett = `vgui_symbols`; HD-`GetProportionalBase` |
 | `IInput` / `IInputInternal` | `input_core.cpp` + `key_translation_xash.cpp` | Xash Key/Mouse/Char |
 | `IScheme` | vendort `Scheme.cpp` | Default **`TrackerScheme`** (GameUI); `ClientScheme` parallel geladen; Fonts über Resolver |
-| `ISystem` | `system_xash.cpp` + `system_shell_posix.cpp` | Win: `system_shell_win.cpp` — `Csretro_PlatformShellOpen` ist **No-Op-Stub** (ShellExecuteW ausstehend); Posix öffnet via `xdg-open`/`open` |
+| `ISystem` | `system_xash.cpp` + `system_shell_posix.cpp` | **Offenes Windows-Plattform-Gate:** `system_shell_win.cpp` = No-Op-Stub für `Csretro_PlatformShellOpen` (blockiert Linux-3M nicht; vor Windows-Runtime-Gate muss ShellExecuteW real sein — kein permanenter Stub im Endprodukt). Posix: `xdg-open`/`open` |
 | `ILocalize` | vendort `LocalizedStringTable.cpp` | **Pflicht:** echte Texte; rohe Keys = Fehler |
 | `IFileSystem` / KV | `filesystem_xash.cpp`, `keyvalues_system.cpp` | |
 | Controls | `vgui_controls` + NextClient-GameUI-Controls (`Cvar*`/`KeyToggle`) | weitere Controls nur bedarfsweise |
@@ -86,7 +86,7 @@ Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextC
 
 ## Rekonstruktionsplan (Reihenfolge)
 
-1. **Options-Fundament:** `COptionsSubMouse` + `COptionsSubAudio` abgenommen. Nächste Seite per Dependency-Closure (voraussichtlich Video).
+1. **Options-Fundament:** `COptionsSubMouse` + `COptionsSubAudio` funktional/symbol-grün, **visuell noch nicht 1:1**. Zuerst gemeinsames **Metrics-/Scheme-/Font-Gate** schließen. Video danach.
 2. **Main Menu:** NextClient/`GameMenu.res` als echte VGUI2-Controls; Localization fixen; Interim-Textliste ersetzen.
 3. **Create Game:** `CreateMultiplayerGameDialog` + `ServerProfile` (eine Konfiguration).
 4. **Team/Class/Buy:** `.res` + V1-Core; Interim-Renderer entfernen sobald ersetzt.
@@ -100,8 +100,8 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 |---------|--------|
 | Stub-Pages Mouse/Audio/Video | **entfernt** — keine Dummy-Tabs |
 | NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | **portiert** → `client/menu/gameui/Controls/` + Xash `MenuEngine` |
-| `COptionsSubMouse` | **abgenommen** — Referenzseite |
-| `COptionsSubAudio` | **abgenommen** — TrackerScheme; `volume`/`MP3Volume`; `hisound`→`room_hires` (High=2/Low=1); kein EAX/A3D/Miles; HEV in CS ausgeblendet |
+| `COptionsSubMouse` | funktional abgenommen; **visuell Metrics-Gate offen** |
+| `COptionsSubAudio` | funktional abgenommen; **visuell Metrics-Gate offen**; `MP3 volume *` original |
 | Effektives Scheme | `platform/resource/TrackerScheme.res` (Default); `ClientScheme` parallel |
 | Effektive `.res` | Mouse/Audio unter `data/ui-overrides/cstrike/resource/` |
 | CVar-Mapping Mouse | `m_filter` → `look_filter` |
@@ -151,11 +151,29 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 |-------|--------|
 | V1-Runtime-PoC | **bestanden** |
 | Menü-Lib | `menu_amd64.so` V1-Core + Controls + Xash-Backends |
-| Options Mouse | **abgenommen** (Referenz) |
-| Options Audio | **abgenommen**; Video voraussichtlich als Nächstes |
-| Hauptmenü / Create / Team | Interim-Bootstrap (Negativreferenz) — bleibt bis echte VGUI2-Rekonstruktion |
+| Options Mouse | funktional + Symbole OK; **visuell Metrics-Gate offen** |
+| Options Audio | funktional + Symbole OK; **visuell Metrics-Gate offen**; `MP3 volume *` = Steam-Loc (behalten) |
+| VGUI2 Symbol-Controls | **Gate grün** — `vgui_symbols.cpp` |
+| VGUI2 Metrics/Scheme/Font | **in Arbeit** — Golden Ref Build 5971; siehe Abschnitt unten |
+| Video | **gesperrt** bis Metrics-Gate grün |
+| Windows ShellOpen | **offenes Plattform-Gate** (`system_shell_win.cpp` No-Op) |
+| Hauptmenü / Create / Team | Interim-Bootstrap (Negativreferenz) |
 | In-Game Team/Buy | Interim-`.res`-Pfad bis VGUI2-Ersatz |
-| Tests | `vgui-v1-poc-runtime.sh`, `vgui-options-mouse-smoke.sh`, `vgui-options-mouse-gate.sh`, `play.sh`, `build-menu.sh --sanitize` |
+| Tests | `vgui-v1-poc-runtime.sh`, `vgui-options-mouse-gate.sh`, `vgui-options-audio-gate.sh`, `play.sh`, `build-menu.sh --sanitize` |
+
+## Golden Visual Reference (Phase 3M Basis-Schema)
+
+| Feld | Wert |
+|------|------|
+| Produkt | Steam Counter-Strike 1.6 |
+| Build | **5971** (`Exe build: 11:45:32 Mar 1 2013`) |
+| Sprache | English |
+| Auflösung | **1366×768** (Vergleichsshots zusätzlich 800×600 / 1024×768) |
+| Scheme | `valve/resource/TrackerScheme.res` (Runtime-Winner; = Steam valve) |
+| Loc-Pin | Tab **Mouse** (nicht aktuelles Steam-`GameUI_Mouse`=`Aim`) via `data/ui-overrides/.../csretro_gameui_english.txt` |
+| Build Mode | Original VGUI Build Mode Editor als Layout-Messwerkzeug (xpos/ypos/wide/tall) ausdrücklich nutzen |
+
+Späterer transparenterer Steam-Stil = optionale Scheme-Variante **nach** korrektem klassischem Tracker-Stil.
 
 ## Nicht in 3M
 

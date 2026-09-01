@@ -127,6 +127,7 @@ add_library(csretro_menu SHARED
     "${VGUI}/vgui_boot.cpp"
     "${VGUI}/poc_dialog.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsDialog.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsMetricsDump.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubMouse.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsMouseGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubAudio.cpp"

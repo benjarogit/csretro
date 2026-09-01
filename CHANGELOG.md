@@ -3,6 +3,18 @@
 Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
 Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 
+## 0.1.1-phase1 — 2026-09-01
+
+### Dokumentation
+
+- Phase-1-Analyse: NextClient ist Overlay, kein Client-Körper.
+- Entscheidung: eigener `GetClientAPI`-Export + eigener Körper + Features aus `client_mini` als Module. Ref A nur gelesen.
+- `docs/PHASE1-ARCHITEKTUR.md`; Handoff/Schnittstellen/Phasen nachgezogen.
+
+### Nicht enthalten
+
+- Kein Client-Code, kein Ref-A/B-Import, kein Steam-Schnitt (Phase 2).
+
 ## 0.1.0-phase0 — 2026-09-01
 
 ### Repo

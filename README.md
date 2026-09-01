@@ -40,6 +40,7 @@ Presets: `linux-clang-x86_64` (aktiv), `linux-clang-i686`, `linux-clang-aarch64`
 | Datei | Inhalt |
 |-------|--------|
 | `docs/HANDOFF.md` | **Lebender Stand** — Phase, Remote, offene Arbeit |
+| `docs/PHASE1-ARCHITEKTUR.md` | Bind-Entscheidung: Overlay vs. `GetClientAPI` |
 | `docs/PHASEN.md` | Phasen 0–4 |
 | `docs/SCHNITTSTELLEN.md` | Engine/Client/Server/Bots |
 | `docs/UPSTREAM.md` | Vendor-Pins |

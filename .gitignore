@@ -43,3 +43,4 @@ __pycache__/
 # WoltLab-Pakete (gehören nicht hierher)
 *.tar.gz
 *.tgz
+*.zip

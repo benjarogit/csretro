@@ -9,11 +9,13 @@ Vor jeder Phase die Rollen bestätigen (Basis / Engine / Ref A / Ref B). Nicht m
 - Einheitliches CMake orchestriert; Engine weiter über Waf (nativ).
 - NextClient-Upstream-CMake (MSVC/vcpkg) wird **nicht** als Default-Build verwendet.
 
-## Phase 1 — Engine-Bindungs-Analyse (als Nächstes)
+## Phase 1 — Engine-Bindungs-Analyse (abgeschlossen 2026-09-01)
 
-- `ncl-hl1-source-sdk` vs. Xash `cldll_func_t` / MainUI / vgui_support.
-- Ref A **lesen**: CMake, `cdll_int.cpp`, Header — kein Copy.
-- Ergebnis: Liste der Anpassungen, kein Feature-Port.
+- NextClient ist Overlay auf Steam-`client.dll`, kein `GetClientAPI`-Körper.
+- Xash: alle Namen in `cdll_exports[]` Pflicht; Menü separat über `GetMenuAPI`.
+- Entscheidung: eigener Export + eigener Körper + NextClient-Features als Module. Ref A nur gelesen.
+- Server AMXX bleibt Phase-3-Lücke, kein ReGameDLL.
+- Text: `docs/PHASE1-ARCHITEKTUR.md`. Kein Feature-Port, kein Code-Copy.
 
 ## Phase 2 — Steam raus
 

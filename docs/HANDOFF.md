@@ -4,17 +4,17 @@ Anderen Rechner arbeitsfähig machen. Diese Datei ist der **lebende Stand**.
 Nach jeder substantiellen Arbeit (Phase, Deploy-Ziel, Upstream-Pin, Breaking Change)
 die Tabelle unten und „Offene Arbeit“ in **derselben Session** nachziehen.
 
-Details nicht hier duplizieren: `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`, `CHANGELOG.md`.
+Details nicht hier duplizieren: `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`, `PHASE1-ARCHITEKTUR.md`, `CHANGELOG.md`.
 
 ## Aktueller Stand
 
 | Feld | Wert |
 |------|------|
 | Datum | 2026-09-01 |
-| Phase | **0 abgeschlossen** — als Nächstes Phase 1 (nur Analyse) |
+| Phase | **1 abgeschlossen** — als Nächstes Phase 2 (Steam raus), dann Phase 3 (Körper+Export) |
 | GitHub | https://github.com/benjarogit/csretro (**privat**) |
 | Branch | `main` — einzige Arbeitslinie |
-| Release | `v0.1.0-phase0` (Changelog: `CHANGELOG.md`) |
+| Release | `v0.1.1-phase1` (Changelog: `CHANGELOG.md`) |
 | Lokaler Worktree | `/home/benny/Dokumente/csretro` |
 | Cutover | 2026-09-01: Remote-`main` geleert/ersetzt. Alte Historie (Xash+cs16-client, Tag `v0.2.0`) gilt nicht mehr. |
 
@@ -72,11 +72,12 @@ Root-CMake (`CMakePresets.json`) ist vorbereitet, auf diesem Host aber nicht kon
 
 ## Offene Arbeit
 
-1. **Phase 1:** Interface-Liste ncl-hl1-SDK ↔ Xash (Ref A nur lesen).
-2. NextClient ist Steam-Hook (8684/Win), kein `GetClientAPI` — Bindung neu.
-3. Server ist AMXX, keine Xash-GameDLL.
-4. Steam-Code Phase 2 entfernen.
-5. NextClient ohne LICENSE — Repo bleibt privat; kein öffentliches GitHub.
+1. **Phase 2:** Steam-Schicht identifizieren und entfernen/ersetzen (`steam_api_proxy`, Master, 8684-Provider). Kein Körper-Schreiben.
+2. **Phase 3:** `GetClientAPI`-Export + kleinster eigener Client-Körper (alle `cdll_exports`). Menü = Xash MainUI. GameDLL (`dlls/cs.so`) eigene Entscheidung — nicht Ref-A-ReGameDLL, nicht AMXX als Xash-Server.
+3. NextClient-Features (`GameHud`, View, FOV, …) erst nach dem Körper, einzeln, ohne NitroApi-Hooks.
+4. NextClient ohne LICENSE — Repo bleibt privat; kein öffentliches GitHub.
+
+Bind-Entscheidung: `docs/PHASE1-ARCHITEKTUR.md`. Nicht wieder aufmachen.
 
 ## Nicht anfassen
 

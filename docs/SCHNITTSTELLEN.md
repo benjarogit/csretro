@@ -15,14 +15,13 @@ Erweiterungen gegenüber GoldSrc: `pfnGetRenderInterface`, Touch/Move/Look, Soun
 
 **Referenz A (nur lesen):** `refs/a-cs16-client/cl_dll/cdll_int.cpp` exportiert `Initialize` / `HUD_VidInit` / … — das ist das Muster, das Xash erwartet.
 
-**NextClient (Basis) exportiert das nicht.** NextClient ist eine Hook-/Proxy-Schicht auf Steam `hw.dll` + `client.dll` (Build 8684, Windows x86): `engine_mini`, `client_mini`, `steam_api_proxy`, `filesystem_proxy`, Launcher als `cstrike.exe`. Phase 1 muss entscheiden, wie NextClient-Logik hinter `GetClientAPI` gelegt wird — nicht die Steam-Hooks nachbauen.
+**Entscheidung (Phase 1):** NextClient bleibt Overlay-Quelle, nicht der Lade-Export. CS Retro liefert **eine** Client-Lib mit `GetClientAPI` / Pflicht-Namen aus `cdll_exports[]` (jeder Name ist Pflicht, sonst bricht `CL_LoadProgs` ab). Innen: eigener Körper + aus `client_mini` gelöste Features, ein `gEngfuncs` aus `Initialize`. NitroApi/8684-Hooks sind nicht der Bind-Pfad. Details: `docs/PHASE1-ARCHITEKTUR.md`.
 
 ## Engine → Menü
 
-Xash spricht MainUI über `GetMenuAPI`, nicht über Source-`GameUI007`.
-NextClient-GameUI (VGUI2 + optional CEF) sitzt auf `IBaseUI` / `IClientVGUI` (`VClientVGUI001`, `BaseUI001`) aus `ncl-hl1-source-sdk`.
-
-Das ist die zentrale Phasen-1-Frage: SDK-Interfaces vs. Xash-MainUI/VGUI-Support.
+Xash spricht MainUI über `GetMenuAPI` (`cl_gameui.c`), nicht über Source-`GameUI007` / `IBaseUI`.
+Phase 3: vorhandenes Xash-`libmenu.so`. NextClient-GameUI (VGUI2/CEF, Steam-Factories) nicht in Phase 3.
+`IClientVGUI` / `IBaseUI` ersetzen `GetClientAPI` nicht.
 
 ## Client → SDK (intern, Basis)
 

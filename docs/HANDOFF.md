@@ -5,6 +5,7 @@ Nach jeder substantiellen Arbeit (Phase, Deploy-Ziel, Upstream-Pin, Breaking Cha
 die Tabelle unten und „Offene Arbeit“ in **derselben Session** nachziehen.
 
 Details nicht hier duplizieren: `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`, `CHANGELOG.md`.
+Game-Menu-Analyse: `docs/GAMEUI-ANALYSE.md`. Scratch (nicht committen): `/home/benny/.cache/vgui2-analysis/`.
 
 ## Aktueller Stand
 
@@ -13,9 +14,10 @@ Details nicht hier duplizieren: `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md
 | Datum | 2026-09-01 |
 | Phase | **0 abgeschlossen** — als Nächstes Phase 1 (nur Analyse) |
 | GitHub | https://github.com/benjarogit/csretro (**privat**) |
-| Branch | `main` — einzige Arbeitslinie |
-| Release | `v0.1.0-phase0` (Changelog: `CHANGELOG.md`) |
-| Lokaler Worktree | `/home/benny/Dokumente/csretro` |
+| Branch | **`vgui2cs16Menu`** — Game-Menu/VGUI2 (dieses Worktree) |
+| Release | `v0.1.1-vgui2-analyse` (Changelog: `CHANGELOG.md`) |
+| Lokaler Worktree | `/home/benny/Dokumente/vgui2cs16Menu` |
+| Hauptprojekt | `/home/benny/Dokumente/csretro` auf `main` — **nicht anfassen** |
 | Cutover | 2026-09-01: Remote-`main` geleert/ersetzt. Alte Historie (Xash+cs16-client, Tag `v0.2.0`) gilt nicht mehr. |
 
 ## Was das ist
@@ -28,7 +30,8 @@ Refs in `refs/` sind eingefroren — kein Code-Copy.
 
 | Was | Wo |
 |-----|-----|
-| Worktree | `/home/benny/Dokumente/csretro` |
+| Dieses Worktree | `/home/benny/Dokumente/vgui2cs16Menu` (`vgui2cs16Menu`) |
+| Hauptprojekt | `/home/benny/Dokumente/csretro` (`main`) |
 | Engine-Quellen | `engine/` (Xash3D-FWGS, Waf) |
 | Client-Basis | `client/` (NextClient + NitroApi + ncl-hl1-source-sdk) |
 | Server-Basis | `server/` (NextClientServerApi, AMXX) |
@@ -72,14 +75,16 @@ Root-CMake (`CMakePresets.json`) ist vorbereitet, auf diesem Host aber nicht kon
 
 ## Offene Arbeit
 
-1. **Phase 1:** Interface-Liste ncl-hl1-SDK ↔ Xash (Ref A nur lesen).
-2. NextClient ist Steam-Hook (8684/Win), kein `GetClientAPI` — Bindung neu.
-3. Server ist AMXX, keine Xash-GameDLL.
-4. Steam-Code Phase 2 entfernen.
-5. NextClient ohne LICENSE — Repo bleibt privat; kein öffentliches GitHub.
+**Auf diesem Branch:** Game-Menu/VGUI2. Analyse in `docs/GAMEUI-ANALYSE.md`. Nächster Schritt erst nach Freigabe: Rechteck-Beweis im Xash-Produktpfad.
+
+Auf `main` (anderes Worktree): Phase 1 Interface-Liste, Steam raus, Server-Bindung.
 
 ## Nicht anfassen
 
+- `/home/benny/Dokumente/csretro` (`main`) — anderes Worktree
+- Teil B: `engine/3rdparty/vgui_support/` (VGUI1 Buy/Team) — nur lesen
+- Steam-`vgui2.so` / `gameui.so` nicht in den x64-Client laden
+- MainUI/`CMenuFramework` nicht zur Ziel-UI ausbauen
 - `refs/**` nicht weiterentwickeln, nicht nach Basis kopieren
 - kein `git submodule add` für Projektquellen
 - kein Steam-Deploy, kein VAC-Pfad

@@ -3,6 +3,21 @@
 Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
 Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 
+## 0.1.1-vgui2-analyse — 2026-09-01
+
+### Repo
+
+- Branch `vgui2cs16Menu` für Game-Menu/VGUI2, getrennt von `main`.
+
+### Hinzugefügt
+
+- `docs/GAMEUI-ANALYSE.md` — Teil B (VGUI1), kungfulon `vgui2_support`, Thanatos-Launcher, FWGS `new_vgui_support_api`, Integrationsplan.
+- Handoff-Isolation: Worktree `/home/benny/Dokumente/vgui2cs16Menu`.
+
+### Nicht enthalten
+
+- Keine Screens, kein Engine-Patch, kein Steam-`gameui.so`.
+
 ## 0.1.0-phase0 — 2026-09-01
 
 ### Repo

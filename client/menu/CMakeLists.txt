@@ -119,6 +119,7 @@ add_library(csretro_menu SHARED
     "${VGUI}/system_xash.cpp"
     $<IF:$<BOOL:${WIN32}>,${VGUI}/system_shell_win.cpp,${VGUI}/system_shell_posix.cpp>
     "${VGUI}/surface_xash.cpp"
+    "${VGUI}/vgui_symbols.cpp"
     "${VGUI}/font_resolver.cpp"
     "${VGUI}/input_core.cpp"
     "${VGUI}/key_translation_xash.cpp"

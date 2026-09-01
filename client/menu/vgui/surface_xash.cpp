@@ -1,6 +1,7 @@
 // ISurfaceNext → Xash ui_enginefuncs_t. FreeType glyphs → TGA → pfnPIC_Load.
 #include "surface_xash.h"
 #include "font_resolver.h"
+#include "vgui_symbols.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -12,6 +13,7 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_SIZES_H
 
 #include "Color.h"
 #include "tier1/interface.h"
@@ -34,11 +36,15 @@ struct Context
 struct FontInfo
 {
 	std::string name;
-	int tall = 12;
+	int tall = 12;	  // Scheme-Request (Win32 CreateFont-Höhe)
+	int height = 12;  // effektive Zellhöhe (wie Win32 tmHeight / GetFontTall)
 	int weight = 400;
 	int ascent = 0;
+	int flags = 0;
+	bool antialias = false;
 	FT_Face face = nullptr;
 	bool ok = false;
+	bool symbol = false; // Marlett / MarlettSmall — geometrische VGUI-Symbole
 };
 
 struct Texture
@@ -99,6 +105,19 @@ std::vector<Context> g_ctx;
 std::unordered_map<GlyphKey, GlyphEntry, GlyphKeyHash> g_glyphs;
 bool g_loggedGlyphPath = false;
 bool g_freetypeGlyphsLogged = false;
+CSurfaceXash *g_symbolPaintSurface = nullptr;
+
+void SymbolFillThunk(int x0, int y0, int x1, int y1)
+{
+	if (g_symbolPaintSurface)
+		g_symbolPaintSurface->DrawFilledRect(x0, y0, x1, y1);
+}
+
+void SymbolLineThunk(int x0, int y0, int x1, int y1)
+{
+	if (g_symbolPaintSurface)
+		g_symbolPaintSurface->DrawLine(x0, y0, x1, y1);
+}
 
 void EnsureFT()
 {
@@ -181,7 +200,10 @@ GlyphEntry *EnsureGlyph(HFont font, uint32_t codepoint)
 	if (!fi || !fi->ok || !fi->face || !gEng.pfnPIC_Load)
 		return nullptr;
 
-	if (FT_Load_Char(fi->face, codepoint, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL) != 0)
+	// Win32 VGUI: ohne FONTFLAG_ANTIALIAS → NONANTIALIASED_QUALITY (TrackerScheme Default).
+	const int loadFlags = fi->antialias ? (FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL)
+					    : (FT_LOAD_RENDER | FT_LOAD_TARGET_MONO);
+	if (FT_Load_Char(fi->face, codepoint, loadFlags) != 0)
 		return nullptr;
 
 	FT_GlyphSlot slot = fi->face->glyph;
@@ -446,40 +468,18 @@ void CSurfaceXash::DrawUnicodeChar(wchar_t wch)
 		return;
 
 	FontInfo *fi = GetFont(m_textFont);
-	// Marlett-Symbole (Frame-Title-Buttons) ohne TTF: Linien-X / Striche.
-	if (fi && fi->ok && !fi->face && fi->name == "Marlett")
+	if (fi && fi->ok && fi->symbol)
 	{
-		int ox, oy;
-		CurrentOffset(ox, oy);
 		const int aRaw = static_cast<int>(m_textA * m_alphaMult);
 		const int a = aRaw > 0 ? aRaw : 255;
-		const int s = fi->tall > 0 ? fi->tall : 12;
-		const int x0 = ox + m_textX;
-		const int y0 = oy + m_textY;
 		DrawSetColor(m_textR, m_textG, m_textB, a);
-		const int ch = static_cast<int>(wch);
-		if (ch == 'r' || ch == 'R') // close
-		{
-			DrawLine(x0 + 2, y0 + 2, x0 + s - 2, y0 + s - 2);
-			DrawLine(x0 + s - 2, y0 + 2, x0 + 2, y0 + s - 2);
-		}
-		else if (ch == '0') // minimize
-			DrawFilledRect(x0 + 2, y0 + s - 4, x0 + s - 2, y0 + s - 2);
-		else if (ch == '1' || ch == '2') // maximize / restore
-			DrawOutlinedRect(x0 + 2, y0 + 2, x0 + s - 2, y0 + s - 2);
-		else if (ch == 'u' || ch == 'U') // combo dropdown ▼
-		{
-			const int mid = x0 + s / 2;
-			DrawLine(x0 + 3, y0 + s / 3, mid, y0 + (2 * s) / 3);
-			DrawLine(mid, y0 + (2 * s) / 3, x0 + s - 3, y0 + s / 3);
-		}
-		else if (ch == 't' || ch == 'T') // ▲
-		{
-			const int mid = x0 + s / 2;
-			DrawLine(x0 + 3, y0 + (2 * s) / 3, mid, y0 + s / 3);
-			DrawLine(mid, y0 + s / 3, x0 + s - 3, y0 + (2 * s) / 3);
-		}
-		m_textX += s;
+		const int tall = fi->tall > 0 ? fi->tall : 12;
+		// Panel-relative (m_textX/Y): DrawFilledRect/DrawLine addieren CurrentOffset selbst.
+		g_symbolPaintSurface = this;
+		CsretroVguiSymbols::PaintCodepoint(m_textX, m_textY, tall, static_cast<uint32_t>(wch), SymbolFillThunk,
+			SymbolLineThunk);
+		g_symbolPaintSurface = nullptr;
+		m_textX += CsretroVguiSymbols::AdvanceForTall(tall);
 		return;
 	}
 
@@ -707,33 +707,45 @@ HFont CSurfaceXash::CreateFont()
 	return static_cast<HFont>(g_fonts.size() - 1);
 }
 
-bool CSurfaceXash::AddGlyphSetToFont(HFont font, const char *windowsFontName, int tall, int weight, int, int, int, int, int)
+bool CSurfaceXash::AddGlyphSetToFont(HFont font, const char *windowsFontName, int tall, int weight, int, int, int flags, int, int)
 {
 	FontInfo *fi = GetFont(font);
 	if (!fi)
 		return false;
+
+	// Scheme lädt nach dem Primärfont immer „DejaVu Sans“ als lastResort.
+	// Win32 FontManager hängt Fallbacks an; unser Surface ersetzt sonst den Face → falsche Metriken.
+	if (fi->ok && (fi->symbol || fi->face) && windowsFontName &&
+		strcasecmp(windowsFontName, fi->name.c_str()) != 0)
+		return true;
+
+	// Scheme lädt nach Marlett immer „DejaVu Sans“ als lastResort — Symbolfonts nicht überschreiben.
+	if (fi->symbol && !CsretroVguiSymbols::IsSymbolFontName(windowsFontName))
+		return true;
+
 	EnsureFT();
 	ClearGlyphsForFont(font);
 	fi->name = windowsFontName ? windowsFontName : "";
 	fi->tall = tall > 0 ? tall : 12;
+	fi->height = fi->tall;
 	fi->weight = weight;
+	fi->flags = flags;
+	fi->antialias = (flags & FONTFLAG_ANTIALIAS) != 0;
 	fi->ascent = 0;
+	fi->symbol = false;
 	if (fi->face)
 	{
 		FT_Done_Face(fi->face);
 		fi->face = nullptr;
 	}
 
-	// Marlett: kein Linux-TTF in gamedata — geometrische Title-Buttons, kein DejaVu-„r“.
-	if (windowsFontName && !strcasecmp(windowsFontName, "Marlett"))
+	if (CsretroVguiSymbols::IsSymbolFontName(windowsFontName))
 	{
 		fi->ok = true;
+		fi->symbol = true;
 		fi->ascent = fi->tall * 3 / 4;
-		if (!g_loggedGlyphPath)
-		{
-			g_loggedGlyphPath = true;
-			Menu_Con("CSRetro font: Marlett → geometric fallback");
-		}
+		fi->height = fi->tall;
+		Menu_Con("CSRETRO_VGUI_SYMBOL_FONT %s tall=%d", windowsFontName, fi->tall);
 		return true;
 	}
 
@@ -743,15 +755,34 @@ bool CSurfaceXash::AddGlyphSetToFont(HFont font, const char *windowsFontName, in
 		fi->ok = false;
 		return false;
 	}
-	FT_Set_Pixel_Sizes(fi->face, 0, static_cast<FT_UInt>(fi->tall));
-	fi->ascent = static_cast<int>(fi->face->size->metrics.ascender >> 6);
-	if (fi->ascent <= 0)
-		fi->ascent = fi->tall * 3 / 4;
+
+	// Win32 CreateFont(positive tall) = Zellhöhe (ascent+descent inkl. internal leading).
+	// FreeType FT_Set_Pixel_Sizes setzt die EM-Größe — zu groß/breit vs. GDI-Tahoma.
+	// REAL_DIM: ascender - descender ≈ requested tall (GDI-Zellhöhen-Semantik).
+	FT_Size_RequestRec req{};
+	req.type = FT_SIZE_REQUEST_TYPE_REAL_DIM;
+	req.width = 0;
+	req.height = static_cast<FT_Long>(fi->tall) << 6;
+	req.horiResolution = 0;
+	req.vertResolution = 0;
+	if (FT_Request_Size(fi->face, &req) != 0)
+		FT_Set_Pixel_Sizes(fi->face, 0, static_cast<FT_UInt>(fi->tall));
+
+	const int asc = static_cast<int>(fi->face->size->metrics.ascender >> 6);
+	const int desc = static_cast<int>((-fi->face->size->metrics.descender) >> 6);
+	const int cell = static_cast<int>(fi->face->size->metrics.height >> 6);
+	fi->ascent = asc > 0 ? asc : (fi->tall * 3 / 4);
+	fi->height = cell > 0 ? cell : (asc + desc > 0 ? asc + desc : fi->tall);
 	fi->ok = true;
-	if (!g_loggedGlyphPath)
+	static std::unordered_map<std::string, bool> s_loggedMetrics;
+	const std::string metricKey =
+		(windowsFontName ? windowsFontName : "?") + std::to_string(fi->tall) + (fi->antialias ? "a" : "n");
+	if (!s_loggedMetrics[metricKey])
 	{
-		g_loggedGlyphPath = true;
-		Menu_Con("CSRetro font: %s (weight %d) → %s", windowsFontName ? windowsFontName : "?", weight, path.c_str());
+		s_loggedMetrics[metricKey] = true;
+		Menu_Con("CSRETRO_FONT_METRICS name=%s req=%d cell=%d ascent=%d aa=%d → %s",
+			windowsFontName ? windowsFontName : "?", fi->tall, fi->height, fi->ascent, fi->antialias ? 1 : 0,
+			path.c_str());
 	}
 	return true;
 }
@@ -773,7 +804,10 @@ bool CSurfaceXash::AddCustomFontFile(const char *fontFileName)
 int CSurfaceXash::GetFontTall(HFont font)
 {
 	FontInfo *fi = GetFont(font);
-	return fi ? fi->tall : 12;
+	if (!fi)
+		return 12;
+	// Wie Win32Font::GetHeight → tmHeight (Zellhöhe), nicht nur Scheme-Request.
+	return fi->height > 0 ? fi->height : fi->tall;
 }
 
 void CSurfaceXash::GetCharABCwide(HFont font, int ch, int &a, int &b, int &c)
@@ -781,6 +815,12 @@ void CSurfaceXash::GetCharABCwide(HFont font, int ch, int &a, int &b, int &c)
 	a = 0;
 	b = 0;
 	c = 0;
+	FontInfo *fi = GetFont(font);
+	if (fi && fi->ok && fi->symbol)
+	{
+		b = CsretroVguiSymbols::AdvanceForTall(fi->tall);
+		return;
+	}
 	GlyphEntry *glyph = EnsureGlyph(font, static_cast<uint32_t>(ch));
 	if (glyph)
 	{
@@ -794,9 +834,10 @@ void CSurfaceXash::GetCharABCwide(HFont font, int ch, int &a, int &b, int &c)
 
 int CSurfaceXash::GetCharacterWidth(HFont font, int ch)
 {
+	(void)ch;
 	FontInfo *fi = GetFont(font);
-	if (fi && fi->ok && !fi->face && fi->name == "Marlett")
-		return fi->tall > 0 ? fi->tall : 12;
+	if (fi && fi->ok && fi->symbol)
+		return CsretroVguiSymbols::AdvanceForTall(fi->tall);
 	GlyphEntry *glyph = EnsureGlyph(font, static_cast<uint32_t>(ch));
 	if (glyph && glyph->advance > 0)
 		return glyph->advance;
@@ -916,6 +957,11 @@ void CSurfaceXash::GetAbsoluteWindowBounds(int &x, int &y, int &wide, int &tall)
 
 void CSurfaceXash::GetProportionalBase(int &width, int &height)
 {
+	// Classic VGUI2 / GoldSrc-Baseline: immer 640×480.
+	// TrackerScheme-Keys ProportionalBaseWidthHD/HeightHD und MetaHook-HiDPI
+	// sind ein späterer, bewusster CS-Retro-Modus — nicht die Classic-Gate-Basis.
+	// (Kurzzeitig war hier eine HD-Umschaltung 1280×720; für Classic zurückgenommen.)
+	(void)0;
 	width = 640;
 	height = 480;
 }

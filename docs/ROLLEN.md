@@ -10,8 +10,8 @@ NextClient bleibt die funktionale Zielbasis. Ref A liefert nur den fehlenden Xas
 | **NextClient** | funktionales Zielverhalten des Clients | `client/nextclient/` (+ NitroApi/SDK als Port-Quelle) | Features herauslösen, auf Xash umbauen |
 | **Ref A** (Velaron/cs16-client) | Xash-kompatible **Client-Body-Quelle** | `refs/a-cs16-client/` | nur A1-Manifest, siehe unten |
 | **Ref B** (FuryBaM) | bedingte UI-/Menü-Referenz | `refs/b-cs16-goldsrc/` | erst Phase 4, ein Feature |
-| **Server** | GameDLL + optionale Module | `server/` · geplant `server/game/` | eigene Entscheidung, siehe `docs/SERVER.md` |
-| **Bots** | eigener Bereich | `bots/` | leer; Interface zur GameDLL; kein YaPB-Copy |
+| **Server** | GameDLL + optionale Module | `server/game/` (AMXX-Herkunft: `server/`) | `docs/SERVER.md` |
+| **Bots** | später eigener Bereich | `bots/` (leer) | ZBot liegt **in** der GameDLL (Migration); kein YaPB-Copy |
 
 64-Bit-Desktop: `docs/PLATTFORMEN.md`.
 
@@ -26,7 +26,7 @@ Xash3D-FWGS
 Xash3D-FWGS
   → CS-Retro GameDLL
       → optional Servermodule
-      → separat: bots/
+      → ZBot vorübergehend in der GameDLL; später bots/
 ```
 
 Am Ende: **eine** `client_*` und **eine** `cs_*` pro Plattform. Kein zweiter Client. Ref A wird nicht weiterentwickelt.

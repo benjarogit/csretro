@@ -20,7 +20,7 @@ Vertrag: `engine/engine/cdll_exp.h`. CS-Retro füllt das in `client/export/csret
 
 ## Engine → GameDLL
 
-`GiveFnptrsToDll` + `GetEntityAPI` / `GetEntityAPI2` (`sv_game.c`). Eine Lib für Listen und Dedicated. Konfig: `server.cfg` / `listenserver.cfg`. Details: `docs/SERVER.md`.
+`GiveFnptrsToDll` + `GetEntityAPI` (`sv_game.c`). `GetEntityAPI2` ist im Vendor nicht exportiert; Xash nutzt die Legacy-API. Funktionsnamen: `unsigned long` wie `engine/engine/eiface.h`. Eine Lib für Listen und Dedicated. Override: `-dll`. Details: `docs/SERVER.md`.
 
 ## Client intern
 
@@ -30,7 +30,7 @@ SDK-`IClientVGUI` / `IBaseUI` sind kein Xash-Client-Bind.
 
 ## Servermodule / Bots
 
-Module optional, nicht in die GameDLL gebacken. Bots nur über dokumentiertes Interface, nicht `#include` aus `client/`.
+Module optional, nicht in die GameDLL gebacken. ZBot liegt vorübergehend **in** `server/game/` (Migration). Ziel: Interface nach `bots/`. Nicht aus `client/` inkludieren.
 
 ## Analyse (Ghidra)
 
@@ -44,3 +44,4 @@ Erlaubt, wenn Quelle und Refs das Originalverhalten nicht klären: CS-Client, Ga
 | `csretro_client_sdk_headers` | ncl-hl1 `public/`, NitroApi `include/` (Port-Quelle) |
 | `csretro_client_export` | `client/export/` |
 | `csretro_client` | Body + Export → eine 64-Bit-Lib |
+| `csretro_gamedll` | ReGameDLL-Körper → `cs_amd64.so` / `.dll` / `.dylib` |

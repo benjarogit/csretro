@@ -29,8 +29,8 @@ Plus CS-Retro `client/export/` (`GetClientAPI`).
 |------|--------|
 | 3A Vendor | erledigt |
 | 3B eine Client-Lib | erledigt — `GetClientAPI`, lädt unter Xash |
-| 3C Baseline | **unvollständig** — Load/Init ja; In-Game nein (keine eigene 64-Bit-GameDLL) |
-| 3D NextClient-Features | **nicht begonnen** |
+| 3C Baseline | **teilweise** — eigene GameDLL, Listen+Map+Connect+Shutdown. Interaktiv offen |
+| 3D NextClient-Features | **gesperrt** |
 
 ## 3B — eine Lib
 
@@ -50,12 +50,14 @@ Build: `./scripts/build-client.sh`
 | `cl_dll/cdll_int.cpp` | Versionscheck nur wenn `g_iXash > 0` | Waf-`Q_buildnum()` ist `-1` |
 | `cl_dll/cdll_int.cpp` | `F()` entfernt | Xash nutzt `GetClientAPI`; altes Layout falsch |
 
-## 3C — was fehlt
+## 3C — Stand
 
-Xash lädt die Lib (`CL_LoadProgs: found single callback export`). `Init: CS16Client ver. 3959`. RenderAPI/MobilityAPI ok. MainUI lädt. `+quit` sauber.
+GameDLL `cs_amd64.so` unter Xash. Smoke: `./scripts/smoke-gamedll.sh dedicated|listen` (`de_dust`).
+Listen-Log: EntityAPI 140, Map, Waffen-Precache, `client connected`, `game_playerjoin`, sauberer Shutdown.
+Interaktiv (Movement/Waffen/Runde) nicht durchgespielt — Team-Menü, dann Fenster zu.
 
-Map / Rendering / Input / Movement / Prediction / HUD / Waffen / Connect: **nicht verifiziert**. Steam-RODIR-`cs_amd64.so` scheitert (`executable stack`). Gate: `docs/SERVER.md`.
+Steam-RODIR-`cs_amd64.so` nicht verwenden (`executable stack`). Immer unsere Lib (`-dll`).
 
 ## 3D
 
-Erst nach vollständiger 3C (Listen-Server, Map läuft). Ein Feature pro Durchgang.
+Erst nach vollständiger **interaktiver** 3C. Ein Feature pro Durchgang. Jetzt gesperrt.

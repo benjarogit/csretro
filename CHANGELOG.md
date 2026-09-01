@@ -3,27 +3,31 @@
 Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
 Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
 
-## Unreleased — 3A/3B-Zwischenstand (2026-09-01)
+## Unreleased — GameDLL-Vendor (2026-09-01)
 
-Kein Phase-3-Abschluss-Tag. 3C In-Game und 3D fehlen.
+Kein Phase-3-Abschluss-Tag. 3D gesperrt. 3C interaktiv (laufen/schießen/Runde) offen.
 
-### 3A/3B Client
+### GameDLL
 
-- A1-Body aus Ref A `bb60674` nach `client/body/` (Manifest: `docs/ROLLEN.md`).
-- Eine Lib `csretro_client` → `client_amd64.so`; `GetClientAPI`.
-- Steam-Include → `archtypes.h`; Versionscheck akzeptiert Dev-`Q_buildnum()` `-1`.
-- Xash lädt die Lib (Init/MainUI/`+quit`). In-Game nicht verifiziert.
+- `rehlds/ReGameDLL_CS` `b088984` nach `server/game/` vendort. Target `csretro_gamedll` → `cs_amd64.so`.
+- Eigenes CMake, kein Upstream-CMake/SLN, kein CMake-3.5-Workaround.
+- ZBot vollständig mitgebaut (Migration, nicht amputiert).
+- 64-Bit: Xash-`unsigned long` für Funktionsnamen, `XASH_64BIT`/`MAKE_STRING`, Save-`FIELD_FUNCTION` über `uintptr_t`.
+- Linux x86_64: Xash lädt die Lib; Dedicated- und Listen-Smoke `de_dust` (Connect + Shutdown).
+- ASan+UBSan-Entwicklungsbuild: `./scripts/build-gamedll.sh --sanitize`.
 
-### Leitplanken
+### 3A/3B Client (unverändert)
 
-- 64-Bit-only: `docs/PLATTFORMEN.md`. i686-Preset/Toolchain entfernt. CMake bricht bei 32-Bit ab.
-- Leichen entfernt: `F()`, `voice_gamemgr.cpp`, `ev_hldm.cpp`, `inputw32.cpp`, `input_sdl.cpp`, `cs_baseentity.cpp`, Ref-A-`cl_dll`-CMake/DSP.
-- PHASE1/PHASE2-Detaildateien konsolidiert und gelöscht. Neu: `PLATTFORMEN.md`, `SERVER.md`.
-- GameDLL-Gate: rehlds/ReGameDLL_CS empfohlen, noch nicht vendort.
+- A1-Body, `client_amd64.so`, `GetClientAPI`.
+
+### Herkunft
+
+- `docs/UPSTREAM.md`: verbindliche Upstream-Policy (beobachten, selektiv porten, kein Auto-Sync).
+- `CREDITS.md`: dauerhafte Danksagung; ergänzt AUTHORS/README der Upstreams, ersetzt sie nicht.
 
 ### Nicht enthalten
 
-- Keine eigene GameDLL, kein 3D-Feature-Port, kein Phase-3-Release.
+- Kein 3D-Feature-Port, kein Phase-3-Release, keine Windows-/macOS-Runtime.
 
 ## 0.1.4-phase2 — 2026-09-01
 

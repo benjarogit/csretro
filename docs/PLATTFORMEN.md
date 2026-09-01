@@ -29,6 +29,8 @@ export CMAKE_ROOT=/usr/share/cmake   # CachyOS/CMake 4.4
 export CC=clang CXX=clang++
 ./scripts/build-engine.sh    # immer -8
 ./scripts/build-client.sh    # client_amd64.so / später client_arm64
+./scripts/build-gamedll.sh   # cs_amd64.so / später cs_arm64.dylib
+./scripts/smoke-gamedll.sh dedicated
 ```
 
 `CMAKE_GENERATOR` nicht global setzen — CMake 4.4 verliert sonst `CMAKE_ROOT`. Die Scripts übergeben `-G Ninja` selbst.
@@ -44,13 +46,18 @@ CI-Compile-/Link-Gates für die volle Matrix: sobald Client **und** GameDLL als 
 
 ## Xash-Bibliotheksnamen
 
-64-Bit-Suffix nach [LibraryNaming](https://github.com/FWGS/xash3d-fwgs/blob/master/Documentation/extensions/library-naming.md):
+Quelle: `engine/Documentation/extensions/library-naming.md` und Xash/`LibraryNaming.cmake`.
+Schema: `name_$arch.$ext` auf Win/Lin/Mac bei **nicht-x86** (x86_64 und ARM64 sind nicht das nackte x86).
+`$ext` kommt vom Betriebssystem, nicht von uns erfunden: Windows `dll`, Linux `so`, macOS `dylib`.
 
 | Ziel | Client | GameDLL |
 |------|--------|---------|
 | Linux x86_64 | `client_amd64.so` | `cs_amd64.so` |
-| Linux/macOS ARM64 | `client_arm64.so` | `cs_arm64.so` |
 | Windows x86_64 | `client_amd64.dll` | `cs_amd64.dll` |
+| macOS ARM64 | `client_arm64.dylib` | `cs_arm64.dylib` |
+| macOS Intel x86_64 | `client_amd64.dylib` | `cs_amd64.dylib` |
+
+CMake setzt `PREFIX ""` und `OUTPUT_NAME` + `CMAKE_SHARED_LIBRARY_SUFFIX` (plattformnative Extension).
 
 ## 64-Bit-Audit (A1-Body, 2026-09-01)
 
@@ -63,7 +70,9 @@ GoldSrc-Code bleibt LP64-pflichtig. Wo das Netz/Savegame 32-Bit verlangt: feste 
 | `environment.cpp` nutzt `intptr_t` als Rauschen | ok |
 | Pointer-Diff als `int` in miniutl-Puffern | akzeptabel für GoldSrc-Größen; bei Port prüfen |
 | Win32-`DWORD`-Joystick in `input_sdl` / `inputw32` | Dateien entfernt |
-| Kein systematischer Pointer→`int`-Cast auf Entity-Zeigern im aktiven HUD-Pfad | weiter prüfen, sobald GameDLL kommt |
+| Kein systematischer Pointer→`int`-Cast auf Entity-Zeigern im aktiven HUD-Pfad | weiter prüfen |
+| GameDLL `MAKE_STRING` ohne `XASH_64BIT` | behoben — Pointer nicht nach `uint32` |
+| GameDLL `pfnNameForFunction(uint32)` | behoben — Xash-`unsigned long` |
 
 Ghidra: erlaubt, wenn Quelle/Refs das Originalverhalten nicht klären (Exports, Structs, ABI). Erkenntnis in Code/Tests überführen, keine Analyseartefakte im Repo lassen.
 

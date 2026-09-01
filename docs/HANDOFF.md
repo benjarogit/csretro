@@ -3,15 +3,16 @@
 Anderen Rechner arbeitsfähig machen. Diese Datei ist der **lebende Stand**.
 Nach substantieller Arbeit Tabelle und „Offene Arbeit“ in derselben Session nachziehen.
 
-Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`, `PHASE3-BODY.md` (nur während Phase 3), `CHANGELOG.md`.
+Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `PHASEN.md`, `PHASE3-BODY.md` (nur während Phase 3), `CHANGELOG.md`. Danksagung: `CREDITS.md`.
 
 ## Aktueller Stand
 
 | Feld | Wert |
 |------|------|
 | Datum | 2026-09-01 |
-| Phase | **3A/3B abgenommen.** 3C unvollständig (keine eigene GameDLL). **3D nicht beginnen.** |
+| Phase | **3A/3B abgenommen.** GameDLL vendort + Linux-x86_64-Baseline (Load/Listen/Map). **3C interaktiv nicht vollständig. 3D nicht beginnen.** |
 | Körper-Quelle | **A1** — Manifest in `ROLLEN.md` |
+| GameDLL | `server/game/` — Pin `b088984`, Target `csretro_gamedll` |
 | Stapel | Xash → Export → A1-Body → (später) NextClient-Funktionen |
 | Plattform | **64-Bit only** — `docs/PLATTFORMEN.md` |
 | GitHub | https://github.com/benjarogit/csretro (**privat**) |
@@ -28,12 +29,12 @@ Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md
 | NextClient | funktionales Zielverhalten |
 | Ref A | Client-Body-Quelle (A1-Manifest) |
 | Ref B | bedingte Menü-Referenz, Phase 4 |
-| Server | GameDLL geplant `server/game/` — `docs/SERVER.md` |
-| Bots | leer, eigenes Interface |
+| Server | GameDLL `server/game/` — `docs/SERVER.md` |
+| Bots | Ziel `bots/` (leer). ZBot **in** der GameDLL (Migration) |
 
 ```
 Xash3D-FWGS → Export → Body (A1) → NextClient-Funktionen
-Xash3D-FWGS → GameDLL → optional Module → separat Bots
+Xash3D-FWGS → GameDLL (inkl. ZBot, Migration) → optional Module → später bots/
 ```
 
 Eine Client-Lib, eine GameDLL. Kein „cs16-client weiterentwickeln“.
@@ -48,8 +49,8 @@ Eine Client-Lib, eine GameDLL. Kein „cs16-client weiterentwickeln“.
 | Export | `client/export/` (`GetClientAPI`) |
 | Body | `client/body/` |
 | Server-AMXX-Herkunft | `server/` |
-| GameDLL (geplant) | `server/game/` — noch nicht vendort |
-| Bots | `bots/` (leer) |
+| GameDLL | `server/game/` — `MANIFEST.md`, `UPSTREAM_PIN` |
+| Bots | `bots/` (leer; ZBot liegt in `server/game/`) |
 | Ref A / B | `refs/a-cs16-client/` · `refs/b-cs16-goldsrc/` |
 | Spielinhalte | `gamedata/` (nicht im Git) |
 | Build | `build/` (nicht im Git) |
@@ -62,7 +63,7 @@ Remote: `https://github.com/benjarogit/csretro.git`. Privat.
 
 **Immer:** diese Tabelle, `CHANGELOG.md`, bei Vendor `UPSTREAM.md`.
 
-Abschluss-Release nur wenn die Phase wirklich fertig ist. 3A/3B-Zwischenstand darf auf `main` liegen ohne Phase-3-Tag.
+Abschluss-Release nur wenn die Phase wirklich fertig ist. Zwischenstand darf auf `main` liegen ohne Phase-3-Tag.
 
 ## Runtime (dieser Rechner)
 
@@ -70,8 +71,11 @@ Abschluss-Release nur wenn die Phase wirklich fertig ist. 3A/3B-Zwischenstand da
 - CMake 4.4.3: `CMAKE_ROOT=/usr/share/cmake` (sonst `--preset`/`-S` bricht)
 - Engine: `./scripts/build-engine.sh` → `build/engine/`
 - Client: `./scripts/build-client.sh` → `build/client-cmake/client/client_amd64.so`
+- GameDLL: `./scripts/build-gamedll.sh` → `build/gamedll-cmake/cs_amd64.so`
+- Sanitizer: `./scripts/build-gamedll.sh --sanitize` → `build/gamedll-sanitize/cs_amd64.so`
 - Testdaten: `XASH3D_RODIR` = Steam-HL (nur Maps/WADs), `XASH3D_BASEDIR` = `build/run/`
 - Menü: Xash-MainUI (`libmenu.so`)
+- Steam-`dlls/cs_amd64.so` nicht laden (`executable stack`). Immer `-dll` auf unsere Lib oder Kopie unter `build/run/cstrike/dlls/`
 
 ## Quickstart
 
@@ -81,25 +85,29 @@ cd csretro
 export CC=clang CXX=clang++
 ./scripts/build-engine.sh
 ./scripts/build-client.sh
+./scripts/build-gamedll.sh
+./scripts/smoke-gamedll.sh dedicated
+./scripts/smoke-gamedll.sh listen
 ```
 
 Inhalte: `gamedata/valve` + `gamedata/cstrike` oder Steam-HL als `XASH3D_RODIR`.
-Client: `-clientlib` auf `client_amd64.so`. Keine Steam-`client.dll`.
+Client: `-clientlib` auf `client_amd64.so`. GameDLL: `-dll` auf `cs_amd64.so`.
 
 ## Offene Arbeit
 
-1. **GameDLL-Gate umsetzen:** `rehlds/ReGameDLL_CS` nach `server/game/` vendorn (`docs/SERVER.md`). Nicht Ref-A-ReGameDLL. Keine Bots mitziehen.
-2. Linux x86_64: GameDLL bauen, Xash laden, **Listen-Server + Map** — dann 3C (Render/Input/Movement/HUD/Waffen/Connect) zuende.
-3. **3D erst danach.** Erstes Feature: FOV.
-4. Windows x86_64 / macOS ARM64+x86_64: Compile-Gates, sobald GameDLL im Tree ist.
+1. **3C interaktiv:** Movement, Prediction, Waffen feuern, Round — Smoke beweist Load/Map/Connect/Shutdown, nicht das Durchspielen.
+2. **3D erst danach.** Erstes Feature: FOV.
+3. Windows x86_64 / macOS ARM64+x86_64: Compile-Gates (CMake ist vorbereitet, auf diesem Host nicht gebaut).
+4. Bot-Grenze analysieren und schrittweise nach `bots/` — nicht amputieren.
 5. Phase 4 nur bei Bedarf: NextClient-Menüs; Ref B ein Feature.
 
 ## Nicht anfassen
 
-- 3D / NextClient-Feature-Port vor vollständiger 3C
+- 3D / NextClient-Feature-Port vor vollständiger interaktiver 3C
 - Ref A außerhalb des A1-Manifests
 - Ref-A-ReGameDLL / YaPB / Ref-A-mainui
 - Ref B vor Phase 4
 - AMXX/Metamod in die GameDLL backen
+- ZBot vor Funktionsübernahme löschen
 - 32-Bit-Targets, Steam-Bind, `git submodule add`
 - `CLAUDE.md` / Cursor-Attribution

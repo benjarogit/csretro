@@ -8,6 +8,7 @@ include(cmake/ClangDefaults.cmake)
 include(cmake/CsretroPlatform.cmake)
 include(cmake/CsretroInterfaces.cmake)
 include(cmake/CsretroClient.cmake)
+include(cmake/CsretroGameDll.cmake)
 
 option(CSRETRO_BUILD_ENGINE "Xash3D-FWGS über Waf bauen" ON)
 option(CSRETRO_BUILD_CLIENT "NextClient-Upstream-CMake (MSVC/vcpkg) — tot, nicht einschalten" OFF)
@@ -61,11 +62,14 @@ if(CSRETRO_BUILD_SERVER)
 endif()
 
 if(CSRETRO_BUILD_BOTS)
-    message(FATAL_ERROR "bots/ ist leer — kein Target.")
+    message(FATAL_ERROR
+        "bots/ ist noch leer. ZBot liegt vorübergehend in server/game/ "
+        "(Migration). Eigenes Bot-Target erst nach der Trennung.")
 endif()
 
 message(STATUS "CS Retro ${PROJECT_VERSION}")
 message(STATUS "  Engine Waf: ${CSRETRO_BUILD_ENGINE} (immer 64-Bit -8)")
 message(STATUS "  Xash-Client: ${CSRETRO_BUILD_XASH_CLIENT}")
 message(STATUS "  Client-Upstream: ${CSRETRO_BUILD_CLIENT} (muss OFF bleiben)")
+message(STATUS "  GameDLL: ${CSRETRO_BUILD_GAMEDLL}")
 message(STATUS "  Server-AMXX-Herkunft: ${CSRETRO_BUILD_SERVER}")

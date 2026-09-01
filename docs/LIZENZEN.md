@@ -14,7 +14,7 @@ Vor öffentlicher Distribution: vollständiger Audit. Repo bis dahin privat.
 | NitroApi | NclNitroApi | keine Root-LICENSE | an NextClient gebunden |
 | Server-Protokoll | NextClientServerApi | **MIT** | Notice behalten |
 | Body (A1) | Velaron/cs16-client Manifest | **GPL-2.0-or-later** + Valve HL1-SDK-Ausnahme | `client/body/LICENSE`, `ATTRIBUTION.md` |
-| GameDLL (geplant) | rehlds/ReGameDLL_CS | **MIT** + Valve-SDK in den Quellen | erst nach Vendor; nicht Ref-A-Kopie |
+| GameDLL | rehlds/ReGameDLL_CS `b088984` | **MIT** + Valve-SDK in den Quellen | `server/game/` — nicht Ref-A-Kopie |
 
 ## Referenzen
 

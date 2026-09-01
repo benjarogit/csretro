@@ -2,6 +2,7 @@
 #include "OptionsClassicMetrics.h"
 #include "OptionsSubAudio.h"
 #include "OptionsSubMouse.h"
+#include "OptionsSubVideo.h"
 #include "OptionsMetricsDump.h"
 
 #include <vgui/KeyCode.h>
@@ -27,6 +28,7 @@ COptionsDialog::COptionsDialog(Panel *parent)
 	// Nur echte Subpages — keine Stub-Tabs. Reihenfolge wie Steam: … Mouse, Audio …
 	RegisterPage(new COptionsSubMouse(this), "Mouse", "#GameUI_Mouse");
 	RegisterPage(new COptionsSubAudio(this), "Audio", "#GameUI_Audio");
+	RegisterPage(new COptionsSubVideo(this), "Video", "#GameUI_Video");
 }
 
 COptionsDialog::~COptionsDialog() = default;

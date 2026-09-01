@@ -132,6 +132,8 @@ add_library(csretro_menu SHARED
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsMouseGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubAudio.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsAudioGate.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubVideo.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsVideoGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/Controls/MenuEngine.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/Controls/CvarToggleCheckButton.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/Controls/CvarNegateCheckButton.cpp"

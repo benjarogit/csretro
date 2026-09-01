@@ -1,8 +1,8 @@
 # Phase 3M — VGUI2 Metrics / Classic Gate — Diagnosebericht
 
-Stand: 2026-09-02. **Video gesperrt.** Mouse/Audio funktional abgenommen; **visuelle** Classic-Abnahme offen.
+Stand: 2026-09-02. Preferred Size **512×406** implementiert. Mouse+Audio-Gate **PASS** @640–1366. **Video freigegeben** (nächste Subpage). FOV/3D gesperrt.
 
-Ziel: gemeinsamen VGUI2-Unterbau korrekt machen — keine kosmetischen `.res`-/Dialog-Patches.
+Ziel des Diagnoseberichts (historisch): gemeinsamen VGUI2-Unterbau korrekt machen — keine kosmetischen `.res`-/Dialog-Patches. Classic Preferred Size und Mouse/Audio sind abgeschlossen; fortlaufende Arbeit: Video-Port.
 
 ## Quellenhierarchie (verbindlich)
 
@@ -282,19 +282,15 @@ Details auch: `docs/PHASE3M.md`, `docs/MENUS.md`.
 
 ---
 
-## Nächste Schritte (kein Video)
+## Nächste Schritte (Diagnose-Historie → aktueller Stand)
 
-1. Golden screenshot-derived Tab-/Control-Bounds verfeinern (idealerweise vollauflösendes 1366×768-Original, falls verfügbar).  
-2. Tab-Runtime CS-Retro vs. Golden-Kompaktheit (Font/`contentWide`/`SetTabWidth`-Semantik) — keine `.res`-Kosmetik.  
-3. Classic-Core-Entscheidung (Dialog-Kandidat 512×406 + Tabs/Fonts/Insets) zentral.  
-4. Mouse+Audio erneut bei gleicher Auflösung abnehmen → Video.  
-5. Current 1024/1366 nur wenn für HD-Pfad nötig — nicht Priorität.
+**Historischer Diagnoseweg (abgeschlossen):** Golden-Metriken → Classic Core Decision → Preferred Size 512×406 → Mouse/Audio-Gate.
 
-FOV/3D gesperrt. Kein Phase-3-Tag.
+**Aktuell:** Video-Subpage (Dependency-Matrix → Xash-Backend-Port → Video-Gate). Tabs/Fonts eigener Pass. FOV/3D gesperrt. Kein Phase-3-Tag.
 
 ---
 
-## Classic Core Decision Report (2026-09-02) — **Empfehlung, noch nicht implementiert**
+## Classic Core Decision Report (2026-09-02) — **freigegeben und umgesetzt**
 
 ### Entscheidung
 

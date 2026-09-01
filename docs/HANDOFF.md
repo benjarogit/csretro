@@ -107,8 +107,8 @@ Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-
 
 ## Offene Arbeit
 
-1. **Phase 3M** — Preferred Size **512×406** live; Mouse+Audio-Gate **grün** (640–1366). **Video freigegeben.** FOV weiter gesperrt. Tabs/Fonts eigener Pass.
-2. Video-Options-Seite (NextClient-Port) — nächster UI-Schritt.
+1. **Phase 3M** — Options **Video** portiert (Xash-Backends); Gate PASS @640–1366 (Brightness/Gamma/VSync; Mode-Confirm manuell). FOV weiter gesperrt.
+2. Video: manuelle FS/Borderless-/Rollback-Abnahme; Renderer-Multi wenn Extended API.
 3. Windows/macOS Compile-Gates. **`Csretro_PlatformShellOpen` Windows = offenes Plattform-Gate**.
 4. Bot-Grenze → `bots/`.
 

@@ -56,6 +56,13 @@ void ClientCmd(const char *cmd)
 	gEng.pfnClientCmd(0, cmd);
 }
 
+void ClientCmdNow(const char *cmd)
+{
+	if (!cmd || !*cmd || !gEng.pfnClientCmd)
+		return;
+	gEng.pfnClientCmd(1, cmd);
+}
+
 bool IsKeyDown(const char *keyName, bool &isDown)
 {
 	isDown = false;
@@ -71,5 +78,12 @@ bool IsKeyDown(const char *keyName, bool &isDown)
 		return false;
 	isDown = (btn->state & 1) != 0;
 	return true;
+}
+
+const char *GetModeString(int modeIndex)
+{
+	if (!gEng.pfnGetModeString)
+		return nullptr;
+	return gEng.pfnGetModeString(modeIndex);
 }
 } // namespace MenuEngine

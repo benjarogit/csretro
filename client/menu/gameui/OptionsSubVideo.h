@@ -1,0 +1,96 @@
+#pragma once
+
+#include <vgui_controls/PropertyPage.h>
+
+class CCvarSlider;
+class CCvarToggleCheckButton;
+
+namespace vgui2
+{
+class ComboBox;
+class Label;
+class QueryBox;
+}
+
+class COptionsSubVideo : public vgui2::PropertyPage
+{
+	DECLARE_CLASS_SIMPLE(COptionsSubVideo, vgui2::PropertyPage);
+
+public:
+	explicit COptionsSubVideo(vgui2::Panel *parent);
+	~COptionsSubVideo() override;
+
+	void OnPageShow() override;
+	void OnResetData() override;
+	void OnApplyChanges() override;
+	void OnTick() override;
+
+	// Functional gate helpers
+	void Gate_SetBrightnessPending(float value);
+	float Gate_GetBrightnessPending() const;
+	void Gate_SetGammaPending(float value);
+	float Gate_GetGammaPending() const;
+	void Gate_SetVSyncPending(bool on);
+	bool Gate_GetVSyncPending() const;
+	int Gate_GetDisplayModePending() const;
+	int Gate_GetResolutionWide() const;
+	int Gate_GetResolutionTall() const;
+
+	enum AspectFilter : int
+	{
+		kAspectAll = 0,
+		kAspect4x3,
+		kAspect5x4,
+		kAspect16x9,
+		kAspect16x10,
+		kAspectOther,
+		kAspectCount
+	};
+
+	static AspectFilter ClassifyAspect(int w, int h);
+
+protected:
+	MESSAGE_FUNC(OnControlModified, "ControlModified");
+	MESSAGE_FUNC_PTR(OnTextChanged, "TextChanged", panel);
+	MESSAGE_FUNC(OnKeepVideoSettings, "KeepVideoSettings");
+	MESSAGE_FUNC(OnRevertVideoSettings, "RevertVideoSettings");
+
+private:
+	struct VidSnapshot
+	{
+		int w = 0;
+		int h = 0;
+		int fullscreen = 0;
+		char renderer[128]{};
+	};
+
+	void PrepareResolutionList();
+	void SelectCurrentResolution();
+	bool GetSelectedResolution(int &w, int &h) const;
+	AspectFilter CurrentAspectFilter() const;
+	void ReadAppliedFromEngine(VidSnapshot &out) const;
+	void ApplyLiveCvars();
+	bool ApplyModeChangesTransactional();
+	void BeginConfirm(const VidSnapshot &previous);
+	void RollbackTo(const VidSnapshot &snap);
+	void EndConfirm(bool keep);
+	void MarkDirty();
+	void RefreshRendererCombo();
+
+	CCvarSlider *m_pBrightness = nullptr;
+	CCvarSlider *m_pGamma = nullptr;
+	CCvarToggleCheckButton *m_pVSync = nullptr;
+	CCvarToggleCheckButton *m_pDetailTextures = nullptr;
+	vgui2::ComboBox *m_pResolution = nullptr;
+	vgui2::ComboBox *m_pAspectRatio = nullptr;
+	vgui2::ComboBox *m_pDisplayMode = nullptr;
+	vgui2::ComboBox *m_pRenderer = nullptr;
+	vgui2::Label *m_pVideoNote = nullptr;
+	vgui2::QueryBox *m_pConfirm = nullptr;
+
+	VidSnapshot m_applied{};
+	VidSnapshot m_rollback{};
+	bool m_bConfirmOpen = false;
+	double m_confirmDeadline = 0.0;
+	bool m_bIgnoreTextChanged = false;
+};

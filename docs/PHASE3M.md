@@ -108,7 +108,7 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 | CVar-Mapping Audio | `hisound` → `room_hires` (Semantik 0/1 → 1/2); `mp3volume` → `MP3Volume` |
 | Apply/Cancel/Reset/OK/Persistenz | `./scripts/vgui-options-mouse-gate.sh`, `./scripts/vgui-options-audio-gate.sh` |
 | Localization | UTF-16→wchar_t; gameui/vgui/cstrike/platform |
-| Video → … | **nächste** echte Subpage nach Dependency-Closure; kein Stub |
+| Video → … | **Video fertig** (Gate); nächste echte Subpages Keyboard/…; kein Stub |
 | Keyboard | Bind/Unbind Xash, keine Touch-first-UI |
 | Video | Xash-Optionen, keine toten D3D/32-Bit-Einträge |
 | CS-Retro-Advanced-Tab | leer bis Features existieren (kein FOV-UI vor FOV) |
@@ -155,7 +155,7 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 | Options Audio | Gate **PASS**; Miles absichtlich hidden |
 | VGUI2 Symbol-Controls | **Gate grün** — `vgui_symbols.cpp` |
 | VGUI2 Metrics Preferred Size | **512×406** (`OptionsClassicMetrics.h`) — Classic Preferred, nicht Max |
-| Video | **freigegeben** — nächste Subpage; FOV weiter gesperrt |
+| Video | **Gate PASS** — Xash-Backends; Confirm für Mode; FOV ausgeklammert |
 | Windows ShellOpen | **offenes Plattform-Gate** (`system_shell_win.cpp` No-Op) |
 | Hauptmenü / Create / Team | Interim-Bootstrap (Negativreferenz) |
 | In-Game Team/Buy | Interim-`.res`-Pfad bis VGUI2-Ersatz |

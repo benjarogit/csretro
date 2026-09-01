@@ -46,7 +46,7 @@ Kein dauerhaftes Nebeneinander aus Xash-MainUI, Textmenü, Ref-A-Touch, NextClie
 
 Erhalten (Verhalten): BasePanel, Server Browser, Options, Create Multiplayer (Server/Game/Bots), später Module.
 
-**Options (erweiterbar):** klassische Seiten + CS-Retro/NextClient — u. a. Keyboard/Bindings, Mouse, Audio, Video, Voice, Multiplayer, Gameplay, HUD, Radar, Crosshair-Fine-Tuning, Network, später portierte NextClient-Funktionen. Feature-UI erst sichtbar, wenn das Backend existiert (keine toten Optionen). Classic-Dialogbreite (Kandidat 512×406) und Zusatzcontrols bewusst integrieren, nicht Funktionen streichen.
+**Options (erweiterbar):** klassische Seiten + CS-Retro/NextClient — u. a. Keyboard/Bindings, Mouse, Audio, Video, Voice, Multiplayer, Gameplay, HUD, Radar, Crosshair-Fine-Tuning, Network, später portierte NextClient-Funktionen. Feature-UI erst sichtbar, wenn das Backend existiert (keine toten Optionen). Classic Preferred / Reference Size **512×406** (`CsretroOptionsClassic`); content-driven grow bei Bedarf — kein permanenter 545-Slack.
 
 Ersetzen (Anbindung): Steam-/GoldSrc-GameUI, `HWND`/`SetWindowLongPtr`, `next_engine_mini.dll`, NitroApi-/Steam-Bind, `-m32`, Win32-only-Libs, CEF außer später bewusstem Cross-Platform-Bedarf.
 

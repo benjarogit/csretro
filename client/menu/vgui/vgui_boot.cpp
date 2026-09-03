@@ -1,13 +1,19 @@
 #include "vgui_boot.h"
+#include "window_geometry.h"
+#include "menu_runtime_info.h"
 #include "../gameui/OptionsDialog.h"
 #include "../gameui/OptionsClassicMetrics.h"
 #include "../gameui/OptionsMouseGate.h"
 #include "../gameui/OptionsAudioGate.h"
+#include "../gameui/OptionsKeyboardGate.h"
 #include "../gameui/OptionsVideoGate.h"
+#include "../gameui/OptionsVideoModeSafetyGate.h"
+#include "../gameui/OptionsLayoutGate.h"
 #include "../gameui/Controls/MenuEngine.h"
 
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
 
 #include "FileSystem.h"
 #include "KeyValues.h"
@@ -142,6 +148,9 @@ static void AddDefaultSearchPaths()
 	}
 	if (basedir && *basedir)
 	{
+		// Same folder Host_WriteConfig uses: $XASH3D_BASEDIR/cstrike/config.cfg
+		snprintf(buf, sizeof(buf), "%s/cstrike", basedir);
+		fs->AddSearchPath(buf, "GAMECONFIG");
 		fs->AddSearchPath(basedir, "GAMECONFIG");
 		fs->AddSearchPath(basedir, "DEFAULTGAME");
 	}
@@ -198,6 +207,8 @@ void VGuiXash_Init()
 		};
 		const LocFile files[] = {
 			{"resource/gameui_%language%.txt", "gameui"},
+			// Keyboard-Actions (#Valve_Move_*) — wie NextClient GameUi.cpp.
+			{"resource/valve_%language%.txt", "valve"},
 			{"resource/vgui_%language%.txt", "vgui"},
 			{"resource/cstrike_%language%.txt", "cstrike"},
 			{"resource/platform_%language%.txt", "platform"},
@@ -212,6 +223,7 @@ void VGuiXash_Init()
 		// Probe: fehlender String darf nicht still als #Token durchgehen.
 		const char *probes[] = {
 			"GameUI_Options",
+			"GameUI_Keyboard",
 			"GameUI_Mouse",
 			"GameUI_Audio",
 			"GameUI_ReverseMouse",
@@ -221,6 +233,10 @@ void VGuiXash_Init()
 			"GameUI_SoundQuality",
 			"GameUI_High",
 			"GameUI_Low",
+			"GameUI_KeyButton",
+			"GameUI_Alternate",
+			"Valve_Move_Forward",
+			"Valve_Movement_Title",
 			"PropertyDialog_OK",
 			"PropertyDialog_Cancel",
 			"PropertyDialog_Apply",
@@ -243,6 +259,7 @@ void VGuiXash_Init()
 		g_pVGuiSurface->SetEmbeddedPanel(g_root->GetVPanel());
 
 	g_inited = true;
+	CsretroMenu_LogProvenance("VGuiXash_Init");
 	Menu_Con("VGUI Xash runtime initialized");
 	if (getenv("CSRETRO_V1POC"))
 	{
@@ -256,7 +273,10 @@ void VGuiXash_Init()
 		}
 	}
 	else if (getenv("CSRETRO_OPTIONS_AUTO") || getenv("CSRETRO_OPTIONS_GATE") ||
-		 getenv("CSRETRO_OPTIONS_AUDIO_GATE") || getenv("CSRETRO_OPTIONS_VIDEO_GATE"))
+		 getenv("CSRETRO_OPTIONS_AUDIO_GATE") || getenv("CSRETRO_OPTIONS_KEYBOARD_GATE") ||
+		 getenv("CSRETRO_OPTIONS_KEYBOARD_CAPTURE_PHYS") ||
+		 getenv("CSRETRO_OPTIONS_VIDEO_GATE") || getenv("CSRETRO_OPTIONS_VIDEO_MODE_SAFETY") ||
+		 getenv("CSRETRO_OPTIONS_LAYOUT_GATE"))
 	{
 		// Smoke / Gate: echte Options-Subpages ohne PoC.
 		if (VGuiXash_ShowOptionsDialog())
@@ -293,21 +313,17 @@ void VGuiXash_RunFrame()
 		g_root->SetBounds(0, 0, gGlobals->scrWidth, gGlobals->scrHeight);
 	g_pVGui->RunFrame();
 
-	// Options nachziehen, falls Screen-Size nach dem ersten Show wächst (Init oft noch 640×480).
+	// Workspace change: clamp saved/current bounds. Do not stomp back to 512×406.
 	if (g_options && g_options->IsVisible() && g_pVGuiSurface)
 	{
 		int sw = 0, sh = 0;
 		g_pVGuiSurface->GetScreenSize(sw, sh);
-		const int w = CsretroOptionsClassic::kPreferredWide;
-		const int h = CsretroOptionsClassic::kPreferredTall;
-		const int wantX = (sw - w) / 2;
-		const int wantY = (sh - h) / 2;
-		int px = 0, py = 0, cw = 0, ch = 0;
-		g_options->GetBounds(px, py, cw, ch);
-		if (cw != w || ch != h || px != wantX || py != wantY)
+		static int s_prevSw = -1, s_prevSh = -1;
+		if (sw > 0 && sh > 0 && (sw != s_prevSw || sh != s_prevSh))
 		{
-			g_options->SetSize(w, h);
-			g_options->SetPos(wantX, wantY);
+			s_prevSw = sw;
+			s_prevSh = sh;
+			g_options->ClampToCurrentWorkspace(sw, sh);
 		}
 	}
 
@@ -332,23 +348,68 @@ void VGuiXash_RunFrame()
 	if (g_optionsGateFrame >= 0 && g_options)
 	{
 		++g_optionsGateFrame;
+		// Physical capture probe: arm ASAP (ESC/noise can close Options before frame 45).
+		if (getenv("CSRETRO_OPTIONS_KEYBOARD_CAPTURE_PHYS"))
+		{
+			if (g_optionsGateFrame == 5 && !OptionsKeyboard_PhysicalCaptureProbeArmed())
+				OptionsKeyboard_ArmPhysicalCaptureProbe(g_options);
+			if (g_optionsGateFrame >= 5)
+				OptionsKeyboard_PollPhysicalCaptureProbe(g_options);
+		}
 		if (g_optionsGateFrame == 45)
 		{
-			if (getenv("CSRETRO_OPTIONS_VIDEO_GATE"))
+			if (getenv("CSRETRO_OPTIONS_VIDEO_MODE_SAFETY"))
+				OptionsVideoModeSafety_RunGate(g_options);
+			else if (getenv("CSRETRO_OPTIONS_VIDEO_GATE"))
 				OptionsVideo_RunFunctionalGate(g_options);
 			else if (getenv("CSRETRO_OPTIONS_AUDIO_GATE"))
 				OptionsAudio_RunFunctionalGate(g_options);
+			else if (getenv("CSRETRO_OPTIONS_KEYBOARD_CAPTURE_PHYS"))
+			{
+				if (!OptionsKeyboard_PhysicalCaptureProbeArmed())
+					OptionsKeyboard_ArmPhysicalCaptureProbe(g_options);
+			}
+			else if (getenv("CSRETRO_OPTIONS_KEYBOARD_GATE"))
+				OptionsKeyboard_RunFunctionalGate(g_options);
+			else if (getenv("CSRETRO_OPTIONS_LAYOUT_GATE"))
+				OptionsLayout_RunFunctionalGate(g_options);
 			else
 				OptionsMouse_RunFunctionalGate(g_options);
 		}
 		else if (g_optionsGateFrame == 60)
 		{
-			// zweites Screenshot nach erneutem Paint
-			MenuEngine::ClientCmd("screenshot\n");
-			Menu_Con(getenv("CSRETRO_OPTIONS_VIDEO_GATE") ? "CSRETRO_VIDEO_GATE_SHOT_TAKEN"
-				: getenv("CSRETRO_OPTIONS_AUDIO_GATE") ? "CSRETRO_AUDIO_GATE_SHOT_TAKEN"
-								     : "CSRETRO_MOUSE_GATE_SHOT_TAKEN");
-			g_optionsGateFrame = -1;
+			if (getenv("CSRETRO_OPTIONS_KEYBOARD_CAPTURE_PHYS"))
+			{
+				// Stay open for xdotool F8 then letter q — never auto-quit here.
+				;
+			}
+			else if (getenv("CSRETRO_OPTIONS_VIDEO_MODE_SAFETY") && OptionsVideoModeSafety_IsWaitingWallclock())
+			{
+				// Real wall-clock timeout: keep polling; do not quit yet.
+				;
+			}
+			else
+			{
+				// zweites Screenshot nach erneutem Paint
+				MenuEngine::ClientCmd("screenshot\n");
+				Menu_Con(getenv("CSRETRO_OPTIONS_VIDEO_MODE_SAFETY") ? "CSRETRO_MODE_SAFETY_SHOT_TAKEN"
+					: getenv("CSRETRO_OPTIONS_VIDEO_GATE") ? "CSRETRO_VIDEO_GATE_SHOT_TAKEN"
+					: getenv("CSRETRO_OPTIONS_AUDIO_GATE") ? "CSRETRO_AUDIO_GATE_SHOT_TAKEN"
+					: getenv("CSRETRO_OPTIONS_KEYBOARD_GATE") ? "CSRETRO_KEYBOARD_GATE_SHOT_TAKEN"
+					: getenv("CSRETRO_OPTIONS_LAYOUT_GATE") ? "CSRETRO_LAYOUT_GATE_SHOT_TAKEN"
+									     : "CSRETRO_MOUSE_GATE_SHOT_TAKEN");
+				g_optionsGateFrame = -1;
+			}
+		}
+		else if (g_optionsGateFrame > 60 && getenv("CSRETRO_OPTIONS_KEYBOARD_CAPTURE_PHYS"))
+		{
+			; // Poll already runs every frame above
+		}
+		else if (g_optionsGateFrame > 60 && getenv("CSRETRO_OPTIONS_VIDEO_MODE_SAFETY") &&
+			 OptionsVideoModeSafety_IsWaitingWallclock())
+		{
+			if (OptionsVideoModeSafety_Poll(g_options))
+				g_optionsGateFrame = -1;
 		}
 	}
 }
@@ -408,14 +469,43 @@ bool VGuiXash_ShowOptionsDialog()
 		g_pVGuiSurface->GetScreenSize(sw, sh);
 	int w = CsretroOptionsClassic::kPreferredWide;
 	int h = CsretroOptionsClassic::kPreferredTall;
+	int px = (sw - w) / 2;
+	int py = (sh - h) / 2;
+	int minW = w, minH = h;
+	g_options->GetAdaptiveMinimum(minW, minH);
+
+	const bool gateRun =
+		getenv("CSRETRO_OPTIONS_GATE") || getenv("CSRETRO_OPTIONS_AUDIO_GATE") ||
+		getenv("CSRETRO_OPTIONS_KEYBOARD_GATE") || getenv("CSRETRO_OPTIONS_KEYBOARD_CAPTURE_PHYS") ||
+		getenv("CSRETRO_OPTIONS_VIDEO_GATE") || getenv("CSRETRO_OPTIONS_VIDEO_MODE_SAFETY") ||
+		getenv("CSRETRO_OPTIONS_LAYOUT_GATE");
+	CsretroWindowGeometry::Bounds saved = CsretroWindowGeometry::Load("Options");
+	if (!gateRun && saved.valid && saved.w >= minW && saved.h >= minH)
+	{
+		w = saved.w;
+		h = saved.h;
+		px = saved.x;
+		py = saved.y;
+	}
+	CsretroWindowGeometry::ClampBounds(px, py, w, h, minW, minH, 0, 0, sw, sh);
+
 	g_options->SetSize(w, h);
-	g_options->SetPos((sw - w) / 2, (sh - h) / 2);
+	g_options->SetPos(px, py);
 	g_options->Activate();
-	int px = 0, py = 0;
 	g_options->GetPos(px, py);
+	if (getenv("CSRETRO_OPTIONS_LAYOUT_RESTORE_GATE"))
+	{
+		int rw = 0, rh = 0;
+		g_options->GetSize(rw, rh);
+		Menu_Con("CSRETRO_LAYOUT_RESTART_RESTORE bounds=%d,%d %dx%d screen=%dx%d",
+			px, py, rw, rh, sw, sh);
+	}
 	// Gate nach einigen Paint-Frames (Client-CVars + Framebuffer).
 	if (getenv("CSRETRO_OPTIONS_GATE") || getenv("CSRETRO_OPTIONS_AUDIO_GATE") ||
-		getenv("CSRETRO_OPTIONS_VIDEO_GATE"))
+		getenv("CSRETRO_OPTIONS_KEYBOARD_GATE") || getenv("CSRETRO_OPTIONS_KEYBOARD_CAPTURE_PHYS") ||
+		getenv("CSRETRO_OPTIONS_VIDEO_GATE") ||
+		getenv("CSRETRO_OPTIONS_VIDEO_MODE_SAFETY") ||
+		getenv("CSRETRO_OPTIONS_LAYOUT_GATE"))
 	{
 		Menu_Con("CSRETRO_OPTIONS_POPUPS %d visible=%d size=%dx%d pos=%d,%d screen=%dx%d",
 			g_pVGuiSurface ? g_pVGuiSurface->GetPopupCount() : -1,
@@ -430,6 +520,9 @@ void VGuiXash_HideOptionsDialog()
 {
 	if (!g_options)
 		return;
+	int x = 0, y = 0, w = 0, h = 0;
+	g_options->GetBounds(x, y, w, h);
+	CsretroWindowGeometry::Save("Options", x, y, w, h);
 	g_options->SetVisible(false);
 	g_options->Close();
 }
@@ -437,6 +530,11 @@ void VGuiXash_HideOptionsDialog()
 bool VGuiXash_IsOptionsActive()
 {
 	return g_options && g_options->IsVisible();
+}
+
+bool VGuiXash_IsKeyboardCapturing()
+{
+	return g_options && g_options->IsVisible() && g_options->IsKeyboardCapturing();
 }
 
 bool VGuiXash_IsUiActive()
@@ -448,6 +546,24 @@ void VGuiXash_Key(int key, int down)
 {
 	if (!g_inited || !g_pVGuiInput)
 		return;
+
+	if (CsretroMenu_CaptureDebugEnabled())
+	{
+		CsretroMenu_CaptureLog("VGuiXash_Key key=%d down=%d options=%d capturing=%d",
+			key, down ? 1 : 0,
+			(g_options && g_options->IsVisible()) ? 1 : 0,
+			(g_options && g_options->IsKeyboardCapturing()) ? 1 : 0);
+	}
+
+	// Keyboard capture: consume raw Xash keynums immediately (focus-independent).
+	if (g_options && g_options->IsVisible())
+	{
+		const bool consumed = g_options->OnRawXashKey(key, down);
+		if (CsretroMenu_CaptureDebugEnabled())
+			CsretroMenu_CaptureLog("OnRawXashKey key=%d down=%d consumed=%d", key, down ? 1 : 0, consumed ? 1 : 0);
+		if (consumed)
+			return;
+	}
 
 	// Mouse buttons arrive as Xash key events.
 	vgui2::MouseCode mouse = vgui2::MOUSE_LAST;
@@ -462,12 +578,66 @@ void VGuiXash_Key(int key, int down)
 	else if (key == K_MOUSE5)
 		mouse = vgui2::MOUSE_5;
 
+	// Xash delivers SDL_MOUSEWHEEL as K_MWHEEL* keys (IN_MWheelEvent).
+	// Same physical event, two owners: capture → raw bind (already consumed above);
+	// idle → VGUI MouseWheeled so SectionedListPanel/Menu/etc. scroll.
+	if (key == K_MWHEELUP || key == K_MWHEELDOWN)
+	{
+		if (down && g_pVGuiInput)
+		{
+			const int delta = (key == K_MWHEELUP) ? 1 : -1;
+			if (CsretroMenu_CaptureDebugEnabled())
+			{
+				CsretroMenu_CaptureLog("WHEEL_EVENT key=%d delta=%d capturing=%d owner=vgui_scroll",
+					key, delta,
+					(g_options && g_options->IsKeyboardCapturing()) ? 1 : 0);
+			}
+			g_pVGuiInput->InternalMouseWheeled(delta);
+		}
+		return;
+	}
+
 	if (mouse != vgui2::MOUSE_LAST)
 	{
 		if (down)
-			g_pVGuiInput->InternalMousePressed(mouse);
+		{
+			// Xash does not emit double-click events — synthesize for VGUI.
+			static int s_lastCode = -1;
+			static int s_lastX = 0, s_lastY = 0;
+			static long s_lastTime = 0;
+			int mx = 0, my = 0;
+			g_pVGuiInput->GetCursorPos(mx, my);
+			const long nowMs = g_pVGuiSystem ? g_pVGuiSystem->GetTimeMillis() : 0;
+			const bool isDouble =
+				(static_cast<int>(mouse) == s_lastCode) &&
+				(nowMs - s_lastTime) > 0 && (nowMs - s_lastTime) < 400 &&
+				std::abs(mx - s_lastX) < 6 && std::abs(my - s_lastY) < 6;
+			if (isDouble)
+			{
+				if (CsretroMenu_CaptureDebugEnabled())
+					CsretroMenu_CaptureLog("MouseDoublePressed code=%d at %d,%d", static_cast<int>(mouse), mx, my);
+				// Canonical path only: DoublePressed → list ItemDoubleLeftClick → BeginCapture.
+				g_pVGuiInput->InternalMouseDoublePressed(mouse);
+				s_lastCode = -1;
+				s_lastTime = 0;
+			}
+			else
+			{
+				if (CsretroMenu_CaptureDebugEnabled())
+					CsretroMenu_CaptureLog("MousePressed code=%d at %d,%d", static_cast<int>(mouse), mx, my);
+				g_pVGuiInput->InternalMousePressed(mouse);
+				s_lastCode = static_cast<int>(mouse);
+				s_lastX = mx;
+				s_lastY = my;
+				s_lastTime = nowMs;
+			}
+		}
 		else
+		{
+			if (CsretroMenu_CaptureDebugEnabled())
+				CsretroMenu_CaptureLog("MouseReleased code=%d", static_cast<int>(mouse));
 			g_pVGuiInput->InternalMouseReleased(mouse);
+		}
 		return;
 	}
 
@@ -504,5 +674,21 @@ void VGuiXash_Char(int ch)
 {
 	if (!g_inited || !g_pVGuiInput)
 		return;
+
+	// Fallback when SDL text input is active: printables never reach Key_Event.
+	// Char codes for a-z / 0-9 are the same Xash keynums — no second translation table.
+	if (g_options && g_options->IsVisible() && g_options->IsKeyboardCapturing())
+	{
+		int keynum = ch;
+		if (keynum >= 'A' && keynum <= 'Z')
+			keynum = keynum - 'A' + 'a';
+		if (keynum >= 32 && keynum < 127)
+		{
+			CsretroMenu_CaptureLog("VGuiXash_Char capture fallback ch=%d keynum=%d", ch, keynum);
+			if (g_options->OnRawXashKey(keynum, true))
+				return;
+		}
+	}
+
 	g_pVGuiInput->InternalKeyTyped(static_cast<wchar_t>(ch));
 }

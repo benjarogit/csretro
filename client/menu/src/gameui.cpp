@@ -2,6 +2,8 @@
 
 #include "keydefs.h"
 #include "../vgui/vgui_boot.h"
+#include "../gameui/OptionsKeyboardGate.h"
+#include "../vgui/menu_runtime_info.h"
 
 #include <cstdio>
 #include <cstring>
@@ -519,6 +521,7 @@ int UI_VidInit(void)
 void UI_Init(void)
 {
 	gEng.Con_Printf("CS Retro Menu: GetMenuAPI + V1 VGUI + GameMenuExports001\n");
+	CsretroMenu_LogProvenance("UI_Init");
 	VGuiXash_Init();
 	// Auto-Show läuft über UI_SetActiveMenu(1) wenn CSRETRO_V1POC gesetzt ist.
 }
@@ -573,6 +576,19 @@ void UI_KeyEvent(int key, int down)
 {
 	if (VGuiXash_IsUiActive())
 	{
+		// ESC during keyboard capture: cancel capture only — never close Options.
+		if (down && key == K_ESCAPE && VGuiXash_IsKeyboardCapturing())
+		{
+			VGuiXash_Key(key, down);
+			return;
+		}
+		// Physical capture probe: keep Options open until SDL key arrives.
+		if (down && key == K_ESCAPE && getenv("CSRETRO_OPTIONS_KEYBOARD_CAPTURE_PHYS") &&
+			OptionsKeyboard_PhysicalCaptureProbeArmed())
+		{
+			VGuiXash_Key(key, down); // cancel capture if any; do not hide dialog
+			return;
+		}
 		VGuiXash_Key(key, down);
 		if (down && key == K_ESCAPE)
 		{

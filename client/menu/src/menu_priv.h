@@ -44,7 +44,9 @@ struct ServerProfile
 };
 
 extern ui_enginefuncs_t gEng;
+extern ui_extendedfuncs_t gExtEng;
 extern ui_globalvars_t *gGlobals;
+extern bool gExtEngReady;
 
 void Menu_Con(const char *fmt, ...);
 const char *Menu_L(const char *token);

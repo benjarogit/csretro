@@ -8,8 +8,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 [[ -f "${ROOT}/scripts/gamedata-env.sh" ]] && source "${ROOT}/scripts/gamedata-env.sh"
 source "${ROOT}/scripts/headless-x11.sh"
+source "${ROOT}/scripts/gate-crash.sh"
 
-RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run}"
+RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run-gate/video}"
 case "${RUN}" in /*) ;; *) RUN="${ROOT}/${RUN}" ;; esac
 ENG="${CSRETRO_ENGINE_OUT:-${ROOT}/build/engine}"
 CLIENT="${CSRETRO_CLIENT_SO:-${ROOT}/build/client-cmake/client/client_amd64.so}"
@@ -24,6 +25,7 @@ fail() { echo "OPTIONS_VIDEO_GATE FAIL: $*" >&2; exit 1; }
 
 [[ -f "${MENU}" ]] || fail "menu fehlt"
 [[ -x "${ENG}/game_launch/xash3d" ]] || fail "Engine fehlt"
+MENU="$(readlink -f "${MENU}")"
 GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${MAP}")" || fail "Game-Data fehlt"
 if [[ "${CSRETRO_FOREGROUND:-0}" != 1 ]]; then
 	command -v gamescope >/dev/null 2>&1 || fail "gamescope fehlt"
@@ -113,7 +115,7 @@ run_one() {
 		-game cstrike \
 		-dll "${GAMEDLL}" \
 		-clientlib "${CLIENT}" \
-		-menu "${MENU}" \
+		-menulib "${MENU}" \
 		-windowed -width "${W}" -height "${H}" \
 		-dev 2 -log \
 		+maxplayers 2 +sv_lan 1 +exec autoexec.cfg \
@@ -130,10 +132,33 @@ run_one() {
 	wait_log 'CSRETRO_VIDEO_GATE_SHOT_TAKEN|CSRETRO_VIDEO_GATE_SHOT_READY' 30 || true
 	sleep 1.5
 
-	if rg -q 'CSRETRO_VIDEO_GATE_FAIL' "${LOG}" 2>/dev/null || rg -q 'CSRETRO_VIDEO_GATE_FAIL' "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null; then
-		rg 'CSRETRO_VIDEO_GATE_FAIL|CSRETRO_LOC_' "${LOG}" "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null | head -40 >&2 || true
+	if rg -q 'CSRETRO_VIDEO_GATE_FAIL|CSRETRO_COMBO_GATE_FAIL' "${LOG}" 2>/dev/null || rg -q 'CSRETRO_VIDEO_GATE_FAIL|CSRETRO_COMBO_GATE_FAIL' "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null; then
+		rg 'CSRETRO_VIDEO_GATE_FAIL|CSRETRO_COMBO_GATE_FAIL|CSRETRO_LOC_|CSRETRO_METRICS_BTN' "${LOG}" "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null | head -60 >&2 || true
 		stop_engine "${XASH_PID}"
 		fail "Gate-Assertions ${W}x${H}"
+	fi
+	if rg -q 'CSRETRO_COMBO_GATE_FAIL' "${LOG}" 2>/dev/null || rg -q 'CSRETRO_COMBO_GATE_FAIL' "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null; then
+		stop_engine "${XASH_PID}"
+		fail "Combo ${W}x${H}"
+	fi
+	if csretro_gate_logs_indicate_crash "${LOG}" "${CSRETRO_GAMESCOPE_LOG}"; then
+		rg -n "$(csretro_gate_crash_pattern)" "${LOG}" "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null | head -40 >&2 || true
+		stop_engine "${XASH_PID}"
+		fail "Crash ${W}x${H}"
+	fi
+	if ! rg -q 'CSRETRO_COMBO_GATE_DONE' "${LOG}" 2>/dev/null && ! rg -q 'CSRETRO_COMBO_GATE_DONE' "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null; then
+		stop_engine "${XASH_PID}"
+		fail "Combo-Gate fehlt ${W}x${H}"
+	fi
+	# Footer labels must be non-empty (Video regression vs Mouse/Audio).
+	if rg -q "CSRETRO_METRICS_BTN OKButton text=''" "${LOG}" 2>/dev/null || rg -q "CSRETRO_METRICS_BTN OKButton text=''" "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null; then
+		rg 'CSRETRO_METRICS_BTN' "${LOG}" "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null | head -20 >&2 || true
+		stop_engine "${XASH_PID}"
+		fail "OK/Cancel/Apply Labels leer ${W}x${H}"
+	fi
+	if rg -q 'CSRETRO_METRICS_VIS VSync visible=0' "${LOG}" 2>/dev/null || rg -q 'CSRETRO_METRICS_VIS VSync visible=0' "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null; then
+		stop_engine "${XASH_PID}"
+		fail "VSync nicht sichtbar ${W}x${H}"
 	fi
 	if rg -q 'CSRETRO_LOC_MISSING' "${LOG}" 2>/dev/null || rg -q 'CSRETRO_LOC_MISSING' "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null; then
 		rg 'CSRETRO_LOC_' "${LOG}" "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null | head -40 >&2 || true

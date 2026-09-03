@@ -42,6 +42,10 @@ void KeyCode_InitKeyTranslationTable()
 	map(K_ALT, vgui2::KEY_LALT);
 	map(K_CTRL, vgui2::KEY_LCONTROL);
 	map(K_SHIFT, vgui2::KEY_LSHIFT);
+	// Xash has one ALT/CTRL/SHIFT slot — both VGUI sides map to the same keynum.
+	s_vguiToXash[vgui2::KEY_RALT] = K_ALT;
+	s_vguiToXash[vgui2::KEY_RCONTROL] = K_CTRL;
+	s_vguiToXash[vgui2::KEY_RSHIFT] = K_SHIFT;
 	map(K_CAPSLOCK, vgui2::KEY_CAPSLOCK);
 	map(K_SCROLLLOCK, vgui2::KEY_SCROLLLOCK);
 	map(K_INS, vgui2::KEY_INSERT);

@@ -8,6 +8,7 @@
 #include <vgui_controls/PropertySheet.h>
 #include <vgui_controls/PropertyPage.h>
 #include <vgui_controls/Button.h>
+#include <vgui_controls/TextImage.h>
 
 #include "../src/menu_priv.h"
 
@@ -76,18 +77,54 @@ void OptionsMetrics_DumpTree(COptionsDialog *dialog)
 		}
 	}
 
-	DumpPanelLine("OKButton", dialog->FindChildByName("OKButton", true));
-	DumpPanelLine("CancelButton", dialog->FindChildByName("CancelButton", true));
-	DumpPanelLine("ApplyButton", dialog->FindChildByName("ApplyButton", true));
+	static const char *kButtons[] = {"OKButton", "CancelButton", "ApplyButton"};
+	for (const char *name : kButtons)
+	{
+		Panel *p = dialog->FindChildByName(name, true);
+		DumpPanelLine(name, p);
+		if (auto *btn = dynamic_cast<Button *>(p))
+		{
+			char text[128] = {};
+			btn->GetText(text, sizeof(text));
+			const Color fg = btn->GetFgColor();
+			int tw = 0, th = 0;
+			if (TextImage *ti = btn->GetTextImage())
+			{
+				ti->GetContentSize(tw, th);
+				const Color tc = ti->GetColor();
+				const int imgCount = btn->GetImageCount();
+				IImage *slot0 = btn->GetImageAtIndex(0);
+				Menu_Con("CSRETRO_METRICS_BTN %s text='%s' font=%u tiFont=%u tw=%d th=%d imgs=%d slot0=%s visible=%d enabled=%d fg=%d,%d,%d,%d tc=%d,%d,%d,%d paint=%d",
+					name, text, static_cast<unsigned>(btn->GetFont()), static_cast<unsigned>(ti->GetFont()),
+					tw, th, imgCount, slot0 == static_cast<IImage *>(ti) ? "text" : (slot0 ? "other" : "null"),
+					btn->IsVisible() ? 1 : 0, btn->IsEnabled() ? 1 : 0, fg.r(), fg.g(), fg.b(), fg.a(),
+					tc.r(), tc.g(), tc.b(), tc.a(), btn->ShouldPaint() ? 1 : 0);
+			}
+			else
+			{
+				Menu_Con("CSRETRO_METRICS_BTN %s text='%s' font=%u visible=%d enabled=%d fg=%d,%d,%d,%d no_textimage",
+					name, text, static_cast<unsigned>(btn->GetFont()), btn->IsVisible() ? 1 : 0,
+					btn->IsEnabled() ? 1 : 0, fg.r(), fg.g(), fg.b(), fg.a());
+			}
+		}
+	}
 
 	static const char *kControls[] = {
 		"ReverseMouse", "MouseFilter", "MouseLook", "Joystick", "JoystickLook",
 		"Slider", "SensitivityLabel",
 		"SFX Slider", "MP3 Volume", "Suit Slider", "Sound Quality",
 		"sfx label", "mp3 label", "suit label",
+		"Resolution", "AspectRatio", "DisplayMode", "Renderer", "VSync", "DetailTextures",
+		"Brightness", "Gamma", "VideoNote",
 	};
 	for (const char *name : kControls)
-		DumpPanelLine(name, dialog->FindChildByName(name, true));
+	{
+		Panel *p = dialog->FindChildByName(name, true);
+		DumpPanelLine(name, p);
+		if (p)
+			Menu_Con("CSRETRO_METRICS_VIS %s visible=%d enabled=%d", name, p->IsVisible() ? 1 : 0,
+				p->IsEnabled() ? 1 : 0);
+	}
 
 	Menu_Con("CSRETRO_METRICS_END");
 }

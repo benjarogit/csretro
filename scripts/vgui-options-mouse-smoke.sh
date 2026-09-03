@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=headless-x11.sh
 source "${ROOT}/scripts/headless-x11.sh"
 
-RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run}"
+RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run-gate/mouse-smoke}"
 case "${RUN}" in /*) ;; *) RUN="${ROOT}/${RUN}" ;; esac
 ENG="${CSRETRO_ENGINE_OUT:-${ROOT}/build/engine}"
 CLIENT="${CSRETRO_CLIENT_SO:-${ROOT}/build/client-cmake/client/client_amd64.so}"
@@ -22,6 +22,7 @@ fail() { echo "OPTIONS_MOUSE FAIL: $*" >&2; exit 1; }
 
 [[ -f "${MENU}" ]] || fail "menu fehlt"
 [[ -x "${ENG}/game_launch/xash3d" ]] || fail "Engine fehlt"
+MENU="$(readlink -f "${MENU}")"
 GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${MAP}")" || fail "Game-Data fehlt"
 if [[ "${CSRETRO_FOREGROUND:-0}" != 1 ]]; then
 	command -v gamescope >/dev/null 2>&1 || fail "gamescope fehlt — oder CSRETRO_FOREGROUND=1"
@@ -108,7 +109,7 @@ csretro_headless_x11_wrap ./xash3d \
 	-game cstrike \
 	-dll "${GAMEDLL}" \
 	-clientlib "${CLIENT}" \
-	-menu "${MENU}" \
+	-menulib "${MENU}" \
 	-windowed -width "${WIDTH}" -height "${HEIGHT}" \
 	-dev 2 \
 	-log \

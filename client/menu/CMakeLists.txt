@@ -4,6 +4,18 @@ project(csretro_menu LANGUAGES CXX)
 
 option(CSRETRO_MENU_SANITIZE "ASan+UBSan (Entwicklungsbuild der Menü-Lib)" OFF)
 
+execute_process(
+	COMMAND git rev-parse --short=12 HEAD
+	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../.."
+	OUTPUT_VARIABLE CSRETRO_MENU_GIT_REV
+	OUTPUT_STRIP_TRAILING_WHITESPACE
+	ERROR_QUIET
+)
+if(NOT CSRETRO_MENU_GIT_REV)
+	set(CSRETRO_MENU_GIT_REV "nogit")
+endif()
+add_compile_definitions(CSRETRO_MENU_GIT_REV="${CSRETRO_MENU_GIT_REV}")
+
 set(BODY "${CSRETRO_ROOT}/client/body")
 set(SDK "${CSRETRO_ROOT}/client/dep/NclNitroApi/dep/ncl-hl1-source-sdk")
 set(VGUI "${CMAKE_CURRENT_SOURCE_DIR}/vgui")
@@ -82,6 +94,7 @@ set(_vgui_controls
     "${SDK}/vgui2/vgui_controls/PropertyDialog.cpp"
     "${SDK}/vgui2/vgui_controls/Slider.cpp"
     "${SDK}/vgui2/vgui_controls/PanelListPanel.cpp"
+    "${SDK}/vgui2/vgui_controls/SectionedListPanel.cpp"
 )
 
 set(_tier1
@@ -123,18 +136,28 @@ add_library(csretro_menu SHARED
     "${VGUI}/font_resolver.cpp"
     "${VGUI}/input_core.cpp"
     "${VGUI}/key_translation_xash.cpp"
+    "${VGUI}/xash_key_contract.cpp"
+    "${VGUI}/window_geometry.cpp"
+    "${VGUI}/menu_runtime_info.cpp"
     "${VGUI}/commandline_xash.cpp"
     "${VGUI}/vgui_boot.cpp"
     "${VGUI}/poc_dialog.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsDialog.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsAdaptiveLayout.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsLayoutGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsMetricsDump.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubKeyboard.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsKeyboardGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubMouse.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsMouseGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubAudio.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsAudioGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubVideo.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsVideoGate.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsVideoModeSafetyGate.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsMenuComboGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/Controls/MenuEngine.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/Controls/VControlsListPanel.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/Controls/CvarToggleCheckButton.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/Controls/CvarNegateCheckButton.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/Controls/CvarSlider.cpp"

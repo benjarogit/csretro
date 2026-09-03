@@ -41,7 +41,8 @@ protected:
 	virtual void PerformLayout();
 	virtual void Paint();
 	MESSAGE_FUNC( OnMenuClose, "MenuClose" );
-	MESSAGE_FUNC_INT( OnCursorEnteredMenuButton, "CursorEnteredMenuButton", VPanel);
+	// 64-bit: VPANEL is pointer-width — never MESSAGE_FUNC_INT (truncates → crash).
+	MESSAGE_FUNC_UINT64( OnCursorEnteredMenuButton, "CursorEnteredMenuButton", VPanel);
 
 private:
 	CUtlVector<MenuButton *> m_pMenuButtons;

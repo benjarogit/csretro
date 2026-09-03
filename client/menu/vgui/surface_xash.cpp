@@ -891,12 +891,23 @@ void CSurfaceXash::ReleasePanel(VPANEL panel)
 
 void CSurfaceXash::MovePopupToFront(VPANEL panel)
 {
+	// Valve MoveToFront() always calls this — but only real popups belong in g_popups.
+	// Incorrectly appending non-popups made PropertyPages/ComboBoxes paint in the
+	// popup pass *after* OptionsDialog and cover OK/Cancel/Apply labels.
+	if (!panel)
+		return;
+	if (g_pIPanel && !g_pIPanel->IsPopup(panel))
+		return;
 	g_popups.erase(std::remove(g_popups.begin(), g_popups.end(), panel), g_popups.end());
 	g_popups.push_back(panel);
 }
 
 void CSurfaceXash::MovePopupToBack(VPANEL panel)
 {
+	if (!panel)
+		return;
+	if (g_pIPanel && !g_pIPanel->IsPopup(panel))
+		return;
 	g_popups.erase(std::remove(g_popups.begin(), g_popups.end(), panel), g_popups.end());
 	g_popups.insert(g_popups.begin(), panel);
 }

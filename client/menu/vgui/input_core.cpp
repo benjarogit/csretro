@@ -900,11 +900,30 @@ void CInputCore::InternalMouseWheeled(int delta)
 {
     auto pCtx = GetCurrentContext();
 
-    if (pCtx->_mouseFocus &&
+    // Same ownership as mouse buttons: capture (edit/bind) first, else hover.
+    // Hover (not key-focus) so a list under the cursor scrolls even if a
+    // sibling button holds keyboard focus or a row is unselected.
+    VPanel *target = nullptr;
+    if (pCtx->_mouseCapture &&
+        IsChildOfModalPanel(VPanelToHandle(pCtx->_mouseCapture)))
+    {
+        target = pCtx->_mouseCapture;
+    }
+    else if (pCtx->_mouseOver &&
+        IsChildOfModalPanel(VPanelToHandle(pCtx->_mouseOver)))
+    {
+        target = pCtx->_mouseOver;
+    }
+    else if (pCtx->_mouseFocus &&
         IsChildOfModalPanel(VPanelToHandle(pCtx->_mouseFocus)))
     {
+        target = pCtx->_mouseFocus;
+    }
+
+    if (target)
+    {
         g_pIVgui->PostMessage(
-            VPanelToHandle(pCtx->_mouseFocus),
+            VPanelToHandle(target),
             new KeyValues("MouseWheeled", "delta", delta),
             NULL_HANDLE
         );

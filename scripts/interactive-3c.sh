@@ -13,7 +13,8 @@ fi
 
 MAP="${CSRETRO_SMOKE_MAP:-de_dust}"
 TIMEOUT_SEC="${CSRETRO_3C_TIMEOUT:-90}"
-RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run}"
+# Isolated from play.sh BASEDIR (build/run). +csretro_* dummies stay here.
+RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run-3c}"
 ENG="${CSRETRO_ENGINE_OUT:-${ROOT}/build/engine}"
 CLIENT="${CSRETRO_CLIENT_SO:-${ROOT}/build/client-cmake/client/client_amd64.so}"
 GAMEDLL="${CSRETRO_GAMEDLL_SO:-${ROOT}/build/gamedll-cmake/cs_amd64.so}"
@@ -167,7 +168,7 @@ sleep 0.4
 
 MENU_ARGS=()
 if [[ -f "${MENU}" ]]; then
-    MENU_ARGS=(-menu "${MENU}")
+    MENU_ARGS=(-menulib "$(readlink -f "${MENU}")")
 fi
 
 cd "${RUN}"

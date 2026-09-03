@@ -238,7 +238,8 @@ void MenuButton::OnCursorEntered()
 	// forward the message on to the parent of this menu.
 	KeyValues *msg = new KeyValues ("CursorEnteredMenuButton");
 	// tell the parent this menuitem is the one that was entered so it can open the menu if it wants
-	msg->SetInt("VPanel", GetVPanel());
+	// 64-bit: pack VPANEL as uint64 (SetInt truncates → crash on MenuBar hover).
+	msg->SetUint64("VPanel", static_cast<uint64>(GetVPanel()));
 	ivgui()->PostMessage(GetVParent(), msg, NULL);
 }
 

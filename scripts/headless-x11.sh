@@ -9,6 +9,10 @@ csretro_headless_x11_prepare() {
 	if [[ "${CSRETRO_FOREGROUND:-0}" == 1 ]]; then
 		export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-x11}"
 		export DISPLAY="${DISPLAY:-:0}"
+		# Native desktop: Gamescope WSI implicit Vulkan layer must stay off
+		# (otherwise zenity "CreateSwapchainKHR… Hooking has failed" + GL crashes).
+		unset ENABLE_GAMESCOPE_WSI 2>/dev/null || true
+		export DISABLE_GAMESCOPE_WSI=1
 		return 0
 	fi
 	command -v gamescope >/dev/null 2>&1 || {

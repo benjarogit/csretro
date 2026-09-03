@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 [[ -f "${ROOT}/scripts/gamedata-env.sh" ]] && source "${ROOT}/scripts/gamedata-env.sh"
 source "${ROOT}/scripts/headless-x11.sh"
 
-RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run}"
+RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run-gate/mouse}"
 case "${RUN}" in /*) ;; *) RUN="${ROOT}/${RUN}" ;; esac
 ENG="${CSRETRO_ENGINE_OUT:-${ROOT}/build/engine}"
 CLIENT="${CSRETRO_CLIENT_SO:-${ROOT}/build/client-cmake/client/client_amd64.so}"
@@ -23,6 +23,7 @@ fail() { echo "OPTIONS_MOUSE_GATE FAIL: $*" >&2; exit 1; }
 
 [[ -f "${MENU}" ]] || fail "menu fehlt"
 [[ -x "${ENG}/game_launch/xash3d" ]] || fail "Engine fehlt"
+MENU="$(readlink -f "${MENU}")"
 command -v import >/dev/null 2>&1 || fail "ImageMagick import fehlt"
 GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${MAP}")" || fail "Game-Data fehlt"
 if [[ "${CSRETRO_FOREGROUND:-0}" != 1 ]]; then
@@ -108,7 +109,7 @@ run_one() {
 		-game cstrike \
 		-dll "${GAMEDLL}" \
 		-clientlib "${CLIENT}" \
-		-menu "${MENU}" \
+		-menulib "${MENU}" \
 		-windowed -width "${W}" -height "${H}" \
 		-dev 2 -log \
 		+maxplayers 2 +sv_lan 1 +exec autoexec.cfg \

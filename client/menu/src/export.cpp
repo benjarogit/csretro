@@ -3,7 +3,9 @@
 #include <cstring>
 
 ui_enginefuncs_t gEng;
+ui_extendedfuncs_t gExtEng;
 ui_globalvars_t *gGlobals;
+bool gExtEngReady = false;
 
 int UI_VidInit(void);
 void UI_Init(void);
@@ -54,5 +56,18 @@ extern "C" CSRETRO_MENU_EXPORT int GetMenuAPI(UI_FUNCTIONS *pFunctionTable, ui_e
 	memcpy(pFunctionTable, &gFunctionTable, sizeof(UI_FUNCTIONS));
 	memcpy(&gEng, engfuncs, sizeof(ui_enginefuncs_t));
 	gGlobals = pGlobals;
+	return 1;
+}
+
+// Extended Menu API: stops classic Key_Event from forcing SDL text input on every
+// menu key. Printable keys then arrive as Xash keynums via UI_KeyEvent → VGuiXash_Key.
+extern "C" CSRETRO_MENU_EXPORT int GetExtAPI(int version, UI_EXTENDED_FUNCTIONS *pFunctionTable, ui_extendedfuncs_t *engfuncs)
+{
+	if (version != MENU_EXTENDED_API_VERSION || !engfuncs)
+		return 0;
+	memcpy(&gExtEng, engfuncs, sizeof(ui_extendedfuncs_t));
+	gExtEngReady = true;
+	if (pFunctionTable)
+		memset(pFunctionTable, 0, sizeof(UI_EXTENDED_FUNCTIONS));
 	return 1;
 }

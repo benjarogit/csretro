@@ -221,9 +221,9 @@ void MenuBar::OnMenuClose()
 //-----------------------------------------------------------------------------
 // Purpose: Message map
 //-----------------------------------------------------------------------------
-void MenuBar::OnCursorEnteredMenuButton(int VPanel)
+void MenuBar::OnCursorEnteredMenuButton(uint64 VPanel)
 {
-	VPANEL menuButton = (VPANEL)VPanel;
+	VPANEL menuButton = static_cast<VPANEL>(VPanel);
 	// see if we had a menu open
 	for ( int i = 0; i < m_pMenuButtons.Count(); i++)
 	{

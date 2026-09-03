@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vgui_controls/PropertyPage.h>
 
 class CCvarSlider;
@@ -35,6 +36,14 @@ public:
 	int Gate_GetDisplayModePending() const;
 	int Gate_GetResolutionWide() const;
 	int Gate_GetResolutionTall() const;
+	bool Gate_SelectResolution(int w, int h);
+	void Gate_SetDisplayModePending(int fullscreen);
+	bool Gate_IsConfirmOpen() const;
+	void Gate_ConfirmKeep();
+	void Gate_ConfirmRevert();
+	void Gate_ExpireConfirmNow(); // exercises OnTick timeout path without blocking UI thread
+	void Gate_GetApplied(int &w, int &h, int &fullscreen) const;
+	int64_t Gate_GetConfirmShownMs() const { return m_confirmShownMs; }
 
 	enum AspectFilter : int
 	{
@@ -69,6 +78,7 @@ private:
 	bool GetSelectedResolution(int &w, int &h) const;
 	AspectFilter CurrentAspectFilter() const;
 	void ReadAppliedFromEngine(VidSnapshot &out) const;
+	void SyncUiFromApplied();
 	void ApplyLiveCvars();
 	bool ApplyModeChangesTransactional();
 	void BeginConfirm(const VidSnapshot &previous);
@@ -92,5 +102,6 @@ private:
 	VidSnapshot m_rollback{};
 	bool m_bConfirmOpen = false;
 	double m_confirmDeadline = 0.0;
+	int64_t m_confirmShownMs = 0;
 	bool m_bIgnoreTextChanged = false;
 };

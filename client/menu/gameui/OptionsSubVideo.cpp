@@ -10,8 +10,11 @@
 #include "vgui_controls/Label.h"
 #include "vgui_controls/QueryBox.h"
 
+#include "../src/menu_priv.h"
+
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 using namespace vgui2;
@@ -136,13 +139,7 @@ void COptionsSubVideo::OnResetData()
 	m_pVSync->Reset();
 	m_pDetailTextures->Reset();
 	ReadAppliedFromEngine(m_applied);
-	m_bIgnoreTextChanged = true;
-	PrepareResolutionList();
-	SelectCurrentResolution();
-	const int fs = (m_applied.fullscreen < 0) ? 0 : (m_applied.fullscreen > 2 ? 2 : m_applied.fullscreen);
-	m_pDisplayMode->ActivateItemByRow(fs);
-	RefreshRendererCombo();
-	m_bIgnoreTextChanged = false;
+	SyncUiFromApplied();
 }
 
 void COptionsSubVideo::OnApplyChanges()
@@ -163,6 +160,7 @@ void COptionsSubVideo::ApplyLiveCvars()
 
 void COptionsSubVideo::ReadAppliedFromEngine(VidSnapshot &out) const
 {
+	// Xash: `width`/`height` are the RENDERINFO window size cvars (window_width/height).
 	out.w = static_cast<int>(MenuEngine::GetCvarFloat("width"));
 	out.h = static_cast<int>(MenuEngine::GetCvarFloat("height"));
 	if (out.w <= 0)
@@ -174,6 +172,21 @@ void COptionsSubVideo::ReadAppliedFromEngine(VidSnapshot &out) const
 	if (!ref || !*ref)
 		ref = MenuEngine::GetCvarString("r_refdll");
 	std::snprintf(out.renderer, sizeof(out.renderer), "%s", ref ? ref : "");
+}
+
+void COptionsSubVideo::SyncUiFromApplied()
+{
+	m_bIgnoreTextChanged = true;
+	const AspectFilter aspect = ClassifyAspect(m_applied.w, m_applied.h);
+	if (m_pAspectRatio)
+		m_pAspectRatio->ActivateItemByRow(static_cast<int>(aspect == kAspectOther ? kAspectAll : aspect));
+	PrepareResolutionList();
+	SelectCurrentResolution();
+	const int fs = (m_applied.fullscreen < 0) ? 0 : (m_applied.fullscreen > 2 ? 2 : m_applied.fullscreen);
+	if (m_pDisplayMode)
+		m_pDisplayMode->ActivateItemByRow(fs);
+	RefreshRendererCombo();
+	m_bIgnoreTextChanged = false;
 }
 
 void COptionsSubVideo::RefreshRendererCombo()
@@ -308,16 +321,30 @@ bool COptionsSubVideo::ApplyModeChangesTransactional()
 
 	m_rollback = m_applied;
 
+	// Canonical apply: set fullscreen, then one immediate vid_setmode.
+	// vid_setmode → R_ChangeDisplaySettings → R_SaveVideoMode clears host.renderinfo_changed
+	// so VID_CheckChanges must not apply a second time (prove with CSRETRO_VID_REINIT_TRACE=1).
+	if (std::getenv("CSRETRO_VID_REINIT_TRACE"))
+		Menu_Con("CSRETRO_VID_REINIT begin apply fullscreen=%d %dx%d (prev %d %dx%d)",
+			fs, w, h, m_applied.fullscreen, m_applied.w, m_applied.h);
+
 	char cmd[128];
 	std::snprintf(cmd, sizeof(cmd), "vid_setmode %d %d\n", w, h);
 	MenuEngine::CvarSetValue("fullscreen", static_cast<float>(fs));
 	MenuEngine::ClientCmdNow(cmd);
 
+	if (std::getenv("CSRETRO_VID_REINIT_TRACE"))
+		Menu_Con("CSRETRO_VID_REINIT end apply (expect exactly one CSRETRO_VID_REINIT via=vid_setmode)");
+
 	const bool needsConfirm = (fs != 0) || (w != m_applied.w || h != m_applied.h);
 	if (needsConfirm)
 		BeginConfirm(m_rollback);
 	else
+	{
 		ReadAppliedFromEngine(m_applied);
+		SyncUiFromApplied();
+		MenuEngine::ClientCmd("host_writeconfig\n");
+	}
 	return true;
 }
 
@@ -326,10 +353,13 @@ void COptionsSubVideo::BeginConfirm(const VidSnapshot &previous)
 	m_rollback = previous;
 	m_bConfirmOpen = true;
 	m_confirmDeadline = SteadyNow() + 10.0;
+	m_confirmShownMs = static_cast<int64_t>(SteadyNow() * 1000.0);
+	Menu_Con("CSRETRO_VIDEO_CONFIRM confirm_shown_ms=%lld", static_cast<long long>(m_confirmShownMs));
 
 	if (m_pConfirm)
 	{
-		m_pConfirm->MarkForDeletion();
+		// Close() releases app-modal and DeleteSelfOnClose — MarkForDeletion alone leaves a zombie popup.
+		m_pConfirm->Close();
 		m_pConfirm = nullptr;
 	}
 
@@ -358,20 +388,30 @@ void COptionsSubVideo::EndConfirm(bool keep)
 	m_confirmDeadline = 0.0;
 	if (m_pConfirm)
 	{
-		m_pConfirm->MarkForDeletion();
+		QueryBox *box = m_pConfirm;
 		m_pConfirm = nullptr;
+		// Proper modal teardown (ReleaseAppModalSurface + FinishClose/DeleteSelfOnClose).
+		box->Close();
 	}
 	if (keep)
+	{
 		ReadAppliedFromEngine(m_applied);
+		SyncUiFromApplied();
+		// Persist only after confirmed Keep — rejected/timeout modes must not survive restart.
+		MenuEngine::ClientCmd("host_writeconfig\n");
+		const int64_t doneMs = static_cast<int64_t>(SteadyNow() * 1000.0);
+		Menu_Con("CSRETRO_VIDEO_CONFIRM keep_complete_ms=%lld", static_cast<long long>(doneMs));
+	}
 	else
 	{
 		RollbackTo(m_rollback);
 		ReadAppliedFromEngine(m_applied);
-		m_bIgnoreTextChanged = true;
-		PrepareResolutionList();
-		SelectCurrentResolution();
-		m_pDisplayMode->ActivateItemByRow(m_applied.fullscreen < 0 ? 0 : (m_applied.fullscreen > 2 ? 2 : m_applied.fullscreen));
-		m_bIgnoreTextChanged = false;
+		SyncUiFromApplied();
+		const int64_t doneMs = static_cast<int64_t>(SteadyNow() * 1000.0);
+		Menu_Con("CSRETRO_VIDEO_CONFIRM rollback_complete_ms=%lld shown_ms=%lld delta_ms=%lld",
+			static_cast<long long>(doneMs),
+			static_cast<long long>(m_confirmShownMs),
+			static_cast<long long>(doneMs - m_confirmShownMs));
 	}
 }
 
@@ -390,7 +430,14 @@ void COptionsSubVideo::OnTick()
 	if (!m_bConfirmOpen)
 		return;
 	if (SteadyNow() >= m_confirmDeadline)
+	{
+		const int64_t firedMs = static_cast<int64_t>(SteadyNow() * 1000.0);
+		Menu_Con("CSRETRO_VIDEO_CONFIRM timeout_fired_ms=%lld shown_ms=%lld delta_ms=%lld",
+			static_cast<long long>(firedMs),
+			static_cast<long long>(m_confirmShownMs),
+			static_cast<long long>(firedMs - m_confirmShownMs));
 		EndConfirm(false);
+	}
 }
 
 void COptionsSubVideo::MarkDirty()
@@ -463,4 +510,72 @@ int COptionsSubVideo::Gate_GetResolutionTall() const
 	int w = 0, h = 0;
 	GetSelectedResolution(w, h);
 	return h;
+}
+
+bool COptionsSubVideo::Gate_SelectResolution(int w, int h)
+{
+	if (!m_pResolution || w < 640 || h < 480)
+		return false;
+	m_bIgnoreTextChanged = true;
+	if (m_pAspectRatio)
+		m_pAspectRatio->ActivateItemByRow(kAspectAll);
+	PrepareResolutionList();
+	const int n = m_pResolution->GetItemCount();
+	for (int i = 0; i < n; ++i)
+	{
+		KeyValues *kv = m_pResolution->GetItemUserData(i);
+		if (kv && kv->GetInt("w") == w && kv->GetInt("h") == h)
+		{
+			m_pResolution->ActivateItemByRow(i);
+			m_bIgnoreTextChanged = false;
+			return true;
+		}
+	}
+	m_bIgnoreTextChanged = false;
+	return false;
+}
+
+void COptionsSubVideo::Gate_SetDisplayModePending(int fullscreen)
+{
+	if (!m_pDisplayMode)
+		return;
+	if (fullscreen < 0)
+		fullscreen = 0;
+	if (fullscreen > 2)
+		fullscreen = 2;
+	m_bIgnoreTextChanged = true;
+	m_pDisplayMode->ActivateItemByRow(fullscreen);
+	m_bIgnoreTextChanged = false;
+}
+
+bool COptionsSubVideo::Gate_IsConfirmOpen() const
+{
+	return m_bConfirmOpen;
+}
+
+void COptionsSubVideo::Gate_ConfirmKeep()
+{
+	if (m_bConfirmOpen)
+		EndConfirm(true);
+}
+
+void COptionsSubVideo::Gate_ConfirmRevert()
+{
+	if (m_bConfirmOpen)
+		EndConfirm(false);
+}
+
+void COptionsSubVideo::Gate_ExpireConfirmNow()
+{
+	if (!m_bConfirmOpen)
+		return;
+	m_confirmDeadline = SteadyNow() - 1.0;
+	OnTick();
+}
+
+void COptionsSubVideo::Gate_GetApplied(int &w, int &h, int &fullscreen) const
+{
+	w = m_applied.w;
+	h = m_applied.h;
+	fullscreen = m_applied.fullscreen;
 }

@@ -15,7 +15,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "${ROOT}/scripts/headless-x11.sh"
 
 # Absolute paths — relative CSRETRO_RUN_DIR from a prior shell breaks after cd.
-RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run}"
+RUN="${CSRETRO_RUN_DIR:-${ROOT}/build/run-gate/v1poc}"
 case "${RUN}" in
 	/*) ;;
 	*) RUN="${ROOT}/${RUN}" ;;
@@ -38,6 +38,7 @@ fail() { echo "V1POC FAIL: $*" >&2; exit 1; }
 [[ -x "${ENG}/game_launch/xash3d" ]] || fail "Engine fehlt"
 [[ -f "${CLIENT}" ]] || fail "Client fehlt"
 [[ -f "${GAMEDLL}" ]] || fail "GameDLL fehlt"
+MENU="$(readlink -f "${MENU}")"
 command -v xdotool >/dev/null 2>&1 || fail "xdotool fehlt"
 GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${MAP}")" || fail "Game-Data fehlt"
 if [[ "${CSRETRO_FOREGROUND:-0}" != 1 ]]; then
@@ -163,7 +164,7 @@ run_resolution() {
 		-game cstrike \
 		-dll "${GAMEDLL}" \
 		-clientlib "${CLIENT}" \
-		-menu "${MENU}" \
+		-menulib "${MENU}" \
 		-windowed -width "${sw}" -height "${sh}" \
 		-dev 2 \
 		-log \

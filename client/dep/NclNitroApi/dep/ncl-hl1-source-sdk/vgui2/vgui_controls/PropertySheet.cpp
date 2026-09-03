@@ -497,6 +497,7 @@ PropertySheet::PropertySheet(
 	m_bSmallTabs = false;
 	m_tabFont = 0;
 	m_bDraggableTabs = draggableTabs;
+	m_bContextButton = false;
 	m_pTabKV = NULL;
 	m_iTabHeight = 0;
     m_iTabHeightSmall = 0;
@@ -526,9 +527,11 @@ PropertySheet::PropertySheet(Panel *parent, const char *panelName, ComboBox *com
 	m_bSmallTabs = false;
 	m_tabFont = 0;
 	m_bDraggableTabs = false;
+	m_bContextButton = false;
 	m_pTabKV = NULL;
 	m_iTabHeight = 0;
     m_iTabHeightSmall = 0;
+	m_bKBNavigationEnabled = true;
 }
 
 //-----------------------------------------------------------------------------

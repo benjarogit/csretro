@@ -84,6 +84,18 @@ void CheckMark(int x, int y, int s, void (*line)(int, int, int, int))
 	line(x0, y0, x1, y1);
 	line(x1, y1, x2, y2);
 }
+
+void GripLines(int x, int y, int s, bool shadow, void (*line)(int, int, int, int))
+{
+	// Three crisp diagonal pairs, matching the classic Windows/VGUI resize
+	// handle without relying on a platform-specific Marlett bitmap.
+	for (int inset = 4; inset <= s - 1; inset += 4)
+	{
+		const int offset = shadow ? 1 : 0;
+		line(x + s - inset + offset, y + s - 2 + offset,
+			x + s - 2 + offset, y + s - inset + offset);
+	}
+}
 } // namespace
 
 bool PaintCodepoint(int x, int y, int tall, uint32_t codepoint,
@@ -140,12 +152,10 @@ bool PaintCodepoint(int x, int y, int tall, uint32_t codepoint,
 		CheckMark(x, y, s, line);
 		return true;
 	case 'o': // grip shadow
-		fill(x + s - 5, y + s - 5, x + s - 1, y + s - 1);
-		fill(x + s - 8, y + s - 2, x + s - 6, y + s - 1);
-		fill(x + s - 2, y + s - 8, x + s - 1, y + s - 6);
+		GripLines(x, y, s, true, line);
 		return true;
 	case 'p': // grip highlight
-		fill(x + s - 6, y + s - 6, x + s - 2, y + s - 2);
+		GripLines(x, y, s, false, line);
 		return true;
 	// Radio / checkbox border glyphs — approximate with box so letter never shows.
 	case 'g':

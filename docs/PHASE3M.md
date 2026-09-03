@@ -86,7 +86,7 @@ Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextC
 
 ## Rekonstruktionsplan (Reihenfolge)
 
-1. **Options-Fundament:** `COptionsSubMouse` + `COptionsSubAudio` funktional + Preferred-Size-Gate grün. **Video** als nächste echte Subpage.
+1. **Options-Fundament:** Mouse + Audio + Video **PASS / Regression**. Keyboard **AUTOMATED PASS / MANUAL RECHECK OPEN** nach Persistenz-/Config-Isolation-Fix. Provenance PASS. Adaptive Layout / Resize **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN** (`docs/PHASE3M-LAYOUT.md`). Visual Polish **OPEN**. `docs/PHASE3M-KEYBOARD.md`.
 2. **Main Menu:** NextClient/`GameMenu.res` als echte VGUI2-Controls; Localization fixen; Interim-Textliste ersetzen.
 3. **Create Game:** `CreateMultiplayerGameDialog` + `ServerProfile` (eine Konfiguration).
 4. **Team/Class/Buy:** `.res` + V1-Core; Interim-Renderer entfernen sobald ersetzt.
@@ -102,17 +102,84 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 | NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | **portiert** → `client/menu/gameui/Controls/` + Xash `MenuEngine` |
 | `COptionsSubMouse` | Gate grün (funktional + Preferred 512×406 @640–1366) |
 | `COptionsSubAudio` | Gate grün; `MP3 volume *` original; Miles hidden (kein Backend) |
+| `COptionsSubVideo` | Overall **PASS** (Automated + Mode-Safety + Wanduhr≈10.07s + Visual); `docs/PHASE3M-VIDEO.md` |
 | Effektives Scheme (Runtime-Winner) | `gamedata/valve/resource/TrackerScheme.res` (= Current Steam `valve/…`); `platform/…/TrackerScheme.res` nur Fallback; `ClientScheme` parallel (HUD) |
 | Effektive `.res` | Mouse/Audio unter `data/ui-overrides/cstrike/resource/` |
 | CVar-Mapping Mouse | `m_filter` → `look_filter` |
 | CVar-Mapping Audio | `hisound` → `room_hires` (Semantik 0/1 → 1/2); `mp3volume` → `MP3Volume` |
 | Apply/Cancel/Reset/OK/Persistenz | `./scripts/vgui-options-mouse-gate.sh`, `./scripts/vgui-options-audio-gate.sh` |
 | Localization | UTF-16→wchar_t; gameui/vgui/cstrike/platform |
-| Video → … | **Video fertig** (Gate); nächste echte Subpages Keyboard/…; kein Stub |
-| Keyboard | Bind/Unbind Xash, keine Touch-first-UI |
-| Video | Xash-Optionen, keine toten D3D/32-Bit-Einträge |
+| Video → … | Overall **PASS** (`docs/PHASE3M-VIDEO.md`); nur Regression |
+| Keyboard | **AUTOMATED PASS / MANUAL RECHECK OPEN** — staged Bindings überleben Page-Wechsel; Apply schreibt Engine/Config; `docs/PHASE3M-KEYBOARD.md` |
+| Video | Xash-Optionen — **PASS** |
 | CS-Retro-Advanced-Tab | leer bis Features existieren (kein FOV-UI vor FOV) |
 | Create MP | nach stabiler Options-Grundlage |
+
+## Global VGUI2 Visual Polish Gate (vor finalem Phase-3M-Abschluss)
+
+**Status: offen.** Nach Adaptive Layout / Resize.
+
+Strukturell richtig (Mouse/Audio/Video/Keyboard Screens). Finaler visueller Abschluss fehlt.
+
+Untersuchen zentral: Font-Familie (Steam/GameData), FreeType Hinting/AA/Kerning, Glyph Advances, Cell Height, Ascent/Descent/Baseline, DPI, Tab-/CheckButton-/Combo-/Slider-/Button-/ScrollBar-/QueryBox-Metriken.
+
+**Classic Fidelity** = erkennbare Steam-CS-1.6-VGUI2-Basis + sauberes modernes Desktop-Rendering — **nicht** absichtlich schlechte 2003er Rasterisierung.
+
+Themen (Scheme / Font-Backend / Controls-Core / Layout-Unterbau; **keine** Pixelhack-Sammlungen pro Dialog):
+
+- Font-Familie / Metrik / Schärfe
+- Text-/Control-Ausrichtung; einheitliche Insets
+- Tabs, ComboBoxes, CheckButtons, Slider, ScrollBar
+- **ComboBox zentral:** Höhe, Textbaseline, Arrow-Button, Border/Inset, DropDown-Placement, Selected/Hover, Font-Metrik — nicht als Video-/Audio-Einzelpatch
+- Keyboard-Liste: Scrollbar/Pfeile, untere Rows, Spalten/Insets
+- Keyboard Capture-Slot: Scheme-`Capture`/`Edit`-Foreground (Primary≠Alternate; ESC stellt Slot wieder her) — kein hartcodiertes RGB, kein Blinken
+- Video-Alignment: Resolution / Renderer / Aspect Ratio / Display Mode (Labels + Combos + Spalten) gegen Golden/Classic `.res` — Backend bleibt geschlossen
+- Video-Footer-Hinweis vs. Buttons (Visual only; Backend PASS)
+- Modal-/QueryBox Spacing
+
+Gezielte `.res`-Korrektur nur wenn Abweichung zur Original-Resource bewiesen ist. Golden **5971** = Classic-Referenz; Current Steam/HL25 = Research only.
+
+## Adaptive Layout / Resize (AUTOMATED PASS / MANUAL OPEN)
+
+Natives Resize ist freigegeben. Alle vier Kanten, vier Ecken, Mindestgröße, Live-Save ohne Apply, Workspace-Clamp und echter Prozess-Restart sind automatisiert grün. Manual Acceptance bleibt offen. Vertrag: `docs/PHASE3M-LAYOUT.md`. Gate: `./scripts/vgui-options-layout-gate.sh`.
+
+Classic Preferred **512×406** = Referenz. Abgeleitetes Minimum **ebenfalls 512×406** (Mouse/Audio/Video-`.res` füllen Classic). Keyboard-Grow = Dialog−Preferred (700×520 → Liste 668×372). Danach Visual Polish, dann volle Options-Regression.
+
+| Oberfläche | Bei Classic Size | Extra Fläche |
+|------------|------------------|--------------|
+| Keyboard | Classic | ListViewport + Spalten + Scrollbar; Footer unten |
+| Mouse / Video | Classic-Geometrie **behalten** | Extra = Leerraum |
+| Audio | kompakte sichtbare Geometrie ohne hidden HEV/Suit-Loch | Extra = Leerraum |
+| ComboBox-Alignment | — | Visual Polish, nicht dieser Block |
+
+## Window move / persistence / resize foundation
+
+**Status: AUTOMATED PASS / MANUAL OPEN.** Save/Restore, Resolution/Workspace-Clamp und Prozess-Restart sind im Adaptive-Layout-/Resize-Gate belegt.
+
+| Fähigkeit | Stand |
+|-----------|--------|
+| Move | Titelleiste; Manual ok im Basic-Test |
+| Persist | `$XASH3D_BASEDIR/cfg/csretro_ui_geometry.txt` — Roundtrip belegt |
+| Clamp | Gate: 700×520 → 640×480 Workspace; Offscreen-Geometrie vollständig eingefangen |
+| Resize | `SetSizeable(true)` — vier Kanten + vier Ecken, Min-/Workspace-Clamp grün |
+
+512×406 = Classic Preferred / Reference. Abgeleitetes Minimum **ist** 512×406, weil die vier Pages Classic bereits füllen — nicht blind gesetzt.
+
+Mindestens Options; Architektur später Console, Server Browser, weitere Frames.
+
+## Language selector (Future)
+
+Noch **keine** Subpage. Später: Sprachen aus verfügbaren Loc-Ressourcen; CS-Retro-Loc ergänzt Originale; persistent; keine hartcodierten EN-Strings; UI-Refresh nach Wechsel; lange Strings Layout-sicher. Grundlage: gemeinsamer `%language%`-Pfad (`valve`/`gameui`/…).
+
+## Console (derselbe UI-/Input-Vertrag)
+
+Kein Sonderfall: `toggleconsole`-Bind; Fenster move + Geometry Persistence; Font/Input/Scroll; Copy/Paste später.
+
+## Zielbild
+
+Classic CS 1.6 VGUI2 → korrekte Basis → NextClient-Funktionen → CS-Retro-Extensions → responsive Desktop / HiDPI.
+
+Später sichtbar nur mit Backend: moderne Video/Renderer/Borderless · Audio · Crosshair-Fine · HUD/Radar · Network · NextClient · ServerProfile/GameRules · Bots · Module · Metamod/AMXX.
 
 ## NextClient-GameUI — Inventar
 
@@ -135,7 +202,7 @@ Pfad: `client/nextclient/gameui/`. **Nicht** unser Produkt-Build (`-m32`, …).
 | `GetMenuAPI` / `UI_FUNCTIONS` | Pflicht |
 | `ui_enginefuncs_t` | PIC, Fill, CVars, Cmds, Keys |
 | `UI_GetMenuFactory` → `CreateInterface` | `GameMenuExports001` |
-| `-menu` | Testdoverride |
+| `-menulib` | Testoverride |
 
 ## Originalressourcen (Game-Data)
 
@@ -151,15 +218,18 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 |-------|--------|
 | V1-Runtime-PoC | **bestanden** |
 | Menü-Lib | `menu_amd64.so` V1-Core + Controls + Xash-Backends |
-| Options Mouse | Gate **PASS** Preferred 512×406 @640/800/1024/1366 |
-| Options Audio | Gate **PASS**; Miles absichtlich hidden |
+| Options Mouse | **PASS / Regression** Preferred 512×406 @640/800/1024/1366 |
+| Options Audio | **PASS / Regression**; Miles absichtlich hidden |
 | VGUI2 Symbol-Controls | **Gate grün** — `vgui_symbols.cpp` |
 | VGUI2 Metrics Preferred Size | **512×406** (`OptionsClassicMetrics.h`) — Classic Preferred, nicht Max |
-| Video | **Gate PASS** — Xash-Backends; Confirm für Mode; FOV ausgeklammert |
+| Video | **PASS / Regression** — Xash-Backends; Confirm für Mode; FOV ausgeklammert |
+| Keyboard | **AUTOMATED PASS / MANUAL RECHECK OPEN** — Persistenz- und Config-Isolation-Fix automatisiert grün; `docs/PHASE3M-KEYBOARD.md` |
+| Adaptive Layout / Resize | **AUTOMATED PASS / MANUAL OPEN** — acht Grips, Min 512×406, Live-Save ohne Apply, Persist/Clamp/Restart grün; `docs/PHASE3M-LAYOUT.md` |
+| Global VGUI2 Visual Polish | **OPEN** |
 | Windows ShellOpen | **offenes Plattform-Gate** (`system_shell_win.cpp` No-Op) |
 | Hauptmenü / Create / Team | Interim-Bootstrap (Negativreferenz) |
 | In-Game Team/Buy | Interim-`.res`-Pfad bis VGUI2-Ersatz |
-| Tests | `vgui-v1-poc-runtime.sh`, `vgui-options-mouse-gate.sh`, `vgui-options-audio-gate.sh`, `play.sh`, `build-menu.sh --sanitize` |
+| Tests | `vgui-v1-poc-runtime.sh`, Mouse/Audio/Video/Keyboard-Gates, `play.sh`, `build-menu.sh --sanitize` |
 
 ## Golden Visual vs Current Steam (strikt getrennt)
 

@@ -28,7 +28,7 @@ Arbeitsdokument: `docs/PHASE3-BODY.md`. Plattform: `docs/PLATTFORMEN.md`. Server
 | 3B nackte Client-Lib unter Xash | abgenommen |
 | 3C In-Game-Baseline | **abgenommen** — Listen interaktiv `de_dust` (Team/Spawn/Movement/Waffen/Round/Shutdown) |
 | GameDLL-Gate | vendort `server/game/` Pin `b088984`, Target `csretro_gamedll` |
-| **3M VGUI2 / Desktop-UI** | **in Arbeit** — Preferred **512×406**; Mouse/Audio/Video Gates grün; FOV gesperrt. `docs/PHASE3M.md`, `docs/PHASE3M-VIDEO.md` |
+| **3M VGUI2 / Desktop-UI** | **in Arbeit** — Mouse/Audio/Video **PASS / Regression**; Keyboard **AUTOMATED PASS / MANUAL RECHECK OPEN**; Adaptive Layout / Resize **AUTOMATED PASS / MANUAL OPEN**. Visual Polish offen, FOV gesperrt. `docs/PHASE3M.md`, `docs/PHASE3M-KEYBOARD.md`, `docs/PHASE3M-LAYOUT.md` |
 | 3D NextClient-Features | **nach 3M** — erstes Feature FOV, nur nach Freigabe |
 
 3C vollständig heißt: Listen-Server, Map, Rendering, Input, Movement, Prediction, Vanilla-HUD, Waffen, Connect, Shutdown — alles auf derselben 64-Bit-Architektur. 3C wird für 3M **nicht** neu aufgerollt. `ShowMenu` bleibt Legacy-Kompatibilität.

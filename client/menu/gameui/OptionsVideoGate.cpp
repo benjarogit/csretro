@@ -1,6 +1,7 @@
 #include "OptionsVideoGate.h"
 #include "OptionsDialog.h"
 #include "OptionsSubVideo.h"
+#include "OptionsMenuComboGate.h"
 #include "Controls/MenuEngine.h"
 
 #include "vgui_controls/PropertySheet.h"
@@ -8,6 +9,7 @@
 #include "../src/menu_priv.h"
 
 #include <cmath>
+#include <cstdlib>
 
 namespace
 {
@@ -112,8 +114,13 @@ void OptionsVideo_RunFunctionalGate(COptionsDialog *dialog)
 	Menu_Con("CSRETRO_VIDEO_CVAR fullscreen=%g", MenuEngine::GetCvarFloat("fullscreen"));
 	Menu_Con("CSRETRO_VIDEO_CVAR r_refdll_loaded=%s", MenuEngine::GetCvarString("r_refdll_loaded"));
 
+	// Core ComboBox/Menu VPANEL path — must not crash (blocks Video acceptance).
+	OptionsMenuCombo_RunGate(dialog);
+
 	MenuEngine::ClientCmd("host_writeconfig\n");
 	Menu_Con("CSRETRO_VIDEO_GATE_WRITECONFIG");
 	Menu_Con("CSRETRO_VIDEO_GATE_SHOT_READY");
 	Menu_Con("CSRETRO_VIDEO_GATE_DONE");
+	if (std::getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
+		MenuEngine::ClientCmd("quit\n");
 }

@@ -70,6 +70,7 @@ public:
 	
 	// modifies the text in an existing column
 	virtual bool ModifyColumn(int sectionID, const char *columnName, const wchar_t *columnText);
+	virtual bool SetColumnWidth(int sectionID, const char *columnName, int width);
 
 	// adds an item to the list; returns the itemID of the new item
 	virtual int AddItem(int sectionID, const KeyValues *data);

@@ -10,6 +10,13 @@ class COptionsDialog : public vgui2::PropertyDialog
 	DECLARE_CLASS_SIMPLE(COptionsDialog, vgui2::PropertyDialog);
 
 	CUtlDict<vgui2::PropertyPage *, unsigned short> m_tabNames;
+	int m_adaptiveMinW = 0;
+	int m_adaptiveMinH = 0;
+	bool m_geometryTracking = false;
+	bool m_geometryDirty = false;
+
+	void ScheduleGeometrySave();
+	void SaveGeometryNow();
 
 public:
 	explicit COptionsDialog(vgui2::Panel *parent);
@@ -19,9 +26,23 @@ public:
 	void OpenTab(const char *tabName);
 	void Activate() override;
 	void OnClose() override;
+	void PerformLayout() override;
+	void OnMove() override;
+	void OnSizeChanged(int newWide, int newTall) override;
+	void OnThink() override;
+
+	void ClampToCurrentWorkspace(int workW, int workH);
+	void GetAdaptiveMinimum(int &minW, int &minH);
+	void Gate_SetSize(int wide, int tall);
+	bool Gate_IsSizeable();
 
 	void RegisterPage(vgui2::PropertyPage *page, const char *tabKey, const char *tabTitle);
 	bool HasPages() const;
+	vgui2::PropertyPage *FindPage(const char *tabKey) const;
+
+	// Keyboard capture: ESC must cancel capture, not close the dialog.
+	bool IsKeyboardCapturing() const;
+	bool OnRawXashKey(int keynum, bool down); // true = consumed
 
 	// Functional gate (CSRETRO_OPTIONS_GATE)
 	void Gate_Apply();

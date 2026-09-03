@@ -315,15 +315,20 @@ inline void CClassMemoryPool<T>::Clear()
 
 	for( CBlob *pCur=m_BlobHead.m_pNext; pCur != &m_BlobHead; pCur=pCur->m_pNext )
 	{
-		T *p = (T *)pCur->m_Data;
-		T *pLimit = (T *)(pCur->m_Data + pCur->m_NumBytes);
-		while ( p < pLimit )
+		// Must match AddNewBlob free-list layout exactly:
+		//   head = AlignValue(m_Data, m_nAlignment)
+		//   stride = m_BlockSize
+		//   count = m_NumBytes / m_BlockSize
+		// Walking with T*++ from unaligned m_Data, or stopping at m_Data+m_NumBytes
+		// when pad>0, Destruktors miss/hit the wrong addresses (SIGABRT in ~CUtlVector).
+		unsigned char *p = (unsigned char *)AlignValue( pCur->m_Data, m_nAlignment );
+		const int nBlocks = ( m_BlockSize > 0 ) ? ( pCur->m_NumBytes / m_BlockSize ) : 0;
+		for ( int i = 0; i < nBlocks; ++i, p += m_BlockSize )
 		{
 			if ( freeBlocks.Find( p ) == freeBlocks.InvalidIndex() )
 			{
-				Destruct( p );
+				Destruct( (T *)p );
 			}
-			p++;
 		}
 	}
 

@@ -297,8 +297,9 @@ protected:
 
 	void SetCurrentlySelectedItem(MenuItem *item);
 	void SetCurrentlySelectedItem(int itemID);
-	MESSAGE_FUNC_INT( OnCursorEnteredMenuItem, "CursorEnteredMenuItem", VPanel);
-	MESSAGE_FUNC_INT( OnCursorExitedMenuItem, "CursorExitedMenuItem", VPanel);
+	// 64-bit: VPANEL is pointer-width — never MESSAGE_FUNC_INT (truncates → crash).
+	MESSAGE_FUNC_UINT64( OnCursorEnteredMenuItem, "CursorEnteredMenuItem", VPanel);
+	MESSAGE_FUNC_UINT64( OnCursorExitedMenuItem, "CursorExitedMenuItem", VPanel);
 
 	void MoveAlongMenuItemList(int direction, int loopCount); 
 

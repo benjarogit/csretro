@@ -16,6 +16,7 @@
 #include "filesystem_helpers.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include "mempool.h"
 #include "utldict.h"
@@ -1624,13 +1625,33 @@ void AnimationController::SetValue(ActiveAnimation_t& anim, Panel *panel, UtlSym
 class CPanelAnimationDictionary
 {
 public:
-	CPanelAnimationDictionary() : m_PanelAnimationMapPool( 32 )
+	CPanelAnimationDictionary() : m_PanelAnimationMapPool( 32, CUtlMemoryPool::GROW_FAST, static_cast<int>(alignof(PanelAnimationMap)) )
 	{
 	}
 
 	~CPanelAnimationDictionary()
 	{
-		m_PanelAnimationMapPool.Clear();
+		// Explicit ownership: each Alloc()'d map is Free()'d exactly once (Destruct + freelist).
+		// Do NOT call CClassMemoryPool::Clear() here — blob walk + static finalize was SIGABRT
+		// in ~CUtlVector. After Free-all, ~CUtlMemoryPool frees blobs without a second Destruct.
+		const bool audit = getenv( "CSRETRO_POOL_AUDIT" ) != nullptr;
+		if ( audit )
+		{
+			fprintf( stderr,
+				"CSRETRO_POOL_AUDIT dict_dtor maps=%u sizeof(PanelAnimationMap)=%zu align=%zu\n",
+				m_AnimationMaps.Count(), sizeof( PanelAnimationMap ), alignof( PanelAnimationMap ) );
+		}
+		for ( int i = m_AnimationMaps.First(); i != m_AnimationMaps.InvalidIndex(); )
+		{
+			const int next = m_AnimationMaps.Next( i );
+			PanelAnimationMap *map = m_AnimationMaps[ i ].map;
+			m_AnimationMaps.RemoveAt( i );
+			if ( audit )
+				fprintf( stderr, "CSRETRO_POOL_AUDIT free PanelAnimationMap %p\n", (void *)map );
+			if ( map )
+				m_PanelAnimationMapPool.Free( map );
+			i = next;
+		}
 	}
 
 	PanelAnimationMap		*FindOrAddPanelAnimationMap( char const *className );
@@ -1693,6 +1714,11 @@ PanelAnimationMap *CPanelAnimationDictionary::FindOrAddPanelAnimationMap( char c
 	PanelAnimationMapDictionaryEntry entry;
 	entry.map = (PanelAnimationMap *)m_PanelAnimationMapPool.Alloc();
 	m_AnimationMaps.Insert( StripNamespace( className ), entry );
+	if ( getenv( "CSRETRO_POOL_AUDIT" ) )
+	{
+		fprintf( stderr, "CSRETRO_POOL_AUDIT alloc PanelAnimationMap %p class=%s\n",
+			(void *)entry.map, className );
+	}
 	return entry.map;
 }
 

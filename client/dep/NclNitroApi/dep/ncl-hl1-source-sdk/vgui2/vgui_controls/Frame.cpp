@@ -86,53 +86,84 @@ namespace
 			int minWide, minTall;
 			_frame->GetMinimumSize( minWide, minTall);
 			
-			// Handle  width resizing
+			// Resize while keeping the opposite edge anchored. Clamp here instead
+			// of relying on Panel::SetSize so left/top grips do not drift at min.
 			newWide += (dx * _dragMultX);
-			// Handle the position of the corner x position
-			if (_dragMultX == -1)
-			{
-				// only move if we are not at the minimum
-				// if we are at min we have to force the proper offset (dx)
-				if (newWide < minWide)
-				{
-					dx=_dragOrgSize[0]-minWide;
-				}
-				newX += dx;	  // move window to its new position
-			}
-			
-			// Handle height resizing
 			newTall += (dy * _dragMultY);
-			// Handle position of corner y position
+			if (newWide < minWide)
+				newWide = minWide;
+			if (newTall < minTall)
+				newTall = minTall;
+			if (_dragMultX == -1)
+				newX = _dragOrgPos[0] + (_dragOrgSize[0] - newWide);
 			if (_dragMultY == -1)
-			{
-				if (newTall < minTall)
-				{
-					dy=_dragOrgSize[1]-minTall;
-				}
-				newY += dy;
-			}
+				newY = _dragOrgPos[1] + (_dragOrgSize[1] - newTall);
 			
 			if ( _frame->GetClipToParent() )
 			{
-				// If any coordinate is out of range, snap it back
-				if ( newX < 0 )
-					newX = 0;
-				if ( newY < 0 )
-					newY = 0;
-				
-				int sx, sy;
-				surface()->GetScreenSize( sx, sy );
+				// Positions are parent-local, so clip against the parent when one
+				// exists. Most importantly use the *new* size: the old code allowed
+				// right/bottom resizing beyond the workspace.
+				int clipWide = 0, clipTall = 0;
+				if (Panel *parent = _frame->GetParent())
+					parent->GetSize(clipWide, clipTall);
+				if (clipWide <= 0 || clipTall <= 0)
+					surface()->GetScreenSize(clipWide, clipTall);
 
-				int w, h;
-				_frame->GetSize( w, h );
-				if ( newX + w > sx )
+				if (newWide > clipWide)
 				{
-					newX = sx - w;
+					newWide = clipWide;
+					newX = 0;
 				}
-				if ( newY + h > sy )
+				else
 				{
-					newY = sy - h;
+					if (newX < 0)
+					{
+						if (_dragMultX == -1)
+							newWide += newX;
+						newX = 0;
+					}
+					if (newX + newWide > clipWide)
+					{
+						if (_dragMultX == 1)
+							newWide = clipWide - newX;
+						else
+							newX = clipWide - newWide;
+					}
 				}
+
+				if (newTall > clipTall)
+				{
+					newTall = clipTall;
+					newY = 0;
+				}
+				else
+				{
+					if (newY < 0)
+					{
+						if (_dragMultY == -1)
+							newTall += newY;
+						newY = 0;
+					}
+					if (newY + newTall > clipTall)
+					{
+						if (_dragMultY == 1)
+							newTall = clipTall - newY;
+						else
+							newY = clipTall - newTall;
+					}
+				}
+
+				// A workspace smaller than the declared minimum cannot satisfy both
+				// constraints. Prefer the minimum and keep the title/left edge usable.
+				if (newWide < minWide)
+					newWide = minWide;
+				if (newTall < minTall)
+					newTall = minTall;
+				if (newX + newWide > clipWide)
+					newX = clipWide > newWide ? clipWide - newWide : 0;
+				if (newY + newTall > clipTall)
+					newY = clipTall > newTall ? clipTall - newTall : 0;
 			}
 
 			// set new position

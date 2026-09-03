@@ -654,10 +654,9 @@ public:
 		{
 			if (code == MOUSE_LEFT)
 			{
+				// CS Retro: only ItemDoubleLeftClick — do not also synthesize KEY_ENTER
+				// (that double-fired BeginCapture: Enter path + ItemDoubleLeftClick).
 				m_pListPanel->PostActionSignal(new KeyValues("ItemDoubleLeftClick", "itemID", m_iID));
-
-				// post up an enter key being hit
-				m_pListPanel->OnKeyCodeTyped(KEY_ENTER);
 			}
 			else
 			{
@@ -918,6 +917,11 @@ void SectionedListPanel::LayoutPanels(int &contentTall)
 	int tall = GetSectionTall();
 	int x = 5, wide = GetWide() - 10;
 	int y = 5;
+	// This VGUI backend does not reliably clip child panels to the list's
+	// viewport.  Keep partially scrolled rows hidden so text cannot paint over
+	// the list border and the controls below it.
+	const int viewportTop = 2;
+	const int viewportBottom = GetTall() - 2;
 	
 	if (m_pScrollBar->IsVisible())
 	{
@@ -969,7 +973,7 @@ void SectionedListPanel::LayoutPanels(int &contentTall)
 		{
 			// draw the header
 			section.m_pHeader->SetBounds(x, y, wide, tall);
-			section.m_pHeader->SetVisible(true);
+			section.m_pHeader->SetVisible(y >= viewportTop && y + tall <= viewportBottom);
 			y += tall;
 		}
 		else
@@ -990,6 +994,8 @@ void SectionedListPanel::LayoutPanels(int &contentTall)
 			{
 				CItemButton *item = m_SortedItems[i]; //items[i];
 				item->SetBounds(x, y, wide, iLineSpacing);
+				const bool itemFullyVisible = y >= viewportTop && y + iLineSpacing <= viewportBottom;
+				item->SetVisible(itemFullyVisible);
 				
 				// setup edit mode
 				if (m_hEditModePanel.Get() && m_iEditModeItemID == item->GetID())
@@ -997,6 +1003,7 @@ void SectionedListPanel::LayoutPanels(int &contentTall)
 					int cx, cwide;
 					item->GetCellBounds(1, cx, cwide);
 					m_hEditModePanel->SetBounds(cx, y, cwide, tall);
+					m_hEditModePanel->SetVisible(itemFullyVisible);
 				}
 
 				y += iLineSpacing;
@@ -1282,6 +1289,26 @@ bool SectionedListPanel::ModifyColumn(int sectionID, const char *columnName, con
 	return true;
 }
 
+bool SectionedListPanel::SetColumnWidth(int sectionID, const char *columnName, int width)
+{
+	int index = FindSectionIndexByID(sectionID);
+	if (index < 0 || !columnName || width < 1)
+		return false;
+	section_t &section = m_Sections[index];
+	for (int columnIndex = 0; columnIndex < section.m_Columns.Count(); columnIndex++)
+	{
+		if (stricmp(section.m_Columns[columnIndex].m_szColumnName, columnName) != 0)
+			continue;
+		section.m_Columns[columnIndex].m_iWidth = width;
+		if (section.m_pHeader)
+			section.m_pHeader->InvalidateLayout();
+		InvalidateLayout();
+		Repaint();
+		return true;
+	}
+	return false;
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: adds an item to the list; returns itemID
 //-----------------------------------------------------------------------------
@@ -1558,7 +1585,7 @@ void SectionedListPanel::OnMouseWheeled(int delta)
 {
 	if (m_hEditModePanel.Get())
 	{
-		// ignore mouse wheel in edit mode, forward right up to parent
+		// Edit/capture owns the wheel (bindable input). Do not scroll.
 		CallParentFunction(new KeyValues("MouseWheeled", "delta", delta));
 		return;
 	}

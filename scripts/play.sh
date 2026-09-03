@@ -2,8 +2,9 @@
 # CS Retro manuell starten (Fenster bleibt offen).
 # Usage:
 #   ./scripts/play.sh
-#   CSRETRO_V1POC=1 ./scripts/play.sh          # V1-PoC-Dialog
-#   ./scripts/play.sh -width 1920 -height 1080 # Extra-Args an xash3d
+#   CSRETRO_KEYBOARD_CAPTURE_DEBUG=1 ./scripts/play.sh
+#   CSRETRO_V1POC=1 ./scripts/play.sh
+#   ./scripts/play.sh -width 1920 -height 1080
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,6 +17,7 @@ WIDTH="${CSRETRO_WIDTH:-1280}"
 HEIGHT="${CSRETRO_HEIGHT:-720}"
 
 [[ -f "${ROOT}/scripts/gamedata-env.sh" ]] && source "${ROOT}/scripts/gamedata-env.sh"
+source "${ROOT}/scripts/play-sanitize-usercfg.sh"
 GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${CSRETRO_SMOKE_MAP:-de_dust}")" || {
 	echo "play: Game-Data fehlt — python3 ./scripts/bootstrap-gamedata.py" >&2
 	exit 1
@@ -26,7 +28,13 @@ GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${CSRETRO_SMOKE_MAP:-de_dust}")"
 [[ -f "${GAMEDLL}" ]] || { echo "play: GameDLL fehlt — ./scripts/build-gamedll.sh" >&2; exit 1; }
 [[ -f "${MENU}" ]] || { echo "play: Menü fehlt — ./scripts/build-menu.sh" >&2; exit 1; }
 
-mkdir -p "${RUN}/cstrike/dlls" "${RUN}/cstrike/cl_dlls" "${RUN}/valve"
+mkdir -p "${RUN}/cstrike/dlls" "${RUN}/cstrike/cl_dlls" "${RUN}/valve" "${RUN}/cfg" "${RUN}/cstrike/resource"
+cp -a "${ROOT}/data/ui-overrides/cstrike/resource/csretro_gameui_english.txt" \
+	"${RUN}/cstrike/resource/csretro_gameui_english.txt" 2>/dev/null || true
+if [[ "${CSRETRO_PLAY_KEEP_FIXTURES:-0}" != 1 ]]; then
+	csretro_play_sanitize_usercfg "${RUN}" "${GAMEDATA}"
+fi
+csretro_play_print_exec_context "${RUN}" "${GAMEDATA}"
 cp -a "${GAMEDLL}" "${RUN}/cstrike/dlls/cs_amd64.so"
 cp -a "${CLIENT}" "${RUN}/cstrike/cl_dlls/client_amd64.so"
 cp -a "${MENU}" "${RUN}/menu_amd64.so"
@@ -36,16 +44,47 @@ ln -sfn "${ENG}/ref/gl/libref_gl.so" "${RUN}/libref_gl.so"
 ln -sfn "${ENG}/filesystem/filesystem_stdio.so" "${RUN}/filesystem_stdio.so"
 ln -sfn "${ENG}/game_launch/xash3d" "${RUN}/xash3d"
 
+MENU_ABS="$(readlink -f "${MENU}")"
+RUN_MENU_ABS="$(readlink -f "${RUN}/menu_amd64.so")"
+MENU_SHA="$(sha256sum "${MENU_ABS}" | awk '{print $1}')"
+RUN_SHA="$(sha256sum "${RUN_MENU_ABS}" | awk '{print $1}')"
+GIT_REV="$(git -C "${ROOT}" rev-parse --short=12 HEAD 2>/dev/null || echo nogit)"
+MENU_MTIME="$(stat -c '%y' "${MENU_ABS}" 2>/dev/null || true)"
+
+echo "CSRETRO_PLAY_PROVENANCE git=${GIT_REV}"
+echo "CSRETRO_PLAY_PROVENANCE menu_src=${MENU_ABS}"
+echo "CSRETRO_PLAY_PROVENANCE menu_run=${RUN_MENU_ABS}"
+echo "CSRETRO_PLAY_PROVENANCE sha256_src=${MENU_SHA}"
+echo "CSRETRO_PLAY_PROVENANCE sha256_run=${RUN_SHA}"
+echo "CSRETRO_PLAY_PROVENANCE mtime=${MENU_MTIME}"
+echo "CSRETRO_PLAY_PROVENANCE capture_debug=${CSRETRO_KEYBOARD_CAPTURE_DEBUG:-0}"
+if [[ "${MENU_SHA}" != "${RUN_SHA}" ]]; then
+	echo "play: FATAL menu SHA mismatch after copy" >&2
+	exit 1
+fi
+
 export LD_LIBRARY_PATH="${ENG}/engine:${ENG}/ref/gl:${ENG}/filesystem:${LD_LIBRARY_PATH:-}"
 export XASH3D_RODIR="${GAMEDATA}"
 export XASH3D_BASEDIR="${RUN}"
 export CSRETRO_UI_OVERRIDE="${ROOT}/data/ui-overrides/cstrike"
+export CSRETRO_MENU_SO="${MENU_ABS}"
+export CSRETRO_MENU_SHA256="${MENU_SHA}"
+export CSRETRO_RUN_DIR="${RUN}"
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-x11}"
 
+EXTRA_ARGS=()
+if [[ -n "${CSRETRO_KEYBOARD_CAPTURE_DEBUG:-}" && "${CSRETRO_KEYBOARD_CAPTURE_DEBUG}" != "0" ]]; then
+	# Ensure Con_Printf + engine.log; capture also prints to stderr.
+	EXTRA_ARGS+=(-dev 2 -log)
+	echo "CSRETRO_PLAY: capture debug on — watch stderr for [CSRETRO_KB] and ${RUN}/engine.log"
+fi
+
 cd "${RUN}"
+# Absolute -menulib path so Xash cannot pick a stale relative/other menu.
 exec ./xash3d -game cstrike \
 	-dll cstrike/dlls/cs_amd64.so \
 	-clientlib cstrike/cl_dlls/client_amd64.so \
-	-menu menu_amd64.so \
+	-menulib "${MENU_ABS}" \
 	-windowed -width "${WIDTH}" -height "${HEIGHT}" \
+	"${EXTRA_ARGS[@]}" \
 	"$@"

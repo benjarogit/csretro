@@ -965,6 +965,9 @@ rserr_t R_ChangeDisplaySettings( int width, int height, window_mode_t window_mod
 {
 	rserr_t err;
 
+	if( getenv( "CSRETRO_VID_REINIT_TRACE" ))
+		Con_Printf( "CSRETRO_VID_REINIT via=R_ChangeDisplaySettings w=%d h=%d mode=%d\n", width, height, (int)window_mode );
+
 	if( !host.hWnd )
 		err = VID_CreateWindow( width, height, window_mode );
 	else

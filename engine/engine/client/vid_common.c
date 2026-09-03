@@ -119,6 +119,8 @@ void VID_CheckChanges( void )
 
 	if( host.renderinfo_changed )
 	{
+		if( getenv( "CSRETRO_VID_REINIT_TRACE" ))
+			Con_Printf( "CSRETRO_VID_REINIT via=VID_CheckChanges→VID_SetMode renderinfo_changed=1\n" );
 		if( VID_SetMode( ))
 		{
 			SCR_VidInit(); // tell the client.dll what vid_mode has changed
@@ -199,6 +201,8 @@ static void VID_Mode_f( void )
 	}
 
 	R_ChangeDisplaySettings( w, h, bound( 0, vid_fullscreen.value, WINDOW_MODE_COUNT - 1 ));
+	if( getenv( "CSRETRO_VID_REINIT_TRACE" ))
+		Con_Printf( "CSRETRO_VID_REINIT via=vid_setmode w=%d h=%d fullscreen=%g\n", w, h, vid_fullscreen.value );
 }
 
 void VID_Init( void )

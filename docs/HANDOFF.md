@@ -3,13 +3,13 @@
 Anderen Rechner arbeitsfähig machen. Diese Datei ist der **lebende Stand**.
 Nach substantieller Arbeit Tabelle und „Offene Arbeit“ in derselben Session nachziehen.
 
-Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `MENUS.md`, `GAMEDATA.md`, `PHASEN.md`, `PHASE3-BODY.md` (nur während Phase 3), `PHASE3M.md`, `PHASE3M-METRICS-DIAGNOSIS.md`, `CHANGELOG.md`. Danksagung: `CREDITS.md`.
+Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md`, `SCHNITTSTELLEN.md`, `MENUS.md`, `GAMEDATA.md`, `PHASEN.md`, `PHASE3-BODY.md` (nur während Phase 3), `PHASE3M.md`, `PHASE3M-KEYBOARD.md`, `PHASE3M-LAYOUT.md`, `PHASE3M-VIDEO.md`, `PHASE3M-METRICS-DIAGNOSIS.md`, `CHANGELOG.md`. Danksagung: `CREDITS.md`.
 
 ## Aktueller Stand
 
 | Feld | Wert |
 |------|------|
-| Datum | 2026-09-01 |
+| Datum | 2026-09-03 |
 | Phase | **3A/3B/3C abgenommen.** **3M in Arbeit** (Menü-Lib + Team/Buy-VGUI). 3D/FOV erst nach 3M. |
 | Körper-Quelle | **A1** — Manifest in `ROLLEN.md` |
 | GameDLL | `server/game/` — Pin `b088984`, Target `csretro_gamedll` |
@@ -75,7 +75,7 @@ Abschluss-Release nur wenn die Phase wirklich fertig ist. Zwischenstand darf auf
 - GameDLL: `./scripts/build-gamedll.sh` → `build/gamedll-cmake/cs_amd64.so`
 - Sanitizer: `./scripts/build-gamedll.sh --sanitize` → `build/gamedll-sanitize/cs_amd64.so`
 - Menü-Sanitizer: `./scripts/build-menu.sh --sanitize` → `build/menu-sanitize/menu/menu_amd64.so`
-- Testdaten: `XASH3D_RODIR` = `gamedata/` (Bootstrap), `XASH3D_BASEDIR` = `build/run/`
+- Testdaten: `XASH3D_RODIR` = `gamedata/` (Bootstrap, **read-only**). Play-UserConfig: `XASH3D_BASEDIR` = `build/run/`. Gates: `build/run-gate/`. 3C: `build/run-3c/`.
 - Steam-HL nie als RODIR. Erkennung: `python3 ./scripts/bootstrap-gamedata.py --print-steam`
 - ZBot-Testdaten im Game-Data-Baum (`BotProfile.db`, `de_dust.nav`), nicht in Steam
 - Listen-`+map`: `.rc` mit `stuffcmds` in Game-Data und BASEDIR
@@ -107,8 +107,8 @@ Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-
 
 ## Offene Arbeit
 
-1. **Phase 3M** — Options **Video** portiert (Xash-Backends); Gate PASS @640–1366 (Brightness/Gamma/VSync; Mode-Confirm manuell). FOV weiter gesperrt.
-2. Video: manuelle FS/Borderless-/Rollback-Abnahme; Renderer-Multi wenn Extended API.
+1. **Phase 3M** — Mouse/Audio/Video **PASS / Regression**. Keyboard **AUTOMATED PASS / MANUAL RECHECK OPEN** nach Persistenz-Fix (staged Bindings überleben Page-Wechsel, Apply schreibt Engine/Config; `play.sh` schützt `build/run` und seedet CS-Defaults nur bei leerer/HL-Fallback/Gate-Config) — `docs/PHASE3M-KEYBOARD.md`. Alte Options-Gates defaulten auf `build/run-gate/*`, nicht `build/run`. Adaptive Layout **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN** (natives Resize über acht Grips, Min **512×406**, Live-Save ohne Apply, Restart/Restore grün; ASan-Restart-Teardown noch offen; Audio-Sound-Quality-Abstand reduziert) — `docs/PHASE3M-LAYOUT.md`, Gate `./scripts/vgui-options-layout-gate.sh`. Danach Visual Polish **OPEN**. **Kein Phase-3-Tag. FOV/3D gesperrt.** Keine nächste Subpage.
+2. Renderer-Multi wenn Extended API.
 3. Windows/macOS Compile-Gates. **`Csretro_PlatformShellOpen` Windows = offenes Plattform-Gate**.
 4. Bot-Grenze → `bots/`.
 

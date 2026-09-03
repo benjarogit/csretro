@@ -10,7 +10,15 @@ Kein Phase-3-Tag. Kein FOV. 3C-Baseline (`v0.1.5`) bleibt gültig.
 - **V1-Runtime-PoC bestanden:** `vgui_controls` + Xash-Surface/Input + `.res`/Scheme + FreeType-Glyphen; Maus/Tastatur/TextEntry/Tab/Escape/Resize; ASan+UBSan; keine Steam-/vgui2-/Touch-Runtime. Nachweis: `./scripts/vgui-v1-poc-runtime.sh`, manuell `./scripts/play.sh`.
 - V1 ist die verbindliche UI-Basis (`docs/PHASE3M.md`). Rekonstruktion der Steam-CS-1.6-VGUI2-Oberfläche beginnt.
 - **Options Mouse/Audio:** Gates **PASS** (funktional + Preferred-Size-Layout @640–1366); Miles absichtlich hidden.
-- **Options Video:** Port auf Xash-CVars (`brightness`/`gamma`/`gl_vsync`/`width`/`height`/`fullscreen` 0–2/`vid_setmode`); Confirm+Rollback; kein Nitro/`_restart`. Gate **PASS** @640–1366 (live CVars; FS/Borderless manuell). Matrix: `docs/PHASE3M-VIDEO.md`.
+- **Options Video:** **Mouse PASS · Audio PASS · Video PASS** (Automated + Mode-Safety + Wanduhr-10s delta_ms≈10072 + Visual Confirm/Reinit). Graceful Shutdown **PASS**. Confirm schließt per `Close()` (Modal-Teardown). Matrix: `docs/PHASE3M-VIDEO.md`. Gamescope-WSI Zenity getrennt. **Kein Phase-3-Tag. FOV/3D gesperrt.**
+- **Options Keyboard:** **AUTOMATED PASS / MANUAL RECHECK OPEN** nach User-Retest-Fix. Staged Bindings überleben Page-Wechsel; Apply schreibt Engine/Config; normaler `play.sh` seedet CS-Defaults nur bei leerer/HL-Fallback/Gate-Config; isoliertes Gate prüft `F11=+forward`. Capture, Wheel, Isolation, BIND_AUDIT bleiben grün. `docs/PHASE3M-KEYBOARD.md`.
+- **BIND_AUDIT:** Buchstaben über `KeyNameToKeynum`-Scan (Raw-Pfad `w`=119, `c`=99); `hidden_third_plus` = Catalog, nicht unmatched.
+- **Adaptive Layout / Resize:** **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN** — Classic 512×406 bleibt; Grow über Dialog−Preferred; abgeleitetes Minimum **512×406**; natives Resize an allen acht Grips; List-Viewport/Footer-Clipping automatisiert geprüft. `docs/PHASE3M-LAYOUT.md`.
+- **Window Geometry:** Save/Restore, Live-Save ohne Apply, Full-Workspace-Clamp und echter Prozess-Restart **AUTOMATED PASS**.
+- **Gate-Startvertrag:** Scripts verwenden `-menulib` mit absolutem Menüpfad, damit relative `CSRETRO_MENU_SO=build/...` nicht in Engine-Fallbacks läuft.
+- **Gate-Isolation:** ältere Mouse/Audio/Video/V1PoC/Shutdown-Gates schreiben standardmäßig nach `build/run-gate/*` statt in den normalen `build/run`-Play-Baum.
+- **Options Audio:** sichtbarer Sound-Quality-Block rückt unter MP3 Volume; hidden HEV/Suit-Abstand bleibt nicht mehr als Loch stehen.
+- **Global VGUI2 Visual Polish** OPEN (nach Adaptive Layout). Classic 5971 + moderne Desktop-Darstellung.
 - **VGUI2 Symbol-Control-Gate grün:** `vgui_symbols.cpp` — Marlett geometrisch; kein Windows-Marlett.ttf; Scheme-lastResort überschreibt Symbolfonts nicht.
 - **Metrics-/Classic-Gate:** Preferred Size **512×406**. Mouse+Audio+Video Gates. FOV gesperrt.
 - **Windows ShellOpen:** offenes Plattform-Gate (No-Op).

@@ -12,6 +12,7 @@ bool VGuiXash_IsPocActive();
 bool VGuiXash_ShowOptionsDialog();
 void VGuiXash_HideOptionsDialog();
 bool VGuiXash_IsOptionsActive();
+bool VGuiXash_IsKeyboardCapturing();
 bool VGuiXash_IsUiActive(); // PoC oder Options
 void VGuiXash_Key(int key, int down);
 void VGuiXash_MouseMove(int x, int y);

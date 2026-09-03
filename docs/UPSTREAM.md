@@ -102,6 +102,13 @@ Konkrete Fixes/Commits, nicht jede Idee.
 | Quelle | Upstream-Commit/PR | Was übernommen | CS-Retro-Commit |
 |--------|--------------------|----------------|-----------------|
 | — | ncl-hl1-source-sdk | 64-Bit-VGUI-Patches: `VPANEL`→`uintptr_t`, Bitfield-Swap, mempool/threadtools | 2026-09-01 |
+| — | ncl-hl1-source-sdk / vgui_controls | Menu/MenuItem/MenuButton/MenuBar: VPANEL-Transport `SetInt`/`MESSAGE_FUNC_INT` → `SetUint64`/`MESSAGE_FUNC_UINT64` (amd64 Hover-Crash) | 2026-09-02 |
+| — | ncl-hl1-source-sdk / Panel.cpp | `CPanelMessageMapDictionary` / KeyBinding-Pool: `alignof(PanelMessageMap)` — UBSan misaligned `PanelMessageMap*` (kein globales `-fno-sanitize=alignment`) | 2026-09-02 |
+| — | ncl-hl1-source-sdk / AnimationController.cpp | `CPanelAnimationDictionary` Pool: `alignof(PanelAnimationMap)` — gleicher Mempool-Alignment-Pfad | 2026-09-02 |
+| — | ncl-hl1-source-sdk / PropertySheet.cpp | `m_bContextButton` in beiden Ctors auf `false` — UBSan invalid bool (190) | 2026-09-02 |
+| — | ncl-hl1-source-sdk / mempool.h | `CClassMemoryPool::Clear`: Walk = AlignValue + `m_NumBytes/m_BlockSize` (AddNewBlob-Vertrag) | 2026-09-02 |
+| — | ncl-hl1-source-sdk / AnimationController.cpp | `CPanelAnimationDictionary` Dtor: explizit 1× `Free` pro Map statt `Clear()`-Blob-Walk (Shutdown-SIGABRT) | 2026-09-02 |
+| — | CS-Retro `surface_xash` | `MovePopupToFront`/`Back` nur für `IsPopup` — sonst PropertyPages als Fake-Popups übermalen Footer | 2026-09-02 |
 
 ## NextClient-Vendor nach Phase 2
 

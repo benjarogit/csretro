@@ -114,6 +114,7 @@ Scheme
 		Menu.ArmedTextColor				"White"
 		Menu.ArmedBgColor				"Orange"
 		Menu.TextInset					"6"
+		Menu.ItemHeight					"20"
 
 		Panel.FgColor					"DullWhite"
 		Panel.BgColor					"Blank"

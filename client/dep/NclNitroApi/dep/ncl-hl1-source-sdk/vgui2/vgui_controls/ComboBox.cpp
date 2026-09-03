@@ -112,7 +112,7 @@ ComboBox::ComboBox(Panel *parent, const char *panelName, int numLines, bool allo
 
 	m_bHighlight = false;
 	m_iDirection = Menu::DOWN;
-	m_iOpenOffsetY = 0;
+	m_iOpenOffsetY = -1; // overlap the shared border by one pixel; CS-style attached dropdown
 	m_bPreventTextChangeMessage = false;
 	m_szBorderOverride[0] = '\0';
 }
@@ -336,7 +336,7 @@ void ComboBox::PerformLayout()
 	HFont buttonFont = m_pButton->GetFont();
 	int fontTall = surface()->GetFontTall( buttonFont );
 
-	int buttonSize = std::min( tall, fontTall );
+	int buttonSize = std::max( 12, std::min( tall - 4, fontTall + 2 ) );
 	
 	int buttonY = ( ( tall - 1 ) - buttonSize ) / 2;
 
@@ -345,7 +345,7 @@ void ComboBox::PerformLayout()
 	m_pButton->GetContentSize(button_wide, button_tall);
 	button_wide = std::max( buttonSize, button_wide );
 
-	m_pButton->SetBounds( wide - button_wide, buttonY, button_wide, buttonSize );
+	m_pButton->SetBounds( wide - button_wide - 2, buttonY, button_wide, buttonSize );
 	if ( IsEditable() )
 	{
 		SetCursor(dc_ibeam);

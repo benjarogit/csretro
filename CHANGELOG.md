@@ -18,6 +18,7 @@ Kein Phase-3-Tag. Kein FOV. 3C-Baseline (`v0.1.5`) bleibt gültig.
 - **Gate-Startvertrag:** Scripts verwenden `-menulib` mit absolutem Menüpfad, damit relative `CSRETRO_MENU_SO=build/...` nicht in Engine-Fallbacks läuft.
 - **Gate-Isolation:** ältere Mouse/Audio/Video/V1PoC/Shutdown-Gates schreiben standardmäßig nach `build/run-gate/*` statt in den normalen `build/run`-Play-Baum.
 - **Options Audio:** sichtbarer Sound-Quality-Block rückt unter MP3 Volume; hidden HEV/Suit-Abstand bleibt nicht mehr als Loch stehen.
+- **ComboBox Visual Polish:** Dropdown-Items bleiben innerhalb des Menu-Borders; Arrow-Button kompakter/inset; globale Dropdown-Itemhöhe 20px in den aktiven TrackerScheme-Varianten.
 - **Global VGUI2 Visual Polish** OPEN (nach Adaptive Layout). Classic 5971 + moderne Desktop-Darstellung.
 - **VGUI2 Symbol-Control-Gate grün:** `vgui_symbols.cpp` — Marlett geometrisch; kein Windows-Marlett.ttf; Scheme-lastResort überschreibt Symbolfonts nicht.
 - **Metrics-/Classic-Gate:** Preferred Size **512×406**. Mouse+Audio+Video Gates. FOV gesperrt.

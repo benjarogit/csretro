@@ -834,8 +834,10 @@ void Menu::PerformLayout()
 			child->SetFont( m_hItemFont );
 		}
 
-		// take into account inset
-		child->SetPos (0, menuTall);
+		// Keep dropdown items inside the menu border. The menu size already
+		// includes insets; placing children at 0,0 made hover rows bleed over
+		// the frame and made ComboBox popups look visually detached.
+		child->SetPos( ileft, itop + menuTall );
 		child->SetTall( m_iMenuItemHeight ); // Width is set in a second pass
 		menuTall += m_iMenuItemHeight;
 		totalTall += m_iMenuItemHeight;
@@ -858,7 +860,7 @@ void Menu::PerformLayout()
 			MenuSeparator *sep = m_SeparatorPanels[ sepIndex ];
 			Assert( sep );
 			sep->SetVisible( true );
-			sep->SetBounds( 0, menuTall, trueW, separatorHeight );
+			sep->SetBounds( ileft, itop + menuTall, trueW - ileft - iright, separatorHeight );
 			menuTall += separatorHeight;
 			totalTall += separatorHeight;
 		}
@@ -1878,6 +1880,16 @@ void Menu::ApplySchemeSettings(IScheme *pScheme)
 	SetBgColor(GetSchemeColor("Menu.BgColor", GetSchemeColor("Menu/BgColor", pScheme), pScheme));
 
 	_borderDark = pScheme->GetColor("BorderDark", Color(255, 255, 255, 0));
+
+	const char *itemHeight = pScheme->GetResourceString("Menu.ItemHeight");
+	if (!Q_strlen(itemHeight))
+		itemHeight = pScheme->GetResourceString("Menu/MenuItemHeight");
+	if (Q_strlen(itemHeight))
+	{
+		const int requestedItemHeight = atoi(itemHeight);
+		if (requestedItemHeight > 0)
+			m_iMenuItemHeight = requestedItemHeight;
+	}
 
 	FOR_EACH_LL( m_MenuItems, i )
 	{

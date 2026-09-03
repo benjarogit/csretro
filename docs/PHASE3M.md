@@ -130,7 +130,7 @@ Themen (Scheme / Font-Backend / Controls-Core / Layout-Unterbau; **keine** Pixel
 - Font-Familie / Metrik / Schärfe
 - Text-/Control-Ausrichtung; einheitliche Insets
 - Tabs, ComboBoxes, CheckButtons, Slider, ScrollBar
-- **ComboBox zentral:** Höhe, Textbaseline, Arrow-Button, Border/Inset, DropDown-Placement, Selected/Hover, Font-Metrik — nicht als Video-/Audio-Einzelpatch
+- **ComboBox zentral:** erster Polish umgesetzt (Border/Inset, kompakter Arrow, 20px Dropdown-Items); Textbaseline/Font-Metrik/Selected-Hover bleiben Feinschliff — nicht als Video-/Audio-Einzelpatch
 - Keyboard-Liste: Scrollbar/Pfeile, untere Rows, Spalten/Insets
 - Keyboard Capture-Slot: Scheme-`Capture`/`Edit`-Foreground (Primary≠Alternate; ESC stellt Slot wieder her) — kein hartcodiertes RGB, kein Blinken
 - Video-Alignment: Resolution / Renderer / Aspect Ratio / Display Mode (Labels + Combos + Spalten) gegen Golden/Classic `.res` — Backend bleibt geschlossen

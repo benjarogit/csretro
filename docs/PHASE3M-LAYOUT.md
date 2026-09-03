@@ -122,4 +122,5 @@ Shots: `build/options-layout-shots/csretro-options-layout-{640x480,800x600,1024x
 - Neue Subpage
 - FOV / 3D
 - Dialogweise Pixelhacks
-- Visual Polish (Scrollbar-Optik, Fonts, ComboBox-Metrik, Capture-Akzent)
+- Visual Polish (Scrollbar-Optik, Fonts, Capture-Akzent)
+- ComboBox-Popup erster zentraler Polish: Items liegen innerhalb des Borders, Arrow-Button kompakter, Dropdown-Itemhöhe 20px.

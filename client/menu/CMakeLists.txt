@@ -220,6 +220,28 @@ target_compile_definitions(csretro_menu PRIVATE
 
 target_compile_options(csretro_menu PRIVATE
     -fno-strict-aliasing
+    # Vendored Valve/VGUI2 code is old MSVC-era C++. Keep real errors visible,
+    # but do not flood the user-facing menu build with portability noise.
+    -Wno-unknown-warning-option
+    -Wno-unknown-pragmas
+    -Wno-overloaded-virtual
+    -Wno-inconsistent-missing-override
+    -Wno-deprecated-copy-with-user-provided-copy
+    -Wno-null-conversion
+    -Wno-macro-redefined
+    -Wno-missing-field-initializers
+    -Wno-nonportable-include-path
+    -Wno-missing-format-attribute
+    -Wno-delete-non-abstract-non-virtual-dtor
+    -Wno-int-to-void-pointer-cast
+    -Wno-unused-value
+    -Wno-format-nonliteral
+    -Wno-switch
+    -Wno-unused-function
+    -Wno-unused-private-field
+    -Wno-parentheses
+    -Wno-sometimes-uninitialized
+    -Wno-constant-conversion
     -Wno-unused-parameter
     -Wno-unused-variable
     -Wno-unused-but-set-variable

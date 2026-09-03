@@ -19,6 +19,7 @@ Kein Phase-3-Tag. Kein FOV. 3C-Baseline (`v0.1.5`) bleibt gültig.
 - **Gate-Isolation:** ältere Mouse/Audio/Video/V1PoC/Shutdown-Gates schreiben standardmäßig nach `build/run-gate/*` statt in den normalen `build/run`-Play-Baum.
 - **Options Audio:** sichtbarer Sound-Quality-Block rückt unter MP3 Volume; hidden HEV/Suit-Abstand bleibt nicht mehr als Loch stehen.
 - **ComboBox Visual Polish:** Dropdown-Items bleiben innerhalb des Menu-Borders; Arrow-Button kompakter/inset; globale Dropdown-Itemhöhe 20px in den aktiven TrackerScheme-Varianten.
+- **Menu Build Hygiene:** alte Valve/VGUI2-Portierungswarnings im `csretro_menu`-Target unterdrückt; `./scripts/build-menu.sh` zeigt wieder echte Fehler statt SDK-Warning-Flut.
 - **Global VGUI2 Visual Polish** OPEN (nach Adaptive Layout). Classic 5971 + moderne Desktop-Darstellung.
 - **VGUI2 Symbol-Control-Gate grün:** `vgui_symbols.cpp` — Marlett geometrisch; kein Windows-Marlett.ttf; Scheme-lastResort überschreibt Symbolfonts nicht.
 - **Metrics-/Classic-Gate:** Preferred Size **512×406**. Mouse+Audio+Video Gates. FOV gesperrt.

@@ -1,5 +1,7 @@
 # bots/
 
-Platzhalter für die spätere CS-Retro-Bot-Implementierung.
+Platzhalter für die spätere CS-Retro-Bot-Implementierung. Noch leer — absichtlich.
 
-Referenz A enthält YaPB — das ist **kein** Importziel. Wenn Bots gebaut werden, entsteht hier eine eigene, über die Server-Schnittstelle angebundene Lösung.
+Produktiv ist heute der **ReGameDLL-ZBot** in `server/game/`, unverändert.
+
+Zielbild, Quellen und Pflichtfunktionen des künftigen „CS Retro Bot“: **`docs/BOTS.md`**.

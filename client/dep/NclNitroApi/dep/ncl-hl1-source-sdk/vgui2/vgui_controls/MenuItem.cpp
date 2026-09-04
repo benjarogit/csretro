@@ -225,7 +225,7 @@ void MenuItem::OnCursorEntered()
 	// 64-bit: pack VPANEL as uint64 (SetInt truncates → sign-extended garbage → crash).
 	msg->SetUint64("VPanel", static_cast<uint64>(GetVPanel()));
 
-	ivgui()->PostMessage(GetVParent(), msg, NULL);
+	ivgui()->PostMessage(GetVParent(), msg, 0.0f);
 }
 
 //-----------------------------------------------------------------------------
@@ -239,7 +239,7 @@ void MenuItem::OnCursorExited()
 	// tell the parent this menuitem is the one that was entered so it can unhighlight it
 	msg->SetUint64("VPanel", static_cast<uint64>(GetVPanel()));
 
-	ivgui()->PostMessage(GetVParent(), msg, NULL);
+	ivgui()->PostMessage(GetVParent(), msg, 0.0f);
 }
 
 //-----------------------------------------------------------------------------
@@ -397,7 +397,7 @@ void MenuItem::ApplySchemeSettings(IScheme *pScheme)
 	if( !Q_strlen(strTextInset) )
 		strTextInset = "6";
 
-	SetTextInset(atoi(strTextInset), 0);
+	SetTextInset(atoi(strTextInset), 1);
 	
 	// reload images since applyschemesettings in label wipes them out.
 	if ( m_pCascadeArrow )

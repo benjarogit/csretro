@@ -4,7 +4,7 @@
 
 class CCvarTextEntry : public vgui2::TextEntry
 {
-	DECLARE_CLASS_SIMPLE(CCvarTextEntry, vgui2::TextEntry);
+	DECLARE_CLASS_SIMPLE_OVERRIDE(CCvarTextEntry, vgui2::TextEntry);
 
 	static const int MAX_CVAR_TEXT = 64;
 

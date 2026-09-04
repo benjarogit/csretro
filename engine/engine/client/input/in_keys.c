@@ -705,6 +705,14 @@ void GAME_EXPORT Key_Event( int key, int down )
 	const char *kb = keys[key].binding;
 	keys[key].down = down ? true : false;
 
+	// toggleconsole is a real user binding in CS Retro. Handle it globally so
+	// the same configured key opens and closes the console from game or menu.
+	if( down && kb && !Q_stricmp( kb, "toggleconsole" ) && cls.key_dest != key_message )
+	{
+		Con_ToggleConsole_f();
+		return;
+	}
+
 #ifdef HACKS_RELATED_HLMODS
 	if(( cls.key_dest == key_game ) && ( cls.state == ca_cinematic ) && ( key != K_ESCAPE || !down ))
 	{
@@ -758,17 +766,6 @@ void GAME_EXPORT Key_Event( int key, int down )
 	}
 
 	VGui_KeyEvent( key, down );
-
-	// console key is hardcoded, so the user can never unbind it
-	if( key == '`' || key == '~' )
-	{
-		// we are in typing mode, so don't switch to console
-		if( cls.key_dest == key_message || !down )
-			return;
-
-		Con_ToggleConsole_f();
-		return;
-	}
 
 	// escape is always handled special
 	if( key == K_ESCAPE && down )

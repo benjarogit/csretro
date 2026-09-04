@@ -21,7 +21,7 @@ namespace
 {
 class CCsretroPocFrame : public Frame
 {
-	DECLARE_CLASS_SIMPLE(CCsretroPocFrame, Frame);
+	DECLARE_CLASS_SIMPLE_OVERRIDE(CCsretroPocFrame, Frame);
 
 public:
 	explicit CCsretroPocFrame(Panel *parent)

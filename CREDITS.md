@@ -95,6 +95,14 @@ Lizenzwechsel MIT (Juli 2025), namentlich in `server/game/LICENSE-TRANSITION.md`
 
 sowie alle weiteren signifikanten Contributors des Projekts.
 
+## Schriften
+
+- [Noto Project Authors](https://github.com/notofonts/latin-greek-cyrillic) — **Noto Sans** und **Noto Sans Mono** (SIL OFL 1.1), UI-Schrift von CS Retro. Lizenztext: `data/ui-overrides/platform/resource/csretro_fonts/OFL.txt`
+
+## Menühintergrund
+
+- CS-Retro-eigenes Motiv (`data/ui-overrides/cstrike/resource/background/csretro.png`). Nicht das Steam-CS-1.6-Kachelbild.
+
 ## Weitere Referenzen
 
 - [FuryBaM/cs16-goldsrc-client](https://github.com/FuryBaM/cs16-goldsrc-client) — Ref B, bedingte Menü-Referenz
@@ -108,7 +116,8 @@ Technische Pins, Commits und Erkenntnisse: `docs/UPSTREAM.md` (Abschnitt „VGUI
 - [Valve Developer Community](https://developer.valvesoftware.com/wiki/VGUI_Documentation) — VGUI/VGUI2-Dokumentation (Panel, Resources, Scheme, Build Mode)
 - [CKFDevPowered/CKF3Alpha](https://github.com/CKFDevPowered/CKF3Alpha) und Contributors — klassische GoldSrc-GameUI-Rekonstruktion (Options/GameMenu-Vergleich)
 - [Counter-Strike-16/OpenGoldSrc](https://github.com/Counter-Strike-16/OpenGoldSrc) und Contributors — GoldSrc-/GameUI-/VGUI2-Rekonstruktion
-- [hzqst/MetaHookSv](https://github.com/hzqst/MetaHookSv) und Contributors — VGUI2Extension, Scheme/Resource-Hooks, HiDPI-Vergleich (nicht Classic-Baseline)
+- [hzqst/MetaHookSv](https://github.com/hzqst/MetaHookSv) und Contributors — VGUI2Extension, Scheme/Resource-Hooks, HiDPI-Vergleich (nicht Classic-Baseline); Radar/HUD beobachtet, nicht vendort. Original: [nagist/metahook](https://github.com/nagist/metahook)
+- [DeadZoneLuna/css-community](https://github.com/DeadZoneLuna/css-community) — CS:Source Community Edition (2007-Leak-Port nach Source 2013); In-Game-Menü-Vergleich (Team/Class/Buy), nicht Engine. Credits dort u. a. NicolasDe GameUI2. Nicht vendort.
 - [kungfulon/fwgs-vgui2-support](https://github.com/kungfulon/fwgs-vgui2-support) — historische Xash-VGUI2-Forschung
 
 Jedes weitere Projekt, aus dem wir später Code oder Verhalten übernehmen, hier und in `docs/UPSTREAM.md` nachtragen.

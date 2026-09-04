@@ -173,6 +173,7 @@ static void Con_Clear_f( void )
 {
 	con.lines_count = 0;
 	con.backscroll = 0; // go to end
+	UI_ConsoleClear();
 }
 
 /*
@@ -275,6 +276,11 @@ void Con_ToggleConsole_f( void )
 
 	Con_ClearTyping();
 	Con_ClearNotify();
+
+	// Prefer the windowed VGUI2 console supplied by CS Retro. Other menus keep
+	// the classic engine overlay because the callback is optional.
+	if( UI_ConsoleToggle() )
+		return;
 
 	if( cls.key_dest == key_console )
 	{
@@ -863,6 +869,8 @@ void Con_Print( const char *txt )
 	if( !con.initialized || !con.buffer )
 		return;
 
+	UI_ConsolePrint( txt );
+
 	if( txt[0] == 2 )
 	{
 		// go to colored text
@@ -959,6 +967,22 @@ void Con_Print( const char *txt )
 			inupdate = false;
 		}
 #endif
+	}
+}
+
+void Con_ReplayToGameUI( void )
+{
+	if( !con.initialized )
+		return;
+
+	UI_ConsoleClear();
+	for( int i = 0; i < CON_LINES_COUNT; ++i )
+	{
+		const con_lineinfo_t *line = &CON_LINES( i );
+		if( !line->start || line->start[0] == '\1' )
+			continue;
+		UI_ConsolePrint( line->start );
+		UI_ConsolePrint( "\n" );
 	}
 }
 

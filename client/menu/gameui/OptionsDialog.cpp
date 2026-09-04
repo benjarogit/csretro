@@ -36,8 +36,12 @@ COptionsDialog::COptionsDialog(Panel *parent)
 	SetClipToParent(true);
 	SetTitle("#GameUI_Options", true);
 	SetApplyButtonVisible(true);
-	if (GetPropertySheet())
-		GetPropertySheet()->SetTabWidth(84); // minimum tab width, not fixed render width
+	if (PropertySheet *sheet = GetPropertySheet())
+	{
+		// Classic compact tabs: min width 72, height 24 (Golden/CKF closer than default 84×28).
+		sheet->SetTabWidth(72);
+		sheet->SetTabHeight(24);
+	}
 
 	// Keine Stub-Tabs. Sichtbar: Keyboard | Mouse | Audio | Video
 	RegisterPage(new COptionsSubKeyboard(this), "Keyboard", "#GameUI_Keyboard");

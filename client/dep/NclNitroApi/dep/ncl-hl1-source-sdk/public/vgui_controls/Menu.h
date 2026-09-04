@@ -305,7 +305,7 @@ protected:
 
 	enum 
 	{
-		DEFAULT_MENU_ITEM_HEIGHT = 22, // height of items in the menu
+		DEFAULT_MENU_ITEM_HEIGHT = 20, // classic CS 1.6 dropdown row height
 		MENU_UP = -1, // used for moving up/down list of menu items in the menu
 		MENU_DOWN = 1
 	};

@@ -1,7 +1,23 @@
 #include "menu_priv.h"
 
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <string>
+
+namespace
+{
+void AppendLine(std::string &cfg, const char *fmt, ...) CSRETRO_PRINTF_LIKE(2, 3);
+void AppendLine(std::string &cfg, const char *fmt, ...)
+{
+	char line[512];
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(line, sizeof(line), fmt, ap);
+	va_end(ap);
+	cfg += line;
+}
+} // namespace
 
 void Profile_Defaults(ServerProfile *p)
 {
@@ -10,32 +26,22 @@ void Profile_Defaults(ServerProfile *p)
 
 void Profile_WriteListen(const ServerProfile *p)
 {
-	char buf[1024];
-	snprintf(buf, sizeof(buf),
-		"hostname \"%s\"\n"
-		"sv_password \"%s\"\n"
-		"sv_lan %d\n"
-		"mp_roundtime %.1f\n"
-		"mp_freezetime %.0f\n"
-		"mp_friendlyfire %d\n"
-		"mp_autoteambalance %d\n"
-		"bot_quota %d\n"
-		"bot_difficulty %d\n"
-		"bot_join_team \"%s\"\n"
-		"bot_enable %d\n",
-		p->hostname.c_str(),
-		p->password.c_str(),
-		p->lan,
-		p->roundtime,
-		p->freezetime,
-		p->friendlyfire,
-		p->teambalance,
-		p->bot_quota,
-		p->bot_difficulty,
-		p->bot_join_team.c_str(),
-		p->bot_quota > 0 ? 1 : 0);
+	std::string cfg;
 
-	gEng.COM_SaveFile("listenserver.cfg", buf, static_cast<int>(strlen(buf)));
+	// Serveridentität und Botblock: feste Felder, weil Profile_Start sie strukturell braucht.
+	AppendLine(cfg, "hostname \"%s\"\n", p->hostname.c_str());
+	AppendLine(cfg, "sv_password \"%s\"\n", p->password.c_str());
+	AppendLine(cfg, "sv_lan %d\n", p->lan);
+	AppendLine(cfg, "bot_quota %d\n", p->bot_quota);
+	AppendLine(cfg, "bot_difficulty %d\n", p->bot_difficulty);
+	AppendLine(cfg, "bot_join_team \"%s\"\n", p->bot_join_team.c_str());
+	AppendLine(cfg, "bot_enable %d\n", p->bot_quota > 0 ? 1 : 0);
+
+	// Gameplay-Regeln so, wie die Settings-Listen sie aus settings.scr gelesen haben.
+	for (const auto &kv : p->gameplay)
+		AppendLine(cfg, "%s \"%s\"\n", kv.first.c_str(), kv.second.c_str());
+
+	gEng.COM_SaveFile("listenserver.cfg", cfg.c_str(), static_cast<int>(cfg.size()));
 }
 
 void Profile_Start(const ServerProfile *p)

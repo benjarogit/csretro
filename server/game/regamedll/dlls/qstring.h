@@ -42,6 +42,7 @@ public:
 
 	QString();
 	QString(qstring_t string);
+	QString(const QString &other) = default;
 
 	bool IsNull() const;
 	bool IsNullOrEmpty() const;

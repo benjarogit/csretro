@@ -47,6 +47,9 @@ public:
 	// sets the width, in pixels, of the page tab buttons.
 	virtual void SetTabWidth(int pixels);
 
+	// sets the height, in pixels, of the page tab buttons.
+	virtual void SetTabHeight(int pixels);
+
 	// Gets a pointer to the currently active page.
 	virtual Panel *GetActivePage();
 
@@ -64,8 +67,8 @@ public:
 
 	// focus handling - passed on to current active page
 	virtual void RequestFocus(int direction = 0);
-	virtual bool RequestFocusPrev(VPANEL panel = NULL);
-	virtual bool RequestFocusNext(VPANEL panel = NULL);
+	virtual bool RequestFocusPrev(VPANEL panel = 0);
+	virtual bool RequestFocusNext(VPANEL panel = 0);
 
 	// returns the ith panel 
 	virtual Panel *GetPage(int i);

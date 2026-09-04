@@ -61,9 +61,11 @@ T *CreateBot(const BotProfile *profile)
 	{
 		T *pBot = nullptr;
 
-#ifdef REGAMEDLL_FIXES
+	#ifdef REGAMEDLL_FIXES
 		auto name = pentBot->v.netname;
-		Q_memset(&pentBot->v, 0, sizeof(pentBot->v)); // Reset entvars data
+		// entvars_t is an engine ABI record and must be reset byte-for-byte here;
+		// the vector helper members make the C++ type formally non-trivial.
+		Q_memset(static_cast<void *>(&pentBot->v), 0, sizeof(pentBot->v));
 		pentBot->v.netname = name;
 		pentBot->v.flags = FL_FAKECLIENT | FL_CLIENT;
 		pentBot->v.pContainingEntity = pentBot;

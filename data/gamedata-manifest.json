@@ -91,7 +91,8 @@
     {"glob": "cstrike/delta.lst", "why": "Netz-Delta, Dedicated-Trace."},
     {"glob": "cstrike/titles.txt", "why": "HUD-Titel, Listen-Trace."},
     {"glob": "cstrike/game.tga", "why": "MainUI-Icon, Listen-Trace."},
-    {"glob": "valve/game.cfg", "why": "Default-CVars, Dedicated-Trace."}
+    {"glob": "valve/game.cfg", "why": "Default-CVars, Dedicated-Trace."},
+    {"glob": "cstrike/settings.scr", "why": "Optionsbeschreibung Create-Game (Identity/Rules/Fairness). Steam-Basis; CS-Retro-Erweiterungen liegen in data/ui-overrides/cstrike/settings.scr."}
   ],
   "replace": [
     {
@@ -147,7 +148,30 @@
     {"glob": "**/autoexec.cfg", "why": "User-Konfiguration."},
     {"glob": "**/controller.cfg", "why": "User-/Device-Konfiguration."},
     {"glob": "**/GameServerConfig.vdf", "why": "Steam-Server-UI."},
-    {"glob": "cstrike/manual/**", "why": "Steam-Handbuch, nicht Runtime."}
+    {"glob": "cstrike/manual/**", "why": "Steam-Handbuch, nicht Runtime."},
+    {"glob": "cstrike/resource/background/**", "why": "Steam-CS-1.6-Menükacheln; CS Retro liefert resource/background/csretro.png."},
+    {"glob": "cstrike/resource/BackgroundLayout.txt", "why": "Steam-Kachellayout; Menü lädt nur csretro.png."},
+    {"glob": "cstrike/resource/HD_BackgroundLayout.txt", "why": "Steam-HD-Kachellayout, ungenutzt."},
+    {"glob": "cstrike/resource/BackgroundLoadingLayout.txt", "why": "Steam-Lade-Kachellayout, ungenutzt."},
+    {"glob": "cstrike/resource/HD_BackgroundLoadingLayout.txt", "why": "Steam-HD-Lade-Kachellayout, ungenutzt."},
+    {"glob": "valve/resource/background/**", "why": "HL/Steam-Menükacheln; würden sonst als COM_LoadFile-Fallback gewinnen."},
+    {"glob": "valve/resource/BackgroundLayout.txt", "why": "HL-Kachellayout; bisheriger Fallback des Hauptmenüs."},
+    {"glob": "valve/resource/HD_BackgroundLayout.txt", "why": "HL-HD-Kachellayout, ungenutzt."},
+    {"glob": "valve/resource/BackgroundLoadingLayout.txt", "why": "HL-Lade-Kachellayout, ungenutzt."},
+    {"glob": "valve/resource/HD_BackgroundLoadingLayout.txt", "why": "HL-HD-Lade-Kachellayout, ungenutzt."}
+  ],
+  "prune": [
+    {"path": "platform/resource/linux_fonts", "why": "Steam-Linux-Fonts; CS Retro liefert csretro_fonts (Noto Sans, OFL-1.1). ignore verhindert Neuimport, prune raeumt aeltere Baeume auf."},
+    {"path": "cstrike/resource/background", "why": "Steam-CS-1.6-Menükacheln. Override legt danach csretro.png in denselben Ordner."},
+    {"path": "cstrike/resource/BackgroundLayout.txt", "why": "Steam-Kachellayout; Menü sucht es nicht mehr."},
+    {"path": "cstrike/resource/HD_BackgroundLayout.txt", "why": "Steam-HD-Kachellayout."},
+    {"path": "cstrike/resource/BackgroundLoadingLayout.txt", "why": "Steam-Lade-Kachellayout."},
+    {"path": "cstrike/resource/HD_BackgroundLoadingLayout.txt", "why": "Steam-HD-Lade-Kachellayout."},
+    {"path": "valve/resource/background", "why": "HL/Steam-Menükacheln inkl. 21:9; Menü lädt sie nicht mehr."},
+    {"path": "valve/resource/BackgroundLayout.txt", "why": "Bisheriger Hauptmenü-Fallback (800x600-Kacheln)."},
+    {"path": "valve/resource/HD_BackgroundLayout.txt", "why": "HL-HD-Kachellayout."},
+    {"path": "valve/resource/BackgroundLoadingLayout.txt", "why": "HL-Lade-Kachellayout."},
+    {"path": "valve/resource/HD_BackgroundLoadingLayout.txt", "why": "HL-HD-Lade-Kachellayout."}
   ],
   "user_protect": [
     "config.cfg",

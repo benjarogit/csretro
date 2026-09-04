@@ -407,7 +407,7 @@ const char *KeyValues::ReadToken( CUtlBuffer &buf, bool &wasQuoted, bool &wasCon
 	bool bReportedError = false;
 	bool bConditionalStart = false;
 	int nCount = 0;
-	while ( c = (const char*)buf.PeekGet( sizeof(char), 0 ) )
+	while ( ( c = (const char*)buf.PeekGet( sizeof(char), 0 ) ) )
 	{
 		// end of file
 		if ( *c == 0 )
@@ -2252,7 +2252,7 @@ bool KeyValues::ReadAsBinary( CUtlBuffer &buffer )
 			}
 		case TYPE_PTR:
 			{
-				dat->m_pValue = (void*)buffer.GetUnsignedInt();
+				dat->m_pValue = reinterpret_cast<void*>( static_cast<uintptr_t>( buffer.GetUnsignedInt() ) );
 			}
 
 		default:

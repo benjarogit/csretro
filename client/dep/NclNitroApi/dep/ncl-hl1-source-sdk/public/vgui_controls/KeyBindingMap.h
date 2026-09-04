@@ -12,6 +12,14 @@
 
 #include "tier1/utlvector.h"
 
+#ifndef OVERRIDE
+#if defined(_MSC_VER)
+#define OVERRIDE
+#else
+#define OVERRIDE override
+#endif
+#endif
+
 // more flexible than default pointers to members code required for casting member function pointers
 //#pragma pointers_to_members( full_generality, virtual_inheritance )
 
@@ -61,7 +69,7 @@ struct KeyBindingMap_t
 	bool					passive; // dispatch command, but still chain
 };
 
-#define DECLARE_KEYBINDINGMAP( className )												\
+#define DECLARE_KEYBINDINGMAP_EX( className, overrideSpec )												\
 	static void KB_AddToMap																\
 	(																					\
 		char const			*bindingname,												\
@@ -139,11 +147,14 @@ struct KeyBindingMap_t
 	};																					\
 	className##_RegisterKBMap m_RegisterClassKB;										\
 																						\
-	virtual vgui2::PanelKeyBindingMap *GetKBMap()										\
+	virtual vgui2::PanelKeyBindingMap *GetKBMap() overrideSpec							\
 	{																					\
 		static vgui2::PanelKeyBindingMap *s_pMap = vgui2::FindOrAddPanelKeyBindingMap( GetPanelClassName() );	\
 		return s_pMap;																	\
 	}
+
+#define DECLARE_KEYBINDINGMAP( className ) DECLARE_KEYBINDINGMAP_EX( className, /* no override */ )
+#define DECLARE_KEYBINDINGMAP_NOBASE( className ) DECLARE_KEYBINDINGMAP_EX( className, /* no override */ )
 
 #define _KBMapFuncCommonFunc( name, keycode, modifiers, function, help, doc, passive )	\
 	class PanelKBMapFunc_##name; \

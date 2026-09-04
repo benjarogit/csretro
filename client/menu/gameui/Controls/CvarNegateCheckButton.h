@@ -4,7 +4,7 @@
 
 class CCvarNegateCheckButton : public vgui2::CheckButton
 {
-	DECLARE_CLASS_SIMPLE(CCvarNegateCheckButton, vgui2::CheckButton);
+	DECLARE_CLASS_SIMPLE_OVERRIDE(CCvarNegateCheckButton, vgui2::CheckButton);
 
 public:
 	CCvarNegateCheckButton(vgui2::Panel *parent, const char *panelName, const char *text,

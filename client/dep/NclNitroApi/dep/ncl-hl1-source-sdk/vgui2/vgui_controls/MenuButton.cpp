@@ -223,6 +223,8 @@ void MenuButton::OnKeyCodeTyped(KeyCode code)
 				}
 				break;
 			}
+			default:
+				break;
 		}
 	}
 	BaseClass::OnKeyCodeTyped(code);
@@ -240,7 +242,7 @@ void MenuButton::OnCursorEntered()
 	// tell the parent this menuitem is the one that was entered so it can open the menu if it wants
 	// 64-bit: pack VPANEL as uint64 (SetInt truncates → crash on MenuBar hover).
 	msg->SetUint64("VPanel", static_cast<uint64>(GetVPanel()));
-	ivgui()->PostMessage(GetVParent(), msg, NULL);
+	ivgui()->PostMessage(GetVParent(), msg, 0.0f);
 }
 
 // This style is like the IE "back" button where the left side acts like a regular button, the the right side has a little

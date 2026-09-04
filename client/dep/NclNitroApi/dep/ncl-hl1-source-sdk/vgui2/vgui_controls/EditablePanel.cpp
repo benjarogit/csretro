@@ -49,7 +49,9 @@ DECLARE_BUILD_FACTORY( EditablePanel );
 //-----------------------------------------------------------------------------
 // Purpose: Constructor
 //-----------------------------------------------------------------------------
+#ifdef _MSC_VER
 #pragma warning( disable : 4355 )
+#endif
 
 EditablePanel::EditablePanel(Panel *parent, const char *panelName) : Panel(parent, panelName), m_NavGroup(this)
 {
@@ -78,7 +80,9 @@ EditablePanel::EditablePanel(Panel *parent, const char *panelName, HScheme hSche
 	SetBuildGroup(GetBuildGroup());
 }
 
+#ifdef _MSC_VER
 #pragma warning( default : 4355 )
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: Destructor
@@ -759,11 +763,11 @@ void EditablePanel::RequestFocus(int direction)
 	// delegate focus
 	if (direction == 1)
 	{
-		RequestFocusNext(NULL);
+		RequestFocusNext(static_cast<VPANEL>(0));
 	}
 	else if (direction == -1)
 	{
-		RequestFocusPrev(NULL);
+		RequestFocusPrev(static_cast<VPANEL>(0));
 	}
 	else
 	{
@@ -827,7 +831,7 @@ VPANEL EditablePanel::GetCurrentKeyFocus()
 {
 	Panel *focus = m_NavGroup.GetCurrentFocus();
 	if (focus == this)
-		return NULL;
+		return static_cast<VPANEL>(0);
 
 	if (focus)
 	{

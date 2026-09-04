@@ -99,10 +99,43 @@ static qboolean HTTP_TlsLoadCA( void )
 	const char *path = http_tls_cafile.string;
 	fs_offset_t len = 0;
 	byte *data = FS_LoadFile( path, &len, false );
+	const char *loaded_path = path;
 
 	if( !data || len <= 0 )
 	{
-		Con_Printf( S_WARN "TLS: CA bundle '%s' not found; HTTPS verification will fail\n", path );
+		Mem_Free( data );
+		data = FS_LoadDirectFile( path, &len );
+	}
+
+	if( !data || len <= 0 )
+	{
+		static const char *const system_paths[] =
+		{
+			"/etc/ssl/certs/ca-certificates.crt",
+			"/etc/ssl/cert.pem",
+			"/etc/pki/tls/certs/ca-bundle.crt",
+			"/etc/ssl/ca-bundle.pem"
+		};
+		const char *env_path = getenv( "SSL_CERT_FILE" );
+
+		Mem_Free( data );
+		data = NULL;
+		if( env_path && env_path[0] )
+		{
+			data = FS_LoadDirectFile( env_path, &len );
+			loaded_path = env_path;
+		}
+
+		for( int i = 0; !data && i < ARRAYSIZE( system_paths ); ++i )
+		{
+			data = FS_LoadDirectFile( system_paths[i], &len );
+			loaded_path = system_paths[i];
+		}
+	}
+
+	if( !data || len <= 0 )
+	{
+		Con_Printf( S_WARN "TLS: neither CA bundle '%s' nor a system trust bundle was found; HTTPS verification will fail\n", path );
 		Mem_Free( data );
 		return false;
 	}
@@ -116,8 +149,16 @@ static qboolean HTTP_TlsLoadCA( void )
 		return false;
 	}
 
+	if( !g_tls.cacert.raw.p )
+	{
+		Con_Printf( S_ERROR "TLS: CA trust bundle '%s' contained no usable certificates\n", loaded_path );
+		return false;
+	}
+
 	if( ret > 0 )
-		Con_Reportf( S_WARN "TLS: %d certificate(s) in '%s' failed to parse\n", ret, path );
+		Con_Reportf( "TLS: skipped %d unsupported certificate entry/entries in '%s'\n", ret, loaded_path );
+
+	Con_Reportf( "TLS: loaded CA trust bundle '%s'\n", loaded_path );
 
 	return true;
 }

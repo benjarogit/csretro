@@ -306,6 +306,10 @@ typedef struct cl_enginefuncs_s
 
 	// added in 2019 update, not documented yet
 	int		(*pfnFilteredClientCmd)( const char *cmd );
+
+	// CS Retro desktop contract. These replace the old MobilityAPI misuse.
+	void		*(*pfnGetNativeObject)( const char *name );
+	int		(*pfnDrawScaledCharacter)( int x, int y, int number, int r, int g, int b, float scale );
 } cl_enginefunc_t;
 
 #define CLDLL_INTERFACE_VERSION	7

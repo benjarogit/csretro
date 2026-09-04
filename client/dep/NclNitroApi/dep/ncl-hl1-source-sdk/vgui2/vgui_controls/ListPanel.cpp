@@ -183,7 +183,7 @@ void Dragger::OnMouseReleased(MouseCode code)
 {
 	if (m_bMovable)
 	{
-		input()->SetMouseCapture(NULL);
+		input()->SetMouseCapture(0);
 		m_bDragging = false;
 	}
 }
@@ -411,23 +411,30 @@ static int s_iDuplicateIndex = 1;
 //-----------------------------------------------------------------------------
 // Purpose: sorting function used in the column index redblack tree
 //-----------------------------------------------------------------------------
-bool ListPanel::RBTreeLessFunc(vgui2::ListPanel::IndexItem_t &item1, vgui2::ListPanel::IndexItem_t &item2)
+// CS Retro: Signatur auf const& gezogen, damit sie direkt zu IndexRBTree_t::LessFunc_t
+// passt. Vorher lief das über einen Cast auf einen inkompatiblen Funktionstyp.
+// Die Duplikat-Indizes sind Sortier-Buchhaltung, keine Ordnungsdaten — deshalb schreibt
+// der Vergleich sie weiterhin per const_cast zurück.
+bool ListPanel::RBTreeLessFunc(const vgui2::ListPanel::IndexItem_t &item1, const vgui2::ListPanel::IndexItem_t &item2)
 {
 	int result = s_pSortFunc( s_pCurrentSortingListPanel, *item1.dataItem, *item2.dataItem);
 	if (result == 0)
 	{
+		int &dup1 = const_cast<vgui2::ListPanel::IndexItem_t &>(item1).duplicateIndex;
+		int &dup2 = const_cast<vgui2::ListPanel::IndexItem_t &>(item2).duplicateIndex;
+
 		// they're the same value, set their duplicate index to reflect that
-		if (item1.duplicateIndex)
+		if (dup1)
 		{
-			item2.duplicateIndex = item1.duplicateIndex;
+			dup2 = dup1;
 		}
-		else if (item2.duplicateIndex)
+		else if (dup2)
 		{
-			item1.duplicateIndex = item2.duplicateIndex;
+			dup1 = dup2;
 		}
 		else
 		{
-			item1.duplicateIndex = item2.duplicateIndex = s_iDuplicateIndex++;
+			dup1 = dup2 = s_iDuplicateIndex++;
 		}
 	}
 	return (result > 0);
@@ -627,7 +634,7 @@ void ListPanel::AddColumnHeader(int index, const char *columnName, const char *c
 	column.m_pSortFunc = NULL;
 	
 	// Set the SortedTree less than func to the generic RBTreeLessThanFunc
-	m_ColumnsData[columnDataIndex].m_SortedTree.SetLessFunc((IndexRBTree_t::LessFunc_t)RBTreeLessFunc);
+	m_ColumnsData[columnDataIndex].m_SortedTree.SetLessFunc(RBTreeLessFunc);
 
 	// go through all the headers and make sure their Command has the right column ID
 	ResetColumnHeaderCommands();
@@ -2067,8 +2074,8 @@ void ListPanel::Paint()
 	// if the list is empty, draw some help text
 	if (m_VisibleItems.Count() < 1 && m_pEmptyListText)
 	{
-		m_pEmptyListText->SetPos(m_iTableStartX + 8, m_iTableStartY + 4);
-		m_pEmptyListText->SetSize(wide - 8, m_iRowHeight);
+		m_pEmptyListText->SetPos(m_iTableStartX + 12, m_iTableStartY + 10);
+		m_pEmptyListText->SetSize(wide - 16, m_iRowHeight);
 		m_pEmptyListText->Paint();
 	}
 
@@ -2659,6 +2666,7 @@ void ListPanel::ApplySchemeSettings(IScheme *pScheme)
 
 	SetBgColor(GetSchemeColor("ListPanel.BgColor", GetSchemeColor("WindowBgColor", pScheme), pScheme));
 	SetBorder(pScheme->GetBorder("ButtonDepressedBorder"));
+	SetPaintBorderEnabled(true);
 
 	m_pLabel->SetBgColor(GetSchemeColor("ListPanel.BgColor", GetSchemeColor("Menu/ArmedBgColor", pScheme), pScheme));
 

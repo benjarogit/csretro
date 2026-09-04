@@ -371,7 +371,8 @@ int DLLEXPORT HUD_Key_Event( int down, int keynum, const char *pszCurrentBinding
 	if( g_pMenu && g_pMenu->IsActive() && !g_pMenu->IsMainMenuActive() )
 	{
 		g_pMenu->Key( keynum, down );
-		if( down && ( keynum == K_ESCAPE || ( keynum >= '0' && keynum <= '9' ) ) )
+		if( down && ( keynum == K_ESCAPE || ( keynum >= '0' && keynum <= '9' ) ||
+			( keynum >= K_MOUSE1 && keynum <= K_MOUSE5 ) ) )
 			return 0;
 	}
 

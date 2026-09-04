@@ -95,6 +95,11 @@ public:
 		return memcmp(_color, rhs._color, 4) != 0;
 	}
 
+	Color(const Color &rhs)
+	{
+		memcpy(_color, rhs._color, 4);
+	}
+
 	Color &operator=( const Color &rhs )
 	{
 		if (this != &rhs)

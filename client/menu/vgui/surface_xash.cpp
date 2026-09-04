@@ -40,6 +40,8 @@ struct FontInfo
 	int height = 12;  // effektive Zellhöhe (wie Win32 tmHeight / GetFontTall)
 	int weight = 400;
 	int ascent = 0;
+	int descent = 0;
+	int textOffsetY = 0; // GDI internal leading / FT→GDI-Zellen-Kompensation
 	int flags = 0;
 	bool antialias = false;
 	FT_Face face = nullptr;
@@ -200,10 +202,10 @@ GlyphEntry *EnsureGlyph(HFont font, uint32_t codepoint)
 	if (!fi || !fi->ok || !fi->face || !gEng.pfnPIC_Load)
 		return nullptr;
 
-	// Win32 VGUI: ohne FONTFLAG_ANTIALIAS → NONANTIALIASED_QUALITY (TrackerScheme Default).
-	const int loadFlags = fi->antialias ? (FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL)
-					    : (FT_LOAD_RENDER | FT_LOAD_TARGET_MONO);
-	if (FT_Load_Char(fi->face, codepoint, loadFlags) != 0)
+	// TrackerScheme setzt "antialias 0", weil Win32-Tahoma für kleine Größen gehintete
+	// Embedded-Bitmaps mitbringt. Noto hat keine — 1-Bit-Rasterung sähe nur ausgefranst aus.
+	// Ziel ist Classic-Optik mit sauberem Desktop-Rendering, also immer Graustufen-AA.
+	if (FT_Load_Char(fi->face, codepoint, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL) != 0)
 		return nullptr;
 
 	FT_GlyphSlot slot = fi->face->glyph;
@@ -474,9 +476,10 @@ void CSurfaceXash::DrawUnicodeChar(wchar_t wch)
 		const int a = aRaw > 0 ? aRaw : 255;
 		DrawSetColor(m_textR, m_textG, m_textB, a);
 		const int tall = fi->tall > 0 ? fi->tall : 12;
+		const int yoff = fi->textOffsetY;
 		// Panel-relative (m_textX/Y): DrawFilledRect/DrawLine addieren CurrentOffset selbst.
 		g_symbolPaintSurface = this;
-		CsretroVguiSymbols::PaintCodepoint(m_textX, m_textY, tall, static_cast<uint32_t>(wch), SymbolFillThunk,
+		CsretroVguiSymbols::PaintCodepoint(m_textX, m_textY + yoff, tall, static_cast<uint32_t>(wch), SymbolFillThunk,
 			SymbolLineThunk);
 		g_symbolPaintSurface = nullptr;
 		m_textX += CsretroVguiSymbols::AdvanceForTall(tall);
@@ -497,8 +500,9 @@ void CSurfaceXash::DrawUnicodeChar(wchar_t wch)
 		if (glyph->pic && glyph->width > 0 && glyph->height > 0 && gEng.pfnPIC_Set && gEng.pfnPIC_DrawTrans && a > 0)
 		{
 			const int ascent = fi && fi->ascent > 0 ? fi->ascent : (fi ? fi->tall : 12);
+			const int yoff = fi ? fi->textOffsetY : 0;
 			const int dx = ox + m_textX + glyph->bearingX;
-			const int dy = oy + m_textY + (ascent - glyph->bearingY);
+			const int dy = oy + m_textY + yoff + (ascent - glyph->bearingY);
 			gEng.pfnPIC_Set(glyph->pic, m_textR, m_textG, m_textB, a);
 			gEng.pfnPIC_DrawTrans(dx, dy, glyph->width, glyph->height, nullptr);
 			if (!g_freetypeGlyphsLogged)
@@ -521,11 +525,40 @@ IHTML *CSurfaceXash::CreateHTMLWindow(IHTMLEvents *, VPANEL) { return nullptr; }
 void CSurfaceXash::PaintHTMLWindow(IHTML *) {}
 void CSurfaceXash::DeleteHTMLWindow(IHTML *) {}
 
-void CSurfaceXash::DrawSetTextureFile(int id, const char *, int, bool)
+void CSurfaceXash::DrawSetTextureFile(int id, const char *filename, int, bool forceReload)
 {
-	if (!IsTextureIDValid(id))
+	if (id < 0 || !filename || !filename[0])
 		return;
-	(void)g_textures[static_cast<size_t>(id)];
+	if (static_cast<size_t>(id) >= g_textures.size())
+		g_textures.resize(static_cast<size_t>(id) + 1);
+	Texture &t = g_textures[static_cast<size_t>(id)];
+	if (!forceReload && t.pic && t.picName == filename)
+		return;
+
+	if (t.pic && gEng.pfnPIC_Free && !t.picName.empty())
+	{
+		gEng.pfnPIC_Free(t.picName.c_str());
+		t.pic = 0;
+	}
+
+	const int flags = PIC_NOMIPMAP | PIC_HAS_ALPHA | PIC_NOFLIP_TGA;
+	HIMAGE pic = 0;
+	if (gEng.pfnPIC_Load)
+	{
+		pic = gEng.pfnPIC_Load(filename, nullptr, 0, flags);
+		if (!pic)
+		{
+			char withTga[256];
+			std::snprintf(withTga, sizeof(withTga), "%s.tga", filename);
+			pic = gEng.pfnPIC_Load(withTga, nullptr, 0, flags);
+		}
+	}
+	t.pic = pic;
+	t.picName = filename;
+	t.valid = pic != 0;
+	t.wide = (pic && gEng.pfnPIC_Width) ? gEng.pfnPIC_Width(pic) : 0;
+	t.tall = (pic && gEng.pfnPIC_Height) ? gEng.pfnPIC_Height(pic) : 0;
+	t.rgba.clear();
 }
 
 void CSurfaceXash::DrawSetTextureRGBA(int id, const unsigned char *rgba, int wide, int tall, int, bool)
@@ -713,15 +746,18 @@ bool CSurfaceXash::AddGlyphSetToFont(HFont font, const char *windowsFontName, in
 	if (!fi)
 		return false;
 
-	// Scheme lädt nach dem Primärfont immer „DejaVu Sans“ als lastResort.
+	// Scheme lädt nach dem Primärfont immer einen lastResort-Face nach.
 	// Win32 FontManager hängt Fallbacks an; unser Surface ersetzt sonst den Face → falsche Metriken.
 	if (fi->ok && (fi->symbol || fi->face) && windowsFontName &&
 		strcasecmp(windowsFontName, fi->name.c_str()) != 0)
 		return true;
 
-	// Scheme lädt nach Marlett immer „DejaVu Sans“ als lastResort — Symbolfonts nicht überschreiben.
+	// Gleiches nach Marlett — Symbolfonts nicht durch den lastResort überschreiben.
 	if (fi->symbol && !CsretroVguiSymbols::IsSymbolFontName(windowsFontName))
 		return true;
+
+	if (weight <= 0)
+		weight = 400;
 
 	EnsureFT();
 	ClearGlyphsForFont(font);
@@ -744,7 +780,10 @@ bool CSurfaceXash::AddGlyphSetToFont(HFont font, const char *windowsFontName, in
 		fi->ok = true;
 		fi->symbol = true;
 		fi->ascent = fi->tall * 3 / 4;
+		fi->descent = fi->tall - fi->ascent;
 		fi->height = fi->tall;
+		// Glyphen füllen die Zelle; ein Extra-Y-Offset schiebt Haken/Punkt/X aus der Mitte.
+		fi->textOffsetY = 0;
 		Menu_Con("CSRETRO_VGUI_SYMBOL_FONT %s tall=%d", windowsFontName, fi->tall);
 		return true;
 	}
@@ -772,7 +811,14 @@ bool CSurfaceXash::AddGlyphSetToFont(HFont font, const char *windowsFontName, in
 	const int desc = static_cast<int>((-fi->face->size->metrics.descender) >> 6);
 	const int cell = static_cast<int>(fi->face->size->metrics.height >> 6);
 	fi->ascent = asc > 0 ? asc : (fi->tall * 3 / 4);
+	fi->descent = desc > 0 ? desc : (fi->tall - fi->ascent);
 	fi->height = cell > 0 ? cell : (asc + desc > 0 ? asc + desc : fi->tall);
+	// GDI: internal leading = cell - ascent - descent (top padding before first line).
+	const int leading = fi->height - fi->ascent - fi->descent;
+	fi->textOffsetY = leading > 0 ? leading : 0;
+	// Noto ink can exceed the GDI cell by 1px vs. Tahoma — nudge up to match the Win32 baseline.
+	if (fi->textOffsetY == 0 && fi->ascent + fi->descent > fi->height && fi->height > 0)
+		fi->textOffsetY = fi->ascent + fi->descent - fi->height;
 	fi->ok = true;
 	static std::unordered_map<std::string, bool> s_loggedMetrics;
 	const std::string metricKey =
@@ -780,9 +826,10 @@ bool CSurfaceXash::AddGlyphSetToFont(HFont font, const char *windowsFontName, in
 	if (!s_loggedMetrics[metricKey])
 	{
 		s_loggedMetrics[metricKey] = true;
-		Menu_Con("CSRETRO_FONT_METRICS name=%s req=%d cell=%d ascent=%d aa=%d → %s",
-			windowsFontName ? windowsFontName : "?", fi->tall, fi->height, fi->ascent, fi->antialias ? 1 : 0,
-			path.c_str());
+		// aa_req = Scheme-Wunsch; gerendert wird immer mit Graustufen-AA (siehe EnsureGlyph).
+		Menu_Con("CSRETRO_FONT_METRICS name=%s req=%d cell=%d ascent=%d descent=%d yoff=%d aa_req=%d → %s",
+			windowsFontName ? windowsFontName : "?", fi->tall, fi->height, fi->ascent, fi->descent, fi->textOffsetY,
+			fi->antialias ? 1 : 0, path.c_str());
 	}
 	return true;
 }
@@ -996,7 +1043,7 @@ int CSurfaceXash::GetFontAscent(HFont font, wchar_t)
 {
 	FontInfo *fi = GetFont(font);
 	if (fi && fi->ascent > 0)
-		return fi->ascent;
+		return fi->ascent + fi->textOffsetY;
 	return GetFontTall(font) * 3 / 4;
 }
 void CSurfaceXash::SetAllowHTMLJavaScript(bool) {}

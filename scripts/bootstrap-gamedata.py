@@ -427,6 +427,69 @@ edicts\t"1800"
 """
 
 
+
+def patch_tracker_scheme_menu_item_height(dest_root: Path) -> list[str]:
+    """Ensure Menu { ItemHeight 20 } for classic ComboBox dropdowns."""
+    import re
+
+    patched: list[str] = []
+    for rel in (
+        "valve/resource/TrackerScheme.res",
+        "cstrike/resource/TrackerScheme.res",
+        "platform/resource/TrackerScheme.res",
+    ):
+        path = dest_root / rel
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        m = re.search(r"(Menu\s*\{)([\s\S]*?)(\n\t\t\})", text)
+        if not m:
+            continue
+        body = m.group(2)
+        if re.search(r'"ItemHeight"\s+"\d+"', body):
+            continue
+        # Insert after TextInset when present, else at end of Menu body
+        if re.search(r'"TextInset"\s+"\d+"', body):
+            body2 = re.sub(
+                r'("TextInset"\s+"\d+")',
+                r'\1\n\t\t\t"ItemHeight"\t\t\t"20"',
+                body,
+                count=1,
+            )
+        else:
+            body2 = body + '\n\t\t\t"ItemHeight"\t\t\t"20"'
+        text2 = text[: m.start()] + m.group(1) + body2 + m.group(3) + text[m.end() :]
+        path.write_text(text2, encoding="utf-8")
+        patched.append(rel)
+    return patched
+
+
+def prune_stale(dest_root: Path, manifest: dict) -> list[str]:
+    """Entfernt Steam-Reste, die im Zielbaum nichts zu suchen haben.
+
+    Die `ignore`-Regeln verhindern das Kopieren; `prune` räumt Bäume auf, die aus
+    einem früheren Import stammen, als die Regel noch nicht existierte. Ohne das
+    bliebe alter Ballast für immer liegen, weil ein Refresh nur überschreibt.
+    Deklarativ im Manifest, damit neue Regeln keinen Codeanbau brauchen.
+
+    Aufrufer müssen prune *vor* den UI-Overrides ausführen: ein prune-Pfad kann
+    ein Verzeichnis sein, in das der Override danach die CS-Retro-Datei legt
+    (Menühintergrund in cstrike/resource/background).
+    """
+    removed: list[str] = []
+    for rule in manifest.get("prune", []):
+        rel = rule["path"]
+        target = dest_root / rel
+        if target.is_dir():
+            shutil.rmtree(target)
+        elif target.is_file():
+            target.unlink()
+        else:
+            continue
+        removed.append(rel)
+    return removed
+
+
 def apply_ui_overrides(dest_root: Path) -> list[str]:
     src_root = repo_root() / "data" / "ui-overrides"
     if not src_root.is_dir():
@@ -557,7 +620,11 @@ def do_import(args: argparse.Namespace) -> int:
             if not args.skip_extras:
                 install_zbot_extras(dest_root, args.map)
             ensure_platform_resource(source, dest_root, manifest)
+            # prune vor Overrides: sonst löscht prune cstrike/resource/background
+            # inklusive csretro.png, das der Override in denselben Ordner legt.
+            prune_stale(dest_root, manifest)
             apply_ui_overrides(dest_root)
+            patch_tracker_scheme_menu_item_height(dest_root)
             print(f"XASH3D_RODIR={dest_root}")
             return 0
         if not same:
@@ -590,7 +657,9 @@ def do_import(args: argparse.Namespace) -> int:
         )
 
     copied.extend(ensure_platform_resource(source, dest_root, manifest))
+    pruned = prune_stale(dest_root, manifest)
     copied.extend(apply_ui_overrides(dest_root))
+    copied.extend(patch_tracker_scheme_menu_item_height(dest_root))
 
     write_origin(
         dest_root,
@@ -607,11 +676,14 @@ def do_import(args: argparse.Namespace) -> int:
             "acf_meta": cs["acf_meta"],
             "copied": len(copied),
             "ignored_skipped": skipped_ignore,
+            "pruned": pruned,
             "steam_sourced": copied,
             "csretro_owned": extras + deployed,
         },
     )
     print(f"Import {len(copied)} Dateien → {dest_root}")
+    if pruned:
+        print(f"Entfernt (Steam-Reste): {', '.join(pruned)}")
     print(f"Steam-Quelle (read-only): {source}")
     print(f"XASH3D_RODIR={dest_root}")
     return 0

@@ -7,7 +7,7 @@
 // Tabs nur anzeigen, wenn echte Subpages existieren — keine Stub-Pages.
 class COptionsDialog : public vgui2::PropertyDialog
 {
-	DECLARE_CLASS_SIMPLE(COptionsDialog, vgui2::PropertyDialog);
+	DECLARE_CLASS_SIMPLE_OVERRIDE(COptionsDialog, vgui2::PropertyDialog);
 
 	CUtlDict<vgui2::PropertyPage *, unsigned short> m_tabNames;
 	int m_adaptiveMinW = 0;

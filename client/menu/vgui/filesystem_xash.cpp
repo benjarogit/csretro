@@ -14,6 +14,12 @@
 #include "FileSystem.h"
 #include "tier1/interface.h"
 
+#if defined(__GNUC__) || defined(__clang__)
+#define CSRETRO_FS_PRINTF_LIKE(fmt_index, first_arg) __attribute__((format(printf, fmt_index, first_arg)))
+#else
+#define CSRETRO_FS_PRINTF_LIKE(fmt_index, first_arg)
+#endif
+
 namespace
 {
 struct SearchPath
@@ -305,7 +311,7 @@ public:
 		return fgets(pOutput, maxChars, reinterpret_cast<FILE *>(file));
 	}
 
-	int FPrintf(FileHandle_t file, const char *pFormat, ...) override
+	int FPrintf(FileHandle_t file, const char *pFormat, ...) override CSRETRO_FS_PRINTF_LIKE(3, 4)
 	{
 		if (!file || !pFormat)
 			return -1;

@@ -354,6 +354,8 @@ typedef int						(*pfnEngSrc_pfnGetAppID_t)			( void );
 typedef cmdalias_t*				(*pfnEngSrc_pfnGetAliases_t)		( void );
 typedef void					(*pfnEngSrc_pfnVguiWrap2_GetMouseDelta_t) ( int *x, int *y );
 typedef int							(*pfnEngSrc_pfnFilteredClientCmd_t) 	( char *szCmdString );
+typedef void *						(*pfnEngSrc_pfnGetNativeObject_t) ( const char *name );
+typedef int							(*pfnEngSrc_pfnDrawScaledCharacter_t) ( int x, int y, int number, int r, int g, int b, float scale );
 
 // Pointers to the exported engine functions themselves
 typedef struct cl_enginefuncs_s
@@ -493,6 +495,8 @@ typedef struct cl_enginefuncs_s
 	pfnEngSrc_pfnGetAliases_t				pfnGetAliasList;
 	pfnEngSrc_pfnVguiWrap2_GetMouseDelta_t pfnVguiWrap2_GetMouseDelta;
 	pfnEngSrc_pfnFilteredClientCmd_t		pfnFilteredClientCmd;
+	pfnEngSrc_pfnGetNativeObject_t		pfnGetNativeObject;
+	pfnEngSrc_pfnDrawScaledCharacter_t	pfnDrawScaledCharacter;
 } cl_enginefunc_t;
 
 // Function type declarations for engine destination functions

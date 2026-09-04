@@ -3,7 +3,9 @@
 // Purpose: 
 //
 //=============================================================================//
+#ifdef _MSC_VER
 #pragma warning( disable : 4244 ) // conversion from 'double' to 'float', possible loss of data
+#endif
 
 #include <tier0/platform.h>
 #include <vgui/ISchemeNext.h>
@@ -753,6 +755,8 @@ void AnimationController::UpdatePostedMessages(bool bRunToCompletion)
 		case CMD_SETSTRING:
 			RunCmd_SetString( msg );
 			break;
+			default:
+				break;
 		}
 	}
 }

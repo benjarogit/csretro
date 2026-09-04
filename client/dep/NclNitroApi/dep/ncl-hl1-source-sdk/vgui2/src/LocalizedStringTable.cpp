@@ -6,7 +6,9 @@
 //===========================================================================//
 
 
+#ifdef _MSC_VER
 #pragma warning( disable: 4018 ) // '==' : signed/unsigned mismatch in rbtree
+#endif
 #include <cwchar>
 
 #include "win_charset.h"
@@ -20,10 +22,10 @@
 #include "vgui/ISystem.h"
 #include "vgui/ISurfaceNext.h"
 
-#include "tier1/UtlVector.h"
-#include "tier1/UtlRBTree.h"
-#include "tier1/UtlSymbol.h"
-#include "tier1/UtlString.h"
+#include "tier1/utlvector.h"
+#include "tier1/utlrbtree.h"
+#include "tier1/utlsymbol.h"
+#include "tier1/utlstring.h"
 #include "tier0/icommandline.h"
 #include "UnicodeFileHelpers.h"
 #include "byteswap.h"
@@ -283,7 +285,7 @@ std::vector<std::string> CLocalizedStringTable::GetAllLanguageFiles(const std::s
     char szSearchPath[MAX_PATH];
     Q_snprintf(szSearchPath, sizeof(szSearchPath), "%s*.txt", base_filename.c_str());
 
-    FileFindHandle_t hFind = NULL;
+    FileFindHandle_t hFind = 0;
     const char* file = g_pFullFileSystem->FindFirst(szSearchPath, &hFind);
     while (file)
     {
@@ -607,7 +609,7 @@ wchar_t* CLocalizedStringTable::Find(const char* pName)
 StringIndex_t CLocalizedStringTable::FindIndex(const char* pName)
 {
     if (!pName)
-        return NULL;
+        return 0;
 
     // strip the pound character (which is used elsewhere to indicate that it's a string that should be translated)
     if (pName[0] == '#')
@@ -781,7 +783,7 @@ void CLocalizedStringTable::DiscardFastValueLookup()
 int CLocalizedStringTable::FindExistingValueIndex(const wchar_t* value)
 {
     if (!s_pTable)
-        return INVALID_STRING_INDEX;
+        return -1;
 
     fastvalue_t val;
     val.valueindex = -1;
@@ -792,7 +794,7 @@ int CLocalizedStringTable::FindExistingValueIndex(const wchar_t* value)
     {
         return m_FastValueLookup[idx].valueindex;
     }
-    return INVALID_STRING_INDEX;
+    return -1;
 }
 
 //-----------------------------------------------------------------------------

@@ -11,7 +11,7 @@ class VControlsListPanel;
 
 class COptionsSubKeyboard : public vgui2::PropertyPage
 {
-	DECLARE_CLASS_SIMPLE(COptionsSubKeyboard, vgui2::PropertyPage);
+	DECLARE_CLASS_SIMPLE_OVERRIDE(COptionsSubKeyboard, vgui2::PropertyPage);
 
 public:
 	COptionsSubKeyboard(vgui2::Panel *parent);

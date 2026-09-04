@@ -1,6 +1,6 @@
 # Phase 3M — Options Video Dependency Matrix
 
-Stand: 2026-09-02. Primäre funktionale Quelle: NextClient `COptionsSubVideo`. Backend: Xash-FWGS CVars / MenuAPI. Visuelle Referenz: Golden 5971. **Kein** Steam-HL25-HD-Dialog-Klon. FOV/Advanced ausgeklammert.
+Stand: 2026-09-03. Primäre funktionale Quelle: NextClient `COptionsSubVideo`. Backend: Xash-FWGS CVars / MenuAPI. Visuelle Referenz: Golden 5971. **Kein** Steam-HL25-HD-Dialog-Klon. FOV/Advanced ausgeklammert.
 
 ## Status (eindeutig)
 
@@ -33,6 +33,8 @@ Preferred Size 512×406 + Mouse/Audio/Video grün. **Kein Phase-3-Tag/Release. F
 ### Automated Video Gate PASS umfasst
 
 Layout · CVars · ComboBox/Menu-Hover · Mouse/Keyboard · Resolution-/Aspect-/DisplayMode-Control · Renderer-Anzeige · Brightness/Gamma/VSync · Apply/OK/Cancel/Reset · 640/800/1024/1366
+
+Brightness/Gamma im Automated Gate = Slider- und CVar-Vertrag, **nicht** Bildschirmwirkung. Inhaber 2026-09-03: keine sichtbare Auswirkung — Funktion fehlt, Ursache offen.
 
 Behoben (nicht mehr Blocker): VPANEL-Crash, Footer-Labels, AnimationDictionary-Shutdown-SIGABRT, Confirm-`Close()` (statt nur `MarkForDeletion`).
 
@@ -68,8 +70,8 @@ Overall / Wanduhr + Visual:
 
 | Control | NextClient / Original | Xash / CS-Retro Backend | Apply | Entscheidung |
 |---------|----------------------|-------------------------|-------|--------------|
-| Brightness | `brightness` 0…2 | `brightness` (`gamma.c`, ARCHIVE) | live CVar | **keep** |
-| Gamma | `gamma` 1…3 | `gamma` ARCHIVE | live CVar | **keep** |
+| Brightness | `brightness` 0…2 | `brightness` (`gamma.c`, ARCHIVE) | CVar beim Apply | **keep** — CVar-Schreiben ja; **sichtbare Wirkung fehlt** (offen) |
+| Gamma | `gamma` 1…3 | `gamma` ARCHIVE | CVar beim Apply | **keep** — dito |
 | VSync | `gl_vsync` | `gl_vsync` ARCHIVE (kein VIDRESTART) | live CVar | **keep** — Control vorhanden + sichtbar (ypos 145); bei offenem Display-Mode-Dropdown vom Menu-Popup verdeckt (normal) |
 | Resolution | `_setvideomode` + Modes via `IGameUIFuncs` | `width`/`height`/`vid_mode` + `vid_setmode` (FCVAR_VIDRESTART) · Modes: `pfnGetModeString` | transactional + Confirm | **adapt** |
 | Display Mode | `Windowed` → `_setrenderer … windowed\|fullscreen` | `fullscreen` **0/1/2** (Windowed/FS/Borderless) | transactional + Confirm | **adapt+extend** |
@@ -125,6 +127,7 @@ Mode-Safety primär nativ; Gamescope optional zusätzlich.
 | Wanduhr-10s + Visuell Confirm | **PASS** (delta_ms≈10072; Shots unter `build/options-video-mode-safety-shots/`) |
 | Gamescope WSI Zenity | getrennt; nativ `DISABLE_GAMESCOPE_WSI=1` |
 | Alignment Resolution/Renderer/Aspect/Display Mode | **OPEN** — Visual/Layout; Backend geschlossen. Global Visual Polish + Adaptive Layout |
+| Brightness / Gamma sichtbare Wirkung | **OPEN** — Inhaber: keine sichtbare Auswirkung, Funktion fehlt. Slider (`OptionsSubVideo`) schreiben `brightness`/`gamma` beim Apply (`CCvarSlider` → `MenuEngine::CvarSet`). Xash `gamma.c` / `V_CheckGamma` → `R_GammaChanged` (Lightmap-Rebuild). Ursache nicht eingegrenzt. Kein Fix in diesem Stand. |
 
 ## Mode-Safety-Matrix (Stand Overall PASS)
 

@@ -32,6 +32,7 @@ namespace vgui2
 ComboBoxButton::ComboBoxButton(ComboBox *parent, const char *panelName, const char *text) : Button(parent, panelName, text)
 {
 	SetButtonActivationType(ACTIVATE_ONPRESSED);
+	SetText("");
 }
 
 void ComboBoxButton::ApplySchemeSettings(IScheme *pScheme)
@@ -39,13 +40,13 @@ void ComboBoxButton::ApplySchemeSettings(IScheme *pScheme)
 	Button::ApplySchemeSettings(pScheme);
 	
 	SetFont(pScheme->GetFont("Marlett", IsProportional()));
-	SetContentAlignment(Label::a_west);
+	SetContentAlignment(Label::a_center);
 #ifdef OSX
-	SetTextInset(-3, 0);
+	SetTextInset(-1, 0);
 #else
-	SetTextInset(3, 0);
+	SetTextInset(0, 0);
 #endif
-	SetDefaultBorder(pScheme->GetBorder("ScrollBarButtonBorder"));
+	SetDefaultBorder(nullptr);
 
 	auto bwFgDefaultColor = GetSchemeColor("MenuButton/ButtonArrowColor", pScheme);
 	auto bwBgDefaultColor = GetSchemeColor("MenuButton/ButtonBgColor", pScheme);
@@ -66,6 +67,27 @@ IBorder * ComboBoxButton::GetBorder(bool depressed, bool armed, bool selected, b
 {
 	return NULL;
 	//		return Button::GetBorder(depressed, armed, selected, keyfocus);
+}
+
+void ComboBoxButton::Paint()
+{
+	if (!ShouldPaint())
+		return;
+
+	int wide = 0;
+	int tall = 0;
+	GetSize(wide, tall);
+
+	const int cx = wide / 2;
+	const int cy = tall / 2 + 1;
+	const int half = 4;
+
+	surface()->DrawSetColor(GetButtonFgColor());
+	for (int row = 0; row < 4; ++row)
+	{
+		const int inset = row;
+		surface()->DrawFilledRect(cx - half + inset, cy - 2 + row, cx + half + 1 - inset, cy - 1 + row);
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -613,9 +635,15 @@ void ComboBox::OnMenuClose()
 {
 	HideMenu();
 
+	// Geschlossenes Feld: kein Selection-Fill. Der gelbe Balken gehört ins
+	// offene Dropdown bzw. ins editierbare Feld mit echter Markierung.
+	const bool editable = IsEditable();
 	if ( HasFocus() )
 	{
-		SelectAllText(false);
+		if (editable)
+			SelectAllText(false);
+		else
+			SelectNoText();
 	}
 	else if ( m_bHighlight )
 	{
@@ -627,7 +655,10 @@ void ComboBox::OnMenuClose()
 	// if cursor is in this box or the arrow box
 	else if ( IsCursorOver() )// make sure it's getting pressed over us (it may not be due to mouse capture)
 	{
-		SelectAllText(false);
+		if (editable)
+			SelectAllText(false);
+		else
+			SelectNoText();
 		OnCursorEntered();
 		// Get focus so the box will unhighlight if we click somewhere else.
 		RequestFocus();
@@ -825,7 +856,10 @@ void ComboBox::OnSetFocus()
     BaseClass::OnSetFocus();
 
 	GotoTextEnd();
-	SelectAllText(true);
+	if (IsEditable())
+		SelectAllText(true);
+	else
+		SelectNoText();
 }
 #else
 void ComboBox::OnSetFocus()
@@ -833,7 +867,10 @@ void ComboBox::OnSetFocus()
     BaseClass::OnSetFocus();
 
 	GotoTextEnd();
-	SelectAllText(false);
+	if (IsEditable())
+		SelectAllText(false);
+	else
+		SelectNoText();
 }
 #endif
 

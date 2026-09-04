@@ -33,10 +33,12 @@ struct ServerProfile
 	std::string password;
 	int maxplayers = 10;
 	int lan = 1;
-	float roundtime = 5.f;
-	float freezetime = 6.f;
-	int friendlyfire = 0;
-	int teambalance = 1;
+
+	// Gameplay-Regeln kommen datengetrieben aus cstrike/settings.scr (mp_roundtime,
+	// mp_freezetime, mp_friendlyfire, mp_autoteambalance, …). Bewusst kein Feld je
+	// CVar: sonst gäbe es zwei Quellen für denselben Wert, und jede neue Zeile in
+	// settings.scr bräuchte Code.
+	std::vector<std::pair<std::string, std::string>> gameplay;
 	int bot_quota = 0;
 	int bot_difficulty = 0;
 	std::string bot_join_team = "any";
@@ -48,7 +50,13 @@ extern ui_extendedfuncs_t gExtEng;
 extern ui_globalvars_t *gGlobals;
 extern bool gExtEngReady;
 
-void Menu_Con(const char *fmt, ...);
+#if defined(__GNUC__) || defined(__clang__)
+#define CSRETRO_PRINTF_LIKE(fmt_index, first_arg) __attribute__((format(printf, fmt_index, first_arg)))
+#else
+#define CSRETRO_PRINTF_LIKE(fmt_index, first_arg)
+#endif
+
+void Menu_Con(const char *fmt, ...) CSRETRO_PRINTF_LIKE(1, 2);
 const char *Menu_L(const char *token);
 void Menu_LoadLocale();
 std::vector<ResField> Menu_LoadRes(const char *path);
@@ -62,9 +70,11 @@ void Profile_Defaults(ServerProfile *p);
 void Profile_WriteListen(const ServerProfile *p);
 void Profile_Start(const ServerProfile *p);
 
-void GameUI_ShowInGame(int menuType);
+void GameUI_ShowInGame(int menuType, int validSlots);
 void GameUI_HideInGame();
 bool GameUI_InGameActive();
+void Menu_NotePlayerTeam(int team);
+int Menu_LastPlayerTeam();
 bool GameUI_ActivateSlot(int slot); // 1..10
 void GameUI_InGameKey(int key, int down);
 void GameUI_InGameDraw();
@@ -72,6 +82,10 @@ void GameUI_InGameDraw();
 void GameUI_OpenOptions();
 void GameUI_OpenNewGame();
 void GameUI_OpenBrowser();
+
+// GameMenu.res command dispatch, shared by the VGUI2 main menu.
+void GameUI_RunMenuCommand(const char *cmd);
+bool GameUI_IsClientInGame();
 
 enum MenuScreen
 {

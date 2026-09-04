@@ -1,6 +1,12 @@
 #include "vgui_boot.h"
 #include "window_geometry.h"
 #include "menu_runtime_info.h"
+#include "../gameui/CreateGameDialog.h"
+#include "../gameui/ServerBrowserDialog.h"
+#include "../gameui/GameConsoleDialog.h"
+#include "../gameui/TeamSelectPanel.h"
+#include "../gameui/ClassSelectPanel.h"
+#include "../gameui/BuySelectPanel.h"
 #include "../gameui/OptionsDialog.h"
 #include "../gameui/OptionsClassicMetrics.h"
 #include "../gameui/OptionsMouseGate.h"
@@ -36,6 +42,7 @@
 #include "vstdlib/IKeyValuesSystem.h"
 
 #include "surface_xash.h"
+#include "main_menu.h"
 #include "../src/menu_priv.h"
 
 void Csretro_SystemSetCommandLine(const char *cmd);
@@ -58,6 +65,7 @@ namespace
 bool g_inited = false;
 vgui2::Panel *g_root = nullptr;
 COptionsDialog *g_options = nullptr;
+CCreateGameDialog *g_createGame = nullptr;
 int g_optionsGateFrame = -1;
 }
 
@@ -137,6 +145,11 @@ static void AddDefaultSearchPaths()
 	const char *basedir = getenv("XASH3D_BASEDIR");
 	char buf[1024];
 
+	// Override zuerst: sonst gewinnt die ältere Kopie in RODIR/cstrike.
+	const char *overrideEnv = getenv("CSRETRO_UI_OVERRIDE");
+	if (overrideEnv && *overrideEnv)
+		fs->AddSearchPath(overrideEnv, "GAME");
+
 	if (rodir && *rodir)
 	{
 		snprintf(buf, sizeof(buf), "%s/cstrike", rodir);
@@ -155,9 +168,6 @@ static void AddDefaultSearchPaths()
 		fs->AddSearchPath(basedir, "DEFAULTGAME");
 	}
 
-	const char *overrideEnv = getenv("CSRETRO_UI_OVERRIDE");
-	if (overrideEnv && *overrideEnv)
-		fs->AddSearchPath(overrideEnv, "GAME");
 }
 
 void VGuiXash_Init()
@@ -240,6 +250,20 @@ void VGuiXash_Init()
 			"PropertyDialog_OK",
 			"PropertyDialog_Cancel",
 			"PropertyDialog_Apply",
+			"GameUI_GameMenu_FindServers",
+			"GameUI_Close",
+			"CsretroServerBrowser_NoServers",
+			"CsretroServerBrowser_Scanning",
+			"CsretroServerBrowser_Found",
+			"CsretroServerBrowser_Locked",
+			"CsretroServerBrowser_Password",
+			"CsretroServerBrowser_Servers",
+			"CsretroServerBrowser_IPAddress",
+			"CsretroServerBrowser_Players",
+			"CsretroServerBrowser_Map",
+			"CsretroServerBrowser_Latency",
+			"CsretroServerBrowser_Connect",
+			"CsretroServerBrowser_Refresh",
 		};
 		for (const char *tok : probes)
 		{
@@ -257,6 +281,7 @@ void VGuiXash_Init()
 	g_root->SetVisible(true);
 	if (g_pVGuiSurface)
 		g_pVGuiSurface->SetEmbeddedPanel(g_root->GetVPanel());
+	GameConsole_Initialize(g_root);
 
 	g_inited = true;
 	CsretroMenu_LogProvenance("VGuiXash_Init");
@@ -295,11 +320,19 @@ void VGuiXash_Shutdown()
 	if (!g_inited)
 		return;
 	PocDialog_Hide();
+	ClassSelect_Shutdown();
+	BuySelect_Shutdown();
+	TeamSelect_Shutdown();
+	GameConsole_Shutdown();
+	ServerBrowser_Shutdown();
+	MainMenu_Shutdown();
 	if (g_root)
 	{
 		g_root->DeletePanel();
 		g_root = nullptr;
 	}
+	g_options = nullptr;
+	g_createGame = nullptr;
 	if (g_pVGui)
 		g_pVGui->Shutdown();
 	g_inited = false;
@@ -310,8 +343,21 @@ void VGuiXash_RunFrame()
 	if (!g_inited || !g_pVGui)
 		return;
 	if (g_root && gGlobals)
+	{
+		int prevW = 0, prevH = 0;
+		g_root->GetSize(prevW, prevH);
 		g_root->SetBounds(0, 0, gGlobals->scrWidth, gGlobals->scrHeight);
+		if (prevW != gGlobals->scrWidth || prevH != gGlobals->scrHeight)
+			MainMenu_InvalidateLayout();
+	}
 	g_pVGui->RunFrame();
+	BuySelect_AfterFrame();
+	MainMenu_GateTick();
+	CreateGame_GateTick();
+	TeamSelect_GateTick();
+	ClassSelect_GateTick();
+	BuySelect_GateTick();
+	ServerBrowser_RunFrame();
 
 	// Workspace change: clamp saved/current bounds. Do not stomp back to 512×406.
 	if (g_options && g_options->IsVisible() && g_pVGuiSurface)
@@ -532,14 +578,153 @@ bool VGuiXash_IsOptionsActive()
 	return g_options && g_options->IsVisible();
 }
 
+bool VGuiXash_ShowCreateGameDialog()
+{
+	if (!g_inited)
+		VGuiXash_Init();
+	if (!g_root)
+		return false;
+	if (!g_createGame)
+		g_createGame = new CCreateGameDialog(g_root);
+	if (!g_createGame->HasPages())
+		return false;
+
+	int sw = 640, sh = 480;
+	if (g_pVGuiSurface)
+		g_pVGuiSurface->GetScreenSize(sw, sh);
+	int w = 0, h = 0;
+	g_createGame->GetSize(w, h);
+	g_createGame->SetPos((sw - w) / 2, (sh - h) / 2);
+	g_createGame->Activate();
+	return true;
+}
+
+void VGuiXash_HideCreateGameDialog()
+{
+	if (!g_createGame)
+		return;
+	g_createGame->SetVisible(false);
+	g_createGame->Close();
+}
+
+bool VGuiXash_IsCreateGameActive()
+{
+	return g_createGame && g_createGame->IsVisible();
+}
+
+CCreateGameDialog *VGuiXash_GateGetCreateGameDialog()
+{
+	return g_createGame;
+}
+
+bool VGuiXash_ShowServerBrowser()
+{
+	if (!g_inited)
+		VGuiXash_Init();
+	if (!g_root)
+		return false;
+	return ServerBrowser_Show(g_root);
+}
+
+void VGuiXash_HideServerBrowser()
+{
+	ServerBrowser_Hide();
+}
+
+bool VGuiXash_IsServerBrowserActive()
+{
+	return ServerBrowser_IsActive();
+}
+
+bool VGuiXash_ToggleConsole() { return GameConsole_Toggle(); }
+void VGuiXash_HideConsole() { GameConsole_Hide(); }
+bool VGuiXash_IsConsoleActive() { return GameConsole_IsActive(); }
+void VGuiXash_ConsolePrint(const char *text) { GameConsole_Print(text); }
+void VGuiXash_ConsoleClear() { GameConsole_Clear(); }
+
+bool VGuiXash_ShowMainMenu()
+{
+	if (!g_inited)
+		VGuiXash_Init();
+	if (!g_root)
+		return false;
+	return MainMenu_Show(g_root);
+}
+
+void VGuiXash_HideMainMenu() { MainMenu_Hide(); }
+
+bool VGuiXash_IsMainMenuActive() { return MainMenu_IsActive(); }
+
 bool VGuiXash_IsKeyboardCapturing()
 {
 	return g_options && g_options->IsVisible() && g_options->IsKeyboardCapturing();
 }
 
+bool VGuiXash_ShowTeamSelect(int validSlots)
+{
+	if (!g_inited)
+		VGuiXash_Init();
+	if (!g_root)
+	{
+		Menu_Con("CSRETRO_TEAM_VGUI fail — kein VGUI-Root");
+		return false;
+	}
+	ClassSelect_Hide();
+	BuySelect_Hide();
+	return TeamSelect_Show(g_root, validSlots);
+}
+
+void VGuiXash_HideTeamSelect() { TeamSelect_Hide(); }
+
+bool VGuiXash_IsTeamSelectActive() { return TeamSelect_IsActive(); }
+
+bool VGuiXash_TeamActivateSlot(int slot) { return TeamSelect_ActivateSlot(slot); }
+
+bool VGuiXash_ShowClassSelect(int menuType, int validSlots)
+{
+	if (!g_inited)
+		VGuiXash_Init();
+	if (!g_root)
+	{
+		Menu_Con("CSRETRO_CLASS_VGUI fail — kein VGUI-Root");
+		return false;
+	}
+	TeamSelect_Hide();
+	BuySelect_Hide();
+	return ClassSelect_Show(g_root, menuType, validSlots);
+}
+
+void VGuiXash_HideClassSelect() { ClassSelect_Hide(); }
+
+bool VGuiXash_IsClassSelectActive() { return ClassSelect_IsActive(); }
+
+bool VGuiXash_ClassActivateSlot(int slot) { return ClassSelect_ActivateSlot(slot); }
+
+bool VGuiXash_ShowBuySelect(int menuType, int validSlots)
+{
+	if (!g_inited)
+		VGuiXash_Init();
+	if (!g_root)
+	{
+		Menu_Con("CSRETRO_BUY_VGUI fail — kein VGUI-Root");
+		return false;
+	}
+	TeamSelect_Hide();
+	ClassSelect_Hide();
+	return BuySelect_Show(g_root, menuType, validSlots);
+}
+
+void VGuiXash_HideBuySelect() { BuySelect_Hide(); }
+
+bool VGuiXash_IsBuySelectActive() { return BuySelect_IsActive(); }
+
+bool VGuiXash_BuyActivateSlot(int slot) { return BuySelect_ActivateSlot(slot); }
+
 bool VGuiXash_IsUiActive()
 {
-	return VGuiXash_IsPocActive() || VGuiXash_IsOptionsActive();
+	return VGuiXash_IsPocActive() || VGuiXash_IsOptionsActive() || VGuiXash_IsMainMenuActive() ||
+		VGuiXash_IsCreateGameActive() || VGuiXash_IsServerBrowserActive() || VGuiXash_IsConsoleActive() ||
+		VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() || VGuiXash_IsBuySelectActive();
 }
 
 void VGuiXash_Key(int key, int down)

@@ -1933,14 +1933,6 @@ static void S_VoiceRecordStop_f( void )
 	Voice_RecordStop();
 }
 
-static const sound_api_t gSoundAPI = {
-	CL_GetEntitySpatialization,
-	S_GetSfxByHandle,
-	S_RawEntSamples,
-	SND_ForceInitMouth,
-	Voice_GetAudioInfo,
-};
-
 /*
 ================
 S_InitSoundAPI
@@ -1948,26 +1940,9 @@ S_InitSoundAPI
 */
 qboolean S_InitSoundAPI( void )
 {
-	// make sure what sound functions is cleared
+	// CS Retro owns the desktop sound path. Client-side sound replacement hooks
+	// were unused compatibility surface and are intentionally not part of it.
 	memset( &clgame.soundFuncs, 0, sizeof( clgame.soundFuncs ));
-
-	if( clgame.dllFuncs.pfnGetSoundInterface )
-	{
-		if( clgame.dllFuncs.pfnGetSoundInterface( CL_SOUND_INTERFACE_VERSION, &gSoundAPI, &clgame.soundFuncs ))
-		{
-			Con_Reportf( "%s: ^2initailized extended SoundAPI ^7ver. %i\n", __func__, CL_SOUND_INTERFACE_VERSION );
-			return true;
-		}
-
-		Con_Reportf( "%s: ^1failed to initialize extended SoundAPI ^7ver. %i\n", __func__, CL_SOUND_INTERFACE_VERSION );
-
-		// make sure what sound functions is cleared
-		memset( &clgame.soundFuncs, 0, sizeof( clgame.soundFuncs ));
-	}
-
-	if( clgame.soundFuncs.pfnS_Init )
-		clgame.soundFuncs.pfnS_Init( &snd );
-
 	return false;
 }
 

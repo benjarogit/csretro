@@ -13,7 +13,15 @@
 #include "tier1/utlvector.h"
 #include <vgui_controls/Panel.h>
 
-#define DECLARE_PANELANIMATION( className )												\
+#ifndef OVERRIDE
+#if defined(_MSC_VER)
+#define OVERRIDE
+#else
+#define OVERRIDE override
+#endif
+#endif
+
+#define DECLARE_PANELANIMATION_EX( className, overrideSpec )												\
 	static void AddToAnimationMap( char const *scriptname, char const *type, char const *var,	\
 		char const *defaultvalue, bool array, PANELLOOKUPFUNC func )					\
 	{																					\
@@ -56,10 +64,13 @@
 	};																					\
 	className##_Register m_RegisterAnimationClass;												\
 																						\
-	virtual PanelAnimationMap *GetAnimMap()												\
+	virtual PanelAnimationMap *GetAnimMap() overrideSpec								\
 	{																					\
 		return FindOrAddPanelAnimationMap( GetPanelClassName() );						\
 	}
+
+#define DECLARE_PANELANIMATION( className ) DECLARE_PANELANIMATION_EX( className, /* no override */ )
+#define DECLARE_PANELANIMATION_NOBASE( className ) DECLARE_PANELANIMATION_EX( className, /* no override */ )
 
 typedef void *( *PANELLOOKUPFUNC )( vgui2::Panel *panel );
 

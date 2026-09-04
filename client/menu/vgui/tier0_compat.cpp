@@ -79,6 +79,7 @@ CStdMemAlloc g_StdMemAlloc;
 IMemAlloc *g_pMemAlloc = &g_StdMemAlloc;
 #endif
 
+static void SpewToStderr(const char *prefix, PRINTF_FORMAT_STRING const char *fmt, va_list ap) FMTFUNCTION(2, 0);
 static void SpewToStderr(const char *prefix, const char *fmt, va_list ap)
 {
 	char buf[2048];

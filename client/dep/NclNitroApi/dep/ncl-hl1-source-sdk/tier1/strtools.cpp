@@ -1028,11 +1028,8 @@ char *V_pretifymem( float value, int digitsafterdecimal /*= 2*/, bool usebinaryo
 	}
 	else
 	{
-		char fmt[ 32 ];
-
-		// Otherwise, create a format string for the decimals
-		V_snprintf( fmt, sizeof( fmt ), "%%.%if%s", digitsafterdecimal, suffix );
-		V_snprintf( val, sizeof( val ), fmt, value );
+		// Precision as vararg avoids a non-literal format string.
+		V_snprintf( val, sizeof( val ), "%.*f%s", digitsafterdecimal, value, suffix );
 	}
 
 	// Copy from in to out
@@ -2020,7 +2017,7 @@ bool V_ExtractFilePath (const char *path, char *dest, int destSize )
 //-----------------------------------------------------------------------------
 void V_ExtractFileExtension( const char *path, char *dest, int destSize )
 {
-	*dest = NULL;
+	*dest = 0;
 	const char * extension = V_GetFileExtension( path );
 	if ( NULL != extension )
 		V_strncpy( dest, extension, destSize );

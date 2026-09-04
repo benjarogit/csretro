@@ -24,6 +24,7 @@
 #include <vgui_controls/ImageList.h>
 
 #include "utlvector.h"
+#include <tier1/strtools.h>
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include <tier0/memdbgon.h>
@@ -211,6 +212,15 @@ void SectionedListPanelHeader::PerformLayout()
 	}
 }
 
+static bool IsCaptureWaitingText(const char *text)
+{
+	if (!text || !text[0])
+		return false;
+	if (!Q_stricmp(text, "#GameUI_PressAKey"))
+		return true;
+	return Q_stristr(text, "Press a key") != nullptr;
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: Individual items in the list
 //-----------------------------------------------------------------------------
@@ -381,6 +391,14 @@ public:
 							textImage->SetText(m_pData->GetString(keyname, ""));
 						textImage->ResizeImageToContentMaxWidth( maxWidth );
 
+						const char *cellText = m_pData->GetString(keyname, "");
+						if (IsCaptureWaitingText(cellText))
+						{
+							const bool altCol = keyname && !Q_stricmp(keyname, "AltKey");
+							textImage->SetColor(altCol ? m_CaptureWaitAltFgColor : m_CaptureWaitFgColor);
+						}
+						else
+						{
 						// set the text color based on the selection state - if one of the children of the SectionedListPanel has focus, then 'we have focus' if we're selected
 						VPANEL focus = input()->GetFocus();
 						if ( !m_bOverrideColors )
@@ -416,6 +434,7 @@ public:
 							{
 								textImage->SetColor(GetFgColor());
 							}
+						}
 						}
 					}
 					image = textImage;
@@ -475,6 +494,8 @@ public:
 		m_ArmedBgColor = GetSchemeColor("SectionedListPanel.SelectedBgColor", GetSchemeColor("BuddyButton/ArmedBgColor", pScheme), pScheme);
 
 		m_FgColor2 = GetSchemeColor("SectionedListPanel.TextColor", GetSchemeColor("BuddyButton/FgColor2", pScheme), pScheme);
+		m_CaptureWaitFgColor = GetSchemeColor("BrightControlText", GetSchemeColor("ControlText", pScheme), pScheme);
+		m_CaptureWaitAltFgColor = GetSchemeColor("BrightBaseText", m_CaptureWaitFgColor, pScheme);
 
 		m_BgColor = GetSchemeColor("SectionedListPanel.BgColor", GetSchemeColor("BuddyListBgColor", GetBgColor(), pScheme), pScheme);
 		m_SelectionBG2Color = GetSchemeColor("SectionedListPanel.OutOfFocusSelectedBgColor", GetSchemeColor("SelectionBG2", pScheme), pScheme);
@@ -497,7 +518,7 @@ public:
 		ClearImages();
 	}
 
-	virtual void SetPaintBackgroundEnabled(bool state) override
+	virtual void SetPaintBackgroundEnabled(bool state)
 	{
 		BaseClass::SetPaintBackgroundEnabled(state);
 		m_bPaintBg = state;
@@ -745,6 +766,8 @@ private:
 	int m_iSectionID;
 	KeyValues *m_pData;
 	Color m_FgColor2;
+	Color m_CaptureWaitFgColor;
+	Color m_CaptureWaitAltFgColor;
 	Color m_BgColor;
 	Color m_ArmedFgColor1;
 	Color m_ArmedFgColor2;
@@ -1469,7 +1492,7 @@ int SectionedListPanel::GetColumnCountBySection(int sectionID)
 {
 	int index = FindSectionIndexByID(sectionID);
 	if (index < 0)
-		return NULL;
+		return 0;
 
 	return m_Sections[index].m_Columns.Size();
 }

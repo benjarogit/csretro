@@ -45,7 +45,6 @@ typedef int (*pfnUserMsgHook)(const char *pszName, int iSize, void *pbuf);
 #include "exportdef.h"
 
 #include "render_api.h"
-#include "mobility_int.h"
 
 extern "C"
 {
@@ -64,7 +63,6 @@ void       DLLEXPORT HUD_Frame( double time );
 void       DLLEXPORT HUD_VoiceStatus( int entindex, qboolean bTalking );
 void       DLLEXPORT HUD_DirectorMessage( int iSize, void *pbuf );
 int        DLLEXPORT HUD_GetRenderInterface( int version, render_api_t *renderfuncs, render_interface_t *callback );
-int        DLLEXPORT HUD_MobilityInterface( mobile_engfuncs_t *mobileapi );
 void       DLLEXPORT HUD_PostRunCmd( struct local_state_s *from, struct local_state_s *to, struct usercmd_s *cmd, int runfuncs, double time, unsigned int random_seed );
 int        DLLEXPORT HUD_AddEntity( int type, struct cl_entity_s *ent, const char *modelname );
 void       DLLEXPORT HUD_CreateEntities( void );
@@ -99,8 +97,7 @@ void       DLLEXPORT IN_ClientLookEvent( float relyaw, float relpitch );
 
 extern cl_enginefunc_t gEngfuncs;
 extern render_api_t gRenderAPI;
-extern mobile_engfuncs_t gMobileAPI;
 extern IGameMenuExports *g_pMenu;
 extern int g_iXash; // indicates buildnum
-extern int g_iMobileAPIVersion; // indicates version. 0 if no mobile API
+void Menu_EnsureExports( void );
 #endif // CL_DLL_H

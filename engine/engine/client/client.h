@@ -1118,6 +1118,7 @@ void Con_VidInit( void );
 void Con_Shutdown( void );
 void Con_ToggleConsole_f( void );
 void Con_ClearNotify( void );
+void Con_ReplayToGameUI( void );
 void Con_DrawDebug( void );
 void Con_RunConsole( void );
 qboolean Con_GetInputRect( int *x, int *y, int *w, int *h );
@@ -1184,6 +1185,10 @@ qboolean UI_CreditsActive( void );
 void UI_CharEvent( int key );
 qboolean UI_MouseInRect( void );
 qboolean UI_IsVisible( void );
+void UI_ConsolePrint( const char *text );
+void UI_ConsoleClear( void );
+qboolean UI_ConsoleToggle( void );
+qboolean UI_ConsoleIsVisible( void );
 void UI_ResetPing( void );
 qboolean UI_ShowMessageBox( const char *text );
 void UI_AddTouchButtonToList( const char *name, const char *texture, const char *command, unsigned char *color, int flags );
@@ -1199,8 +1204,6 @@ char **GAME_EXPORT CL_GetFilesList( const char *pattern, int *numFiles, int game
 //
 // cl_mobile.c
 //
-qboolean Mobile_Init( void );
-void Mobile_Shutdown( void );
 
 //
 // cl_securedstub.c

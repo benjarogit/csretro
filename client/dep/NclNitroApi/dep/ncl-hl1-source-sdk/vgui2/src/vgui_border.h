@@ -50,7 +50,7 @@ namespace vgui2
 
     public:
         Border();
-        ~Border();
+        virtual ~Border();
 
         void Paint(VPANEL panel) override;
         void Paint(int x0, int y0, int x1, int y1) override;

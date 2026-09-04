@@ -5,11 +5,18 @@
 #include "../gameui/OptionsKeyboardGate.h"
 #include "../vgui/menu_runtime_info.h"
 
+// Nur die Modulschnittstelle — den VGUI-Header hier einzuziehen würde
+// xash3d_types.h und SDK-Macros (SetBits/LittleLong/…) kollidieren lassen.
+void ServerBrowser_AddFromEngine(const char *address, const char *info);
+
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 #include <cstdarg>
 #include <algorithm>
+#include <unistd.h>
+
+extern char **environ;
 
 // Xash keydest_t: key_console=0, key_game=1, key_menu=2
 #ifndef KEY_DEST_CONSOLE
@@ -27,19 +34,42 @@ bool gMenuVisible = false;
 int gMouseX, gMouseY;
 ServerProfile gProfile;
 
-static std::vector<GameMenuItem> gMainItems;
 static std::vector<ResField> gInGame;
 static int gInGameType = 0;
 static bool gInGameOn = false;
-static int gHoverMain = -1;
+static int gLastTeam = 0;
 
-struct BgTile
+void Menu_NotePlayerTeam(int team)
 {
-	HIMAGE pic = 0;
-	int x = 0, y = 0, fitW = 256, fitH = 256;
-};
-static std::vector<BgTile> gBg;
-static int gBgSrcW = 800, gBgSrcH = 600;
+	if (team == 1 || team == 2)
+		gLastTeam = team;
+}
+
+int Menu_LastPlayerTeam()
+{
+	return gLastTeam;
+}
+
+// Ein Motiv, kein Steam-Kachelset. Engine-PIC_Load (RODIR), nicht VGUI-IFileSystem.
+static const char kBackgroundPath[] = "resource/background/csretro.png";
+static HIMAGE gBgPic = 0;
+static int gBgSrcW = 1, gBgSrcH = 1;
+
+static bool MenuConToEngine()
+{
+	// play.sh: nur stderr, nie Notify-HUD. Gates brauchen engine.log (-log).
+	if (getenv("CSRETRO_MENU_CON_ENGINE") || getenv("CSRETRO_V1POC") || getenv("CSRETRO_OPTIONS_AUTO") ||
+		getenv("CSRETRO_CONSOLE_DEBUG"))
+		return true;
+	for (char **e = environ; e && *e; ++e)
+	{
+		if (strncmp(*e, "CSRETRO_", 8) != 0)
+			continue;
+		if (strstr(*e, "_GATE="))
+			return true;
+	}
+	return false;
+}
 
 void Menu_Con(const char *fmt, ...)
 {
@@ -48,7 +78,10 @@ void Menu_Con(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
-	if (gEng.Con_Printf)
+	fputs(buf, stderr);
+	fputc('\n', stderr);
+	fflush(stderr);
+	if (MenuConToEngine() && gEng.Con_Printf)
 		gEng.Con_Printf("%s\n", buf);
 }
 
@@ -67,48 +100,24 @@ bool Menu_Hit(int mx, int my, int x, int y, int w, int h)
 
 void Menu_LoadBackground()
 {
-	gBg.clear();
-	int len = 0;
-	byte *raw = gEng.COM_LoadFile("resource/BackgroundLayout.txt", &len);
-	if (!raw)
-		raw = gEng.COM_LoadFile("resource/background/BackgroundLayout.txt", &len);
-	if (!raw || len <= 0)
-		return;
-	char *p = reinterpret_cast<char *>(raw);
-	char token[256];
-	int mode = 0;
-	while ((p = gEng.COM_ParseFile(p, token)) != nullptr)
+	gBgPic = 0;
+	gBgSrcW = 1;
+	gBgSrcH = 1;
+	if (!gEng.pfnPIC_Load)
 	{
-		if (!strcmp(token, "resolution") && p)
-		{
-			p = gEng.COM_ParseFile(p, token);
-			if (p)
-				gBgSrcW = atoi(token);
-			p = gEng.COM_ParseFile(p, token);
-			if (p)
-				gBgSrcH = atoi(token);
-			continue;
-		}
-		if (strstr(token, ".tga") || strstr(token, ".TGA"))
-		{
-			BgTile t;
-			t.pic = gEng.pfnPIC_Load(token, nullptr, 0, PIC_NOFLIP_TGA);
-			char how[32] = {};
-			p = gEng.COM_ParseFile(p, how);
-			p = gEng.COM_ParseFile(p, token);
-			if (p)
-				t.x = atoi(token);
-			p = gEng.COM_ParseFile(p, token);
-			if (p)
-				t.y = atoi(token);
-			t.fitW = gEng.pfnPIC_Width(t.pic);
-			t.fitH = gEng.pfnPIC_Height(t.pic);
-			if (t.pic)
-				gBg.push_back(t);
-			(void)mode;
-		}
+		Menu_Con("CSRETRO_BG FAIL %s", kBackgroundPath);
+		return;
 	}
-	gEng.COM_FreeFile(raw);
+	const HIMAGE pic = gEng.pfnPIC_Load(kBackgroundPath, nullptr, 0, 0);
+	if (!pic)
+	{
+		Menu_Con("CSRETRO_BG FAIL %s", kBackgroundPath);
+		return;
+	}
+	gBgPic = pic;
+	gBgSrcW = std::max(1, gEng.pfnPIC_Width(pic));
+	gBgSrcH = std::max(1, gEng.pfnPIC_Height(pic));
+	Menu_Con("CSRETRO_BG %s %dx%d", kBackgroundPath, gBgSrcW, gBgSrcH);
 }
 
 void Menu_DrawBackground()
@@ -116,21 +125,25 @@ void Menu_DrawBackground()
 	const int sw = gGlobals ? gGlobals->scrWidth : 640;
 	const int sh = gGlobals ? gGlobals->scrHeight : 480;
 	gEng.pfnFillRGBA(0, 0, sw, sh, 0, 0, 0, 255);
-	if (gBg.empty() || gBgSrcW < 1 || gBgSrcH < 1)
+	if (!gBgPic || gBgSrcW < 1 || gBgSrcH < 1)
 		return;
+	// Cover: Seitenverhältnis halten, Überstand mittig abschneiden (kein Verzerren).
 	const float sx = static_cast<float>(sw) / static_cast<float>(gBgSrcW);
 	const float sy = static_cast<float>(sh) / static_cast<float>(gBgSrcH);
-	for (const BgTile &t : gBg)
-	{
-		if (!t.pic)
-			continue;
-		const int x = static_cast<int>(t.x * sx);
-		const int y = static_cast<int>(t.y * sy);
-		const int w = std::max(1, static_cast<int>(t.fitW * sx));
-		const int h = std::max(1, static_cast<int>(t.fitH * sy));
-		gEng.pfnPIC_Set(t.pic, 255, 255, 255, 255);
-		gEng.pfnPIC_Draw(x, y, w, h, nullptr);
-	}
+	const float scale = std::max(sx, sy);
+	const float visW = static_cast<float>(sw) / scale;
+	const float visH = static_cast<float>(sh) / scale;
+	const float srcX = (static_cast<float>(gBgSrcW) - visW) * 0.5f;
+	const float srcY = (static_cast<float>(gBgSrcH) - visH) * 0.5f;
+	wrect_t rc;
+	rc.left = std::max(0, static_cast<int>(srcX));
+	rc.top = std::max(0, static_cast<int>(srcY));
+	rc.right = std::min(gBgSrcW, static_cast<int>(srcX + visW));
+	rc.bottom = std::min(gBgSrcH, static_cast<int>(srcY + visH));
+	if (rc.right <= rc.left || rc.bottom <= rc.top)
+		return;
+	gEng.pfnPIC_Set(gBgPic, 255, 255, 255, 255);
+	gEng.pfnPIC_Draw(0, 0, sw, sh, &rc);
 }
 
 static bool InGame()
@@ -167,12 +180,45 @@ static const char *InGameResPath(int menuType)
 	}
 }
 
-void GameUI_ShowInGame(int menuType)
+void GameUI_ShowInGame(int menuType, int validSlots)
 {
-	const char *path = InGameResPath(menuType);
+	Menu_Con("CSRETRO_VGUI_SHOW type=%d slots=%d", menuType, validSlots);
 	gInGameType = menuType;
 	gInGameOn = false;
 	gInGame.clear();
+	if (menuType == 2)
+	{
+		VGuiXash_HideClassSelect();
+		VGuiXash_HideBuySelect();
+		if (VGuiXash_ShowTeamSelect(validSlots))
+			return;
+		Menu_Con("CSRETRO_TEAM_VGUI fail — Interim");
+	}
+	else if (menuType == 26 || menuType == 27)
+	{
+		VGuiXash_HideTeamSelect();
+		VGuiXash_HideBuySelect();
+		Menu_NotePlayerTeam(menuType == 27 ? 2 : 1);
+		if (VGuiXash_ShowClassSelect(menuType, validSlots))
+			return;
+		Menu_Con("CSRETRO_CLASS_VGUI fail — Interim");
+	}
+	else if (menuType >= 28 && menuType <= 34)
+	{
+		VGuiXash_HideTeamSelect();
+		VGuiXash_HideClassSelect();
+		if (VGuiXash_ShowBuySelect(menuType, validSlots))
+			return;
+		Menu_Con("CSRETRO_BUY_VGUI fail — Interim");
+	}
+	else
+	{
+		VGuiXash_HideTeamSelect();
+		VGuiXash_HideClassSelect();
+		VGuiXash_HideBuySelect();
+	}
+
+	const char *path = InGameResPath(menuType);
 	if (!path)
 	{
 		Menu_Con("CSRetro-VGUI: kein .res für Menü %d — ShowMenu-Legacy", menuType);
@@ -190,13 +236,17 @@ void GameUI_ShowInGame(int menuType)
 
 void GameUI_HideInGame()
 {
+	VGuiXash_HideTeamSelect();
+	VGuiXash_HideClassSelect();
+	VGuiXash_HideBuySelect();
 	gInGameOn = false;
 	gInGame.clear();
 }
 
 bool GameUI_InGameActive()
 {
-	return gInGameOn;
+	return gInGameOn || VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() ||
+		VGuiXash_IsBuySelectActive();
 }
 
 static void ScaleRect(int *x, int *y, int *w, int *h)
@@ -285,6 +335,12 @@ static bool OpenResCommand(const char *cmd)
 
 bool GameUI_ActivateSlot(int slot)
 {
+	if (VGuiXash_IsTeamSelectActive())
+		return VGuiXash_TeamActivateSlot(slot);
+	if (VGuiXash_IsClassSelectActive())
+		return VGuiXash_ClassActivateSlot(slot);
+	if (VGuiXash_IsBuySelectActive())
+		return VGuiXash_BuyActivateSlot(slot);
 	if (!gInGameOn)
 		return false;
 	auto btns = VisibleButtons();
@@ -318,6 +374,47 @@ bool GameUI_ActivateSlot(int slot)
 
 void GameUI_InGameKey(int key, int down)
 {
+	if (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() || VGuiXash_IsBuySelectActive())
+	{
+		const bool mouse = (key >= K_MOUSE1 && key <= K_MOUSE5) ||
+			key == K_MWHEELUP || key == K_MWHEELDOWN;
+		if (mouse)
+		{
+			VGuiXash_Key(key, down);
+			return;
+		}
+		if (!down)
+			return;
+		if (key == K_ESCAPE)
+		{
+			if (VGuiXash_IsBuySelectActive())
+				VGuiXash_HideBuySelect();
+			else if (VGuiXash_IsClassSelectActive())
+				VGuiXash_HideClassSelect();
+			else
+				VGuiXash_HideTeamSelect();
+			return;
+		}
+		if (key >= '1' && key <= '9')
+		{
+			if (VGuiXash_IsBuySelectActive())
+				VGuiXash_BuyActivateSlot(key - '0');
+			else if (VGuiXash_IsClassSelectActive())
+				VGuiXash_ClassActivateSlot(key - '0');
+			else
+				VGuiXash_TeamActivateSlot(key - '0');
+		}
+		else if (key == '0')
+		{
+			if (VGuiXash_IsBuySelectActive())
+				VGuiXash_BuyActivateSlot(10);
+			else if (VGuiXash_IsClassSelectActive())
+				VGuiXash_ClassActivateSlot(10);
+			else
+				VGuiXash_TeamActivateSlot(10);
+		}
+		return;
+	}
 	if (!down || !gInGameOn)
 		return;
 	if (key == K_ESCAPE)
@@ -359,10 +456,17 @@ void GameUI_InGameDraw()
 	}
 }
 
-static void RunMainCommand(const std::string &cmd)
+bool GameUI_IsClientInGame()
 {
+	return InGame();
+}
+
+void GameUI_RunMenuCommand(const char *command)
+{
+	const std::string cmd = command ? command : "";
 	if (cmd == "ResumeGame")
 	{
+		VGuiXash_HideMainMenu();
 		gMenuVisible = false;
 		gEng.pfnSetKeyDest(KEY_DEST_GAME);
 	}
@@ -393,7 +497,7 @@ void GameUI_OpenOptions()
 		VGuiXash_ShowPocDialog();
 		return;
 	}
-	// Echter Options-Dialog nur mit registrierten Subpages; sonst Interim-DrawOptions.
+	// Der Dialog liegt vor dem Hauptmenü — das bleibt sichtbar wie im Original.
 	if (!VGuiXash_ShowOptionsDialog())
 		Menu_Con("CSRETRO_OPTIONS_INTERIM");
 }
@@ -401,118 +505,26 @@ void GameUI_OpenOptions()
 void GameUI_OpenNewGame()
 {
 	gScreen = SCREEN_NEWGAME;
-	Profile_Defaults(&gProfile);
+	// Der Dialog liegt vor dem Hauptmenü, wie Options.
+	if (VGuiXash_ShowCreateGameDialog())
+		return;
+	// Ohne Maps kein Dialog — dann bleibt das Hauptmenü stehen statt einer leeren Combo.
+	gScreen = SCREEN_MAIN;
+	Menu_Con("CSRETRO_CREATE_UNAVAILABLE");
 }
 
 void GameUI_OpenBrowser()
 {
 	gScreen = SCREEN_BROWSER;
-}
-
-static void DrawFrame(const char *title, int x, int y, int w, int h)
-{
-	gEng.pfnFillRGBA(x, y, w, h, 0, 0, 0, 200);
-	gEng.pfnFillRGBA(x, y, w, 22, 0, 0, 0, 230);
-	Menu_DrawText(x + 8, y + 4, title, 255, 174, 0, 255);
-}
-
-static void DrawOptions()
-{
-	const int sw = gGlobals ? gGlobals->scrWidth : 640;
-	const int sh = gGlobals ? gGlobals->scrHeight : 480;
-	const int w = 420, h = 280;
-	const int x = (sw - w) / 2, y = (sh - h) / 2;
-	DrawFrame(Menu_L("GameUI_Options"), x, y, w, h);
-	Menu_DrawText(x + 16, y + 36, "Multiplayer / Keyboard / Mouse / Audio / Video / Voice", 255, 176, 0, 255);
-	Menu_DrawText(x + 16, y + 56, "CS Retro / Game — erst mit vorhandenem Backend.", 188, 112, 0, 255);
-
-	const char *rows[][2] = {
-		{ "sensitivity", "Mouse" },
-		{ "volume", "Audio" },
-		{ "name", "Multiplayer" },
-	};
-	int yy = y + 90;
-	for (auto &row : rows)
-	{
-		const char *val = gEng.pfnGetCvarString(row[0]);
-		char line[160];
-		snprintf(line, sizeof(line), "%s  (%s)  %s", row[0], row[1], val ? val : "");
-		Menu_DrawText(x + 16, yy, line, 255, 176, 0, 255);
-		yy += 22;
-	}
-	Menu_DrawText(x + 16, y + h - 36, "ESC zurück — keine Placeholder-Feature-Schalter.", 255, 176, 0, 200);
-}
-
-static void DrawNewGame()
-{
-	const int sw = gGlobals ? gGlobals->scrWidth : 640;
-	const int sh = gGlobals ? gGlobals->scrHeight : 480;
-	const int w = 420, h = 300;
-	const int x = (sw - w) / 2, y = (sh - h) / 2;
-	DrawFrame(Menu_L("GameUI_CreateServer"), x, y, w, h);
-	char line[192];
-	snprintf(line, sizeof(line), "Server   Map %s   Host %s   Slots %d   LAN %d",
-		gProfile.map.c_str(), gProfile.hostname.c_str(), gProfile.maxplayers, gProfile.lan);
-	Menu_DrawText(x + 16, y + 40, line, 255, 176, 0, 255);
-	snprintf(line, sizeof(line), "Game     Round %.1f  Freeze %.0f  FF %d  Balance %d",
-		gProfile.roundtime, gProfile.freezetime, gProfile.friendlyfire, gProfile.teambalance);
-	Menu_DrawText(x + 16, y + 64, line, 255, 176, 0, 255);
-	snprintf(line, sizeof(line), "Bots     Quota %d  Diff %d  Team %s",
-		gProfile.bot_quota, gProfile.bot_difficulty, gProfile.bot_join_team.c_str());
-	Menu_DrawText(x + 16, y + 88, line, 255, 176, 0, 255);
-	Menu_DrawText(x + 16, y + 112, "Modules  none", 255, 176, 0, 255);
-	Menu_DrawText(x + 16, y + 160, "ENTER starten    ESC zurück", 255, 220, 80, 255);
-}
-
-static void DrawBrowser()
-{
-	const int sw = gGlobals ? gGlobals->scrWidth : 640;
-	const int sh = gGlobals ? gGlobals->scrHeight : 480;
-	const int w = 480, h = 240;
-	const int x = (sw - w) / 2, y = (sh - h) / 2;
-	DrawFrame(Menu_L("GameUI_GameMenu_FindServers"), x, y, w, h);
-	Menu_DrawText(x + 16, y + 48, "Internet-Browser folgt (NextClient-Port, ohne Steam-Master).", 255, 176, 0, 255);
-	Menu_DrawText(x + 16, y + 72, "LAN: Engine liefert Server über AddServerToList.", 255, 176, 0, 255);
-	Menu_DrawText(x + 16, y + 120, "ESC zurück", 255, 220, 80, 255);
-}
-
-static void DrawMain()
-{
-	const int sw = gGlobals ? gGlobals->scrWidth : 640;
-	const int sh = gGlobals ? gGlobals->scrHeight : 480;
-	Menu_DrawText(32, 24, "CS Retro", 255, 174, 0, 255);
-
-	const int itemH = 26;
-	int y = sh / 3;
-	gHoverMain = -1;
-	const bool ingame = InGame();
-	int shown = 0;
-	for (size_t i = 0; i < gMainItems.size(); i++)
-	{
-		const GameMenuItem &it = gMainItems[i];
-		if (it.onlyInGame && !ingame)
-			continue;
-		if (it.empty)
-		{
-			y += itemH / 2;
-			continue;
-		}
-		const int x = 40;
-		const bool hover = Menu_Hit(gMouseX, gMouseY, x, y, 360, itemH);
-		if (hover)
-			gHoverMain = static_cast<int>(i);
-		Menu_DrawText(x, y, Menu_L(it.label.c_str()), hover ? 255 : 255, hover ? 220 : 176, hover ? 80 : 0, 255);
-		y += itemH;
-		shown++;
-	}
-	(void)shown;
-	(void)sw;
+	if (VGuiXash_ShowServerBrowser())
+		return;
+	gScreen = SCREEN_MAIN;
+	Menu_Con("CSRETRO_BROWSER_UNAVAILABLE");
 }
 
 int UI_VidInit(void)
 {
 	Menu_LoadLocale();
-	gMainItems = Menu_LoadGameMenu();
 	Menu_LoadBackground();
 	Profile_Defaults(&gProfile);
 	return 1;
@@ -529,51 +541,42 @@ void UI_Init(void)
 void UI_Shutdown(void)
 {
 	VGuiXash_Shutdown();
-	gBg.clear();
-	gMainItems.clear();
+	gBgPic = 0;
 	GameUI_HideInGame();
 }
 
 void UI_Redraw(float)
 {
+	// VGUI2 windows are also painted over a running game when the main menu is hidden.
+	if (VGuiXash_IsUiActive())
+	{
+		if (gMenuVisible && !VGuiXash_IsTeamSelectActive() && !VGuiXash_IsClassSelectActive() &&
+			!VGuiXash_IsBuySelectActive())
+			Menu_DrawBackground();
+		VGuiXash_RunFrame();
+		VGuiXash_Paint();
+		return;
+	}
+	// Gate muss auch nach ESC weiterticken, sonst hängt Reopen/Join.
+	if (getenv("CSRETRO_TEAM_GATE") || getenv("CSRETRO_CLASS_GATE") || getenv("CSRETRO_BUY_GATE"))
+		VGuiXash_RunFrame();
 	if (gInGameOn)
 	{
 		GameUI_InGameDraw();
 		return;
 	}
-	// V1 UI: PoC oder Options — auch ohne gMenuVisible zeichnen.
-	if (VGuiXash_IsUiActive())
-	{
-		if (gMenuVisible)
-			Menu_DrawBackground();
-		else if (gEng.pfnFillRGBA && gGlobals)
-			gEng.pfnFillRGBA(0, 0, gGlobals->scrWidth, gGlobals->scrHeight, 0, 0, 0, 255);
-		VGuiXash_RunFrame();
-		VGuiXash_Paint();
-		return;
-	}
 	if (!gMenuVisible)
 		return;
 	Menu_DrawBackground();
-	switch (gScreen)
-	{
-	case SCREEN_OPTIONS:
-		DrawOptions();
-		break;
-	case SCREEN_NEWGAME:
-		DrawNewGame();
-		break;
-	case SCREEN_BROWSER:
-		DrawBrowser();
-		break;
-	default:
-		DrawMain();
-		break;
-	}
 }
 
 void UI_KeyEvent(int key, int down)
 {
+	if (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() || VGuiXash_IsBuySelectActive())
+	{
+		GameUI_InGameKey(key, down);
+		return;
+	}
 	if (VGuiXash_IsUiActive())
 	{
 		// ESC during keyboard capture: cancel capture only — never close Options.
@@ -592,11 +595,44 @@ void UI_KeyEvent(int key, int down)
 		VGuiXash_Key(key, down);
 		if (down && key == K_ESCAPE)
 		{
+			if (VGuiXash_IsTeamSelectActive())
+			{
+				VGuiXash_HideTeamSelect();
+				return;
+			}
+			if (VGuiXash_IsClassSelectActive())
+			{
+				VGuiXash_HideClassSelect();
+				return;
+			}
+			if (VGuiXash_IsBuySelectActive())
+			{
+				VGuiXash_HideBuySelect();
+				return;
+			}
+			if (VGuiXash_IsConsoleActive())
+			{
+				VGuiXash_HideConsole();
+				return;
+			}
+			const bool hadDialog = VGuiXash_IsPocActive() || VGuiXash_IsOptionsActive() ||
+				VGuiXash_IsCreateGameActive() || VGuiXash_IsServerBrowserActive();
 			if (VGuiXash_IsPocActive())
 				VGuiXash_HidePocDialog();
 			if (VGuiXash_IsOptionsActive())
 				VGuiXash_HideOptionsDialog();
+			if (VGuiXash_IsCreateGameActive())
+				VGuiXash_HideCreateGameDialog();
+			if (VGuiXash_IsServerBrowserActive())
+				VGuiXash_HideServerBrowser();
 			gScreen = SCREEN_MAIN;
+			// ESC im blanken Hauptmenü heißt „zurück ins Spiel“, wie im Original.
+			if (!hadDialog && VGuiXash_IsMainMenuActive() && InGame())
+			{
+				VGuiXash_HideMainMenu();
+				gMenuVisible = false;
+				gEng.pfnSetKeyDest(KEY_DEST_GAME);
+			}
 		}
 		return;
 	}
@@ -612,7 +648,10 @@ void UI_KeyEvent(int key, int down)
 	if (key == K_ESCAPE)
 	{
 		if (gScreen != SCREEN_MAIN)
+		{
 			gScreen = SCREEN_MAIN;
+			VGuiXash_ShowMainMenu();
+		}
 		else if (InGame())
 		{
 			gMenuVisible = false;
@@ -620,15 +659,6 @@ void UI_KeyEvent(int key, int down)
 		}
 		return;
 	}
-	if (gScreen == SCREEN_NEWGAME && (key == K_ENTER || key == K_KP_ENTER))
-	{
-		Profile_Start(&gProfile);
-		gScreen = SCREEN_MAIN;
-		gMenuVisible = false;
-		return;
-	}
-	if (key == K_MOUSE1 && gScreen == SCREEN_MAIN && gHoverMain >= 0 && gHoverMain < static_cast<int>(gMainItems.size()))
-		RunMainCommand(gMainItems[static_cast<size_t>(gHoverMain)].command);
 }
 
 void UI_MouseMove(int x, int y)
@@ -646,19 +676,24 @@ void UI_SetActiveMenu(int active)
 	{
 		gScreen = SCREEN_MAIN;
 		gEng.pfnSetKeyDest(KEY_DEST_MENU);
-		if (gMainItems.empty())
-			gMainItems = Menu_LoadGameMenu();
 		if (getenv("CSRETRO_V1POC"))
 			VGuiXash_ShowPocDialog();
+		else
+			VGuiXash_ShowMainMenu();
 		return;
 	}
+	VGuiXash_HideMainMenu();
 	// Wie Xash-MainUI UI_CloseMenu: In-Game-VGUI ist Overlay, nicht key_menu.
-	if (!gInGameOn)
+	if (!gInGameOn && !VGuiXash_IsTeamSelectActive() && !VGuiXash_IsClassSelectActive() &&
+		!VGuiXash_IsBuySelectActive())
 		gEng.pfnSetKeyDest(KEY_DEST_GAME);
 }
 
-void UI_AddServerToList(struct netadr_s, const char *)
+void UI_AddServerToList(struct netadr_s adr, const char *info)
 {
+	if (!gExtEngReady || !gExtEng.pfnAdrToString)
+		return;
+	ServerBrowser_AddFromEngine(gExtEng.pfnAdrToString(adr), info);
 }
 
 void UI_GetCursorPos(int *x, int *y)
@@ -692,7 +727,7 @@ int UI_MouseInRect(void)
 
 int UI_IsVisible(void)
 {
-	return gMenuVisible ? 1 : 0;
+	return (gMenuVisible || VGuiXash_IsConsoleActive()) ? 1 : 0;
 }
 
 int UI_CreditsActive(void)

@@ -29,9 +29,9 @@
 #include <tier1/utlhandletable.h>
 #include "vgui_internal.h"
 #include "VPanel.h"
-#include "UtlLinkedList.h"
-#include "UtlPriorityQueue.h"
-#include "UtlVector.h"
+#include "tier1/utllinkedlist.h"
+#include "tier1/utlpriorityqueue.h"
+#include "tier1/utlvector.h"
 #include "tier0/vprof.h"
 #include "tier0/icommandline.h"
 
@@ -128,8 +128,8 @@ public:
     virtual void SetSleep(bool state) { m_bDoSleep = state; };
     virtual bool GetShouldVGuiControlSleep() { return m_bDoSleep; }
 
-    virtual void DPrintf(const char* format, ...);
-    virtual void DPrintf2(const char* format, ...);
+    virtual void DPrintf(PRINTF_FORMAT_STRING const char* format, ...) FMTFUNCTION(2, 3);
+    virtual void DPrintf2(PRINTF_FORMAT_STRING const char* format, ...) FMTFUNCTION(2, 3);
     virtual void SpewAllActivePanelNames();
 
     // Creates/ destroys vgui contexts, which contains information
@@ -423,7 +423,7 @@ void CVGui::RunFrame()
                 t->nexttick = time + t->interval;
             }
 
-            PostMessage(tickTarget, new KeyValues("Tick"), NULL);
+            PostMessage(tickTarget, new KeyValues("Tick"), 0.0f);
         }
     }
 
@@ -481,7 +481,7 @@ VPANEL CVGui::HandleToPanel(HPanel index)
 {
     if (!m_HandleTable.IsHandleValid(index))
     {
-        return NULL;
+        return static_cast<VPANEL>(0);
     }
     return (VPANEL)m_HandleTable.GetHandle((UtlHandle_t)index);
 }
@@ -737,7 +737,7 @@ bool CVGui::DispatchMessages()
 //-----------------------------------------------------------------------------
 void CVGui::MarkPanelForDeletion(VPANEL panel)
 {
-    PostMessage(panel, new KeyValues("Delete"), NULL);
+    PostMessage(panel, new KeyValues("Delete"), 0.0f);
 }
 
 //-----------------------------------------------------------------------------
@@ -787,11 +787,11 @@ void CVGui::ShutdownMessage(unsigned int shutdownID)
     VPANEL panel = g_pSurfaceNext->GetEmbeddedPanel();
     for (int i = 0; i < ((VPanel*)panel)->GetChildCount(); i++)
     {
-        g_pIVgui->PostMessage((VPANEL)((VPanel*)panel)->GetChild(i), new KeyValues("ShutdownRequest", "id", shutdownID), NULL);
+        g_pIVgui->PostMessage((VPANEL)((VPanel*)panel)->GetChild(i), new KeyValues("ShutdownRequest", "id", shutdownID), 0.0f);
     }
 
     // post to the top level window as well
-    g_pIVgui->PostMessage(panel, new KeyValues("ShutdownRequest", "id", shutdownID), NULL);
+    g_pIVgui->PostMessage(panel, new KeyValues("ShutdownRequest", "id", shutdownID), 0.0f);
 }
 
 //-----------------------------------------------------------------------------

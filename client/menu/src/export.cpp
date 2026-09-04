@@ -1,4 +1,5 @@
 #include "menu_priv.h"
+#include "../vgui/vgui_boot.h"
 
 #include <cstring>
 
@@ -23,6 +24,11 @@ int UI_MouseInRect(void);
 int UI_IsVisible(void);
 int UI_CreditsActive(void);
 void UI_FinalCredits(void);
+
+static void UI_ConsolePrint(const char *text) { VGuiXash_ConsolePrint(text); }
+static void UI_ConsoleClear(void) { VGuiXash_ConsoleClear(); }
+static int UI_ConsoleToggle(void) { return VGuiXash_ToggleConsole() ? 1 : 0; }
+static int UI_ConsoleIsVisible(void) { return VGuiXash_IsConsoleActive() ? 1 : 0; }
 
 static UI_FUNCTIONS gFunctionTable = {
 	UI_VidInit,
@@ -68,6 +74,12 @@ extern "C" CSRETRO_MENU_EXPORT int GetExtAPI(int version, UI_EXTENDED_FUNCTIONS 
 	memcpy(&gExtEng, engfuncs, sizeof(ui_extendedfuncs_t));
 	gExtEngReady = true;
 	if (pFunctionTable)
+	{
 		memset(pFunctionTable, 0, sizeof(UI_EXTENDED_FUNCTIONS));
+		pFunctionTable->pfnConsolePrint = UI_ConsolePrint;
+		pFunctionTable->pfnConsoleClear = UI_ConsoleClear;
+		pFunctionTable->pfnConsoleToggle = UI_ConsoleToggle;
+		pFunctionTable->pfnConsoleIsVisible = UI_ConsoleIsVisible;
+	}
 	return 1;
 }

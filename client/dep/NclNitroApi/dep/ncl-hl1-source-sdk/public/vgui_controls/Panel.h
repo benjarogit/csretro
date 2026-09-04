@@ -132,6 +132,13 @@ class IForceVirtualInheritancePanel
 #define PANEL_ROUND_CORNER_BOTTOM_LEFT	(1 << 2)
 #define PANEL_ROUND_CORNER_BOTTOM_RIGHT (1 << 3)
 #define PANEL_ROUND_CORNER_ALL			PANEL_ROUND_CORNER_TOP_LEFT | PANEL_ROUND_CORNER_TOP_RIGHT | PANEL_ROUND_CORNER_BOTTOM_LEFT | PANEL_ROUND_CORNER_BOTTOM_RIGHT
+
+// Dialog-Chrome: nur der Frame ist rund. Innenflächen bleiben eckig.
+enum
+{
+	CHROME_NIBBLE_FRAME = 8,
+	CHROME_GLASS_ALPHA = 188,
+};
 //=============================================================================
 // HPE_END
 //=============================================================================//-----------------------------------------------------------------------------
@@ -318,8 +325,8 @@ public:
 	virtual void RequestFocus(int direction = 0);
 	virtual bool HasFocus();
 	virtual void InvalidateLayout(bool layoutNow = false, bool reloadScheme = false);
-	virtual bool RequestFocusPrev(VPANEL panel = NULL);
-	virtual bool RequestFocusNext(VPANEL panel = NULL);
+	virtual bool RequestFocusPrev(VPANEL panel = 0);
+	virtual bool RequestFocusNext(VPANEL panel = 0);
 	// tab positioning
 	virtual void   SetTabPosition(int position);
 	virtual int    GetTabPosition();
@@ -512,6 +519,9 @@ public:
 	virtual bool IsKeyBoardInputEnabled();
 
 	virtual void DrawTexturedBox( int x, int y, int wide, int tall, Color color, float normalizedAlpha );
+	// Software-Nibble nur für die äußere Frame-Hülle. corners = PANEL_ROUND_CORNER_* Bits.
+	void DrawNibbleFilledRect(int x, int y, int wide, int tall, int nibble, unsigned char corners = 0x0F);
+	void DrawNibbleOutline(int x, int y, int wide, int tall, int nibble, unsigned char corners = 0x0F);
 	virtual void DrawBox(int x, int y, int wide, int tall, Color color, float normalizedAlpha, bool hollow = false );
 	virtual void DrawBoxFade(int x, int y, int wide, int tall, Color color, float normalizedAlpha, unsigned int alpha0, unsigned int alpha1, bool bHorizontal, bool hollow = false );
 	virtual void DrawHollowBox(int x, int y, int wide, int tall, Color color, float normalizedAlpha );

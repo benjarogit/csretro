@@ -4,7 +4,7 @@
 
 class VControlsListPanel : public vgui2::SectionedListPanel
 {
-	DECLARE_CLASS_SIMPLE(VControlsListPanel, vgui2::SectionedListPanel);
+	DECLARE_CLASS_SIMPLE_OVERRIDE(VControlsListPanel, vgui2::SectionedListPanel);
 
 public:
 	VControlsListPanel(vgui2::Panel *parent, const char *listName);

@@ -1698,7 +1698,7 @@ void RichText::OnMousePressed(MouseCode code)
 void RichText::OnMouseReleased(MouseCode code)
 {
 	_mouseSelection = false;
-	input()->SetMouseCapture(NULL);
+	input()->SetMouseCapture(static_cast<VPANEL>(0));
 	
 	// make sure something has been selected
 	int cx0, cx1;

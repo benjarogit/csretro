@@ -17,9 +17,9 @@
 #include <vgui/ISystem.h>
 #include <vstdlib/IKeyValuesSystem.h>
 
-#include <UtlVector.h>
-#include <UtlRBTree.h>
-#include <UtlSymbol.h>
+#include <tier1/utlvector.h>
+#include <tier1/utlrbtree.h>
+#include <tier1/utlsymbol.h>
 #include "vgui_border.h"
 #include "vgui_internal.h"
 #include "Bitmap.h"
@@ -398,145 +398,152 @@ struct SchemeEntryTranslation_t
 SchemeEntryTranslation_t g_SchemeTranslation[] =
 {
     {"Border.Bright", "BorderBright", "200 200 200 196"}, // the lit side of a control
-    {"Border.Dark" "BorderDark", "40 40 40 196"}, // the dark/unlit side of a control
-    {"Border.Selection" "BorderSelection", "0 0 0 196"}, // the additional border color for displaying the default/selected button
+    {"Border.Dark", "BorderDark", "40 40 40 196"}, // the dark/unlit side of a control
+    {"Border.Selection", "BorderSelection", "0 0 0 196"}, // the additional border color for displaying the default/selected button
 
     {"Button.TextColor", "ControlFG", "White"},
     {"Button.BgColor", "ControlBG", "Blank"},
-    {"Button.ArmedTextColor", "ControlFG"},
-    {"Button.ArmedBgColor", "ControlBG"},
-    {"Button.DepressedTextColor", "ControlFG"},
-    {"Button.DepressedBgColor", "ControlBG"},
-    {"Button.FocusBorderColor", "0 0 0 255"},
+    {"Button.ArmedTextColor", "ControlFG", NULL},
+    {"Button.ArmedBgColor", "ControlBG", NULL},
+    {"Button.DepressedTextColor", "ControlFG", NULL},
+    {"Button.DepressedBgColor", "ControlBG", NULL},
+    {"Button.FocusBorderColor", "0 0 0 255", NULL},
 
-    {"CheckButton.TextColor", "BaseText"},
-    {"CheckButton.SelectedTextColor", "BrightControlText"},
-    {"CheckButton.BgColor", "CheckBgColor"},
-    {"CheckButton.Border1", "CheckButtonBorder1"},
-    {"CheckButton.Border2", "CheckButtonBorder2"},
-    {"CheckButton.Check", "CheckButtonCheck"},
+    {"CheckButton.TextColor", "BaseText", NULL},
+    {"CheckButton.SelectedTextColor", "BrightControlText", NULL},
+    // Classic TrackerScheme never defines CheckBgColor — map to WindowBG (opaque).
+    {"CheckButton.BgColor", "WindowBG", NULL},
+    {"CheckButton.Border1", "CheckButtonBorder1", NULL},
+    {"CheckButton.Border2", "CheckButtonBorder2", NULL},
+    {"CheckButton.Check", "CheckButtonCheck", NULL},
+    {"CheckButton.HighlightFgColor", "BrightBaseText", NULL},
+    {"CheckButton.ArmedBgColor", "Blank", NULL},
+    {"CheckButton.DepressedBgColor", "Blank", NULL},
 
-    {"ComboBoxButton.ArrowColor", "LabelDimText"},
-    {"ComboBoxButton.ArmedArrowColor", "MenuButton/ArmedArrowColor"},
-    {"ComboBoxButton.BgColor", "MenuButton/ButtonBgColor"},
-    {"ComboBoxButton.DisabledBgColor", "ControlBG"},
+    {"ComboBoxButton.ArrowColor", "LabelDimText", NULL},
+    {"ComboBoxButton.ArmedArrowColor", "MenuButton/ArmedArrowColor", NULL},
+    {"ComboBoxButton.BgColor", "MenuButton/ButtonBgColor", NULL},
+    {"ComboBoxButton.DisabledBgColor", "ControlBG", NULL},
 
     {"Frame.TitleTextInsetX", NULL, "32"},
     {"Frame.ClientInsetX", NULL, "8"},
     {"Frame.ClientInsetY", NULL, "6"},
-    {"Frame.BgColor", "BgColor"},
-    {"Frame.OutOfFocusBgColor", "BgColor"},
+    {"Frame.BgColor", "BgColor", NULL},
+    {"Frame.OutOfFocusBgColor", "BgColor", NULL},
     {"Frame.FocusTransitionEffectTime",NULL, "0"},
     {"Frame.TransitionEffectTime", NULL, "0"},
     {"Frame.AutoSnapRange", NULL, "8"},
-    {"FrameGrip.Color1", "BorderBright"},
-    {"FrameGrip.Color2", "BorderSelection"},
-    {"FrameTitleButton.FgColor", "TitleButtonFgColor"},
-    {"FrameTitleButton.BgColor", "TitleButtonBgColor"},
-    {"FrameTitleButton.DisabledFgColor", "TitleButtonDisabledFgColor"},
-    {"FrameTitleButton.DisabledBgColor", "TitleButtonDisabledBgColor"},
-    {"FrameSystemButton.FgColor", "TitleBarBgColor"},
-    {"FrameSystemButton.BgColor", "TitleBarBgColor"},
-    {"FrameSystemButton.Icon", "TitleBarIcon"},
-    {"FrameSystemButton.DisabledIcon", "TitleBarDisabledIcon"},
+    {"FrameGrip.Color1", "BorderBright", NULL},
+    {"FrameGrip.Color2", "BorderSelection", NULL},
+    {"FrameTitleButton.FgColor", "TitleButtonFgColor", NULL},
+    {"FrameTitleButton.BgColor", "TitleButtonBgColor", NULL},
+    {"FrameTitleButton.DisabledFgColor", "TitleButtonDisabledFgColor", NULL},
+    {"FrameTitleButton.DisabledBgColor", "TitleButtonDisabledBgColor", NULL},
+    {"FrameSystemButton.FgColor", "TitleBarBgColor", NULL},
+    {"FrameSystemButton.BgColor", "TitleBarBgColor", NULL},
+    {"FrameSystemButton.Icon", "TitleBarIcon", NULL},
+    {"FrameSystemButton.DisabledIcon", "TitleBarDisabledIcon", NULL},
     {"FrameTitleBar.Font", NULL, "Default"},
-    {"FrameTitleBar.TextColor", "TitleBarFgColor"},
-    {"FrameTitleBar.BgColor", "TitleBarBgColor"},
-    {"FrameTitleBar.DisabledTextColor", "TitleBarDisabledFgColor"},
-    {"FrameTitleBar.DisabledBgColor", "TitleBarDisabledBgColor"},
+    {"FrameTitleBar.TextColor", "TitleBarFgColor", NULL},
+    {"FrameTitleBar.BgColor", "TitleBarBgColor", NULL},
+    {"FrameTitleBar.DisabledTextColor", "TitleBarDisabledFgColor", NULL},
+    {"FrameTitleBar.DisabledBgColor", "TitleBarDisabledBgColor", NULL},
 
-    {"GraphPanel.FgColor", "BrightControlText"},
-    {"GraphPanel.BgColor", "WindowBgColor"},
+    {"GraphPanel.FgColor", "BrightControlText", NULL},
+    {"GraphPanel.BgColor", "WindowBgColor", NULL},
 
-    {"Label.TextDullColor", "LabelDimText"},
-    {"Label.TextColor", "BaseText"},
-    {"Label.TextBrightColor", "BrightControlText"},
-    {"Label.SelectedTextColor", "BrightControlText"},
-    {"Label.BgColor", "LabelBgColor"},
-    {"Label.DisabledFgColor1", "DisabledFgColor1"},
-    {"Label.DisabledFgColor2", "DisabledFgColor2"},
+    {"Label.TextDullColor", "LabelDimText", NULL},
+    {"Label.TextColor", "BaseText", NULL},
+    {"Label.TextBrightColor", "BrightControlText", NULL},
+    {"Label.SelectedTextColor", "BrightControlText", NULL},
+    {"Label.BgColor", "LabelBgColor", NULL},
+    {"Label.DisabledFgColor1", "DisabledFgColor1", NULL},
+    {"Label.DisabledFgColor2", "DisabledFgColor2", NULL},
 
-    {"ListPanel.TextColor", "WindowFgColor"},
-    {"ListPanel.TextBgColor", "Menu/ArmedBgColor"},
-    {"ListPanel.BgColor", "ListBgColor"},
-    {"ListPanel.SelectedTextColor", "ListSelectionFgColor"},
-    {"ListPanel.SelectedBgColor", "Menu/ArmedBgColor"},
-    {"ListPanel.SelectedOutOfFocusBgColor", "SelectionBG2"},
-    {"ListPanel.EmptyListInfoTextColor", "LabelDimText"},
-    {"ListPanel.DisabledTextColor", "LabelDimText"},
-    {"ListPanel.DisabledSelectedTextColor", "ListBgColor"},
+    {"ListPanel.TextColor", "WindowFgColor", NULL},
+    {"ListPanel.TextBgColor", "Menu/ArmedBgColor", NULL},
+    {"ListPanel.BgColor", "ListBgColor", NULL},
+    {"ListPanel.SelectedTextColor", "ListSelectionFgColor", NULL},
+    {"ListPanel.SelectedBgColor", "Menu/ArmedBgColor", NULL},
+    {"ListPanel.SelectedOutOfFocusBgColor", "SelectionBG2", NULL},
+    {"ListPanel.EmptyListInfoTextColor", "LabelDimText", NULL},
+    {"ListPanel.DisabledTextColor", "LabelDimText", NULL},
+    {"ListPanel.DisabledSelectedTextColor", "ListBgColor", NULL},
 
-    {"Menu.TextColor", "Menu/FgColor"},
-    {"Menu.BgColor", "Menu/BgColor"},
-    {"Menu.ArmedTextColor", "Menu/ArmedFgColor"},
-    {"Menu.ArmedBgColor", "Menu/ArmedBgColor"},
+    {"Menu.TextColor", "Menu/FgColor", NULL},
+    {"Menu.BgColor", "Menu/BgColor", NULL},
+    {"Menu.ArmedTextColor", "Menu/ArmedFgColor", NULL},
+    {"Menu.ArmedBgColor", "Menu/ArmedBgColor", NULL},
     {"Menu.TextInset", NULL, "6"},
 
-    {"Panel.FgColor", "FgColor"},
-    {"Panel.BgColor", "BgColor"},
+    {"Panel.FgColor", "FgColor", NULL},
+    {"Panel.BgColor", "BgColor", NULL},
 
-    {"ProgressBar.FgColor", "BrightControlText"},
-    {"ProgressBar.BgColor", "WindowBgColor"},
+    {"ProgressBar.FgColor", "BrightControlText", NULL},
+    {"ProgressBar.BgColor", "WindowBgColor", NULL},
 
-    {"PropertySheet.TextColor", "FgColorDim"},
-    {"PropertySheet.SelectedTextColor", "BrightControlText"},
+    {"PropertySheet.TextColor", "DimBaseText", NULL},
+    {"PropertySheet.SelectedTextColor", "BrightControlText", NULL},
     {"PropertySheet.TransitionEffectTime", NULL, "0"},
 
-    {"RadioButton.TextColor", "FgColor"},
-    {"RadioButton.SelectedTextColor", "BrightControlText"},
+    {"RadioButton.TextColor", "FgColor", NULL},
+    {"RadioButton.SelectedTextColor", "BrightControlText", NULL},
 
-    {"RichText.TextColor", "WindowFgColor"},
-    {"RichText.BgColor", "WindowBgColor"},
-    {"RichText.SelectedTextColor", "SelectionFgColor"},
-    {"RichText.SelectedBgColor", "SelectionBgColor"},
+    {"RichText.TextColor", "WindowFgColor", NULL},
+    {"RichText.BgColor", "WindowBgColor", NULL},
+    {"RichText.SelectedTextColor", "SelectionFgColor", NULL},
+    {"RichText.SelectedBgColor", "SelectionBgColor", NULL},
 
-    {"ScrollBar.Wide", NULL, "19"},
+    // Match ScrollBar.cpp SCROLLBAR_DEFAULT_WIDTH / classic TrackerScheme (not Source-19).
+    {"ScrollBar.Wide", NULL, "17"},
 
-    {"ScrollBarButton.FgColor", "DimBaseText"},
-    {"ScrollBarButton.BgColor", "ControlBG"},
-    {"ScrollBarButton.ArmedFgColor", "BaseText"},
-    {"ScrollBarButton.ArmedBgColor", "ControlBG"},
-    {"ScrollBarButton.DepressedFgColor", "BaseText"},
-    {"ScrollBarButton.DepressedBgColor", "ControlBG"},
+    {"ScrollBarButton.FgColor", "DimBaseText", NULL},
+    {"ScrollBarButton.BgColor", "ControlBG", NULL},
+    {"ScrollBarButton.ArmedFgColor", "BaseText", NULL},
+    {"ScrollBarButton.ArmedBgColor", "ControlBG", NULL},
+    {"ScrollBarButton.DepressedFgColor", "BaseText", NULL},
+    {"ScrollBarButton.DepressedBgColor", "ControlBG", NULL},
 
-    {"ScrollBarSlider.FgColor", "ScrollBarSlider/ScrollBarSliderFgColor"},
-    {"ScrollBarSlider.BgColor", "ScrollBarSlider/ScrollBarSliderBgColor"},
+    {"ScrollBarSlider.FgColor", "ScrollBarSlider/ScrollBarSliderFgColor", NULL},
+    {"ScrollBarSlider.BgColor", "ScrollBarSlider/ScrollBarSliderBgColor", NULL},
 
-    {"SectionedListPanel.HeaderTextColor", "SectionTextColor"},
-    {"SectionedListPanel.HeaderBgColor", "BuddyListBgColor"},
-    {"SectionedListPanel.DividerColor", "SectionDividerColor"},
-    {"SectionedListPanel.TextColor", "BuddyButton/FgColor1"},
-    {"SectionedListPanel.BrightTextColor", "BuddyButton/ArmedFgColor1"},
-    {"SectionedListPanel.BgColor", "BuddyListBgColor"},
-    {"SectionedListPanel.SelectedTextColor", "BuddyButton/ArmedFgColor1"},
-    {"SectionedListPanel.SelectedBgColor", "BuddyButton/ArmedBgColor"},
-    {"SectionedListPanel.OutOfFocusSelectedTextColor", "BuddyButton/ArmedFgColor2"},
-    {"SectionedListPanel.OutOfFocusSelectedBgColor", "SelectionBG2"},
+    {"SectionedListPanel.HeaderTextColor", "SectionTextColor", NULL},
+    {"SectionedListPanel.HeaderBgColor", "BuddyListBgColor", NULL},
+    {"SectionedListPanel.DividerColor", "SectionDividerColor", NULL},
+    {"SectionedListPanel.TextColor", "BuddyButton/FgColor1", NULL},
+    {"SectionedListPanel.BrightTextColor", "BuddyButton/ArmedFgColor1", NULL},
+    {"SectionedListPanel.BgColor", "BuddyListBgColor", NULL},
+    {"SectionedListPanel.SelectedTextColor", "BuddyButton/ArmedFgColor1", NULL},
+    {"SectionedListPanel.SelectedBgColor", "BuddyButton/ArmedBgColor", NULL},
+    {"SectionedListPanel.OutOfFocusSelectedTextColor", "BuddyButton/ArmedFgColor2", NULL},
+    {"SectionedListPanel.OutOfFocusSelectedBgColor", "SelectionBG2", NULL},
 
-    {"Slider.NobColor", "SliderTickColor"},
-    {"Slider.TextColor", "Slider/SliderFgColor"},
-    {"Slider.TrackColor", "SliderTrackColor"},
-    {"Slider.DisabledTextColor1", "DisabledFgColor1"},
-    {"Slider.DisabledTextColor2", "DisabledFgColor2"},
+    // Nob = classic olive handle (ControlBG / SliderFgColor), not tick green.
+    {"Slider.NobColor", "ControlBG", NULL},
+    // Tick/caption text uses the dedicated tick color from Colors.
+    {"Slider.TextColor", "SliderTickColor", NULL},
+    {"Slider.TrackColor", "SliderTrackColor", NULL},
+    {"Slider.DisabledTextColor1", "DisabledFgColor1", NULL},
+    {"Slider.DisabledTextColor2", "DisabledFgColor2", NULL},
 
-    {"TextEntry.TextColor", "WindowFgColor"},
-    {"TextEntry.BgColor", "WindowBgColor"},
-    {"TextEntry.CursorColor", "TextCursorColor"},
-    {"TextEntry.DisabledTextColor", "WindowDisabledFgColor"},
-    {"TextEntry.DisabledBgColor", "ControlBG"},
-    {"TextEntry.SelectedTextColor", "SelectionFgColor"},
-    {"TextEntry.SelectedBgColor", "SelectionBgColor"},
-    {"TextEntry.OutOfFocusSelectedBgColor", "SelectionBG2"},
-    {"TextEntry.FocusEdgeColor", "BorderSelection"},
+    {"TextEntry.TextColor", "WindowFgColor", NULL},
+    {"TextEntry.BgColor", "WindowBgColor", NULL},
+    {"TextEntry.CursorColor", "TextCursorColor", NULL},
+    {"TextEntry.DisabledTextColor", "WindowDisabledFgColor", NULL},
+    {"TextEntry.DisabledBgColor", "ControlBG", NULL},
+    {"TextEntry.SelectedTextColor", "SelectionFgColor", NULL},
+    {"TextEntry.SelectedBgColor", "SelectionBgColor", NULL},
+    {"TextEntry.OutOfFocusSelectedBgColor", "SelectionBG2", NULL},
+    {"TextEntry.FocusEdgeColor", "BorderSelection", NULL},
 
-    {"ToggleButton.SelectedTextColor", "BrightControlText"},
+    {"ToggleButton.SelectedTextColor", "BrightControlText", NULL},
 
-    {"Tooltip.TextColor", "BorderSelection"},
-    {"Tooltip.BgColor", "SelectionBG"},
+    {"Tooltip.TextColor", "BorderSelection", NULL},
+    {"Tooltip.BgColor", "SelectionBG", NULL},
 
-    {"TreeView.BgColor", "ListBgColor"},
+    {"TreeView.BgColor", "ListBgColor", NULL},
 
-    {"WizardSubPanel.BgColor", "SubPanelBgColor"},
+    {"WizardSubPanel.BgColor", "SubPanelBgColor", NULL},
 };
 
 //-----------------------------------------------------------------------------
@@ -778,8 +785,8 @@ void CScheme::ReloadFontGlyphs()
                     }
                 }
 
-                // final fallback: DejaVu Sans on Linux (was FontManager foreign fallback / Tahoma)
-                const char* lastResort = "DejaVu Sans";
+                // final fallback: CS Retro ships Noto Sans (was FontManager foreign fallback / Tahoma)
+                const char* lastResort = "Noto Sans";
                 if (lastResort && *lastResort && stricmp(lastResort, fontdata->GetString("name")) != 0)
                 {
                     g_pSurfaceNext->AddGlyphSetToFont(m_FontAliases[i]._font, lastResort, tall, fontWeight, blur, scanlines, flags, 0x0000, 0xFFFF);
@@ -1253,7 +1260,9 @@ Color CScheme::GetColor(const char* colorName, Color defaultColor)
     if (!pchT)
         return defaultColor;
 
-    int r, g, b, a = 0;
+    // RGB-only scheme strings must be opaque. Defaulting alpha to 0 made controls
+    // (e.g. CheckButton fill) invisible when a 4th component was omitted.
+    int r, g, b, a = 255;
     if (sscanf(pchT, "%d %d %d %d", &r, &g, &b, &a) >= 3)
         return Color(r, g, b, a);
 

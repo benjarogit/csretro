@@ -49,19 +49,19 @@ void RadioImage::Paint()
 	{
 		DrawSetTextColor(_radioButton->GetBgColor());
 	}
-	DrawPrintChar(0, 1, 'n');
+	DrawPrintChar(0, 0, 'n');
 
-	// draw border circl
+	// draw border circle
 	DrawSetTextColor(_borderColor1);
-	DrawPrintChar(0, 1, 'j');
+	DrawPrintChar(0, 0, 'j');
 	DrawSetTextColor(_borderColor2);
-	DrawPrintChar(0, 1, 'k');
+	DrawPrintChar(0, 0, 'k');
 
 	// draw selected check
 	if (_radioButton->IsSelected())
 	{
 		DrawSetTextColor(_checkColor);
-		DrawPrintChar(0, 1, 'h');
+		DrawPrintChar(0, 0, 'h');
 	}
 }
 
@@ -101,7 +101,7 @@ void RadioButton::ApplySchemeSettings(IScheme *pScheme)
 {
 	BaseClass::ApplySchemeSettings(pScheme);
 
-	_radioBoxImage->_bgColor = GetSchemeColor("CheckButton.BgColor", GetSchemeColor("CheckBgColor", Color(150, 150, 150, 0), pScheme), pScheme);
+	_radioBoxImage->_bgColor = GetSchemeColor("CheckButton.BgColor", GetSchemeColor("CheckBgColor", Color(62, 70, 55, 255), pScheme), pScheme);
 	_radioBoxImage->_borderColor1 = GetSchemeColor("CheckButton.Border1", GetSchemeColor("CheckButtonBorder1", Color(20, 20, 20, 0), pScheme), pScheme);
 	_radioBoxImage->_borderColor2 = GetSchemeColor("CheckButton.Border2", GetSchemeColor("CheckButtonBorder2", Color(90, 90, 90, 0), pScheme), pScheme);
 	_radioBoxImage->_checkColor = GetSchemeColor("CheckButton.Check", GetSchemeColor("CheckButtonCheck", Color(20, 20, 20, 0), pScheme), pScheme);

@@ -53,19 +53,18 @@ void SeedSearchDirs()
 
 	if (const char *rodir = std::getenv("XASH3D_RODIR"))
 	{
-		std::string p = std::string(rodir) + "/platform/resource/linux_fonts";
+		std::string p = std::string(rodir) + "/platform/resource/csretro_fonts";
 		AddDirUnique(p.c_str());
 	}
 
-	AddDirUnique("gamedata/platform/resource/linux_fonts");
-	AddDirUnique("platform/resource/linux_fonts");
-	AddDirUnique("./platform/resource/linux_fonts");
+	AddDirUnique("gamedata/platform/resource/csretro_fonts");
+	AddDirUnique("platform/resource/csretro_fonts");
+	AddDirUnique("./platform/resource/csretro_fonts");
 
-	// Known system fallbacks (not a single hard-coded file).
+	// Safety net if the shipped fonts are missing (not a single hard-coded file).
+	AddDirUnique("/usr/share/fonts/noto");
+	AddDirUnique("/usr/share/fonts/truetype/noto");
 	AddDirUnique("/usr/share/fonts/TTF");
-	AddDirUnique("/usr/share/fonts/truetype/dejavu");
-	AddDirUnique("/usr/share/fonts/truetype/liberation");
-	AddDirUnique("/usr/share/fonts/liberation");
 	AddDirUnique("/usr/local/share/fonts");
 }
 
@@ -133,24 +132,14 @@ void MapFamilyCandidates(const char *family, int weight, std::vector<const char 
 
 	if (mono)
 	{
-		if (bold)
-		{
-			out.push_back("DejaVuSansMono-Bold.ttf");
-			out.push_back("LiberationMono-Bold.ttf");
-		}
-		out.push_back("DejaVuSansMono.ttf");
-		out.push_back("LiberationMono-Regular.ttf");
+		out.push_back("NotoSansMono-Regular.ttf");
 		return;
 	}
 
-	// Tahoma / Verdana / Arial / Trebuchet MS → Liberation (Arial-Metrik) vor DejaVu (breiter).
+	// Every proportional Scheme family (Tahoma, Verdana, Trebuchet MS, …) maps to Noto Sans.
 	if (bold)
-	{
-		out.push_back("LiberationSans-Bold.ttf");
-		out.push_back("DejaVuSans-Bold.ttf");
-	}
-	out.push_back("LiberationSans-Regular.ttf");
-	out.push_back("DejaVuSans.ttf");
+		out.push_back("NotoSans-Bold.ttf");
+	out.push_back("NotoSans-Regular.ttf");
 }
 
 bool LooksLikeFontFile(const char *s)
@@ -175,7 +164,7 @@ std::string Csretro_ResolveFontFile(const char *familyOrFile, int weight)
 		if (FileExists(familyOrFile))
 			return familyOrFile;
 
-		// Bare filename → exact match in search dirs.
+		// Bare filename → exact match in search dirs (custom font files from a scheme).
 		if (LooksLikeFontFile(familyOrFile))
 		{
 			const char *base = familyOrFile;
@@ -185,33 +174,13 @@ std::string Csretro_ResolveFontFile(const char *familyOrFile, int weight)
 			if (!found.empty())
 				return found;
 		}
-		else
-		{
-			// Try "<Family With Spaces → Family-With-Spaces>.ttf"
-			std::string tryName = std::string(familyOrFile) + ".ttf";
-			for (char &c : tryName)
-			{
-				if (c == ' ')
-					c = '-';
-			}
-			std::string found = FindExactInDirs(tryName.c_str());
-			if (!found.empty())
-				return found;
-		}
+		// Family names are never guessed as "<Family>.ttf": a stray system Tahoma.ttf
+		// would otherwise beat the shipped Noto Sans. Mapping below is authoritative.
 	}
 
 	std::vector<const char *> candidates;
 	MapFamilyCandidates(familyOrFile, weight, candidates);
 	for (const char *cand : candidates)
-	{
-		std::string found = FindExactInDirs(cand);
-		if (!found.empty())
-			return found;
-	}
-
-	// Last-resort: any DejaVuSans / LiberationSans in search dirs.
-	static const char *kLast[] = {"DejaVuSans.ttf", "LiberationSans-Regular.ttf", "FiraSans-Regular.ttf"};
-	for (const char *cand : kLast)
 	{
 		std::string found = FindExactInDirs(cand);
 		if (!found.empty())

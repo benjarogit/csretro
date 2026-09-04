@@ -15,7 +15,7 @@ class QueryBox;
 
 class COptionsSubVideo : public vgui2::PropertyPage
 {
-	DECLARE_CLASS_SIMPLE(COptionsSubVideo, vgui2::PropertyPage);
+	DECLARE_CLASS_SIMPLE_OVERRIDE(COptionsSubVideo, vgui2::PropertyPage);
 
 public:
 	explicit COptionsSubVideo(vgui2::Panel *parent);

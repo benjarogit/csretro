@@ -95,6 +95,7 @@ set(_vgui_controls
     "${SDK}/vgui2/vgui_controls/Slider.cpp"
     "${SDK}/vgui2/vgui_controls/PanelListPanel.cpp"
     "${SDK}/vgui2/vgui_controls/SectionedListPanel.cpp"
+    "${SDK}/vgui2/vgui_controls/ListPanel.cpp"
 )
 
 set(_tier1
@@ -142,6 +143,17 @@ add_library(csretro_menu SHARED
     "${VGUI}/commandline_xash.cpp"
     "${VGUI}/vgui_boot.cpp"
     "${VGUI}/poc_dialog.cpp"
+    "${VGUI}/main_menu.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/CreateGameDialog.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/CreateGameServerPage.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/CreateGameGameplayPage.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/CreateGameSettingsList.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/ServerSettingsScript.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/ServerBrowserDialog.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/GameConsoleDialog.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/TeamSelectPanel.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/ClassSelectPanel.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/BuySelectPanel.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsDialog.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsAdaptiveLayout.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsLayoutGate.cpp"
@@ -220,34 +232,11 @@ target_compile_definitions(csretro_menu PRIVATE
 
 target_compile_options(csretro_menu PRIVATE
     -fno-strict-aliasing
-    # Vendored Valve/VGUI2 code is old MSVC-era C++. Keep real errors visible,
-    # but do not flood the user-facing menu build with portability noise.
-    -Wno-unknown-warning-option
-    -Wno-unknown-pragmas
-    -Wno-overloaded-virtual
-    -Wno-inconsistent-missing-override
-    -Wno-deprecated-copy-with-user-provided-copy
-    -Wno-null-conversion
-    -Wno-macro-redefined
-    -Wno-missing-field-initializers
-    -Wno-nonportable-include-path
-    -Wno-missing-format-attribute
-    -Wno-delete-non-abstract-non-virtual-dtor
-    -Wno-int-to-void-pointer-cast
-    -Wno-unused-value
-    -Wno-format-nonliteral
-    -Wno-switch
-    -Wno-unused-function
-    -Wno-unused-private-field
-    -Wno-parentheses
-    -Wno-sometimes-uninitialized
-    -Wno-constant-conversion
     -Wno-unused-parameter
     -Wno-unused-variable
     -Wno-unused-but-set-variable
     -Wno-ignored-attributes
     -Wno-invalid-offsetof
-    -Wno-class-memaccess
     -Wno-sign-compare
     -Wno-reorder
     -Wno-misleading-indentation

@@ -158,7 +158,7 @@ public:
 #if ! defined(SWIG)
 	// Don't let SWIG see the PRINTF_FORMAT_STRING attribute or it will complain.
 	int Format( PRINTF_FORMAT_STRING const char *pFormat, ... )  FMTFUNCTION( 2, 3 );
-	int FormatV( PRINTF_FORMAT_STRING const char *pFormat, va_list marker );
+	int FormatV( PRINTF_FORMAT_STRING const char *pFormat, va_list marker ) FMTFUNCTION( 2, 0 );
 #else
 	int Format( const char *pFormat, ... );
 	int FormatV( const char *pFormat, va_list marker );

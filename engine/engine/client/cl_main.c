@@ -3988,21 +3988,21 @@ void CL_Shutdown( void )
 	{
 		Host_WriteOpenGLConfig ();
 		Host_WriteVideoConfig ();
-		Touch_WriteConfig();
 	}
 
 	Joy_Shutdown ();
 	CL_CloseDemoHeader ();
 	IN_Shutdown ();
-	Mobile_Shutdown ();
 	SCR_Shutdown ();
 	CL_UnloadProgs ();
 	SteamBroker_Shutdown();
 	cls.initialized = false;
 
-	// for client-side VGUI support we use other order
+	// For client-side legacy VGUI1 support we use another shutdown order.
+	#if XASH_LEGACY_VGUI1
 	if( FI && FI->GameInfo && !FI->GameInfo->internal_vgui_support )
 		VGui_Shutdown();
+	#endif
 
 	if( g_fsapi.Delete )
 		g_fsapi.Delete( "demoheader.tmp" ); // remove tmp file

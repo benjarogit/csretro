@@ -417,6 +417,9 @@ private:
 class CDbgFmtMsg
 {
 public:
+	#if defined(__GNUC__) || defined(__clang__)
+	__attribute__((format(printf, 2, 3)))
+	#endif
 	CDbgFmtMsg(const char *pszFormat, ...)
 	{
 		va_list arg_ptr;

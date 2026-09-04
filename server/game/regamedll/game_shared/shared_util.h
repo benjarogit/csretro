@@ -34,8 +34,13 @@
 #endif
 
 wchar_t *SharedWVarArgs(wchar_t *format, ...);
+#if defined(__GNUC__) || defined(__clang__)
+char *SharedVarArgs(char *format, ...) __attribute__((format(printf, 1, 2)));
+char *BufPrintf(char *buf, int &len, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
+#else
 char *SharedVarArgs(char *format, ...);
 char *BufPrintf(char *buf, int &len, const char *fmt, ...);
+#endif
 wchar_t *BufWPrintf(wchar_t *buf, int &len, const wchar_t *fmt, ...);
 const wchar_t *NumAsWString(int val);
 const char *NumAsString(int val);

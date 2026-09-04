@@ -36,6 +36,7 @@ public:
 	Vector2D() : x(), y() {}
 	Vector2D(float X, float Y) : x(X), y(Y) {}
 	Vector2D(const Vector2D &v) { *(int *)&x = *(int *)&v.x; *(int *)&y = *(int *)&v.y; }
+	Vector2D &operator=(const Vector2D &v) = default;
 
 	// Operators
 	decltype(auto) operator-()         const { return Vector2D(-x, -y); }
@@ -140,6 +141,7 @@ public:
 	Vector(float X, float Y, float Z) : x(X), y(Y), z(Z) {}
 	Vector(const Vector &v) { *(int *)&x = *(int *)&v.x; *(int *)&y = *(int *)&v.y; *(int *)&z = *(int *)&v.z; }
 	Vector(const float rgfl[3]) { *(int *)&x = *(int *)&rgfl[0]; *(int *)&y = *(int *)&rgfl[1]; *(int *)&z = *(int *)&rgfl[2]; }
+	Vector &operator=(const Vector &v) = default;
 
 	// Operators
 	decltype(auto) operator-()       const { return Vector(-x, -y, -z); }

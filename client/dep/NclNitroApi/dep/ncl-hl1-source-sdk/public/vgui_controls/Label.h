@@ -194,6 +194,8 @@ protected:
 
 	void HandleAutoSizing( void );
 
+	using Panel::Init;
+
 private:
 	void Init();
 

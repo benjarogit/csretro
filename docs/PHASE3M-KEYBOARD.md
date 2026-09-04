@@ -9,7 +9,7 @@ Nach User-Retest wurden zwei Persistenzpfade gefunden und geschlossen: staged Ke
 |---------------|------|
 | Runtime Provenance | **PASS** (maßgeblich: Menu-SHA / git-dirty, nicht nur `__DATE__`/`built=`) |
 | Capture Transport | **PASS** (`extApi=1`) |
-| Capture UX | **PASS** — „Press a key…“; Slot-Akzent später Scheme (Visual Polish) |
+| Capture UX | **PASS** — „Press a key…“ in `BrightControlText` (Primary) / `BrightBaseText` (Alternate) |
 | Binding Snapshot / BIND_AUDIT | **PASS** — Klassen, gleicher BASEDIR-Kontext (Infrastruktur bleibt) |
 | Test isolation | **PASS** — Gates `build/run-gate/`, 3C `build/run-3c`, play `build/run` |
 | Wheel scrolling | **PASS** — idle scrollt; Capture = `MWHEELUP`/`DOWN`; danach wieder Scroll |
@@ -74,7 +74,7 @@ Visuelle/Layout-Reste — **kein** Keyboard-Funktionsblocker.
 
 | # | Befund | Klasse | Wann |
 |---|--------|--------|------|
-| 2 | Capture-Slot noch deutlicher | Scheme-`Capture`/`Edit`-FG; Primary≠Alternate; ESC stellt Slot her | Global Visual Polish |
+| 2 | Capture-Slot farbig | **erledigt** — `BrightControlText`/`BrightBaseText` während `#GameUI_PressAKey` | — |
 | 3 | Scrollbar / Pfeile / Spalten/Insets | Visual Polish | danach |
 | 4 | Audio-Leerraum Volume ↔ Sound quality | Adaptive Layout | Audio bleibt **PASS** |
 | 5 | ComboBox/Dropdown | zentraler Control-Polish | Visual Polish — keine Seiten-Patches |

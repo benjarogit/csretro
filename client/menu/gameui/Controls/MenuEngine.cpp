@@ -65,6 +65,18 @@ void ClientCmdNow(const char *cmd)
 	gEng.pfnClientCmd(1, cmd);
 }
 
+void ConsolePrint(const char *text)
+{
+	if (text && *text && gEng.Con_Printf)
+		gEng.Con_Printf("%s", text);
+}
+
+void SetKeyDest(int destination)
+{
+	if (gEng.pfnSetKeyDest)
+		gEng.pfnSetKeyDest(destination);
+}
+
 bool IsKeyDown(const char *keyName, bool &isDown)
 {
 	isDown = false;

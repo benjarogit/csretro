@@ -11,6 +11,7 @@
 #include <vgui/ISystem.h>
 #include <vgui/IInputInternal.h>
 #include <vgui/IImage.h>
+#include <vgui/ISurfaceNext.h>
 #include <KeyValues.h>
 
 #include <vgui_controls/ScrollBar.h>
@@ -40,7 +41,16 @@ enum
 class ScrollBarButton : public Button
 {
 public:
-	ScrollBarButton(Panel *parent, const char *panelName, const char *text) : Button(parent, panelName, text)
+	enum ArrowDirection
+	{
+		ARROW_UP,
+		ARROW_DOWN,
+		ARROW_LEFT,
+		ARROW_RIGHT
+	};
+
+	ScrollBarButton(Panel *parent, const char *panelName, ArrowDirection direction)
+		: Button(parent, panelName, ""), m_direction(direction), m_edgeColor(218, 222, 214, 64)
 	{
 		SetButtonActivationType(ACTIVATE_ONPRESSED);
 
@@ -57,13 +67,56 @@ public:
 	{
 		Button::ApplySchemeSettings(pScheme);
 
-		SetFont(pScheme->GetFont("Marlett", IsProportional() ));
-		SetDefaultBorder(pScheme->GetBorder("ScrollBarButtonBorder"));
-        SetDepressedBorder(pScheme->GetBorder("ScrollBarButtonDepressedBorder"));
+		SetText("");
+		SetDefaultBorder(NULL);
+		SetDepressedBorder(NULL);
 		
 		SetDefaultColor(GetSchemeColor("ScrollBarButton.FgColor", GetFgColor(), pScheme), GetSchemeColor("ScrollBarButton.BgColor", GetBgColor(), pScheme));
 		SetArmedColor(GetSchemeColor("ScrollBarButton.ArmedFgColor", GetFgColor(), pScheme), GetSchemeColor("ScrollBarButton.ArmedBgColor", GetBgColor(), pScheme));
 		SetDepressedColor(GetSchemeColor("ScrollBarButton.DepressedFgColor", GetFgColor(), pScheme), GetSchemeColor("ScrollBarButton.DepressedBgColor", GetBgColor(), pScheme));
+		m_edgeColor = GetSchemeColor("ScrollBarButton.EdgeColor", m_edgeColor, pScheme);
+	}
+
+	virtual void PaintBackground()
+	{
+		int wide = 0, tall = 0;
+		GetSize(wide, tall);
+		const Color bg = GetButtonBgColor();
+		if (bg.a() > 0)
+		{
+			surface()->DrawSetColor(bg);
+			DrawNibbleFilledRect(1, 1, wide - 2, tall - 2, 3);
+		}
+		if (IsArmed() || IsDepressed())
+		{
+			surface()->DrawSetColor(m_edgeColor);
+			DrawNibbleOutline(1, 1, wide - 2, tall - 2, 3);
+		}
+	}
+
+	virtual void Paint()
+	{
+		if (!ShouldPaint())
+			return;
+
+		int wide = 0, tall = 0;
+		GetSize(wide, tall);
+		const int cx = wide / 2;
+		const int cy = tall / 2;
+		const int half = 4;
+		surface()->DrawSetColor(GetButtonFgColor());
+
+		for (int row = 0; row < 4; ++row)
+		{
+			if (m_direction == ARROW_UP)
+				surface()->DrawFilledRect(cx - row, cy - 2 + row, cx + row + 1, cy - 1 + row);
+			else if (m_direction == ARROW_DOWN)
+				surface()->DrawFilledRect(cx - (3 - row), cy - 1 + row, cx + (3 - row) + 1, cy + row);
+			else if (m_direction == ARROW_LEFT)
+				surface()->DrawFilledRect(cx - 2 + row, cy - row, cx - 1 + row, cy + row + 1);
+			else
+				surface()->DrawFilledRect(cx - 1 + row, cy - (3 - row), cx + row, cy + (3 - row) + 1);
+		}
 	}
 
 	// Don't request focus.
@@ -103,7 +156,7 @@ public:
 			}
 			
 			// lock mouse input to going to this button
-			input()->SetMouseCapture(NULL);
+			input()->SetMouseCapture(static_cast<VPANEL>(0));
 		}
 
 		if( input()->GetMouseOver() == GetVPanel() )
@@ -111,6 +164,10 @@ public:
 			SetArmed( true );
 		}
     }
+
+private:
+	ArrowDirection m_direction;
+	Color m_edgeColor;
 
 };
 
@@ -153,18 +210,18 @@ ScrollBar::ScrollBar(Panel *parent, const char *panelName, bool vertical) : Pane
 	{
 		// FIXME: proportional changes needed???
 		SetSlider(new ScrollBarSlider(NULL, "Slider", true));
-		SetButton(new ScrollBarButton(NULL, "UpButton", "t"), 0);
-		SetButton(new ScrollBarButton(NULL, "DownButton", "u"), 1);
-		_button[0]->SetTextInset(0, 1);
-		_button[1]->SetTextInset(0, -1);
+		SetButton(new ScrollBarButton(NULL, "UpButton", ScrollBarButton::ARROW_UP), 0);
+		SetButton(new ScrollBarButton(NULL, "DownButton", ScrollBarButton::ARROW_DOWN), 1);
+		_button[0]->SetTextInset(0, 0);
+		_button[1]->SetTextInset(0, 0);
 
 		SetSize(SCROLLBAR_DEFAULT_WIDTH, 64);
 	}
 	else
 	{
 		SetSlider(new ScrollBarSlider(NULL, NULL, false));
-		SetButton(new ScrollBarButton(NULL, NULL, "w"), 0);
-		SetButton(new ScrollBarButton(NULL, NULL, "4"), 1);
+		SetButton(new ScrollBarButton(NULL, NULL, ScrollBarButton::ARROW_LEFT), 0);
+		SetButton(new ScrollBarButton(NULL, NULL, ScrollBarButton::ARROW_RIGHT), 1);
 		_button[0]->SetTextInset(0, 0);
 		_button[1]->SetTextInset(0, 0);
 

@@ -54,13 +54,28 @@ Windows zusätzlich: Registry `SteamPath`. Linux: inkl. Flatpak-Pfad. macOS: `~/
 
 ## Klassen
 
-**COPY** — beobachtete Content-Gruppen und Dateien (Maps, Models, Sounds, Sprites, Events, gfx, resource, WADs, `delta.lst`, `titles.txt`). `valve/liblist.gam` bleibt HL-Metadaten. Gruppen, von denen der Trace nur ein Verzeichnis sah (`valve/maps`, `valve/media`), werden nicht kopiert. Für VGUI2 zusätzlich **`platform/resource/`** (TrackerScheme, Icons, Localization, Fonts) — nicht `platform/steam`, nicht Platform-Binaries.
+**COPY** — beobachtete Content-Gruppen und Dateien (Maps, Models, Sounds, Sprites, Events, gfx, resource, WADs, `delta.lst`, `titles.txt`). `valve/liblist.gam` bleibt HL-Metadaten. Gruppen, von denen der Trace nur ein Verzeichnis sah (`valve/maps`, `valve/media`), werden nicht kopiert. Für VGUI2 zusätzlich **`platform/resource/`** (TrackerScheme, Icons, Localization) — nicht `platform/steam`, nicht Platform-Binaries, **nicht** `platform/resource/linux_fonts` (CS Retro liefert eigene Schriften).
 
 **REPLACE** — `cstrike/dlls`, `cstrike/cl_dlls`, `valve/cl_dlls`, `valve.rc` / `cstrike.rc`, **`cstrike/liblist.gam`**. GameDLL/Client sind CS-Retro; `liblist.gam` ist CS-Retro-owned (Name „CS Retro“, `gamedll_linux "dlls/cs.so"` — Xash hängt `_amd64` an).
 
 **IGNORE** — Steam-/GoldSrc-Binaries (`*.so`/`*.dll`/`*.exe`, `hl_linux`, `hw.so`, `steam_api`, CEF), `platform/steam`, `platform/servers`, `platform/config`, `platform/gl_shaders`, `redist/`, `cstrike_hd/`, Steam-`config.cfg`, `steam.inf` / `steam_appid.txt`.
 
-**OVERRIDE** — `data/ui-overrides/` (Git) wird nach der Steam-Kopie über `gamedata/` gelegt (Branding, zusätzliche Menüeinträge). Originalressourcen bleiben unangetastet.
+**OVERRIDE** — `data/ui-overrides/` (Git) wird nach der Steam-Kopie über `gamedata/` gelegt (Branding, zusätzliche Menüeinträge, **`platform/resource/csretro_fonts/`** mit Noto Sans, **Hauptmenü-Hintergrund** `cstrike/resource/background/csretro.png`). Originalressourcen bleiben unangetastet.
+
+Steam-Schriften (`platform/resource/linux_fonts`) werden nicht importiert; bestehende Bäume räumt die `prune`-Regel im Manifest auf. Dasselbe gilt für die Steam-Menükacheln (`cstrike`/`valve` `resource/background/`, `BackgroundLayout.txt`): CS Retro liefert ein eigenes Motiv unter `data/ui-overrides/cstrike/resource/background/csretro.png`.
+
+## Aufräumen: `ignore` gegen `prune`
+
+Zwei Ebenen, beide deklarativ in `data/gamedata-manifest.json`:
+
+| Regel | Wirkung |
+|---|---|
+| `ignore` | Datei wird gar nicht erst importiert |
+| `prune`  | Pfad wird im Zielbaum gelöscht — für Bäume aus früheren Importen, als die `ignore`-Regel noch fehlte. Ein Refresh überschreibt nur, er räumt nicht ab |
+
+Neue Regel = Manifest-Eintrag, kein Codeanbau. Was `prune` entfernt hat, steht in `origin.json` unter `pruned`.
+
+**Nicht ins Blaue löschen.** `gamedata/valve` ist mit rund 200 MB der größte Block, aber CS-Maps greifen darauf zurück: `halflife.wad` wird von 22 der 25 Maps referenziert, und selbst `xeno.wad` von zweien. Welche `valve`-Assets wirklich entbehrlich sind, braucht eine Auswertung der tatsächlichen Referenzen (BSP-`wad`-Keys, Modelle, Sounds) — bis dahin bleibt der Baum vollständig.
 
 Nicht als Runtime übernehmen: Valve-Engine, `client.dll`/`client.so`, Steam-`cs_amd64.so`, `hw.dll`, SteamAPI.
 

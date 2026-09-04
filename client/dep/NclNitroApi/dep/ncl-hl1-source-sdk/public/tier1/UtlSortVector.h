@@ -88,6 +88,13 @@ public:
 	template< typename TKey >
 	int		FindUnsorted( const TKey &src ) const;
 
+	// Public assignment (TextImage color-change stream); silences deprecated-copy.
+	CUtlSortVector &operator=( const CUtlSortVector &other )
+	{
+		BaseClass::operator=( other );
+		return *this;
+	}
+
 protected:
 	// No copy constructor
 	CUtlSortVector( const CUtlSortVector<T, LessFunc> & );

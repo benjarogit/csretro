@@ -12,8 +12,37 @@ bool VGuiXash_IsPocActive();
 bool VGuiXash_ShowOptionsDialog();
 void VGuiXash_HideOptionsDialog();
 bool VGuiXash_IsOptionsActive();
+bool VGuiXash_ShowMainMenu();
+void VGuiXash_HideMainMenu();
+bool VGuiXash_IsMainMenuActive();
+bool VGuiXash_ShowCreateGameDialog();
+void VGuiXash_HideCreateGameDialog();
+bool VGuiXash_IsCreateGameActive();
+bool VGuiXash_ShowServerBrowser();
+void VGuiXash_HideServerBrowser();
+bool VGuiXash_IsServerBrowserActive();
+bool VGuiXash_ToggleConsole();
+void VGuiXash_HideConsole();
+bool VGuiXash_IsConsoleActive();
+void VGuiXash_ConsolePrint(const char *text);
+void VGuiXash_ConsoleClear();
+
+class CCreateGameDialog;
+CCreateGameDialog *VGuiXash_GateGetCreateGameDialog();
 bool VGuiXash_IsKeyboardCapturing();
-bool VGuiXash_IsUiActive(); // PoC oder Options
+bool VGuiXash_ShowTeamSelect(int validSlots);
+void VGuiXash_HideTeamSelect();
+bool VGuiXash_IsTeamSelectActive();
+bool VGuiXash_TeamActivateSlot(int slot);
+bool VGuiXash_ShowClassSelect(int menuType, int validSlots);
+void VGuiXash_HideClassSelect();
+bool VGuiXash_IsClassSelectActive();
+bool VGuiXash_ClassActivateSlot(int slot);
+bool VGuiXash_ShowBuySelect(int menuType, int validSlots);
+void VGuiXash_HideBuySelect();
+bool VGuiXash_IsBuySelectActive();
+bool VGuiXash_BuyActivateSlot(int slot);
+bool VGuiXash_IsUiActive(); // PoC, Options, Hauptmenü, Create Game, Server Browser, Console, Team, Class, Buy
 void VGuiXash_Key(int key, int down);
 void VGuiXash_MouseMove(int x, int y);
 void VGuiXash_Char(int ch);

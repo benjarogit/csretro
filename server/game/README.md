@@ -33,7 +33,7 @@ This means that plugins that do binary code analysis (Orpheu for example) probab
 ## Commands
 | Command                             | Description                                     |
 | :---------------------------------- | :---------------------------------------------- |
-| game version                        | Will show GameDLL build version, date & URL. |
+| csretro version                     | Will show GameDLL build version, date & URL. |
 | endround                            | Args:<br/>`T` force round end with Terrorists win. <br/>`CT` force round end with Counter-Terrorists win. <br/> or terminate round draw when called without arguments. |
 | swapteams                           | Swap the teams and restart the game (1 sec delay to restart by default).<br/> Args: <br/>`0` - swap teams without restart. <br/> `>0.001` - time delay in seconds to restart the round after swap. |
 | give                                | Give weapon command.<br/> Args:<br/><weapon_name><br/>Usage:<br/>`give weapon_ak47`<br/>`give weapon_usp`<br/><br/>NOTE: `sv_cheats 1` required. |

@@ -9,6 +9,8 @@ void CvarSetValue(const char *name, float value);
 void CvarSet(const char *name, const char *value);
 void ClientCmd(const char *cmd);
 void ClientCmdNow(const char *cmd);
+void ConsolePrint(const char *text);
+void SetKeyDest(int destination);
 bool IsKeyDown(const char *keyName, bool &isDown);
 const char *GetModeString(int modeIndex);
 

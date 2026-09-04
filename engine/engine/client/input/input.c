@@ -50,7 +50,6 @@ static CVAR_DEFINE_AUTO( cl_backspeed, "400", FCVAR_ARCHIVE | FCVAR_CLIENTDLL | 
 static CVAR_DEFINE_AUTO( cl_sidespeed, "400", FCVAR_ARCHIVE | FCVAR_CLIENTDLL | FCVAR_FILTERABLE, "Default side move speed"  );
 
 static CVAR_DEFINE_AUTO( m_grab_debug, "0", FCVAR_PRIVILEGED, "show debug messages on mouse state change" );
-CVAR_DEFINE_AUTO( touch_enable, DEFAULT_TOUCH_ENABLE, FCVAR_ARCHIVE | FCVAR_FILTERABLE, "enable touch controls" );
 
 /*
 ================
@@ -66,15 +65,11 @@ uint IN_CollectInputDevices( void )
 	if( !m_ignore.value ) // no way to check is mouse connected, so use cvar only
 		ret |= INPUT_DEVICE_MOUSE;
 
-	if( touch_enable.value )
-		ret |= INPUT_DEVICE_TOUCH;
-
 	if( Joy_IsActive() ) // connected or enabled
 		ret |= INPUT_DEVICE_JOYSTICK;
 
-	Con_Reportf( "Connected devices: %s%s%s%s\n",
+	Con_Reportf( "Connected devices: %s%s%s\n",
 		FBitSet( ret, INPUT_DEVICE_MOUSE )    ? "mouse " : "",
-		FBitSet( ret, INPUT_DEVICE_TOUCH )    ? "touch " : "",
 		FBitSet( ret, INPUT_DEVICE_JOYSTICK ) ? "joy " : "",
 		FBitSet( ret, INPUT_DEVICE_VR )       ? "vr " : "");
 
@@ -97,13 +92,11 @@ void IN_LockInputDevices( qboolean lock )
 	{
 		SetBits( m_ignore.flags, FCVAR_READ_ONLY );
 		SetBits( joy_enable.flags, FCVAR_READ_ONLY );
-		SetBits( touch_enable.flags, FCVAR_READ_ONLY );
 	}
 	else
 	{
 		ClearBits( m_ignore.flags, FCVAR_READ_ONLY );
 		ClearBits( joy_enable.flags, FCVAR_READ_ONLY );
-		ClearBits( touch_enable.flags, FCVAR_READ_ONLY );
 	}
 }
 
@@ -122,7 +115,6 @@ static void IN_StartupMouse( void )
 	Cvar_RegisterVariable( &look_filter );
 	Cvar_RegisterVariable( &m_rawinput );
 	Cvar_RegisterVariable( &m_grab_debug );
-	Cvar_RegisterVariable( &touch_enable );
 
 	// You can use -nomouse argument to prevent using mouse from client
 	// -noenginemouse will disable all mouse input
@@ -343,18 +335,10 @@ static void IN_MouseMove( void )
 	if( !in_mouseinitialized )
 		return;
 
-	if( Touch_WantVisibleCursor( ))
-	{
-		// touch emulation overrides all input
-		Touch_KeyEvent( 0, 0 );
-		return;
-	}
-
 	// find mouse movement
 	int x, y;
 	Platform_GetMousePos( &x, &y );
 
-	// touchscreen moves the cursor on its own, don't drag it back to where the mouse is left
 	if( x == oldx && y == oldy )
 		return;
 
@@ -381,12 +365,7 @@ void IN_MouseEvent( int key, int down )
 		SetBits( in_mstate, BIT( key ));
 	else ClearBits( in_mstate, BIT( key ));
 
-	// touch emulation overrides all input
-	if( Touch_WantVisibleCursor( ))
-	{
-		Touch_KeyEvent( K_MOUSE1 + key, down );
-	}
-	else if( cls.key_dest == key_game )
+	if( cls.key_dest == key_game )
 	{
 		// perform button actions
 		VGui_MouseEvent( K_MOUSE1 + key, down );
@@ -450,7 +429,6 @@ void IN_Shutdown( void )
 	Evdev_Shutdown();
 #endif
 
-	Touch_Shutdown();
 }
 
 
@@ -474,8 +452,6 @@ void IN_Init( void )
 		OSK_Init();
 
 		Joy_Init(); // common joystick support init
-
-		Touch_Init();
 
 #if XASH_USE_EVDEV
 		Evdev_Init();
@@ -590,7 +566,6 @@ static void IN_CollectInput( float *forward, float *side, float *pitch, float *y
 
 	IN_GyroFinalizeMove( forward, side, pitch, yaw );
 	Joy_FinalizeMove( forward, side, pitch, yaw );
-	Touch_GetMove( forward, side, pitch, yaw );
 
 	if( look_filter.value )
 	{

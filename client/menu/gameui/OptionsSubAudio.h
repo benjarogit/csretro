@@ -7,7 +7,7 @@ class CLabeledCommandComboBox;
 
 class COptionsSubAudio : public vgui2::PropertyPage
 {
-	DECLARE_CLASS_SIMPLE(COptionsSubAudio, vgui2::PropertyPage);
+	DECLARE_CLASS_SIMPLE_OVERRIDE(COptionsSubAudio, vgui2::PropertyPage);
 
 public:
 	explicit COptionsSubAudio(vgui2::Panel *parent);

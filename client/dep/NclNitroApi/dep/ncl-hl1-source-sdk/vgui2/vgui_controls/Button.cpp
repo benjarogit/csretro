@@ -983,7 +983,7 @@ void Button::OnMouseReleased(MouseCode code)
 	// ensure mouse capture gets released
 	if (IsUseCaptureMouseEnabled())
 	{
-		input()->SetMouseCapture(NULL);
+		input()->SetMouseCapture(static_cast<VPANEL>(0));
 	}
 
 	if (_activationType == ACTIVATE_ONPRESSED)
@@ -1030,7 +1030,7 @@ void Button::OnKeyCodePressed(KeyCode code)
 		OnMousePressed(MOUSE_LEFT);
 		if (IsUseCaptureMouseEnabled()) // undo the mouse capture since its a fake mouse click!
 		{
-			input()->SetMouseCapture(NULL);
+			input()->SetMouseCapture(static_cast<VPANEL>(0));
 		}
 	}
 	else

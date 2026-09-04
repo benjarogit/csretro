@@ -328,7 +328,7 @@ private:
 	int 				m_iSortColumnSecondary;
 
 	void 				ResortColumnRBTree(int col);
-	static bool 		RBTreeLessFunc(vgui2::ListPanel::IndexItem_t &item1, vgui2::ListPanel::IndexItem_t &item2);
+	static bool 		RBTreeLessFunc(const vgui2::ListPanel::IndexItem_t &item1, const vgui2::ListPanel::IndexItem_t &item2);
 
 	TextImage			*m_pTextImage; // used in rendering
 	ImagePanel			*m_pImagePanel; // used in rendering
@@ -342,7 +342,6 @@ private:
 	bool 			m_bSortAscending : 1;
 	bool 			m_bSortAscendingSecondary : 1;
 	bool			m_bCanSelectIndividualCells : 1;
-	bool			m_bShiftHeldDown : 1;
 	bool			m_bMultiselectEnabled : 1;
 	bool			m_bAllowUserAddDeleteColumns : 1;
 	bool 			m_bDeleteImageListWhenDone : 1;

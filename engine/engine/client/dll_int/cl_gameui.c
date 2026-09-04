@@ -144,6 +144,32 @@ qboolean UI_IsVisible( void )
 	return gameui.dllFuncs.pfnIsVisible();
 }
 
+void UI_ConsolePrint( const char *text )
+{
+	if( gameui.hInstance && gameui.dllFuncs2.pfnConsolePrint )
+		gameui.dllFuncs2.pfnConsolePrint( text );
+}
+
+void UI_ConsoleClear( void )
+{
+	if( gameui.hInstance && gameui.dllFuncs2.pfnConsoleClear )
+		gameui.dllFuncs2.pfnConsoleClear();
+}
+
+qboolean UI_ConsoleToggle( void )
+{
+	if( !gameui.hInstance || !gameui.dllFuncs2.pfnConsoleToggle )
+		return false;
+	return gameui.dllFuncs2.pfnConsoleToggle() ? true : false;
+}
+
+qboolean UI_ConsoleIsVisible( void )
+{
+	if( !gameui.hInstance || !gameui.dllFuncs2.pfnConsoleIsVisible )
+		return false;
+	return gameui.dllFuncs2.pfnConsoleIsVisible() ? true : false;
+}
+
 /*
 =======================
 UI_AddTouchButtonToList
@@ -1444,6 +1470,7 @@ qboolean UI_LoadProgs( void )
 
 	// initialize game
 	gameui.dllFuncs.pfnInit();
+	Con_ReplayToGameUI();
 
 	return true;
 }

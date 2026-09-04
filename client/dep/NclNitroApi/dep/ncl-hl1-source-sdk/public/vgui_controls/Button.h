@@ -36,6 +36,7 @@ public:
 private:
 	void Init();
 public:
+	using Panel::Init;
 	// Set armed state.
 	virtual void SetArmed(bool state);
 	// Check armed state
@@ -176,6 +177,7 @@ protected:
 	// Paint button on screen
 	virtual void Paint(void);
 	// Get button border attributes.
+	using Panel::GetBorder;
 	virtual IBorder *GetBorder(bool depressed, bool armed, bool selected, bool keyfocus);
 
 	virtual void ApplySchemeSettings(IScheme *pScheme);

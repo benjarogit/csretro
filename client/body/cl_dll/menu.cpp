@@ -91,6 +91,18 @@ static const char *TeamMenuTitle( int bits )
 	return "#Team_Select";
 }
 
+static bool IsTeamSelectTitle( const char *title )
+{
+	if( !title || !title[0] )
+		return false;
+	return !strcmp( title, "#Team_Select" ) ||
+		!strcmp( title, "#Team_Select_Spect" ) ||
+		!strcmp( title, "#IG_Team_Select" ) ||
+		!strcmp( title, "#IG_Team_Select_Spect" ) ||
+		!strcmp( title, "#IG_VIP_Team_Select" ) ||
+		!strcmp( title, "#IG_VIP_Team_Select_Spect" );
+}
+
 static const char *VguiMenuTitle( int menuType, int bits )
 {
 	const int team = PlayerTeamNumber();
@@ -352,6 +364,16 @@ int CHudMenu::MsgFunc_ShowMenu( const char *pszName, int iSize, void *pbuf )
 
 	if( !NeedMore )
 	{
+		Menu_EnsureExports();
+		if( g_pMenu && IsTeamSelectTitle( g_szPrelocalisedMenuString ) )
+		{
+			g_pMenu->ShowVGUIMenu( MENU_TEAM, m_bitsValidSlots, PlayerTeamNumber() );
+			if( g_pMenu->IsActive() )
+			{
+				Close();
+				return 1;
+			}
+		}
 		if( g_pMenu )
 			g_pMenu->HideVGUIMenu();
 		strlcpy( g_szMenuString, gHUD.m_TextMessage.BufferedLocaliseTextString( g_szPrelocalisedMenuString ), sizeof( g_szMenuString ) );
@@ -375,9 +397,10 @@ int CHudMenu::MsgFunc_VGUIMenu( const char *pszName, int iSize, void *pbuf )
 	const int menuType = reader.ReadByte();
 	m_bitsValidSlots = reader.ReadShort();
 
+	Menu_EnsureExports();
 	if( g_pMenu )
 	{
-		g_pMenu->ShowVGUIMenu( menuType, 0, 0 );
+		g_pMenu->ShowVGUIMenu( menuType, m_bitsValidSlots, PlayerTeamNumber() );
 		if( g_pMenu->IsActive() )
 		{
 			Close();
@@ -427,7 +450,7 @@ void CHudMenu::ShowVGUIMenu( int menuType )
 {
 	if( g_pMenu )
 	{
-		g_pMenu->ShowVGUIMenu( menuType, 0, 0 );
+		g_pMenu->ShowVGUIMenu( menuType, m_bitsValidSlots ? m_bitsValidSlots : 0x3FF, PlayerTeamNumber() );
 		if( g_pMenu->IsActive() )
 			return;
 	}

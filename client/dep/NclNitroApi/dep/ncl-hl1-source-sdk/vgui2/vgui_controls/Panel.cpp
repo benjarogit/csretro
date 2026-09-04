@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <cmath>
 #include <map>
 #include <string>
 #include <utlvector.h>
@@ -66,7 +67,7 @@ const char *g_PinCornerStrings [] =
 
 COMPILE_TIME_ASSERT( Panel::PIN_LAST == ARRAYSIZE( g_PinCornerStrings ) );
 
-static const char *COM_GetModDirectory()
+__attribute__((unused)) static const char *COM_GetModDirectory()
 {
 	static char modDir[MAX_PATH];
 	if ( Q_strlen( modDir ) == 0 )
@@ -465,6 +466,7 @@ void Panel::RevertKeyBindings( KeyBindingContextHandle_t handle )
 	}
 }
 
+static void BufPrint( CUtlBuffer& buf, int level, PRINTF_FORMAT_STRING char const *fmt, ... ) FMTFUNCTION( 3, 4 );
 static void BufPrint( CUtlBuffer& buf, int level, char const *fmt, ... )
 {
 	char string[ 2048 ];
@@ -802,7 +804,7 @@ Panel::~Panel()
 	_flags.SetFlag( MARKED_FOR_DELETION );
 
 	// remove panel from any list
-	SetParent((VPANEL)NULL);
+	SetParent(static_cast<VPANEL>(0));
 
 	// Stop our children from pointing at us, and delete them if possible
 	while (ipanel()->GetChildCount(GetVPanel()))
@@ -814,7 +816,7 @@ Panel::~Panel()
 		}
 		else
 		{
-			ipanel()->SetParent(child, NULL);
+			ipanel()->SetParent(child, 0);
 		}
 	}
 
@@ -830,7 +832,7 @@ Panel::~Panel()
 
 	delete [] _pinToSibling;
 
-	_vpanel = NULL;
+	_vpanel = 0;
 #if defined( VGUI_USEDRAGDROP )
 	delete m_pDragDrop;
 #endif // VGUI_USEDRAGDROP
@@ -1031,7 +1033,7 @@ void Panel::OnScreenSizeChanged(int nOldWide, int nOldTall)
 	for (int i = 0; i < ipanel()->GetChildCount(GetVPanel()); i++)
 	{
 		VPANEL child = ipanel()->GetChild(GetVPanel(), i);
-		PostMessage(child, new KeyValues("OnScreenSizeChanged", "oldwide", nOldWide, "oldtall", nOldTall), NULL);
+		PostMessage(child, new KeyValues("OnScreenSizeChanged", "oldwide", nOldWide, "oldtall", nOldTall), 0.0f);
 	}
 
 	// make any currently fullsize window stay fullsize
@@ -1464,7 +1466,7 @@ void Panel::SetParent(Panel *newParent)
 	}
 	else
 	{
-		SetParent((VPANEL)NULL);
+		SetParent(static_cast<VPANEL>(0));
 	}
 }
 
@@ -1479,7 +1481,7 @@ void Panel::SetParent(VPANEL newParent)
 	}
 	else
 	{
-		ipanel()->SetParent(GetVPanel(), NULL);
+		ipanel()->SetParent(GetVPanel(), 0);
 	}
 
 	if (GetVParent() && !IsPopup())
@@ -3192,6 +3194,8 @@ void Panel::OnKeyCodeTyped(KeyCode code)
 		case KEY_LEFT:
 		case KEY_RIGHT:
 			return;
+		default:
+			break;
 		}
 
 		// legacy handling - need to re-enable for older apps?
@@ -3308,7 +3312,7 @@ VPANEL Panel::IsWithinTraverse(int x, int y, bool traversePopups)
 	// if this one is not visible, its children won't be either
 	// also if it doesn't want mouse input its children can't get it either
 	if (!IsVisible() || !IsMouseInputEnabled())
-		return NULL;
+		return static_cast<VPANEL>(0);
 
 	if (traversePopups)
 	{
@@ -3377,7 +3381,7 @@ VPANEL Panel::IsWithinTraverse(int x, int y, bool traversePopups)
 		}
 	}
 
-	return NULL;
+	return static_cast<VPANEL>(0);
 }
 
 void Panel::LocalToScreen(int& x,int& y)
@@ -3556,7 +3560,7 @@ void Panel::RequestFocus(int direction)
 	// NOTE: It does if only mouse is used
 	// Assert( ( IsX360() || IsConsoleStylePanel() ) || IsKeyBoardInputEnabled() );
 	//	ivgui()->DPrintf2("RequestFocus(%s, %s)\n", GetName(), GetClassName());
-	OnRequestFocus(GetVPanel(), NULL);
+	OnRequestFocus(GetVPanel(), 0);
 }
 
 //-----------------------------------------------------------------------------
@@ -3576,7 +3580,7 @@ void Panel::OnRequestFocus(VPANEL subFocus, VPANEL defaultPanel)
 //-----------------------------------------------------------------------------
 VPANEL Panel::GetCurrentKeyFocus()
 {
-	return NULL;
+	return static_cast<VPANEL>(0);
 }
 
 //-----------------------------------------------------------------------------
@@ -4227,6 +4231,8 @@ void Panel::ApplyAutoResizeSettings(KeyValues *inResourceData)
 		nPinnedCornerOffsetY = (y + tall) - pt;
 		nUnpinnedCornerOffsetX = x;
 		nUnpinnedCornerOffsetY = y;
+		break;
+	default:
 		break;
 	}
 
@@ -5150,7 +5156,7 @@ MessageMapItem_t Panel::m_MessageMap[] =
 };
 
 // IMPLEMENT_PANELMAP( Panel, NULL )
-PanelMap_t Panel::m_PanelMap = { Panel::m_MessageMap, ARRAYSIZE(Panel::m_MessageMap), "Panel", NULL };
+PanelMap_t Panel::m_PanelMap = { Panel::m_MessageMap, ARRAYSIZE(Panel::m_MessageMap), "Panel", NULL, 0 };
 PanelMap_t *Panel::GetPanelMap( void ) { return &m_PanelMap; }
 
 //-----------------------------------------------------------------------------
@@ -5806,7 +5812,7 @@ VPANEL VPanelHandle::Get()
 		    return ivgui()->HandleToPanel(m_iPanelID);
         }
 	}
-	return NULL;
+	return static_cast<VPANEL>(0);
 }
 
 //-----------------------------------------------------------------------------
@@ -6591,6 +6597,102 @@ void Panel::GetCornerTextureSize( int& w, int& h )
 	surface()->DrawGetTextureSize(m_nBgTextureId1, w, h);
 }
 
+namespace
+{
+int ChromeCircleInset(int radius, int distFromCorner)
+{
+	if (radius <= 0 || distFromCorner < 0 || distFromCorner >= radius)
+		return 0;
+	const float r = static_cast<float>(radius);
+	const float y = r - (static_cast<float>(distFromCorner) + 0.5f);
+	if (y <= 0.f)
+		return 0;
+	const float inner = r * r - y * y;
+	if (inner <= 0.f)
+		return radius;
+	const int inset = radius - static_cast<int>(sqrtf(inner) + 0.5f);
+	return inset < 0 ? 0 : inset;
+}
+
+void ChromeNibbleInsets(int row, int tall, int nibble, unsigned char corners, int &insetL, int &insetR)
+{
+	insetL = 0;
+	insetR = 0;
+	const bool tl = (corners & PANEL_ROUND_CORNER_TOP_LEFT) != 0;
+	const bool tr = (corners & PANEL_ROUND_CORNER_TOP_RIGHT) != 0;
+	const bool bl = (corners & PANEL_ROUND_CORNER_BOTTOM_LEFT) != 0;
+	const bool br = (corners & PANEL_ROUND_CORNER_BOTTOM_RIGHT) != 0;
+
+	if (row < nibble)
+	{
+		const int d = ChromeCircleInset(nibble, row);
+		if (tl)
+			insetL = d;
+		if (tr)
+			insetR = d;
+	}
+	const int fromBottom = tall - 1 - row;
+	if (fromBottom < nibble)
+	{
+		const int d = ChromeCircleInset(nibble, fromBottom);
+		if (bl && d > insetL)
+			insetL = d;
+		if (br && d > insetR)
+			insetR = d;
+	}
+}
+} // namespace
+
+void Panel::DrawNibbleFilledRect(int x, int y, int wide, int tall, int nibble, unsigned char corners)
+{
+	if (wide <= 0 || tall <= 0)
+		return;
+	if (nibble < 0)
+		nibble = 0;
+	const int maxN = (wide < tall ? wide : tall) / 2;
+	if (nibble > maxN)
+		nibble = maxN;
+
+	for (int row = 0; row < tall; ++row)
+	{
+		int insetL = 0;
+		int insetR = 0;
+		ChromeNibbleInsets(row, tall, nibble, corners, insetL, insetR);
+		if (wide <= insetL + insetR)
+			continue;
+		surface()->DrawFilledRect(x + insetL, y + row, x + wide - insetR, y + row + 1);
+	}
+}
+
+void Panel::DrawNibbleOutline(int x, int y, int wide, int tall, int nibble, unsigned char corners)
+{
+	if (wide <= 1 || tall <= 1)
+		return;
+	if (nibble < 0)
+		nibble = 0;
+	const int maxN = (wide < tall ? wide : tall) / 2;
+	if (nibble > maxN)
+		nibble = maxN;
+
+	for (int row = 0; row < tall; ++row)
+	{
+		int insetL = 0;
+		int insetR = 0;
+		ChromeNibbleInsets(row, tall, nibble, corners, insetL, insetR);
+		const int x0 = x + insetL;
+		const int x1 = x + wide - insetR;
+		if (x1 <= x0)
+			continue;
+		if (row == 0 || row == tall - 1)
+		{
+			surface()->DrawFilledRect(x0, y + row, x1, y + row + 1);
+			continue;
+		}
+		surface()->DrawFilledRect(x0, y + row, x0 + 1, y + row + 1);
+		surface()->DrawFilledRect(x1 - 1, y + row, x1, y + row + 1);
+	}
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: draws a selection box
 //-----------------------------------------------------------------------------
@@ -6601,6 +6703,23 @@ void Panel::DrawBox(int x, int y, int wide, int tall, Color color, float normali
 		 m_nBgTextureId3 == -1 ||
 		 m_nBgTextureId4 == -1 )
 	{
+		// Ohne Ecktexturen bleibt Type 2 ein scharfes Rechteck. Rund ist nur der Frame.
+		color[3] *= normalizedAlpha;
+		surface()->DrawSetColor(color);
+		if (hollow)
+		{
+			if (wide > 0 && tall > 0)
+			{
+				surface()->DrawFilledRect(x, y, x + wide, y + 1);
+				surface()->DrawFilledRect(x, y + tall - 1, x + wide, y + tall);
+				surface()->DrawFilledRect(x, y, x + 1, y + tall);
+				surface()->DrawFilledRect(x + wide - 1, y, x + wide, y + tall);
+			}
+		}
+		else
+		{
+			surface()->DrawFilledRect(x, y, x + wide, y + tall);
+		}
 		return;
 	}
 

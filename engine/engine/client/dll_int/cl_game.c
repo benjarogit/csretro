@@ -103,12 +103,8 @@ static const dllfunc_t cdll_new_exports[] = 	// allowed only in SDK 2.3 and high
 { "HUD_VoiceStatus", (void **)&clgame.dllFuncs.pfnVoiceStatus },
 { "HUD_ChatInputPosition", (void **)&clgame.dllFuncs.pfnChatInputPosition },
 { "HUD_GetRenderInterface", (void **)&clgame.dllFuncs.pfnGetRenderInterface },	// Xash3D ext
-{ "HUD_ClipMoveToEntity", (void **)&clgame.dllFuncs.pfnClipMoveToEntity },	// Xash3D ext
-{ "IN_ClientTouchEvent", (void **)&clgame.dllFuncs.pfnTouchEvent}, // Xash3D FWGS ext
 { "IN_ClientMoveEvent", (void **)&clgame.dllFuncs.pfnMoveEvent}, // Xash3D FWGS ext
 { "IN_ClientLookEvent", (void **)&clgame.dllFuncs.pfnLookEvent}, // Xash3D FWGS ext
-{ "HUD_GetSoundInterface", (void **)&clgame.dllFuncs.pfnGetSoundInterface },	// Xash3D FWGS ext
-{ "Voice_StartChannel", (void **)&clgame.dllFuncs.pfnVoice_StartChannel }, // Xash3D FWGS ext
 };
 
 static void pfnSPR_DrawHoles( int frame, int x, int y, const wrect_t *prc );
@@ -1941,6 +1937,29 @@ static int GAME_EXPORT pfnDrawCharacter( int x, int y, int number, int r, int g,
 		flags |= FONT_DRAW_UTF8;
 
 	return CL_DrawCharacter( x, y, number, color, &cls.creditsFont, flags );
+}
+
+static int GAME_EXPORT pfnDrawScaledCharacter( int x, int y, int number, int r, int g, int b, float scale )
+{
+	static cl_font_t scaled_font;
+	static float previous_scale;
+	rgba_t color = { r, g, b, 255 };
+	int flags = FONT_DRAW_HUD;
+
+	if( hud_utf8.value )
+		SetBits( flags, FONT_DRAW_UTF8 );
+
+	if( fabs( previous_scale - scale ) > 0.1f || scaled_font.hFontTexture != cls.creditsFont.hFontTexture )
+	{
+		scaled_font = cls.creditsFont;
+		scaled_font.scale *= scale;
+		scaled_font.charHeight *= scale;
+		for( int i = 0; i < ARRAYSIZE( scaled_font.charWidths ); ++i )
+			scaled_font.charWidths[i] *= scale;
+		previous_scale = scale;
+	}
+
+	return CL_DrawCharacter( x, y, number, color, &scaled_font, flags );
 }
 
 /*
@@ -3879,7 +3898,9 @@ static cl_enginefunc_t gEngfuncs =
 	pfnGetAppID,
 	Cmd_AliasGetList,
 	pfnVguiWrap2_GetMouseDelta,
-	pfnFilteredClientCmd
+	pfnFilteredClientCmd,
+	Sys_GetNativeObject,
+	pfnDrawScaledCharacter
 };
 
 void CL_UnloadProgs( void )
@@ -3897,8 +3918,10 @@ void CL_UnloadProgs( void )
 	if( Q_stricmp( GI->gamefolder, "hlfx" ) || GI->version != 0.5f )
 		clgame.dllFuncs.pfnShutdown();
 
+	#if XASH_LEGACY_VGUI1
 	if( GI->internal_vgui_support )
 		VGui_Shutdown();
+	#endif
 
 	Cvar_DirectFullSet( &cl_background, "0", FCVAR_READ_ONLY );
 	Cvar_FullSet( "host_clientloaded", "0", FCVAR_READ_ONLY );
@@ -3977,10 +4000,10 @@ static void CL_InitStudioAPI( void )
 qboolean CL_LoadProgs( const char *name )
 {
 	static playermove_t		gpMove;
-	CL_EXPORT_FUNCS	GetClientAPI; // single export
-	qboolean valid_single_export = false;
-	qboolean missed_exports = false;
+	CL_EXPORT_FUNCS	GetClientAPI;
+#if XASH_LEGACY_VGUI1
 	qboolean try_internal_vgui_support = GI->internal_vgui_support;
+#endif
 
 	if( clgame.hInstance ) CL_UnloadProgs();
 
@@ -3998,84 +4021,53 @@ qboolean CL_LoadProgs( const char *name )
 	Con_Printf( S_NOTE "%s uses %s for mouse input\n", name, clgame.client_dll_uses_sdl ? "SDL2" : "Windows API" );
 #endif
 
+#if XASH_LEGACY_VGUI1
 	// NOTE: important stuff!
-	// vgui must startup BEFORE loading client.dll to avoid get error ERROR_NOACESS during LoadLibrary
+	// VGUI1 must start before loading client.dll to avoid ERROR_NOACCESS during LoadLibrary.
 	if( !try_internal_vgui_support && VGui_LoadProgs( NULL ))
 		VGui_Startup( refState.width, refState.height );
 	else
 		try_internal_vgui_support = true; // we failed to load vgui_support, but let's probe client.dll for support anyway
+#endif
 
 	clgame.hInstance = COM_LoadLibrary( name, false, false );
 
 	if( !clgame.hInstance )
 		return false;
 
-	// delayed vgui initialization for internal support
+#if XASH_LEGACY_VGUI1
+	// Delayed VGUI1 initialization for internal support.
 	if( try_internal_vgui_support && VGui_LoadProgs( clgame.hInstance ))
 		VGui_Startup( refState.width, refState.height );
+#endif
 
-	// clear exports
+	// CS Retro has one owned client ABI: GetClientAPI. Legacy per-symbol and
+	// secured-client discovery paths are deliberately not product fallbacks.
 	ClearExports( cdll_exports, ARRAYSIZE( cdll_exports ));
-
-	// trying to get single export
-	if(( GetClientAPI = COM_GetProcAddress( clgame.hInstance, "GetClientAPI" )) != NULL )
+	ClearExports( cdll_new_exports, ARRAYSIZE( cdll_new_exports ));
+	GetClientAPI = COM_GetProcAddress( clgame.hInstance, "GetClientAPI" );
+	if( GetClientAPI == NULL )
 	{
-		Con_Reportf( "%s: found single callback export\n", __func__ );
-
-		// trying to fill interface now
-		GetClientAPI( &clgame.dllFuncs );
-	}
-	else if(( GetClientAPI = COM_GetProcAddress( clgame.hInstance, "F" )) != NULL )
-	{
-		Con_Reportf( "%s: found single callback export (secured client dlls)\n", __func__ );
-
-		// trying to fill interface now
-		CL_GetSecuredClientAPI( GetClientAPI );
-	}
-
-	if( GetClientAPI != NULL ) // check critical functions again
-		valid_single_export = ValidateExports( cdll_exports, ARRAYSIZE( cdll_exports ));
-
-	for( int i = 0; i < ARRAYSIZE( cdll_exports ); i++ )
-	{
-		if( *(cdll_exports[i].func) != NULL )
-			continue; // already got through 'F' or 'GetClientAPI'
-
-		// functions are cleared before all the extensions are evaluated
-		if(( *(cdll_exports[i].func) = (void *)COM_GetProcAddress( clgame.hInstance, cdll_exports[i].name )) == NULL )
-		{
-			Con_Reportf( S_ERROR "%s: failed to get address of %s proc\n", __func__, cdll_exports[i].name );
-
-			// print all not found exports at once, for debug
-			missed_exports = true;
-		}
-	}
-
-	if( missed_exports )
-	{
-		if( clgame.dllFuncs.pfnInit && clgame.dllFuncs.pfnRedraw && clgame.dllFuncs.pfnReset && clgame.dllFuncs.pfnUpdateClientData && clgame.dllFuncs.pfnVidInit && clgame.dllFuncs.pfnInitialize )
-			COM_PushLibraryError( "missing essential exports; outdated DLL!!!" );
-		else
-			COM_PushLibraryError( "missing essential exports" );
-
+		COM_PushLibraryError( "CS Retro client is missing GetClientAPI" );
 		COM_FreeLibrary( clgame.hInstance );
 		clgame.hInstance = NULL;
 		return false;
 	}
 
-	// it may be loaded through 'GetClientAPI' so we don't need to clear them
-	if( !valid_single_export )
-		ClearExports( cdll_new_exports, ARRAYSIZE( cdll_new_exports ));
-
-	for( int i = 0; i < ARRAYSIZE( cdll_new_exports ); i++ )
+	GetClientAPI( &clgame.dllFuncs );
+	if( !ValidateExports( cdll_exports, ARRAYSIZE( cdll_exports )) ||
+		!ValidateExports( cdll_new_exports, ARRAYSIZE( cdll_new_exports )))
 	{
-		if( *(cdll_new_exports[i].func) != NULL )
-			continue; // already gott through 'F' or 'GetClientAPI'
-
-		// functions are cleared before all the extensions are evaluated
-		// NOTE: new exports can be missed without stop the engine
-		if(( *(cdll_new_exports[i].func) = (void *)COM_GetProcAddress( clgame.hInstance, cdll_new_exports[i].name )) == NULL )
-			Con_Reportf( S_WARN "%s: failed to get address of %s proc\n", __func__, cdll_new_exports[i].name );
+		for( int i = 0; i < ARRAYSIZE( cdll_exports ); ++i )
+			if( *(cdll_exports[i].func) == NULL )
+				Con_Reportf( S_ERROR "%s: required client callback %s is missing\n", __func__, cdll_exports[i].name );
+		for( int i = 0; i < ARRAYSIZE( cdll_new_exports ); ++i )
+			if( *(cdll_new_exports[i].func) == NULL )
+				Con_Reportf( S_ERROR "%s: required client callback %s is missing\n", __func__, cdll_new_exports[i].name );
+		COM_PushLibraryError( "incomplete CS Retro client callback table" );
+		COM_FreeLibrary( clgame.hInstance );
+		clgame.hInstance = NULL;
+		return false;
 	}
 
 	if( !clgame.dllFuncs.pfnInitialize( &gEngfuncs, CLDLL_INTERFACE_VERSION ))
@@ -4100,9 +4092,6 @@ qboolean CL_LoadProgs( const char *name )
 
 	if( !R_InitRenderAPI( ))	// Xash3D extension
 		Con_Reportf( S_WARN "%s: couldn't get render API\n", __func__ );
-
-	if( !Mobile_Init( )) // Xash3D FWGS extension: mobile interface
-		Con_Reportf( S_WARN "%s: couldn't get mobility API\n", __func__ );
 
 	CL_InitEdicts( cl.maxclients );		// initailize local player and world
 	CL_InitClientMove();	// initialize pm_shared

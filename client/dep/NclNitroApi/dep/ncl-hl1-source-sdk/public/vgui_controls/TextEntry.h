@@ -335,7 +335,7 @@ private:
 	bool			   _editable;		// whether text is editable or not
 	bool			   _mouseSelection;	// whether we are highlighting text or not (selecting text)
 	bool			   _mouseDragSelection; // tells weather mouse is outside window and button is down so we select text
-	int				   _mouseSelectCursorStart;	// where mouse button was pressed down in text window
+	[[maybe_unused]] int				   _mouseSelectCursorStart;	// where mouse button was pressed down in text window
 	long               _cursorNextBlinkTime;  // time of next cursor blink
 	int                _cursorBlinkRate;	  // speed of cursor blinking
 	int                _select[2];	// select[1] is the offset in the text to where the cursor is currently
@@ -370,7 +370,7 @@ private:
 	int				   _recalculateBreaksIndex; // tells next linebreakindex index to Start recalculating line breaks	
 	bool			   _selectAllOnFirstFocus : 1; // highlights all text in window when focus is gained.
 	bool				_selectAllOnFocusAlways : 1;
-	bool			   _firstFocusStatus; // keep track if we've had that first focus or not
+	[[maybe_unused]] bool			   _firstFocusStatus; // keep track if we've had that first focus or not
 	bool				m_bAllowNumericInputOnly;
 	bool				m_bAllowNonAsciiCharacters;
 	bool				m_bAutoProgressOnHittingCharLimit;

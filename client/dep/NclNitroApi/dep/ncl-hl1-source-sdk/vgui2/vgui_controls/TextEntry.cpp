@@ -553,7 +553,7 @@ int TextEntry::DrawChar(wchar_t ch, HFont font, int index, int x, int y)
 		int selection0 = -1, selection1 = -1;
 		GetSelectedRange(selection0, selection1);
 		
-		if (index >= selection0 && index < selection1)
+		if (index >= selection0 && index < selection1 && IsEditable())
 		{
 			// draw background selection color
             VPANEL focus = input()->GetFocus();
@@ -573,7 +573,21 @@ int TextEntry::DrawChar(wchar_t ch, HFont font, int index, int x, int y)
 
 			surface()->DrawSetColor(bgColor);
 
-			surface()->DrawFilledRect(x, y, x + charWide, y + 1 + fontTall);
+			// Eine Zeile: volle Zellenhöhe mit 1px Padding — kein goldenes Insel-Rect
+			// an der Font-Metrik, das neben dem FreeType-Baseline-Offset sitzt.
+			if (!_multiline)
+			{
+				const int pad = 1;
+				const int y0 = pad;
+				int y1 = GetTall() - pad;
+				if (y1 <= y0)
+					y1 = y0 + 1;
+				surface()->DrawFilledRect(x, y0, x + charWide, y1);
+			}
+			else
+			{
+				surface()->DrawFilledRect(x, y, x + charWide, y + fontTall);
+			}
 			
 			// reset text color
 			surface()->DrawSetTextColor(_selectionTextColor);
@@ -600,6 +614,8 @@ int TextEntry::DrawChar(wchar_t ch, HFont font, int index, int x, int y)
 //-----------------------------------------------------------------------------
 bool TextEntry::DrawCursor(int x, int y)
 {
+	if (!IsEditable())
+		return false;
 	if (!_cursorBlink)
 	{
 		int cx, cy;
@@ -1534,7 +1550,7 @@ void TextEntry::OnMouseReleased(MouseCode code)
 {
 	_mouseSelection = false;
 	
-	input()->SetMouseCapture(NULL);
+	input()->SetMouseCapture(static_cast<VPANEL>(0));
 	
 	// make sure something has been selected
 	int cx0, cx1;
@@ -1641,6 +1657,8 @@ void TextEntry::OnKeyCodePressed(KeyCode code)
 		case KEY_APP:
 			Panel::OnKeyCodePressed( code );
 			return;
+		default:
+			break;
 	}
 	
 	// GoldSrc: No joystick support, mouse codes are separate from key codes

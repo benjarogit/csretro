@@ -46,12 +46,16 @@ CVoiceGameMgr::~CVoiceGameMgr()
 
 void VoiceGameMgr_RegisterCVars()
 {
-	// register voice_serverdebug if it hasn't been registered already
-	if (!CVAR_GET_POINTER("voice_serverdebug"))
-		CVAR_REGISTER(&voice_serverdebug);
+	// These CVars belong to this GameDLL. Looking them up before registration
+	// makes the engine report a false "non-existent cvar" warning at startup.
+	// Guard the registration locally instead.
+	static bool registered = false;
+	if (registered)
+		return;
 
-	if (!CVAR_GET_POINTER("sv_alltalk"))
-		CVAR_REGISTER(&sv_alltalk);
+	registered = true;
+	CVAR_REGISTER(&voice_serverdebug);
+	CVAR_REGISTER(&sv_alltalk);
 }
 
 bool CVoiceGameMgr::Init(IVoiceGameMgrHelper *pHelper, int maxClients)

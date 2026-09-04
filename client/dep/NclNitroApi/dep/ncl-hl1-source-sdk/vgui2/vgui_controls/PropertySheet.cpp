@@ -114,6 +114,11 @@ private:
 	bool _active;
 	Color _textColor;
 	Color _dimTextColor;
+	Color _activeBgColor;
+	Color _inactiveBgColor;
+	Color _armedBgColor;
+	Color _edgeColor;
+	Color _accentColor;
 	int m_bMaxTabWidth;
 	IBorder *m_pActiveBorder;
 	IBorder *m_pNormalBorder;
@@ -169,14 +174,40 @@ public:
 		BaseClass::Paint();
 	}
 
+	virtual void PaintBackground()
+	{
+		int wide = 0, tall = 0;
+		GetSize(wide, tall);
+		if (wide <= 0 || tall <= 0)
+			return;
+
+		surface()->DrawSetColor(GetButtonBgColor());
+		DrawNibbleFilledRect(0, 0, wide, tall, 4,
+			PANEL_ROUND_CORNER_TOP_LEFT | PANEL_ROUND_CORNER_TOP_RIGHT);
+
+		// A single restrained outline replaces the old raised/depressed bevel.
+		surface()->DrawSetColor(_edgeColor);
+		DrawNibbleOutline(0, 0, wide, tall, 4,
+			PANEL_ROUND_CORNER_TOP_LEFT | PANEL_ROUND_CORNER_TOP_RIGHT);
+		if (_active)
+		{
+			surface()->DrawSetColor(_accentColor);
+			surface()->DrawFilledRect(4, tall - 2, wide - 4, tall);
+		}
+	}
+
 	virtual void OnCursorEntered()
 	{
+		BaseClass::OnCursorEntered();
 		m_dropHoverTime = system()->GetTimeMillis();
+		Repaint();
 	}
 
 	virtual void OnCursorExited()
 	{
+		BaseClass::OnCursorExited();
 		m_dropHoverTime = -1;
+		Repaint();
 	}
 
 	virtual void OnThink()
@@ -312,8 +343,16 @@ public:
 		// set up the scheme settings
 		Button::ApplySchemeSettings(pScheme);
 
+		SetContentAlignment(Label::a_center);
+		SetTextInset(4, 0);
+
 		_textColor = GetSchemeColor("PropertySheet.SelectedTextColor", GetSchemeColor("BrightControlText", GetFgColor(), pScheme), pScheme);
-		_dimTextColor = GetSchemeColor("PropertySheet.TextColor", GetSchemeColor("FgColorDim", GetFgColor(), pScheme), pScheme);
+		_dimTextColor = GetSchemeColor("PropertySheet.TextColor", GetSchemeColor("DimBaseText", GetFgColor(), pScheme), pScheme);
+		_activeBgColor = GetSchemeColor("PropertySheet.TabActiveBgColor", Color(42, 44, 40, 104), pScheme);
+		_inactiveBgColor = GetSchemeColor("PropertySheet.TabBgColor", Color(42, 44, 40, 52), pScheme);
+		_armedBgColor = GetSchemeColor("PropertySheet.TabArmedBgColor", Color(70, 72, 66, 82), pScheme);
+		_edgeColor = GetSchemeColor("PropertySheet.TabEdgeColor", Color(218, 222, 214, 64), pScheme);
+		_accentColor = GetSchemeColor("PropertySheet.TabAccentColor", Color(255, 152, 0, 255), pScheme);
 		m_pActiveBorder = pScheme->GetBorder("TabActiveBorder");
 		m_pNormalBorder = pScheme->GetBorder("TabBorder");
 
@@ -338,7 +377,7 @@ public:
 			GetSize(wide, tall);
 			GetContentSize(contentWide, contentTall);
 
-			wide = std::max(m_bMaxTabWidth, contentWide + 10);  // 10 = 5 pixels margin on each side
+			wide = std::max(m_bMaxTabWidth, contentWide + 8);  // 8 = 4px margin each side
 			wide += m_pContextLabel ? 10 : 0;
 			SetSize(wide, tall);
 		}
@@ -379,11 +418,9 @@ public:
 
 	IBorder *GetBorder(bool depressed, bool armed, bool selected, bool keyfocus)
 	{
-		if (_active)
-		{
-			return m_pActiveBorder;
-		}
-		return m_pNormalBorder;
+		// PageTab paints one coherent outline itself. Applying the legacy tab
+		// border as well produces the doubled, boxy edges seen in-game.
+		return NULL;
 	}
 
 	virtual Color GetButtonFgColor()
@@ -396,6 +433,15 @@ public:
 		{
 			return _dimTextColor;
 		}
+	}
+
+	virtual Color GetButtonBgColor()
+	{
+		if (_active)
+			return _activeBgColor;
+		if (IsArmed())
+			return _armedBgColor;
+		return _inactiveBgColor;
 	}
 
 	virtual void SetActive(bool state)
@@ -446,7 +492,7 @@ public:
 		// ensure mouse capture gets released
 		if (IsUseCaptureMouseEnabled())
 		{
-			input()->SetMouseCapture(NULL);
+			input()->SetMouseCapture(static_cast<VPANEL>(0));
 		}
 
 		// make sure the button gets unselected
@@ -710,6 +756,28 @@ void PropertySheet::SetTabWidth(int pixels)
 }
 
 //-----------------------------------------------------------------------------
+// Purpose:
+//-----------------------------------------------------------------------------
+void PropertySheet::SetTabHeight(int pixels)
+{
+	if (m_iSpecifiedTabHeight == pixels)
+		return;
+
+	m_iSpecifiedTabHeight = pixels;
+	if (IsProportional())
+	{
+		m_iTabHeight = scheme()->GetProportionalScaledValue(m_iSpecifiedTabHeight);
+		m_iTabHeightSmall = scheme()->GetProportionalScaledValue(m_iSpecifiedTabHeightSmall);
+	}
+	else
+	{
+		m_iTabHeight = m_iSpecifiedTabHeight;
+		m_iTabHeightSmall = m_iSpecifiedTabHeightSmall;
+	}
+	InvalidateLayout();
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: reloads the data in all the property page
 //-----------------------------------------------------------------------------
 void PropertySheet::ResetAllData()
@@ -900,6 +968,9 @@ void PropertySheet::ApplySchemeSettings(IScheme *pScheme)
 	m_flPageTransitionEffectTime = atof(pScheme->GetResourceString("PropertySheet.TransitionEffectTime"));
 
 	m_tabFont = pScheme->GetFont( m_bSmallTabs ? "DefaultVerySmall" : "Default" );
+
+	if (m_iTabXIndent < 4)
+		m_iTabXIndent = 4;
 
 	if ( m_pTabKV )
 	{

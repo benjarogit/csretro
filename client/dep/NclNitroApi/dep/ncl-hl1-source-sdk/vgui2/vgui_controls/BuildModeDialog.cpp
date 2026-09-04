@@ -115,7 +115,9 @@ class BuildModeLocalizedStringEditDialog : public Frame
 
 public:
 
+#ifdef _MSC_VER
 #pragma warning( disable : 4355 )
+#endif
 	BuildModeLocalizedStringEditDialog() : Frame(this, NULL)
 	{
 		m_pTokenEntry = new TextEntry(this, NULL);
@@ -133,8 +135,11 @@ public:
 			m_pFileCombo->AddItem(g_pVGuiLocalize->GetLocalizationFileName(i), NULL);
 		}
 	}
+#ifdef _MSC_VER
 #pragma warning( default : 4355 )
+#endif
 
+	virtual void DoModal() { Frame::DoModal(); }
 	virtual void DoModal(const char *token)
 	{
 		input()->SetAppModalSurface(GetVPanel());
@@ -164,7 +169,7 @@ private:
 
 	virtual void OnClose()
 	{
-		input()->SetAppModalSurface(NULL);
+		input()->SetAppModalSurface(static_cast<VPANEL>(0));
 		BaseClass::OnClose();
 		//PostActionSignal(new KeyValues("Command"
 	}

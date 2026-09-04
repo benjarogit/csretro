@@ -58,7 +58,8 @@ public:
 
 	// Activate the dialog
 	// NOTE: The argument is there for backward compat
-	void DoModal( bool bUnused = false );
+	virtual void DoModal() { DoModal(false); }
+	void DoModal( bool bUnused );
 
 	// Get the directory this is currently in
 	void GetCurrentDirectory( char *buf, int bufSize );
@@ -113,6 +114,7 @@ protected:
 
 private:
 	// Necessary because we have 2 constructors
+	using Panel::Init;
 	void Init( const char *title, KeyValues *pContextKeyValues );
 
 	// Does the specified extension match something in the filter list?

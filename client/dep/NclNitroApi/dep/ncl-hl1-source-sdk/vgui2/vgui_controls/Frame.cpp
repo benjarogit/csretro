@@ -227,30 +227,28 @@ namespace
 
 		void Paint()
 		{
-			// draw the grab handle in the bottom right of the frame
-			surface()->DrawSetTextFont(_marlettFont);
-			surface()->DrawSetTextPos(0, 0);
-			
-			// thin highlight lines
+			// Compact native resize affordance. The old Marlett p/o pair rendered
+			// as a blocky square and visually cut through the rounded frame shell.
+			int wide = 0, tall = 0;
+			GetSize(wide, tall);
 			surface()->DrawSetTextColor(GetFgColor());
-			surface()->DrawUnicodeChar('p'); 
+			surface()->DrawSetColor(GetFgColor());
+			for (int line = 0; line < 3; ++line)
+			{
+				const int offset = 4 + line * 4;
+				surface()->DrawLine(wide - offset, tall - 2, wide - 2, tall - offset);
+			}
 		}
 
 		void PaintBackground()
 		{
-			// draw the grab handle in the bottom right of the frame
-			surface()->DrawSetTextFont(_marlettFont);
-			surface()->DrawSetTextPos(0, 0);
-			
-			// thick shadow lines
-			surface()->DrawSetTextColor(GetBgColor());
-			surface()->DrawUnicodeChar('o'); 
+			// The frame itself already provides the translucent background.
 		}
 		
 		void OnMouseReleased(MouseCode code)
 		{
 			_dragging = false;
-			input()->SetMouseCapture(NULL);
+			input()->SetMouseCapture(static_cast<VPANEL>(0));
 		}
 
 		void OnMouseCaptureLost()
@@ -527,8 +525,10 @@ namespace vgui2
 	private:
 		IBorder *_brightBorder, *_depressedBorder, *_disabledBorder;
 		Color _enabledFgColor, _enabledBgColor;
+		Color _closeHoverBgColor, _closePressedBgColor, _closeEdgeColor;
 		Color _disabledFgColor, _disabledBgColor;
 		bool _disabledLook;
+		bool _isCloseButton;
 	
 	public:
 	
@@ -550,8 +550,11 @@ namespace vgui2
 			_depressedBorder = NULL;
 			_disabledBorder = NULL;
 			_disabledLook = true;
-			SetContentAlignment(Label::a_northwest);
-			SetTextInset(2, 1);
+			_isCloseButton = name && !Q_stricmp(name, "frame_close");
+			if (_isCloseButton)
+				SetText("");
+			SetContentAlignment(Label::a_center);
+			SetTextInset(0, 0);
 			SetBlockDragChaining( true );
 		}
 		
@@ -559,10 +562,19 @@ namespace vgui2
 		{
 			Button::ApplySchemeSettings(pScheme);
 			
-			_enabledFgColor = GetSchemeColor("FrameTitleButton.FgColor", GetSchemeColor("TitleButtonFgColor", pScheme), pScheme);
+			// Title-X: Scheme-Weiß, volles Alpha. FrameTitleButton.FgColor ist 200/196 und
+			// verschwindet auf der Glass-Titelleiste.
+			_enabledFgColor = GetSchemeColor("FrameTitleBar.TextColor", GetSchemeColor("White", Color(255, 255, 255, 255), pScheme), pScheme);
+			if (_enabledFgColor.a() < 255)
+				_enabledFgColor[3] = 255;
 			_enabledBgColor = GetSchemeColor("FrameTitleButton.BgColor", GetSchemeColor("TitleButtonBgColor", pScheme), pScheme);
+			_closeHoverBgColor = GetSchemeColor("FrameTitleButton.CloseHoverBgColor", Color(194, 68, 52, 205), pScheme);
+			_closePressedBgColor = GetSchemeColor("FrameTitleButton.ClosePressedBgColor", Color(150, 42, 34, 225), pScheme);
+			_closeEdgeColor = GetSchemeColor("FrameTitleButton.CloseEdgeColor", Color(255, 255, 255, 72), pScheme);
 
 			_disabledFgColor = GetSchemeColor("FrameTitleButton.DisabledFgColor", GetSchemeColor("TitleButtonDisabledFgColor", pScheme), pScheme);
+			if (_disabledFgColor.a() < 220)
+				_disabledFgColor[3] = 220;
 			_disabledBgColor = GetSchemeColor("FrameTitleButton.DisabledBgColor", GetSchemeColor("TitleButtonDisabledBgColor", pScheme), pScheme);
 			
 			_brightBorder = pScheme->GetBorder("TitleButtonBorder");
@@ -593,8 +605,8 @@ namespace vgui2
 			if (!_disabledLook)
 			{
 				SetDefaultColor(_enabledFgColor, _enabledBgColor);
-				SetArmedColor(_enabledFgColor, _enabledBgColor);
-				SetDepressedColor(_enabledFgColor, _enabledBgColor);
+				SetArmedColor(_enabledFgColor, _isCloseButton ? _closeHoverBgColor : _enabledBgColor);
+				SetDepressedColor(_enabledFgColor, _isCloseButton ? _closePressedBgColor : _enabledBgColor);
 			}
 			else
 			{
@@ -602,6 +614,46 @@ namespace vgui2
 				SetDefaultColor(_disabledFgColor, _disabledBgColor);
 				SetArmedColor(_disabledFgColor, _disabledBgColor);
 				SetDepressedColor(_disabledFgColor, _disabledBgColor);
+			}
+		}
+
+		virtual void PaintBackground()
+		{
+			if (!_isCloseButton)
+			{
+				Button::PaintBackground();
+				return;
+			}
+
+			const Color bg = GetButtonBgColor();
+			if (bg.a() <= 0)
+				return;
+			int wide = 0, tall = 0;
+			GetSize(wide, tall);
+			surface()->DrawSetColor(bg);
+			DrawNibbleFilledRect(0, 0, wide, tall, 4);
+			surface()->DrawSetColor(_closeEdgeColor);
+			DrawNibbleOutline(0, 0, wide, tall, 4);
+		}
+
+		virtual void Paint()
+		{
+			if (!_isCloseButton)
+			{
+				Button::Paint();
+				return;
+			}
+
+			int wide = 0, tall = 0;
+			GetSize(wide, tall);
+			const int cx = wide / 2;
+			const int cy = tall / 2;
+			const int half = (wide >= 18) ? 4 : 3;
+			surface()->DrawSetColor(GetButtonFgColor());
+			for (int weight = -1; weight <= 1; ++weight)
+			{
+				surface()->DrawLine(cx - half, cy - half + weight, cx + half, cy + half + weight);
+				surface()->DrawLine(cx - half, cy + half + weight, cx + half, cy - half + weight);
 			}
 		}
 
@@ -1321,7 +1373,8 @@ void Frame::PerformLayout()
 		top_border_offset = (int) ( ( 3 ) * scale );
 	}
 
-	int side_border_offset = (int) ( 5 * scale );
+	// X bleibt innerhalb der äußeren Hülle (8px-Nibble).
+	int side_border_offset = (int) ( 8 * scale );
 	// push the buttons against the east side
 	if (_closeButton->IsVisible())
 	{
@@ -1636,19 +1689,38 @@ void Frame::PaintBackground()
 		titleColor = _titleBarBgColor;
 	}
 
-	BaseClass::PaintBackground();
+	int wide = 0;
+	int tall = 0;
+	GetSize(wide, tall);
+	const int nibble = CHROME_NIBBLE_FRAME;
+	surface()->DrawSetColor(GetBgColor());
+	DrawNibbleFilledRect(0, 0, wide, tall, nibble);
+
+	// Der Scheme-FrameBorder ist rechteckig (Blank oder Bevel). Die einzige
+	// sichtbare Außenkante folgt der Frame-Hülle.
+	IScheme *pScheme = scheme()->GetIScheme(GetScheme());
+	Color edge(210, 210, 190, 170);
+	if (pScheme)
+		edge = GetSchemeColor("Border.Bright", edge, pScheme);
+	if (edge.a() > 200)
+		edge[3] = 170;
+	else if (edge.a() < 80)
+		edge[3] = 160;
+	surface()->DrawSetColor(edge);
+	DrawNibbleOutline(0, 0, wide, tall, nibble);
 
 	if (_drawTitleBar)
 	{
-		int wide = GetWide();
-		int tall = surface()->GetFontTall(_title->GetFont());
+		int titleTall = surface()->GetFontTall(_title->GetFont());
 
-		// caption
-		surface()->DrawSetColor(titleColor);
-		int inset = m_bSmallCaption ? 3 : 5;
-		int captionHeight = m_bSmallCaption ? 14: 28;
-
-		surface()->DrawFilledRect(inset, inset, wide - inset, captionHeight );
+		// caption — nur wenn das Scheme eine Fläche setzt (Blank = durchsichtig).
+		if (titleColor.a() > 0)
+		{
+			int captionHeight = m_bSmallCaption ? 14 : 28;
+			surface()->DrawSetColor(titleColor);
+			DrawNibbleFilledRect(0, 0, wide, captionHeight, nibble,
+				PANEL_ROUND_CORNER_TOP_LEFT | PANEL_ROUND_CORNER_TOP_RIGHT);
+		}
 		
 		if (_title)
 		{
@@ -1673,7 +1745,7 @@ void Frame::PaintBackground()
 				nTitleY = m_bSmallCaption ? 2 : 9;
 			}
 			_title->SetPos( nTitleX, nTitleY );		
-			_title->SetSize( nTitleWidth, tall);
+			_title->SetSize( nTitleWidth, titleTall);
 			_title->Paint();
 		}
 	}
@@ -1735,8 +1807,15 @@ void Frame::ApplySchemeSettings(IScheme *pScheme)
 	m_flTransitionEffectTime = atof(pScheme->GetResourceString("Frame.TransitionEffectTime"));
 	m_flFocusTransitionEffectTime = atof(pScheme->GetResourceString("Frame.FocusTransitionEffectTime"));
 
-	SetOverridableColor( &m_InFocusBgColor, pScheme->GetColor("Frame.BgColor", GetBgColor()) );
-	SetOverridableColor( &m_OutOfFocusBgColor, pScheme->GetColor("Frame.OutOfFocusBgColor", m_InFocusBgColor) );
+	Color inFocus = pScheme->GetColor("Frame.BgColor", GetBgColor());
+	Color outFocus = pScheme->GetColor("Frame.OutOfFocusBgColor", inFocus);
+	// Nur die äußere Hülle ist durchscheinend. Innenflächen bleiben deckend.
+	if (inFocus.a() > 200)
+		inFocus[3] = CHROME_GLASS_ALPHA;
+	if (outFocus.a() > 200)
+		outFocus[3] = CHROME_GLASS_ALPHA;
+	SetOverridableColor( &m_InFocusBgColor, inFocus );
+	SetOverridableColor( &m_OutOfFocusBgColor, outFocus );
 
 	const char *resourceString = pScheme->GetResourceString("Frame.ClientInsetX");
 	if ( Q_strlen(resourceString) )

@@ -12,7 +12,6 @@
 cvar_t	*cl_laddermode;
 cvar_t	*sensitivity;
 cvar_t	*in_joystick;
-cvar_t	*evdev_grab;
 
 
 float ac_forwardmove;
@@ -186,7 +185,7 @@ void IN_Move( float frametime, usercmd_t *cmd )
 		viewangles[YAW] += rel_yaw;
 		if( bLadder )
 		{
-			if( ( cl_laddermode->value == 1 ) )
+			if( cl_laddermode->value == 1 )
 				viewangles[YAW] -= ac_sidemove * 5;
 			ac_sidemove = 0;
 		}
@@ -272,7 +271,6 @@ void IN_Init( void )
 	sensitivity = gEngfuncs.pfnRegisterVariable ( "sensitivity", "3", FCVAR_ARCHIVE );
 	in_joystick = gEngfuncs.pfnRegisterVariable ( "joystick", "0", FCVAR_ARCHIVE );
 	cl_laddermode = gEngfuncs.pfnRegisterVariable ( "cl_laddermode", "2", FCVAR_ARCHIVE );
-	evdev_grab = gEngfuncs.pfnGetCvarPointer("evdev_grab");
 
 	ac_forwardmove = ac_sidemove = rel_yaw = rel_pitch = 0;
 }

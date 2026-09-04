@@ -186,8 +186,8 @@ DBG_INTERFACE bool   IsSpewActive( tchar const* pGroupName, int level );
 
 /* Used to display messages, should never be called directly. */
 DBG_INTERFACE void   _SpewInfo( SpewType_t type, tchar const* pFile, int line );
-DBG_INTERFACE SpewRetval_t   _SpewMessage( tchar const* pMsg, ... );
-DBG_INTERFACE SpewRetval_t   _DSpewMessage( tchar const *pGroupName, int level, tchar const* pMsg, ... );
+DBG_INTERFACE SpewRetval_t   _SpewMessage( tchar const* pMsg, ... ) FMTFUNCTION( 1, 2 );
+DBG_INTERFACE SpewRetval_t   _DSpewMessage( tchar const *pGroupName, int level, tchar const* pMsg, ... ) FMTFUNCTION( 3, 4 );
 DBG_INTERFACE void _ExitOnFatalAssert( tchar const* pFile, int line );
 #ifndef _XBOX
 DBG_INTERFACE bool ShouldUseNewAssertDialog();
@@ -341,16 +341,16 @@ DBG_INTERFACE bool DoNewAssertDialog( const tchar *pFile, int line, const tchar 
 #if !defined(_XBOX) || !defined(_RETAIL)
 
 /* These are always compiled in */
-DBG_INTERFACE void Msg( tchar const* pMsg, ... );
-DBG_INTERFACE void DMsg( tchar const *pGroupName, int level, tchar const *pMsg, ... );
+DBG_INTERFACE void Msg( tchar const* pMsg, ... ) FMTFUNCTION( 1, 2 );
+DBG_INTERFACE void DMsg( tchar const *pGroupName, int level, tchar const *pMsg, ... ) FMTFUNCTION( 3, 4 );
 
-DBG_INTERFACE void Warning( tchar const *pMsg, ... );
-DBG_INTERFACE void DWarning( tchar const *pGroupName, int level, tchar const *pMsg, ... );
+DBG_INTERFACE void Warning( tchar const *pMsg, ... ) FMTFUNCTION( 1, 2 );
+DBG_INTERFACE void DWarning( tchar const *pGroupName, int level, tchar const *pMsg, ... ) FMTFUNCTION( 3, 4 );
 
-DBG_INTERFACE void Log( tchar const *pMsg, ... );
-DBG_INTERFACE void DLog( tchar const *pGroupName, int level, tchar const *pMsg, ... );
+DBG_INTERFACE void Log( tchar const *pMsg, ... ) FMTFUNCTION( 1, 2 );
+DBG_INTERFACE void DLog( tchar const *pGroupName, int level, tchar const *pMsg, ... ) FMTFUNCTION( 3, 4 );
 
-DBG_INTERFACE void Error( tchar const *pMsg, ... );
+DBG_INTERFACE void Error( tchar const *pMsg, ... ) FMTFUNCTION( 1, 2 );
 
 #else
 
@@ -530,7 +530,7 @@ private:
 class CDbgFmtMsg
 {
 public:
-	CDbgFmtMsg(const tchar *pszFormat, ...)		
+	CDbgFmtMsg(const tchar *pszFormat, ...) FMTFUNCTION( 2, 3 )
 	{ 
 		va_list arg_ptr;
 

@@ -1,6 +1,6 @@
 //========= Copyright Valve Corporation, All rights reserved. ============//
 //
-// Purpose: 
+// Purpose:
 //
 // $NoKeywords: $
 //
@@ -12,7 +12,7 @@
 // Valve, L.L.C., or in accordance with the terms and conditions stipulated in
 // the agreement/contract under which the contents have been supplied.
 //
-// Purpose: 
+// Purpose:
 //
 // $NoKeywords: $
 //=============================================================================
@@ -103,7 +103,7 @@ BuildGroup::~BuildGroup()
 			_rulerNumber[i]= NULL;
 		}
 	}
-	
+
 	DESTRUCT_HANDLE();
 }
 
@@ -161,7 +161,7 @@ bool BuildGroup::HasRulersOn()
 }
 
 //-----------------------------------------------------------------------------
-// Purpose:	Toggle ruler display 
+// Purpose:	Toggle ruler display
 //-----------------------------------------------------------------------------
 void BuildGroup::ToggleRulerDisplay()
 {
@@ -200,13 +200,13 @@ void BuildGroup::ApplySchemeSettings( IScheme *pScheme )
 // Purpose:	Draw Rulers on screen if conditions are right
 //-----------------------------------------------------------------------------
 void BuildGroup::DrawRulers()
-{		
+{
 	// don't draw if visibility is off
 	if (!_showRulers)
 	{
 		return;
 	}
-	
+
 	// no drawing if we selected the context panel
 	if (m_pBuildContext == _currentPanel)
 	{
@@ -215,34 +215,34 @@ void BuildGroup::DrawRulers()
 	}
 	else
 		SetRulerLabelsVisible(true);
-	
+
 	int x, y, wide, tall;
 	// get base panel's postition
 	m_pBuildContext->GetBounds(x, y, wide, tall);
 	m_pBuildContext->ScreenToLocal(x,y);
-	
+
 	int cx, cy, cwide, ctall;
 	_currentPanel->GetBounds (cx, cy, cwide, ctall);
-	
-	surface()->PushMakeCurrent(m_pBuildContext->GetVPanel(), false);	
-	
+
+	surface()->PushMakeCurrent(m_pBuildContext->GetVPanel(), false);
+
 	// draw rulers
 	surface()->DrawSetColor(255, 255, 255, 255);	// white color
-	
+
 	surface()->DrawFilledRect(0, cy, cx, cy+1);           //top horiz left
 	surface()->DrawFilledRect(cx+cwide, cy, wide, cy+1);  //top horiz right
-	
+
 	surface()->DrawFilledRect(0, cy+ctall-1, cx, cy+ctall);   //bottom horiz left
 	surface()->DrawFilledRect(cx+cwide, cy+ctall-1, wide, cy+ctall);   //bottom	 horiz right
-	
+
 	surface()->DrawFilledRect(cx,0,cx+1,cy);         //top vert left
 	surface()->DrawFilledRect(cx+cwide-1,0, cx+cwide, cy);  //top vert right
-	
+
 	surface()->DrawFilledRect(cx,cy+ctall, cx+1, tall); //bottom vert left
-	surface()->DrawFilledRect(cx+cwide-1, cy+ctall, cx+cwide, tall); //bottom vert right   
-	
+	surface()->DrawFilledRect(cx+cwide-1, cy+ctall, cx+cwide, tall); //bottom vert right
+
 	surface()->PopMakeCurrent(m_pBuildContext->GetVPanel());
-	
+
 	// now let's put numbers with the rulers
 	char textstring[20];
 	Q_snprintf (textstring, sizeof( textstring ), "%d", cx);
@@ -251,26 +251,26 @@ void BuildGroup::DrawRulers()
 	_rulerNumber[0]->GetContentSize(twide,ttall);
 	_rulerNumber[0]->SetSize(twide,ttall);
 	_rulerNumber[0]->SetPos(cx/2-twide/2, cy-ttall+3);
-	
+
 	Q_snprintf (textstring, sizeof( textstring ), "%d", cy);
 	_rulerNumber[1]->SetText(textstring);
 	_rulerNumber[1]->GetContentSize(twide,ttall);
 	_rulerNumber[1]->SetSize(twide,ttall);
 	_rulerNumber[1]->GetSize(twide,ttall);
 	_rulerNumber[1]->SetPos(cx-twide + 3, cy/2-ttall/2);
-	
+
 	Q_snprintf (textstring, sizeof( textstring ), "%d", cy);
 	_rulerNumber[2]->SetText(textstring);
 	_rulerNumber[2]->GetContentSize(twide,ttall);
 	_rulerNumber[2]->SetSize(twide,ttall);
 	_rulerNumber[2]->SetPos(cx+cwide+(wide-cx-cwide)/2 - twide/2,  cy+ctall-3);
-	
+
 	Q_snprintf (textstring, sizeof( textstring ), "%d", cy);
 	_rulerNumber[3]->SetText(textstring);
 	_rulerNumber[3]->GetContentSize(twide,ttall);
 	_rulerNumber[3]->SetSize(twide,ttall);
 	_rulerNumber[3]->SetPos(cx+cwide, cy+ctall+(tall-cy-ctall)/2 - ttall/2);
-	
+
 }
 
 //-----------------------------------------------------------------------------
@@ -298,7 +298,7 @@ bool BuildGroup::CursorMoved(int x, int y, Panel *panel)
 	}
 
 	// no moving uneditable panels
-	// commented out because this has issues with panels moving 
+	// commented out because this has issues with panels moving
 	// to front and obscuring other panels
 	//if (!panel->IsBuildModeEditable())
 	//	return;
@@ -306,7 +306,7 @@ bool BuildGroup::CursorMoved(int x, int y, Panel *panel)
 	if (_dragging)
 	{
 		input()->GetCursorPos(x, y);
-		
+
 		if (_dragMouseCode == MOUSE_RIGHT)
 		{
 			int newW = std::max( 1, _dragStartPanelSize[ 0 ] + x - _dragStartCursorPos[0] );
@@ -334,7 +334,7 @@ bool BuildGroup::CursorMoved(int x, int y, Panel *panel)
 				// now fix offset of member panels with respect to the one we are dragging
 				Panel *groupMember = _controlGroup[i].Get();
 			   	groupMember->SetPos(_dragStartPanelPos[0] + _groupDeltaX[i] +(x-_dragStartCursorPos[0]), _dragStartPanelPos[1] + _groupDeltaY[i] +(y-_dragStartCursorPos[1]));
-				ApplySnap(groupMember);				
+				ApplySnap(groupMember);
 			}
 		}
 
@@ -343,12 +343,12 @@ bool BuildGroup::CursorMoved(int x, int y, Panel *panel)
 		{
 			KeyValues *keyval = new KeyValues("UpdateControlData");
 			keyval->SetPtr("panel", GetCurrentPanel());
-			ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, NULL);
+			ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, 0.0f);
 
-			keyval = new KeyValues("EnableSaveButton");	
-			ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, NULL);	
+			keyval = new KeyValues("EnableSaveButton");
+			ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, 0.0f);
 		}
-		
+
 		panel->Repaint();
 		panel->CallParentFunction(new KeyValues("Repaint"));
 	}
@@ -384,28 +384,28 @@ bool BuildGroup::MousePressed(MouseCode code, Panel *panel)
 	if (panel == m_hBuildDialog)
 	{
 		// hide the click menu if its up
-		ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("HideNewControlMenu"), NULL);
+		ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("HideNewControlMenu"), 0.0f);
 		return true;
 	}
 
 	// don't select unnamed items
 	if (strlen(panel->GetName()) < 1)
 		return true;
-	
-	bool shift = ( input()->IsKeyDown(KEY_LSHIFT) || input()->IsKeyDown(KEY_RSHIFT) );	
+
+	bool shift = ( input()->IsKeyDown(KEY_LSHIFT) || input()->IsKeyDown(KEY_RSHIFT) );
 	if (!shift)
 	{
-		_controlGroup.RemoveAll();	
+		_controlGroup.RemoveAll();
 	}
 
 	// Show new ctrl menu if they click on the bg (not on a subcontrol)
 	if ( code == MOUSE_RIGHT && panel == GetContextPanel())
-	{		
+	{
 		// trigger a drop down menu to create new controls
-		ivgui()->PostMessage (m_hBuildDialog->GetVPanel(), new KeyValues("ShowNewControlMenu"), NULL);	
-	}	
+		ivgui()->PostMessage (m_hBuildDialog->GetVPanel(), new KeyValues("ShowNewControlMenu"), 0.0f);
+	}
 	else
-	{	
+	{
 		// don't respond if we click on ruler numbers
 		if (_showRulers) // rulers are visible
 		{
@@ -418,17 +418,17 @@ bool BuildGroup::MousePressed(MouseCode code, Panel *panel)
 
 		_dragging = true;
 		_dragMouseCode = code;
-		ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("HideNewControlMenu"), NULL);
-		
+		ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("HideNewControlMenu"), 0.0f);
+
 		int x, y;
 		input()->GetCursorPos(x, y);
-		
+
 		_dragStartCursorPos[0] = x;
 		_dragStartCursorPos[1] = y;
-	
-		
+
+
 		input()->SetMouseCapture(panel->GetVPanel());
-		
+
 		_groupDeltaX.RemoveAll();
 		_groupDeltaY.RemoveAll();
 
@@ -438,7 +438,7 @@ bool BuildGroup::MousePressed(MouseCode code, Panel *panel)
 		Panel *basePanel = NULL;
 		// find the panel we clicked in, that is the base panel
 		// it might already be in the group
-		for (int i=0; i< _controlGroup.Count(); ++i)	
+		for (int i=0; i< _controlGroup.Count(); ++i)
 		{
 			if (panel == _controlGroup[i].Get())
 			{
@@ -447,7 +447,7 @@ bool BuildGroup::MousePressed(MouseCode code, Panel *panel)
 			}
 		}
 
-		// if its not in the group we just added this panel. get it in the group 
+		// if its not in the group we just added this panel. get it in the group
 		if (basePanel == NULL)
 		{
 			PHandle temp;
@@ -455,7 +455,7 @@ bool BuildGroup::MousePressed(MouseCode code, Panel *panel)
 			_controlGroup.AddToTail(temp);
 			basePanel = panel;
 		}
-		
+
 		basePanel->GetPos(x,y);
 		_dragStartPanelPos[0]=x;
 		_dragStartPanelPos[1]=y;
@@ -470,25 +470,25 @@ bool BuildGroup::MousePressed(MouseCode code, Panel *panel)
 			_groupDeltaX.AddToTail(cx - x);
 			_groupDeltaY.AddToTail(cy - y);
 		}
-						
+
 		// if this panel wasn't already selected update the buildmode dialog controls to show its info
 		if(_currentPanel != panel)
-		{			
+		{
 			_currentPanel = panel;
-			
+
 			if ( m_hBuildDialog )
 			{
 				// think this is taken care of by SetActiveControl.
-				//ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("ApplyDataToControls"), NULL);
-				
+				//ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("ApplyDataToControls"), 0.0f);
+
 				KeyValues *keyval = new KeyValues("SetActiveControl");
 				keyval->SetPtr("PanelPtr", GetCurrentPanel());
-				ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, NULL);
-			}		
-		}		
+				ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, 0.0f);
+			}
+		}
 
 		// store undo information upon panel selection.
-		ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("StoreUndo"), NULL);
+		ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("StoreUndo"), 0.0f);
 
 		panel->RequestFocus();
 	}
@@ -588,7 +588,7 @@ bool BuildGroup::KeyCodeTyped(KeyCode code, Panel *panel)
 	bool ctrl = ( input()->IsKeyDown(KEY_LCONTROL) || input()->IsKeyDown(KEY_RCONTROL) );
 	bool alt = (input()->IsKeyDown(KEY_LALT) || input()->IsKeyDown(KEY_RALT));
 
-	
+
 	if ( ctrl && shift && alt && code == KEY_B)
 	{
 		// enable build mode
@@ -624,11 +624,13 @@ bool BuildGroup::KeyCodeTyped(KeyCode code, Panel *panel)
 		}
 		case KEY_DELETE:
 		{
-			// delete the panel we have selected 
-			ivgui()->PostMessage (m_hBuildDialog->GetVPanel(), new KeyValues ("DeletePanel"), NULL);
+			// delete the panel we have selected
+			ivgui()->PostMessage (m_hBuildDialog->GetVPanel(), new KeyValues ("DeletePanel"), 0.0f);
 			break;
 		}
 
+		default:
+			break;
 	}
 
 	if (ctrl)
@@ -637,20 +639,22 @@ bool BuildGroup::KeyCodeTyped(KeyCode code, Panel *panel)
 		{
 		case KEY_Z:
 			{
-				ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("Undo"), NULL);
+				ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("Undo"), 0.0f);
 				break;
 			}
 
 		case KEY_C:
 			{
-				ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("Copy"), NULL);
+				ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("Copy"), 0.0f);
 				break;
 			}
 		case KEY_V:
 			{
-				ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("Paste"), NULL);
+				ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("Paste"), 0.0f);
 				break;
 			}
+			default:
+				break;
 		}
 	}
 
@@ -686,10 +690,10 @@ bool BuildGroup::KeyCodeTyped(KeyCode code, Panel *panel)
 			// post that it's active
 			KeyValues *keyval = new KeyValues("SetActiveControl");
 			keyval->SetPtr("PanelPtr", GetCurrentPanel());
-			ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, NULL);
+			ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, 0.0f);
 
 			// post that it's been changed
-			ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("PanelMoved"), NULL);
+			ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), new KeyValues("PanelMoved"), 0.0f);
 		}
 	}
 
@@ -778,7 +782,7 @@ void BuildGroup::ActivateBuildDialog( void )
 	_currentPanel = m_pParentPanel;
 	KeyValues *keyval = new KeyValues("SetActiveControl");
 	keyval->SetPtr("PanelPtr", GetCurrentPanel());
-	ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, NULL);
+	ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, 0.0f);
 }
 
 //-----------------------------------------------------------------------------
@@ -787,7 +791,7 @@ void BuildGroup::ActivateBuildDialog( void )
 HCursor BuildGroup::GetCursor(Panel *panel)
 {
 	Assert(panel);
-	
+
 	int x,y,wide,tall;
 	input()->GetCursorPos(x,y);
 	panel->ScreenToLocal(x,y);
@@ -814,23 +818,23 @@ HCursor BuildGroup::GetCursor(Panel *panel)
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: 
+// Purpose:
 //-----------------------------------------------------------------------------
 void BuildGroup::ApplySnap(Panel *panel)
 {
 	Assert(panel);
-	
+
 	int x,y,wide,tall;
 	panel->GetBounds(x,y,wide,tall);
 
 	x=(x/_snapX)*_snapX;
 	y=(y/_snapY)*_snapY;
 	panel->SetPos(x,y);
-	
+
 	int xx,yy;
 	xx=x+wide;
 	yy=y+tall;
-	
+
 	xx=(xx/_snapX)*_snapX;
 	yy=(yy/_snapY)*_snapY;
 	panel->SetSize(xx-x,yy-y);
@@ -909,7 +913,7 @@ void BuildGroup::LoadControlSettings(const char *controlResourceName, const char
 
 			if ( pConditions && pConditions->GetFirstSubKey() )
 			{
-				ProcessConditionalKeys( rDat, pConditions );			
+				ProcessConditionalKeys( rDat, pConditions );
 			}
 		}
 #endif
@@ -984,10 +988,10 @@ void BuildGroup::ProcessConditionalKeys( KeyValues *pData, KeyValues *pCondition
 							KeyValues *copy = pOverridingKey->MakeCopy();
 							pSubKey->AddSubKey( copy );
 						}
-					}				
+					}
 				}
-			}			
-		}		
+			}
+		}
 	}
 }
 
@@ -1026,20 +1030,20 @@ const char *BuildGroup::GetRegisteredControlSettingsFileByIndex(int index)
 //-----------------------------------------------------------------------------
 void BuildGroup::ReloadControlSettings()
 {
-	delete m_hBuildDialog.Get(); 
+	delete m_hBuildDialog.Get();
 	m_hBuildDialog = NULL;
 
 	// loop though objects in the current control group and remove them all
-	// the 0th panel is always the contextPanel which is not deletable 
+	// the 0th panel is always the contextPanel which is not deletable
 	for( int i = 1; i < _panelDar.Count(); i++ )
-	{	
+	{
 		if (!_panelDar[i].Get()) // this can happen if we had two of the same handle in the list
 		{
 			_panelDar.Remove(i);
 			--i;
 			continue;
 		}
-		
+
 		// only delete deletable panels, as the only deletable panels
 		// are the ones created using the resource file
 		if ( _panelDar[i].Get()->IsBuildModeDeletable())
@@ -1047,8 +1051,8 @@ void BuildGroup::ReloadControlSettings()
 			delete _panelDar[i].Get();
 			_panelDar.Remove(i);
 			--i;
-		}		
-	}	
+		}
+	}
 
 	if (m_pResourceName)
 	{
@@ -1063,9 +1067,9 @@ void BuildGroup::ReloadControlSettings()
 		}
 	}
 
-	_controlGroup.RemoveAll();	
+	_controlGroup.RemoveAll();
 
-	ActivateBuildDialog();	
+	ActivateBuildDialog();
 }
 
 //-----------------------------------------------------------------------------
@@ -1091,7 +1095,7 @@ void BuildGroup::ChangeControlSettingsFile(const char *controlResourceName)
 	// force it to update
 	KeyValues *keyval = new KeyValues("SetActiveControl");
 	keyval->SetPtr("PanelPtr", GetCurrentPanel());
-	ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, NULL);
+	ivgui()->PostMessage(m_hBuildDialog->GetVPanel(), keyval, 0.0f);
 }
 
 //-----------------------------------------------------------------------------
@@ -1127,16 +1131,16 @@ bool BuildGroup::SaveControlSettings( void )
 void BuildGroup::DeleteAllControlsCreatedByControlSettingsFile()
 {
 	// loop though objects in the current control group and remove them all
-	// the 0th panel is always the contextPanel which is not deletable 
+	// the 0th panel is always the contextPanel which is not deletable
 	for ( int i = 1; i < _panelDar.Count(); i++ )
-	{	
+	{
 		if (!_panelDar[i].Get()) // this can happen if we had two of the same handle in the list
 		{
 			_panelDar.Remove(i);
 			--i;
 			continue;
 		}
-		
+
 		// only delete deletable panels, as the only deletable panels
 		// are the ones created using the resource file
 		if ( _panelDar[i].Get()->IsBuildModeDeletable())
@@ -1144,7 +1148,7 @@ void BuildGroup::DeleteAllControlsCreatedByControlSettingsFile()
 			delete _panelDar[i].Get();
 			_panelDar.Remove(i);
 			--i;
-		}		
+		}
 	}
 
 	_currentPanel = m_pBuildContext;
@@ -1211,36 +1215,36 @@ void BuildGroup::ApplySettings( KeyValues *resourceData )
 // Purpose: Create a new control in the context panel
 // Input:	name: class name of control to create
 //			controlKeys: keyvalues of settings for the panel.
-//			name OR controlKeys should be set, not both.  
+//			name OR controlKeys should be set, not both.
 //			x,y position relative to base panel
 // Output: Panel *newPanel, NULL if failed to create new control.
 //-----------------------------------------------------------------------------
 Panel *BuildGroup::NewControl( const char *name, int x, int y)
 {
 	Assert (name);
-	
+
 	Panel *newPanel = NULL;
 	// returns NULL on failure
 	newPanel = static_cast<EditablePanel *>(m_pParentPanel)->CreateControlByName(name);
-	
+
 	if (newPanel)
 	{
 		// panel successfully created
-		newPanel->SetParent(m_pParentPanel);	
+		newPanel->SetParent(m_pParentPanel);
 		newPanel->SetBuildGroup(this);
 		newPanel->SetPos(x, y);
 
 		char newFieldName[255];
 		GetNewFieldName(newFieldName, sizeof(newFieldName), newPanel);
 		newPanel->SetName(newFieldName);
-		
+
 		newPanel->AddActionSignalTarget(m_pParentPanel);
 		newPanel->SetBuildModeEditable(true);
-		newPanel->SetBuildModeDeletable(true);	
-		
+		newPanel->SetBuildModeDeletable(true);
+
 		// make sure it gets freed
 		newPanel->SetAutoDelete(true);
-	}	
+	}
 
 	return newPanel;
 }
@@ -1253,7 +1257,7 @@ Panel *BuildGroup::NewControl( const char *name, int x, int y)
 Panel *BuildGroup::NewControl( KeyValues *controlKeys, int x, int y)
 {
 	Assert (controlKeys);
-	
+
 	Panel *newPanel = NULL;
 	if (controlKeys)
 	{
@@ -1272,7 +1276,7 @@ Panel *BuildGroup::NewControl( KeyValues *controlKeys, int x, int y)
 	if (newPanel)
 	{
 		// panel successfully created
-		newPanel->SetParent(m_pParentPanel);	
+		newPanel->SetParent(m_pParentPanel);
 		newPanel->SetBuildGroup(this);
 		newPanel->SetPos(x, y);
 
@@ -1281,11 +1285,11 @@ Panel *BuildGroup::NewControl( KeyValues *controlKeys, int x, int y)
 
 		newPanel->AddActionSignalTarget(m_pParentPanel);
 		newPanel->SetBuildModeEditable(true);
-		newPanel->SetBuildModeDeletable(true);	
-		
+		newPanel->SetBuildModeDeletable(true);
+
 		// make sure it gets freed
 		newPanel->SetAutoDelete(true);
-	}	
+	}
 
 	return newPanel;
 }
@@ -1297,7 +1301,7 @@ void BuildGroup::GetNewFieldName(char *newFieldName, int newFieldNameSize, Panel
 {
 	int fieldNameNumber=1;
 	char defaultName[25];
-	
+
 	Q_strncpy( defaultName, newPanel->GetClassName(), sizeof( defaultName ) );
 
 	while (1)
@@ -1306,7 +1310,7 @@ void BuildGroup::GetNewFieldName(char *newFieldName, int newFieldNameSize, Panel
 		if ( FieldNameTaken(newFieldName) == NULL)
 			break;
 		++fieldNameNumber;
-	}	
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -1315,7 +1319,7 @@ void BuildGroup::GetNewFieldName(char *newFieldName, int newFieldNameSize, Panel
 // Output : ptr to a panel that has the name if it is taken
 //-----------------------------------------------------------------------------
 Panel *BuildGroup::FieldNameTaken(const char *fieldName)
-{	 	
+{
 	for ( int i = 0; i < _panelDar.Count(); i++ )
 	{
 		Panel *panel = _panelDar[i].Get();
@@ -1380,25 +1384,25 @@ void BuildGroup::GetSettings( KeyValues *resourceData )
 // Purpose: loop though objects in the current control group and remove them all
 //-----------------------------------------------------------------------------
 void BuildGroup::RemoveSettings()
-{	
+{
 	// loop though objects in the current control group and remove them all
 	int i;
 	for( i = 0; i < _controlGroup.Count(); i++ )
-	{		
+	{
 		// only delete delatable panels
 		if ( _controlGroup[i].Get()->IsBuildModeDeletable())
 		{
 			delete _controlGroup[i].Get();
 			_controlGroup.Remove(i);
 			--i;
-		}		
+		}
 	}
-	
+
 	// remove deleted panels from the handle list
 	for( i = 0; i < _panelDar.Count(); i++ )
 	{
-		if ( !_panelDar[i].Get() )	
-		{	
+		if ( !_panelDar[i].Get() )
+		{
 		  _panelDar.Remove(i);
 		  --i;
 		}
@@ -1420,7 +1424,7 @@ void BuildGroup::SetContextPanel(Panel *contextPanel)
 //-----------------------------------------------------------------------------
 // Purpose: gets the panel from which the build group gets all it's object creation info
 //-----------------------------------------------------------------------------
-Panel *BuildGroup::GetContextPanel() 
+Panel *BuildGroup::GetContextPanel()
 {
 	return m_pBuildContext;
 }
@@ -1428,7 +1432,7 @@ Panel *BuildGroup::GetContextPanel()
 //-----------------------------------------------------------------------------
 // Purpose: get the list of panels in the buildgroup
 //-----------------------------------------------------------------------------
-CUtlVector<PHandle> *BuildGroup::GetPanelList() 
+CUtlVector<PHandle> *BuildGroup::GetPanelList()
 {
 	return &_panelDar;
 }

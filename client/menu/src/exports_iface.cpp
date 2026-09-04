@@ -1,4 +1,5 @@
 #include "menu_priv.h"
+#include "../vgui/vgui_boot.h"
 
 #include "interface.h"
 #include "cl_dll/IGameMenuExports.h"
@@ -10,7 +11,7 @@ class CGameMenuExports : public IGameMenuExports
 public:
 	bool Initialize(CreateInterfaceFn) override { return true; }
 	const char *L(const char *szStr) override { return Menu_L(szStr); }
-	bool IsActive(void) override { return GameUI_InGameActive() || gMenuVisible; }
+	bool IsActive(void) override { return GameUI_InGameActive() || gMenuVisible || VGuiXash_IsConsoleActive(); }
 	bool IsMainMenuActive(void) override { return gMenuVisible && !GameUI_InGameActive(); }
 	void Key(int key, int down) override { GameUI_InGameKey(key, down); }
 	void MouseMove(int x, int y) override
@@ -34,9 +35,26 @@ public:
 	void SetupScoreboard(int, int, int, int, unsigned int, bool) override {}
 	void DrawScoreboard(void) override {}
 	void DrawSpectatorMenu(void) override {}
-	void ShowVGUIMenu(int menuType, int, int) override { GameUI_ShowInGame(menuType); }
+	void ShowVGUIMenu(int menuType, int param1, int param2) override
+	{
+		Menu_NotePlayerTeam(param2);
+		GameUI_ShowInGame(menuType, param1);
+	}
 	void HideVGUIMenu(void) override { GameUI_HideInGame(); }
 };
 
 static CGameMenuExports gMenuExports;
 EXPOSE_SINGLE_INTERFACE_GLOBALVAR(CGameMenuExports, IGameMenuExports, GAMEMENUEXPORTS_INTERFACE_VERSION, gMenuExports);
+
+#if defined(_WIN32)
+#define CSRETRO_MENU_EXPORT __declspec(dllexport)
+#else
+#define CSRETRO_MENU_EXPORT __attribute__((visibility("default")))
+#endif
+
+// Direkter Getter — unabhängig von CreateInterface/InterfaceReg-Interposition
+// zwischen Client- und Menü-Lib (beide linken interface.cpp).
+extern "C" CSRETRO_MENU_EXPORT IGameMenuExports *Csretro_GetGameMenuExports(void)
+{
+	return &gMenuExports;
+}

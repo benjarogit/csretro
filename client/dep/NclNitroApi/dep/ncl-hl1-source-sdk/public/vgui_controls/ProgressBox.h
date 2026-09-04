@@ -39,7 +39,8 @@ public:
 	~ProgressBox();
 
 	// Put the message box into a modal state
-	virtual void DoModal(Frame *pFrameOver = NULL);
+	virtual void DoModal() { DoModal(NULL); }
+	virtual void DoModal(Frame *pFrameOver);
 
 	// make the message box appear and in a modeless state
 	virtual void ShowWindow(Frame *pFrameOver = NULL);
@@ -77,6 +78,7 @@ protected:
 
 private:
 	MESSAGE_FUNC( OnShutdownRequest, "ShutdownRequest" );
+	using Panel::Init;
 	void Init();
 	void UpdateTitle();
 

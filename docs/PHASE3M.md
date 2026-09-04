@@ -16,7 +16,7 @@ Eine CS-Retro-Menü-Library (`client/menu/` → `menu_amd64.so` / `.dll` / `.dyl
 
 Linux x86_64 zuerst.
 
-**Visuelles Ziel:** möglichst originalgetreue Steam-CS-1.6-VGUI2-Oberfläche mit CS-Retro-Branding. Der aktuelle Text-/Rect-Bootstrap (rohe `GameUI_*`-Keys, Interim-Hauptmenü, Debug-Create-Server, Interim-Team) ist **nur V1-Funktionsnachweis** und **nicht** visuell abgenommen.
+**Visuelles Ziel:** Feeling CS-1.6/VGUI2, Dialog-Chrome wie CS:Source (`docs/MENUS.md`). Standard: **eine** gerundete Hülle, innen 90°. Combo ohne Dauer-Fill, Listen-Padding, LAN-Empty-Text einmal bleiben. **Abnahme 2026-09-04:** Der Inhaber ist mit der aktuellen Optik von Hauptmenü, Options, Create Game und LAN-Server-Browser vollständig zufrieden; dieser Stand ist die aktuelle visuelle Produktbaseline. Team-Wahl ist echte VGUI2 (`ClientScheme`, Overlay, kein Frame-Chrome) — **Inhaber visuell bestätigt** (Namen/Auswahl). Class-Wahl **AUTOMATED + Inhaber-Check Namen ok**; `#Cstrike_Class_Info` nicht mehr roh. Buy **AUTOMATED PASS** (Hauptseite + Pistolen/`glock`); restliche Waffen-/Equipment-Seiten gleicher Codepfad, manueller Check offen.
 
 ## V1 — verbindliche UI-Basis (Runtime-PoC bestanden)
 
@@ -47,18 +47,34 @@ Skripte: `./scripts/build-menu.sh`, `./scripts/vgui-v1-poc-runtime.sh`, manuell 
 | `ILocalize` | vendort `LocalizedStringTable.cpp` | **Pflicht:** echte Texte; rohe Keys = Fehler |
 | `IFileSystem` / KV | `filesystem_xash.cpp`, `keyvalues_system.cpp` | |
 | Controls | `vgui_controls` + NextClient-GameUI-Controls (`Cvar*`/`KeyToggle`) | weitere Controls nur bedarfsweise |
-| Fonts | `font_resolver.cpp` | `CSRETRO_UI_FONTS` → gamedata `platform/resource/linux_fonts` → relative → System-**Verzeichnisse** |
+| Fonts | `font_resolver.cpp` | **Noto Sans** (mitgeliefert): `CSRETRO_UI_FONTS` → gamedata `platform/resource/csretro_fonts` → relative → System-**Verzeichnisse** (nur Notnagel) |
 
 **Nicht im Produkt-Build:** `SurfaceNext.cpp`, `System.cpp`, `FontReplace.cpp`, `InputWin32.cpp`, `vgui_internal.cpp`, `key_values_export.cpp`.
 
 **Nicht:** externe Runtime `menu → vgui2.so → GameUI.so`.
 
-## Font-Resolver (Linux, akzeptiert)
+## Font-Resolver (akzeptiert)
+
+**UI-Familie: Noto Sans** (SIL OFL 1.1), mitgeliefert unter `data/ui-overrides/platform/resource/csretro_fonts/`.
+Keine System-/Steam-Font-Abhängigkeit; Windows/macOS bekommen dieselbe Optik.
+
+Suchreihenfolge:
 
 1. `CSRETRO_UI_FONTS`
-2. `$XASH3D_RODIR/platform/resource/linux_fonts/`
+2. `$XASH3D_RODIR/platform/resource/csretro_fonts/`
 3. relative GameData-Pfade
-4. System-Fallback-**Verzeichnisse** (kein festes Distro-Einzel-TTF)
+4. System-Font-**Verzeichnisse** — nur Notnagel, wenn die mitgelieferten Dateien fehlen
+
+Mapping (deterministisch, keine `<Family>.ttf`-Ratepfade):
+
+| Scheme-Name | Datei |
+|-------------|-------|
+| Tahoma / Verdana / Trebuchet MS / … | `NotoSans-Regular.ttf`, weight ≥600 → `NotoSans-Bold.ttf` |
+| Courier / Consolas / Lucida Console | `NotoSansMono-Regular.ttf` |
+| Marlett | geometrisch in `vgui_symbols.cpp` — nie Datei |
+
+`TrackerScheme.res` bleibt unangetastet (Steam-Original sagt weiter „Tahoma“); die Zuordnung passiert im Resolver.
+Steam-`platform/resource/linux_fonts` wird nicht mehr importiert und aus bestehenden Bäumen entfernt (`prune`-Regel im Manifest).
 
 FreeType-Glyphenpfad bleibt verbindlich. Console-Text ist nicht das endgültige VGUI-Rendering.
 
@@ -68,7 +84,7 @@ Nur bedarfsgesteuert (`PlaySound`, Texturen, `DrawTexturedPolygon`, Combo, Query
 
 ## Referenzmatrix (Rekonstruktion)
 
-Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextClient GameUI · Ref B / FuryBaM · fwgs-vgui2-support · Ref A nur Desktop-Erkenntnisse · Xash MenuAPI. Ghidra nur bei unklaren ABI-/Abläufen (keine Projektdateien committen).
+Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextClient GameUI · Ref B / FuryBaM · css-community nur In-Game Class/Buy-Vergleich (beobachten, nicht Engine) · fwgs-vgui2-support · Ref A nur Desktop-Erkenntnisse · Xash MenuAPI. Ghidra nur bei unklaren ABI-/Abläufen (keine Projektdateien committen).
 
 | Bereich | Original CS 1.6 | NextClient | Ref B | weitere Referenz | Ghidra? | CS-Retro-Ziel |
 |---------|-----------------|------------|-------|------------------|---------|---------------|
@@ -76,21 +92,26 @@ Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextC
 | Escape/Pause | In-Game Overlay | `CGameUI` Activate | Ref B pause | Xash key_menu | ggf. KeyDest | Escape → Pause-VGUI, nicht Bootstrap-Text |
 | Options | PropertyDialog + Tabs | `OptionsDialog/*` | — | Steam `.res` | selten | echte Tabs; Apply/Cancel/Reset wie NextClient |
 | Create Game | CreateMultiplayerDialog | `CreateMultiPlayerGameDialog` | — | — | selten | VGUI2 + gemeinsames `ServerProfile` |
-| Server Browser | ServerBrowser | `ServerBrowser/*` | — | kein Steam-MM | ggf. LAN-Query | später; kein Steam-Matchmaking |
-| Team Select | `UI/Teammenu.res` | HUD/ShowMenu | Ref B | — | wenn Viewport-Parent unklar | VGUI2 auf V1-Core |
-| Class Select | `UI/Classmenu_*.res` | — | Ref B | — | wie Team | VGUI2 |
-| Buy Menu | `UI/Buy*.res` | — | Ref B | — | wie Team | VGUI2 |
+| Server Browser | ServerBrowser | `ServerBrowser/*` | — | kein Steam-MM | LAN: `localservers` | **LAN-VGUI2 da**; Internet-Tab bewusst nicht — eigene Serverliste fehlt noch (`docs/SERVER.md`) |
+| Team Select | `UI/Teammenu.res` | HUD/ShowMenu | Ref B | — | wenn Viewport-Parent unklar | **VGUI2 da** (`CTeamSelectPanel`, Gate PASS) |
+| Class Select | `UI/Classmenu_*.res` | — | Ref B | css-community (CS:S In-Game, beobachten) | wie Team | **VGUI2 da** (`CClassSelectPanel`, Gate PASS) |
+| Buy Menu | `UI/Buy*.res` | — | Ref B | css-community (CS:S In-Game, beobachten) | wie Team | **VGUI2 da** (`CBuySelectPanel`, Gate PASS Hauptseite + Pistolen) |
 | Radio | `ShowMenu` / titles | — | — | — | nein | `ShowMenu` Legacy ok |
 | Spectator | `UI/Spectator.res` | — | — | — | später | VGUI2 später |
 | Scoreboard | `UI/ScoreBoard.res` | — | — | — | später | VGUI2 später |
 
 ## Rekonstruktionsplan (Reihenfolge)
 
-1. **Options-Fundament:** Mouse + Audio + Video **PASS / Regression**. Keyboard **AUTOMATED PASS / MANUAL RECHECK OPEN** nach Persistenz-/Config-Isolation-Fix. Provenance PASS. Adaptive Layout / Resize **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN** (`docs/PHASE3M-LAYOUT.md`). Visual Polish **OPEN**. `docs/PHASE3M-KEYBOARD.md`.
-2. **Main Menu:** NextClient/`GameMenu.res` als echte VGUI2-Controls; Localization fixen; Interim-Textliste ersetzen.
-3. **Create Game:** `CreateMultiplayerGameDialog` + `ServerProfile` (eine Konfiguration).
-4. **Team/Class/Buy:** `.res` + V1-Core; Interim-Renderer entfernen sobald ersetzt.
-5. Escape/Pause, Browser, Spectator, Scoreboard danach.
+1. **Options-Fundament:** Mouse + Audio + Video **PASS / Regression**. Keyboard **AUTOMATED PASS / MANUAL RECHECK OPEN** nach Persistenz-/Config-Isolation-Fix. Provenance PASS. Adaptive Layout / Resize **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN** (`docs/PHASE3M-LAYOUT.md`). Optik **VISUAL ACCEPTED 2026-09-04**. `docs/PHASE3M-KEYBOARD.md`.
+2. **Main Menu: AUTOMATED PASS / VISUAL ACCEPTED 2026-09-04.** `GameMenu.res` als echte VGUI2-Controls (`client/menu/vgui/main_menu.cpp`, Muster NextClient `CBasePanel`/`CGameMenu`/`CGameMenuItem`); Localization über `Label::SetText`-`#`-Pfad statt Interim-`Menu_L`; Interim-Textliste entfernt. Gate: `./scripts/vgui-mainmenu-gate.sh`.
+3. **Create Game: Server / Game / Fairness AUTOMATED PASS / VISUAL ACCEPTED 2026-09-04.** Tabs Server/Game/Fairness; CS:Source-Hierarchie (eine Hülle, innen eckig), Combo ohne Dauer-Markierung und konsistente Listen-Achse/Padding. Gate: `./scripts/vgui-creategame-gate.sh` (inkl. Label-Audit `CSRETRO_CREATE_LABELS`).
+   - **Server-Seite** (Layout `data/ui-overrides/cstrike/resource/CreateGameServerPage.res`): Map, Identity-Liste (`hostname` / `maxplayers` / `sv_password`) und Bots. Maps über `FindFirst("maps/*.bsp")`. Bots nur wählbar, wenn die Map ein `.nav` hat — sonst gesperrt mit Hinweis. `EnableSteamNetworkingCheck` und CZ-Tutor bewusst nicht übernommen (kein Backend).
+   - **Game-Seite:** `ScrGroup::Rules` (Runde/Zeit/Geld) aus `cstrike/settings.scr`.
+   - **Fairness-Seite:** `ScrGroup::Fairness` (Team/Bestrafung/Zuschauer). Tab-Titel `#CsretroGameUI_Fairness`.
+   - **Liste:** `CreateGameSettingsList` baut Zeilen aus `settings.scr` (Beschriftung **in der Zeile**, `SetFirstColumnWidth(0)`). Classic-Maße aus NextClient `ScriptObject` (Zeile 28, Control 24, Prompt `wide/2+20`, Zahlenfelder 72px). `ServerSettingsScript` bleibt der Parser — ohne dessen Config-Schreibpfad (`docs/UPSTREAM.md`). Grenzen aus dem Script greifen beim Übernehmen (`mp_roundtime` 99→15). Getippt bleiben nur Hostname/Slots/Passwort.
+4. **Server Browser: LAN AUTOMATED PASS / FUNKTION AKZEPTIERT.** Leere LAN-Liste erwartet. `CServerBrowserDialog` teilt die CS:Source-Chrome (Frame rund, Liste eckig); Empty-Text nur in der Liste, nicht noch einmal in der Statuszeile. Gate: `./scripts/vgui-serverbrowser-gate.sh`. Internet-Tab bewusst nicht — eigene Serverliste fehlt noch (`docs/SERVER.md`).
+5. **Team/Class/Buy:** Team-Wahl **AUTOMATED PASS / Inhaber visuell bestätigt** (Namen/Auswahl) — `CTeamSelectPanel` lädt Steam `resource/UI/Teammenu.res` als echte VGUI2 (`ClientScheme`, Fullscreen-Overlay, innen eckig, kein Frame-Nibble). Slots aus `validSlots`, Commands `jointeam`/`spectate`/`vguicancel`, Kartenbriefing aus `maps/<hostmap>.txt`. **Class-Wahl AUTOMATED + Inhaber-Check Namen ok** — `CClassSelectPanel` lädt Steam `resource/UI/Classmenu_TER.res` / `Classmenu_CT.res`, `MouseOverPanelButton` → Hover-Portrait `gfx/vgui/<name>.tga` in `ClassInfo`, Localization über `Label::SetText`-`#`-Pfad, Commands `joinclass N` / `vguicancel` (Backend ReGameDLL `HandleMenu_ChooseAppearance`). CS-1.6 blendet Militia/Spetsnaz aus und mappt Auto-Select auf Slot 5. **Class_Info:** Steam-`.res` hat `#Cstrike_Class_Info` auf `classInfoLabel` (`visible 0`); der Token **fehlt** in `cstrike_english`. `ShowClassPreview` blendete das Label trotzdem ein → Roh-Token. Jetzt: `SetText("#…")`, bei Fehlschlag leerer String, Label bleibt unsichtbar. **Buy AUTOMATED PASS** @800×600 — `CBuySelectPanel` lädt `MainBuyMenu.res` und team-spezifische `Buy*.res`. Steam-Hauptseite `"Command"` vs. case-sensitive KeyValues: ohne `Menu_LoadRes`-Nachzug kein Klick. Kategorie-Navigation clientseitig (`.res`-Command); Kauf nur Backend (`glock`/`vest`/… → ReGameDLL `HandleBuyAliasCommands`, `autobuy`/`rebuy` → `cl_autobuy`/`cl_rebuy`). `vguicancel` auf der Unterseite zurück zur Hauptseite, ESC schließt. Gate prüft Hauptseite + Pistolen + `glock`; Shotguns/SMG/Rifles/MG/Equipment teilen denselben Pfad, sind nicht extra gegatet. `ShowMenu` bleibt. Gates: `./scripts/vgui-teamselect-gate.sh`, `./scripts/vgui-classselect-gate.sh`, `./scripts/vgui-buy-gate.sh` (quit-Vertrag). Class/Buy-Abguck: [css-community](https://github.com/DeadZoneLuna/css-community) (CS:Source In-Game-VGUI, nicht Engine) — Steam-`.res` und Ref B bleiben vorrangig; selektiver Port, kein Leak-Engine-Import (`docs/UPSTREAM.md`).
+6. Escape/Pause, Spectator, Scoreboard danach.
 
 Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×600, 1024×768, einer 16:9.
 
@@ -102,24 +123,22 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 | NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | **portiert** → `client/menu/gameui/Controls/` + Xash `MenuEngine` |
 | `COptionsSubMouse` | Gate grün (funktional + Preferred 512×406 @640–1366) |
 | `COptionsSubAudio` | Gate grün; `MP3 volume *` original; Miles hidden (kein Backend) |
-| `COptionsSubVideo` | Overall **PASS** (Automated + Mode-Safety + Wanduhr≈10.07s + Visual); `docs/PHASE3M-VIDEO.md` |
+| `COptionsSubVideo` | Overall **PASS** (Automated + Mode-Safety + Wanduhr≈10.07s + Visual); `docs/PHASE3M-VIDEO.md`. **Brightness/Gamma:** CVars beim Apply ja, **sichtbare Wirkung fehlt** (offen) |
 | Effektives Scheme (Runtime-Winner) | `gamedata/valve/resource/TrackerScheme.res` (= Current Steam `valve/…`); `platform/…/TrackerScheme.res` nur Fallback; `ClientScheme` parallel (HUD) |
 | Effektive `.res` | Mouse/Audio unter `data/ui-overrides/cstrike/resource/` |
 | CVar-Mapping Mouse | `m_filter` → `look_filter` |
 | CVar-Mapping Audio | `hisound` → `room_hires` (Semantik 0/1 → 1/2); `mp3volume` → `MP3Volume` |
 | Apply/Cancel/Reset/OK/Persistenz | `./scripts/vgui-options-mouse-gate.sh`, `./scripts/vgui-options-audio-gate.sh` |
 | Localization | UTF-16→wchar_t; gameui/vgui/cstrike/platform |
-| Video → … | Overall **PASS** (`docs/PHASE3M-VIDEO.md`); nur Regression |
+| Video → … | Overall **PASS** (`docs/PHASE3M-VIDEO.md`); nur Regression. Brightness/Gamma sichtbare Wirkung **offen** |
 | Keyboard | **AUTOMATED PASS / MANUAL RECHECK OPEN** — staged Bindings überleben Page-Wechsel; Apply schreibt Engine/Config; `docs/PHASE3M-KEYBOARD.md` |
-| Video | Xash-Optionen — **PASS** |
+| Video | Xash-Optionen — **PASS**. Brightness/Gamma sichtbare Wirkung **offen** (`docs/PHASE3M-VIDEO.md`) |
 | CS-Retro-Advanced-Tab | leer bis Features existieren (kein FOV-UI vor FOV) |
 | Create MP | nach stabiler Options-Grundlage |
 
-## Global VGUI2 Visual Polish Gate (vor finalem Phase-3M-Abschluss)
+## Global VGUI2 Visual Polish Gate
 
-**Status: offen.** Nach Adaptive Layout / Resize.
-
-Strukturell richtig (Mouse/Audio/Video/Keyboard Screens). Finaler visueller Abschluss fehlt.
+**Status: VISUAL ACCEPTED 2026-09-04** für Hauptmenü, Options, Create Game und LAN-Server-Browser. Die neue Konsole, die Team-Wahl und die Class-Wahl brauchen noch ihren manuellen visuellen Check. Neue Dialoge müssen dieselbe Baseline übernehmen; die abgenommene Grundgestaltung wird nicht ohne konkreten neuen Befund erneut aufgerollt.
 
 Untersuchen zentral: Font-Familie (Steam/GameData), FreeType Hinting/AA/Kerning, Glyph Advances, Cell Height, Ascent/Descent/Baseline, DPI, Tab-/CheckButton-/Combo-/Slider-/Button-/ScrollBar-/QueryBox-Metriken.
 
@@ -130,7 +149,14 @@ Themen (Scheme / Font-Backend / Controls-Core / Layout-Unterbau; **keine** Pixel
 - Font-Familie / Metrik / Schärfe
 - Text-/Control-Ausrichtung; einheitliche Insets
 - Tabs, ComboBoxes, CheckButtons, Slider, ScrollBar
-- **ComboBox zentral:** erster Polish umgesetzt (Border/Inset, kompakter Arrow, 20px Dropdown-Items); Textbaseline/Font-Metrik/Selected-Hover bleiben Feinschliff — nicht als Video-/Audio-Einzelpatch
+- **Tabs (Options):** `PropertySheet.TextColor`→`DimBaseText`; Selected→`BrightControlText`; Label zentriert; **72×24**; `SetTabHeight()`
+- **Font-Metrik:** `surface_xash.cpp` — GDI-Zelle (REAL_DIM), `textOffsetY` für Internal-Leading/1px Zellenüberlauf; weight 0→400
+- **UI-Schrift:** **Noto Sans / Noto Sans Mono** (OFL-1.1) mitgeliefert; keine System-/Steam-Font-Abhängigkeit
+- **Antialiasing:** immer Graustufen-AA, `antialias 0` im Scheme wird bewusst ignoriert (Win32-Tahoma-Bitmapannahme gilt für Noto nicht)
+- **ComboBox zentral:** Border/Inset, kompakter Arrow, 20px Dropdown-Items; Textbaseline/Font-Metrik/Selected-Hover bleiben Feinschliff — nicht als Video-/Audio-Einzelpatch
+- **CheckButton/Slider:** sichtbar (Marlett Fill/Bevel/Haken; `WindowBG`; Scheme-Alpha 255); `Slider.NobColor`≠Tick-Grün; Mouse/Video-Gate **PASS**
+- **ScrollBar:** `ScrollBar.Wide` Default 17 (Code-`SCROLLBAR_DEFAULT_WIDTH`); Keyboard-Gate **PASS**
+- **Build-Hygiene:** Warnings/Errors zuerst; kein CMake `--clean-first` am shared Tree ohne `./scripts/build-client.sh` danach
 - Keyboard-Liste: Scrollbar/Pfeile, untere Rows, Spalten/Insets
 - Keyboard Capture-Slot: Scheme-`Capture`/`Edit`-Foreground (Primary≠Alternate; ESC stellt Slot wieder her) — kein hartcodiertes RGB, kein Blinken
 - Video-Alignment: Resolution / Renderer / Aspect Ratio / Display Mode (Labels + Combos + Spalten) gegen Golden/Classic `.res` — Backend bleibt geschlossen
@@ -173,13 +199,22 @@ Noch **keine** Subpage. Später: Sprachen aus verfügbaren Loc-Ressourcen; CS-Re
 
 ## Console (derselbe UI-/Input-Vertrag)
 
-Kein Sonderfall: `toggleconsole`-Bind; Fenster move + Geometry Persistence; Font/Input/Scroll; Copy/Paste später.
+**Status: AUTOMATED PASS / MANUAL VISUAL CHECK OPEN.** `toggleconsole` ist ein echtes frei belegbares Binding und funktioniert aus Spiel und Menü; kein fest verdrahteter Backtick-/Tilde-Sonderweg. Die VGUI2-Konsole besitzt Engine-Scrollback, farbige Ausgabe, TextEntry, Befehlsausführung, Up/Down-History, Escape/Frei-Bind zum Schließen, Move/Resize und Geometry-Persistenz. Gate: `./scripts/vgui-console-gate.sh` (`F6` → öffnen → `echo` ausführen → schließen → Geometrie prüfen). Copy/Paste läuft über das vorhandene TextEntry-Verhalten; Auswahl/Scroll und die visuelle Wirkung werden manuell geprüft.
 
 ## Zielbild
 
 Classic CS 1.6 VGUI2 → korrekte Basis → NextClient-Funktionen → CS-Retro-Extensions → responsive Desktop / HiDPI.
 
-Später sichtbar nur mit Backend: moderne Video/Renderer/Borderless · Audio · Crosshair-Fine · HUD/Radar · Network · NextClient · ServerProfile/GameRules · Bots · Module · Metamod/AMXX.
+Später sichtbar nur mit Backend: moderne Video/Renderer/Borderless · Audio · Crosshair-Fine · HUD/Radar-Minimap · Network · NextClient · ServerProfile/GameRules · Bots · Module · Metamod/AMXX.
+
+### Nach 3M — HUD/Options (kein Code in 3M)
+
+FOV/3D/In-Game bleiben gesperrt bis nach 3M. Danach, nur mit Backend:
+
+| Feature | Ziel | Quelle | Nicht |
+|---------|------|--------|-------|
+| **Crosshair** | Sehr individuell über die Optionen (feiner als Presets) | NextClient `HudCrosshair` + `OptionsSubMultiplayer` (`cl_crosshair_type/color/size/translucent`, `cl_dynamiccrosshair`; Typen Cross/T/Kreis/Punkt) | tote Options vor Backend |
+| **Radar** | Minimap: **Karte im Radar** (CS:GO/CS2-artig), nicht nur Punkte auf leerem Kreis | NextClient hat **kein** Map-Radar (`HudRadar.cpp:13–14` → Steam-`CHudHealth__DrawRadar`). Body = klassisches Sprite-Radar. Abguck: MetaHook / GameBanana Dynamic Radar (`docs/UPSTREAM.md`) | MetaHook vendorn oder als Hook-Runtime |
 
 ## NextClient-GameUI — Inventar
 
@@ -192,7 +227,7 @@ Pfad: `client/nextclient/gameui/`. **Nicht** unser Produkt-Build (`-m32`, …).
 | Options | `OptionsDialog/*` | Tabs + CVar | Steam-vgui2 |
 | Create MP | `CreateMultiPlayerGameDialog/*` | Server/Bot-Seiten | dasselbe |
 | Controls | `GameUi/Controls/*` | Cvar-/Key-Controls | `engine->*` → Xash |
-| Server Browser | `ServerBrowser/*` | Listen/LAN | Steam-MM |
+| Server Browser | `ServerBrowser/*` | Listen/LAN-Spaltenmodell | Steam-MM, Internet/Favorites/History/Friends, `ISteamMatchmakingServers` |
 | CEF | `Browser/*` | **nicht** in 3M | CEF |
 
 ## Xash-Adapter
@@ -206,7 +241,7 @@ Pfad: `client/nextclient/gameui/`. **Nicht** unser Produkt-Build (`-m32`, …).
 
 ## Originalressourcen (Game-Data)
 
-COPY: `cstrike/resource/`, **`platform/resource/`** (Schemes, `vgui_*.txt`, `linux_fonts`). Overrides: `data/ui-overrides/`.
+COPY: `cstrike/resource/`, **`platform/resource/`** (Schemes, `vgui_*.txt`) — **ohne** Steam-`linux_fonts`. Overrides: `data/ui-overrides/` (inkl. `platform/resource/csretro_fonts/` mit Noto Sans).
 
 ## Serverprofil
 
@@ -222,14 +257,17 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 | Options Audio | **PASS / Regression**; Miles absichtlich hidden |
 | VGUI2 Symbol-Controls | **Gate grün** — `vgui_symbols.cpp` |
 | VGUI2 Metrics Preferred Size | **512×406** (`OptionsClassicMetrics.h`) — Classic Preferred, nicht Max |
-| Video | **PASS / Regression** — Xash-Backends; Confirm für Mode; FOV ausgeklammert |
+| Video | **PASS / Regression** — Xash-Backends; Confirm für Mode; FOV ausgeklammert. **Brightness/Gamma sichtbare Wirkung offen** |
 | Keyboard | **AUTOMATED PASS / MANUAL RECHECK OPEN** — Persistenz- und Config-Isolation-Fix automatisiert grün; `docs/PHASE3M-KEYBOARD.md` |
 | Adaptive Layout / Resize | **AUTOMATED PASS / MANUAL OPEN** — acht Grips, Min 512×406, Live-Save ohne Apply, Persist/Clamp/Restart grün; `docs/PHASE3M-LAYOUT.md` |
-| Global VGUI2 Visual Polish | **OPEN** |
+| Global VGUI2 Visual Polish | **VISUAL ACCEPTED 2026-09-04** für Hauptmenü, Options, Create Game und LAN-Browser; neue Konsole manuell offen |
+| Konsole | **AUTOMATED PASS / MANUAL VISUAL CHECK OPEN** — bindbar, Engine-Scrollback/-Befehl, History, Move/Resize/Persistenz; `vgui-console-gate.sh` |
 | Windows ShellOpen | **offenes Plattform-Gate** (`system_shell_win.cpp` No-Op) |
-| Hauptmenü / Create / Team | Interim-Bootstrap (Negativreferenz) |
+| Hauptmenü | **echte VGUI2-Controls** (Menu + MenuItems, Noto Sans, unten links); Hintergrund **CS-Retro-PNG**, nicht Steam-Kacheln |
+| Create Game | **echte VGUI2-Controls / VISUAL ACCEPTED 2026-09-04**: drei Tabs Server (Map + Identity + Bots) / Game (Rules) / Fairness; Zeilen aus `settings.scr` über `CreateGameSettingsList`. Bots nur mit `.nav`-Mesh wählbar. Combo ohne Dauer-Fill, Listen-Achse. Chrome: Frame rund, Settings-Liste eckig |
+| Browser | **LAN-VGUI2** (`CServerBrowserDialog`). Funktion akzeptiert (leere LAN-Liste erwartet). Dieselbe Chrome wie Create/Options (Frame rund, Liste eckig). Empty-Text nicht doppelt. Internet-Tab offen / eigenes Vorhaben |
 | In-Game Team/Buy | Interim-`.res`-Pfad bis VGUI2-Ersatz |
-| Tests | `vgui-v1-poc-runtime.sh`, Mouse/Audio/Video/Keyboard-Gates, `play.sh`, `build-menu.sh --sanitize` |
+| Tests | `vgui-v1-poc-runtime.sh`, Mouse/Audio/Video/Keyboard-Gates, Main-Menu/Create-Game/Server-Browser/Console-Gates, `play.sh`, `build-menu.sh --sanitize` |
 
 ## Golden Visual vs Current Steam (strikt getrennt)
 
@@ -272,4 +310,4 @@ Späterer transparenterer Steam-Stil = optionale Scheme-Variante **nach** korrek
 
 ## Nicht in 3M
 
-FOV, Crosshair, HUD-/Radar-/Camera-/Inspect-Schalter ohne Backend. 3D. CEF-Hauptmenü. Ref-A-mainui. Steam-vgui2. Phase-3-Abschluss-Tag erst bei echter VGUI2-Optik + Funktion.
+FOV, Crosshair, HUD-/Radar-/Camera-/Inspect-Schalter ohne Backend. 3D. CEF-Hauptmenü. Ref-A-mainui. Steam-vgui2. Phase-3-Abschluss-Tag erst bei echter VGUI2-Optik + Funktion. Crosshair-Fine und Radar-Minimap sind **Zielbild nach 3M** (Tabelle oben), kein 3M-Bau.

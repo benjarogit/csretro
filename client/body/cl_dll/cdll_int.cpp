@@ -25,9 +25,14 @@
 #include "pm_shared.h"
 
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#if !defined(_WIN32)
+#include <dlfcn.h>
+#include <link.h>
+#endif
 #include "interface.h"
 #include "render_api.h"
-#include "mobility_int.h"
 #include "vgui_parser.h"
 #include "cl_dll/IGameMenuExports.h"
 #include "particleman.h"
@@ -39,35 +44,112 @@
 
 cl_enginefunc_t		gEngfuncs  = { };
 render_api_t		gRenderAPI = { };
-mobile_engfuncs_t	gMobileAPI = { };
 CHud gHUD;
 int g_iXash = 0; // indicates a buildnum
-int g_iMobileAPIVersion = 0;
 
 IGameMenuExports *g_pMenu = nullptr;
 IParticleMan *g_pParticleMan = NULL;
 
-static IGameMenuExports *GetNativeMenuExports( void )
+#if !defined(_WIN32)
+static IGameMenuExports *ExportsFromHandle( void *handle )
 {
-	if( !g_iMobileAPIVersion || !gMobileAPI.pfnGetNativeObject )
+	if( !handle )
 		return nullptr;
 
-	void *nativeFactory = gMobileAPI.pfnGetNativeObject( "MenuFactory" );
-	if( !nativeFactory )
-		return nullptr;
+	using GetExportsFn = IGameMenuExports *(*)( void );
+	if( auto get = reinterpret_cast<GetExportsFn>( dlsym( handle, "Csretro_GetGameMenuExports" ) ) )
+	{
+		if( IGameMenuExports *p = get() )
+			return p;
+	}
 
-	CreateInterfaceFn menuFactory = reinterpret_cast<CreateInterfaceFn>( nativeFactory );
-	return static_cast<IGameMenuExports *>( menuFactory( GAMEMENUEXPORTS_INTERFACE_VERSION, NULL ) );
+	CreateInterfaceFn factory = reinterpret_cast<CreateInterfaceFn>( dlsym( handle, "CreateInterface" ) );
+	if( factory )
+		return static_cast<IGameMenuExports *>( factory( GAMEMENUEXPORTS_INTERFACE_VERSION, NULL ) );
+	return nullptr;
 }
 
-static void LoadMenuInterface( void )
+struct MenuSoSearch
+{
+	char path[512];
+};
+
+static int VisitLoadedMenu( struct dl_phdr_info *info, size_t, void *data )
+{
+	auto *out = static_cast<MenuSoSearch *>( data );
+	if( !info->dlpi_name || !info->dlpi_name[0] )
+		return 0;
+	if( !strstr( info->dlpi_name, "menu_amd64.so" ) && !strstr( info->dlpi_name, "libmenu.so" ) )
+		return 0;
+	snprintf( out->path, sizeof( out->path ), "%s", info->dlpi_name );
+	return 1;
+}
+#endif
+
+static IGameMenuExports *GetNativeMenuExports( void )
+{
+	if( gEngfuncs.pfnGetNativeObject )
+	{
+		if( void *direct = gEngfuncs.pfnGetNativeObject( "GameMenuExports" ) )
+			return static_cast<IGameMenuExports *>( direct );
+
+		if( void *nativeFactory = gEngfuncs.pfnGetNativeObject( "MenuFactory" ) )
+		{
+			CreateInterfaceFn menuFactory = reinterpret_cast<CreateInterfaceFn>( nativeFactory );
+			if( IGameMenuExports *p = static_cast<IGameMenuExports *>( menuFactory( GAMEMENUEXPORTS_INTERFACE_VERSION, NULL ) ) )
+				return p;
+		}
+	}
+
+#if !defined(_WIN32)
+	const char *candidates[] = {
+		getenv( "CSRETRO_MENU_SO" ),
+		"menu_amd64.so",
+		"libmenu.so",
+	};
+	for( const char *path : candidates )
+	{
+		if( !path || !path[0] )
+			continue;
+		if( void *handle = dlopen( path, RTLD_NOW | RTLD_NOLOAD ) )
+		{
+			if( IGameMenuExports *p = ExportsFromHandle( handle ) )
+				return p;
+		}
+	}
+
+	MenuSoSearch found = {};
+	if( dl_iterate_phdr( VisitLoadedMenu, &found ) && found.path[0] )
+	{
+		if( void *handle = dlopen( found.path, RTLD_NOW | RTLD_NOLOAD ) )
+		{
+			if( IGameMenuExports *p = ExportsFromHandle( handle ) )
+				return p;
+		}
+	}
+#endif
+	return nullptr;
+}
+
+void Menu_EnsureExports( void )
 {
 	if( g_pMenu )
 		return;
 
-	// Xash liefert MenuFactory (CreateInterface der geladenen Menü-Lib).
-	// Phase-3-libmenu.so exportiert kein GameMenuExports001 — optional, kein Modal.
 	g_pMenu = GetNativeMenuExports();
+	if( g_pMenu )
+		gEngfuncs.Con_Printf( "CSRetro-Menu: GameMenuExports001 bereit\n" );
+	else
+	{
+		void *factory = ( gEngfuncs.pfnGetNativeObject ) ? gEngfuncs.pfnGetNativeObject( "MenuFactory" ) : nullptr;
+		gEngfuncs.Con_Printf( "CSRetro-Menu: GameMenuExports001 fehlt (GetNativeObject=%p factory=%p)\n",
+			reinterpret_cast<void *>( gEngfuncs.pfnGetNativeObject ), factory );
+	}
+}
+
+static void LoadMenuInterface( void )
+{
+	Menu_EnsureExports();
 }
 
 void InitInput (void);
@@ -414,25 +496,6 @@ int DLLEXPORT HUD_GetRenderInterface( int version, render_api_t *renderfuncs, re
 	}
 
 	return true;
-}
-
-/*
-========================
-HUD_MobilityInterface
-========================
-*/
-int DLLEXPORT HUD_MobilityInterface( mobile_engfuncs_t *mobileapi )
-{
-	if( mobileapi->version != MOBILITY_API_VERSION )
-	{
-		gEngfuncs.Con_Printf("Client Error: Mobility API version mismatch. Got: %i, want: %i\n",
-			mobileapi->version, MOBILITY_API_VERSION);
-		return 1;
-	}
-
-	g_iMobileAPIVersion = MOBILITY_API_VERSION;
-	gMobileAPI = *mobileapi;
-	return 0;
 }
 
 extern "C" void DLLEXPORT HUD_ChatInputPosition( int *x, int *y )

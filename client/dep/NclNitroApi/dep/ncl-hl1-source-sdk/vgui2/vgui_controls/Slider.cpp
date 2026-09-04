@@ -276,7 +276,7 @@ void Slider::ApplySchemeSettings(IScheme *pScheme)
 	// this line is useful for debugging
 	//SetBgColor(GetSchemeColor("0 0 0 255"));
 
-	m_TickColor = pScheme->GetColor( "Slider.TextColor", pScheme->GetColor( "SliderTickColor", GetFgColor() ) );
+	m_TickColor = pScheme->GetColor( "Label.TextColor", pScheme->GetColor( "Slider.TextColor", Color(220, 220, 210, 255) ) );
 	m_TrackColor = pScheme->GetColor( "Slider.TrackColor", pScheme->GetColor( "SliderTrackColor", GetFgColor() ) );
 
 #ifdef _X360

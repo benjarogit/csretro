@@ -17,6 +17,21 @@ class CsretroInlineEditPanel : public Label
 public:
 	CsretroInlineEditPanel() : Label(nullptr, "InlineEditPanel", "#GameUI_PressAKey") {}
 
+	void ApplyCaptureWaitingColors(IScheme *pScheme)
+	{
+		// Classic accent while waiting for a key (Visual Polish / Keyboard capture UX).
+		const Color primary = GetSchemeColor("BrightControlText", pScheme);
+		const Color alt = GetSchemeColor("BrightBaseText", primary, pScheme);
+		m_capturePrimaryFg = primary;
+		m_captureAltFg = alt;
+		SetFgColor(primary);
+	}
+
+	void SetCaptureColumn(int column)
+	{
+		SetFgColor(column == 2 ? m_captureAltFg : m_capturePrimaryFg);
+	}
+
 	void OnKeyCodeTyped(KeyCode code) override
 	{
 		if (GetParent())
@@ -34,7 +49,7 @@ public:
 		Label::ApplySchemeSettings(pScheme);
 		SetBorder(pScheme->GetBorder("DepressedButtonBorder"));
 		SetBgColor(GetSchemeColor("ControlBG", pScheme));
-		SetFgColor(GetSchemeColor("ControlFG", pScheme));
+		ApplyCaptureWaitingColors(pScheme);
 		SetContentAlignment(Label::a_west);
 		SetTextInset(4, 0);
 	}
@@ -50,6 +65,10 @@ public:
 		if (GetParent())
 			GetParent()->OnMouseWheeled(delta);
 	}
+
+private:
+	Color m_capturePrimaryFg;
+	Color m_captureAltFg;
 };
 } // namespace
 
@@ -78,8 +97,11 @@ void VControlsListPanel::StartCaptureMode(int column, HCursor hCursor)
 	m_nCaptureColumn = (column == 2) ? 2 : 1;
 	if (IsItemIDValid(GetSelectedItem()))
 		m_nClickRow = GetSelectedItem();
-	if (auto *label = dynamic_cast<Label *>(m_pInlineEditPanel))
+	if (auto *label = dynamic_cast<CsretroInlineEditPanel *>(m_pInlineEditPanel))
+	{
 		label->SetText("#GameUI_PressAKey");
+		label->SetCaptureColumn(m_nCaptureColumn);
+	}
 	EnterEditMode(m_nClickRow, m_nCaptureColumn, m_pInlineEditPanel);
 	input()->SetMouseFocus(m_pInlineEditPanel->GetVPanel());
 	input()->SetMouseCapture(m_pInlineEditPanel->GetVPanel());

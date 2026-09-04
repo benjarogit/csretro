@@ -388,7 +388,9 @@ void EXT_FUNC GameDLLInit()
 
 #ifdef REGAMEDLL_ADD
 
-	ADD_SERVER_COMMAND("game", GameDLL_Version_f);
+	// "game" is an engine command used to change the active game directory.
+	// Keep the GameDLL version query in the CS Retro namespace.
+	ADD_SERVER_COMMAND("csretro", GameDLL_Version_f);
 	ADD_SERVER_COMMAND("endround", GameDLL_EndRound_f);
 	ADD_SERVER_COMMAND("swapteams", GameDLL_SwapTeams_f);
 

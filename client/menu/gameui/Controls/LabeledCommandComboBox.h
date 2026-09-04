@@ -6,13 +6,14 @@
 // NextClient GameUI control: ComboBox item → engine command on Apply.
 class CLabeledCommandComboBox : public vgui2::ComboBox
 {
-	DECLARE_CLASS_SIMPLE(CLabeledCommandComboBox, vgui2::ComboBox);
+	DECLARE_CLASS_SIMPLE_OVERRIDE(CLabeledCommandComboBox, vgui2::ComboBox);
 
 public:
 	CLabeledCommandComboBox(vgui2::Panel *parent, const char *panelName);
 	~CLabeledCommandComboBox() override = default;
 
 	void DeleteAllItems();
+	using vgui2::ComboBox::AddItem;
 	void AddItem(const char *text, const char *engineCommand);
 	void ActivateCommandItem(int itemIndex);
 

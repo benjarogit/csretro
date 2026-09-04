@@ -287,7 +287,7 @@ public:
 
 	// Just like printf, writes a terminating zero in binary mode
 	void			Printf( PRINTF_FORMAT_STRING const char* pFmt, ... ) FMTFUNCTION( 2, 3 );
-	void			VaPrintf( const char* pFmt, va_list list );
+	void			VaPrintf( PRINTF_FORMAT_STRING const char* pFmt, va_list list ) FMTFUNCTION( 2, 0 );
 
 	// What am I writing (put)/reading (get)?
 	void* PeekPut( int offset = 0 );
@@ -934,52 +934,82 @@ inline void CUtlBuffer::PutChar( char c )
 
 inline void CUtlBuffer::PutUnsignedChar( unsigned char c )
 {
-	PutType( c, "%u" );
+	if (!IsText())
+		PutTypeBin( c );
+	else
+		Printf( "%u", c );
 }
 
 inline void CUtlBuffer::PutUint64( uint64 ub )
 {
-	PutType( ub, "%llu" );
+	if (!IsText())
+		PutTypeBin( ub );
+	else
+		Printf( "%llu", ub );
 }
 
 inline void CUtlBuffer::PutInt16( int16 s16 )
 {
-	PutType( s16, "%d" );
+	if (!IsText())
+		PutTypeBin( s16 );
+	else
+		Printf( "%d", s16 );
 }
 
 inline void  CUtlBuffer::PutShort( short s )
 {
-	PutType( s, "%d" );
+	if (!IsText())
+		PutTypeBin( s );
+	else
+		Printf( "%d", s );
 }
 
 inline void CUtlBuffer::PutUnsignedShort( unsigned short s )
 {
-	PutType( s, "%u" );
+	if (!IsText())
+		PutTypeBin( s );
+	else
+		Printf( "%u", s );
 }
 
 inline void CUtlBuffer::PutInt( int i )
 {
-	PutType( i, "%d" );
+	if (!IsText())
+		PutTypeBin( i );
+	else
+		Printf( "%d", i );
 }
 
 inline void CUtlBuffer::PutInt64( int64 i )
 {
-	PutType( i, "%llu" );
+	if (!IsText())
+		PutTypeBin( i );
+	else
+		Printf( "%llu", i );
 }
 
 inline void CUtlBuffer::PutUnsignedInt( unsigned int u )
 {
-	PutType( u, "%u" );
+	if (!IsText())
+		PutTypeBin( u );
+	else
+		Printf( "%u", u );
 }
 
 inline void CUtlBuffer::PutFloat( float f )
 {
-	PutType( f, "%f" );
+	if (!IsText())
+		PutTypeBin( f );
+	else
+		Printf( "%f", f );
 }
 
 inline void CUtlBuffer::PutDouble( double d )
 {
-	PutType( d, "%f" );
+	if (!IsText())
+		PutTypeBin( d );
+	else
+		Printf( "%f", d );
 }
 
 

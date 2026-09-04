@@ -149,7 +149,7 @@ Messung Current Steam 2026-09-02: **800×600**, english, Protocol **48**, Exe **
 | OK / Cancel / Apply | PropertyDialog 72×24 | sichtbar, rechts unten | dasselbe | OK 297,372 · Cancel 377,372 · Apply 457,372 · je 72×24 |
 | Mouse / Aim page | Steam `OptionsSubMouse.res` | Tab-Label **Aim**; Detail-BM Controls noch offen | NextClient Mouse `.res` (+ MouseLook) | ReverseMouse **36,32 155×28** etc. |
 | Audio page | Steam `OptionsSubAudio.res` | Tab sichtbar; Detail-BM noch offen | Audio Override | SFX Slider **40,37 420×36** |
-| Default font tall | TrackerScheme Tahoma 16 | optisch Tahoma-ähnlich | Liberation/DejaVu, REAL_DIM | GetFontTall **16** |
+| Default font tall | TrackerScheme Tahoma 16 | optisch Tahoma-ähnlich | **Noto Sans** (mitgeliefert), REAL_DIM | GetFontTall **16** (cell 16 / asc 13 / desc 4) |
 | `#GameUI_Mouse` | Loc **Aim** | UI „Aim“ | Override **Mouse** | Tab „Mouse“ |
 | Scheme | current valve TrackerScheme | geladen | gleicher Winner | valve HIT |
 | proportionalBase | HD Surface-Pfad (HL25) | Runtime: Basen 522×444 ≈ Dialoggröße | Classic **640×480** | dump: **640×480** |

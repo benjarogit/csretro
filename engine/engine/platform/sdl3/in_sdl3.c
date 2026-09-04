@@ -17,7 +17,7 @@ GNU General Public License for more details.
 #include "eiface.h" // ARRAYSIZE
 #include "vid_common.h" // window_{width,height}
 #include "client.h" // refState
-#include "input.h" // Touch_WantVisibleCursor
+#include "input.h"
 #include "vgui_draw.h" // VGui_UpdateInternalCursorState
 
 static struct
@@ -107,10 +107,6 @@ void GAME_EXPORT Platform_GetMousePos( int *x, int *y )
 void Platform_SetCursorType( VGUI_DefaultCursor type )
 {
 	qboolean visible = type != dc_user && type != dc_none;
-
-	// never disable cursor in touch emulation mode
-	if( !visible && Touch_WantVisibleCursor( ))
-		return;
 
 	host.mouse_visible = visible;
 	VGui_UpdateInternalCursorState( type );
@@ -216,5 +212,4 @@ key_modifier_t Platform_GetKeyModifiers( void )
 
 	return result_flags;
 }
-
 

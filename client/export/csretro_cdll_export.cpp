@@ -52,12 +52,8 @@ struct xash_cldll_func_t
 	int	(*pfnGetStudioModelInterface)( int version, struct r_studio_interface_s **ppinterface, struct engine_studio_api_s *pstudio );
 	void	(*pfnChatInputPosition)( int *x, int *y );
 	int	(*pfnGetRenderInterface)( int version, render_api_t *renderfuncs, render_interface_t *callback );
-	void	(*pfnClipMoveToEntity)( struct physent_s *pe, const float *start, const float *mins, const float *maxs, const float *end, struct pmtrace_s *tr );
-	int	(*pfnTouchEvent)( int type, int fingerID, float x, float y, float dx, float dy );
 	void	(*pfnMoveEvent)( float forwardmove, float sidemove );
 	void	(*pfnLookEvent)( float relyaw, float relpitch );
-	int	(*pfnGetSoundInterface)( int version, const void *api, void *callback );
-	int	(*pfnVoice_StartChannel)( int samples, unsigned char *data, int entnum );
 };
 
 extern "C" DLLEXPORT int GetClientAPI( struct xash_cldll_func_t *p )

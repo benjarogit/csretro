@@ -117,22 +117,25 @@ void PropertyDialog::PerformLayout()
 
 
 	// move the buttons to the bottom-right corner
-	int xpos = x + wide - 80;
-	int ypos = tall + y - 28;
+	const int buttonW = 72;
+	const int buttonH = 24;
+	const int buttonGap = 10;
+	int xpos = x + wide - buttonW;
+	int ypos = tall + y - 30;
 
 	if (_applyButton->IsVisible())
 	{
-		_applyButton->SetBounds(xpos, ypos, 72, 24);
-		xpos -= 80;
+		_applyButton->SetBounds(xpos, ypos, buttonW, buttonH);
+		xpos -= buttonW + buttonGap;
 	}
 
 	if (_cancelButton->IsVisible())
 	{
-		_cancelButton->SetBounds(xpos, ypos, 72, 24);
-		xpos -= 80;
+		_cancelButton->SetBounds(xpos, ypos, buttonW, buttonH);
+		xpos -= buttonW + buttonGap;
 	}
 
-	_okButton->SetBounds(xpos, ypos, 72, 24);
+	_okButton->SetBounds(xpos, ypos, buttonW, buttonH);
 
 	_propertySheet->InvalidateLayout(); // tell the propertysheet to redraw!
 	Repaint();

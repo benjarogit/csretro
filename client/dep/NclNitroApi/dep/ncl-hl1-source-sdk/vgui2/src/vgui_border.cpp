@@ -343,6 +343,10 @@ void Border::PaintCorner(Corner corner, int x, int y, int texture, int texture_h
         side1 = SIDE_BOTTOM;
         side2 = SIDE_LEFT;
     }
+    else
+    {
+        return;
+    }
 
     if (_sides[side1].count && _sides[side2].count)
     {

@@ -253,6 +253,13 @@ typedef struct
 	void (*pfnConnectionProgress_Connect)( const char *server ); // NULL for local server
 	void (*pfnConnectionProgress_ChangeLevel)( void );
 	void (*pfnConnectionProgress_ParseServerInfo)( const char *server );
+
+	// Optional CS Retro console bridge. Appended to preserve the existing ABI:
+	// older menu modules leave these callbacks null and use the engine overlay.
+	void (*pfnConsolePrint)( const char *text );
+	void (*pfnConsoleClear)( void );
+	int (*pfnConsoleToggle)( void );
+	int (*pfnConsoleIsVisible)( void );
 } UI_EXTENDED_FUNCTIONS;
 
 typedef int (*MENUAPI)( UI_FUNCTIONS *pFunctionTable, ui_enginefuncs_t* engfuncs, ui_globalvars_t *pGlobals );

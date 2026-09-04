@@ -744,6 +744,12 @@ void Menu::PerformLayout()
 	// make sure we factor in insets
 	int ileft, iright, itop, ibottom;
 	GetInset(ileft, iright, itop, ibottom);
+	// Classic MenuBorder uses inset "0 0 1 1" — keep ≥1px on all sides so
+	// hover rows don't paint over the raised edge (ComboBox popups look attached).
+	ileft = std::max( ileft, 1 );
+	iright = std::max( iright, 1 );
+	itop = std::max( itop, 1 );
+	ibottom = std::max( ibottom, 1 );
 
 	int workWide, workTall;
 
@@ -1429,6 +1435,8 @@ void Menu::OnKeyCodeTyped(KeyCode code)
 			}
 			break;
 		}
+		default:
+			break;
 	}
 	
 	// don't chain back
@@ -1882,6 +1890,8 @@ void Menu::ApplySchemeSettings(IScheme *pScheme)
 	_borderDark = pScheme->GetColor("BorderDark", Color(255, 255, 255, 0));
 
 	const char *itemHeight = pScheme->GetResourceString("Menu.ItemHeight");
+	if (!Q_strlen(itemHeight))
+		itemHeight = pScheme->GetResourceString("Menu/ItemHeight");
 	if (!Q_strlen(itemHeight))
 		itemHeight = pScheme->GetResourceString("Menu/MenuItemHeight");
 	if (Q_strlen(itemHeight))

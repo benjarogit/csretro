@@ -9,8 +9,8 @@ Details: `ROLLEN.md`, `PLATTFORMEN.md`, `SERVER.md`, `UPSTREAM.md`, `LIZENZEN.md
 
 | Feld | Wert |
 |------|------|
-| Datum | 2026-09-03 |
-| Phase | **3A/3B/3C abgenommen.** **3M in Arbeit** (Menü-Lib + Team/Buy-VGUI). 3D/FOV erst nach 3M. |
+| Datum | 2026-09-04 |
+| Phase | **3A/3B/3C abgenommen.** **3M in Arbeit** (Menü-Lib + Team/Class/Buy-VGUI da). 3D/FOV erst nach 3M. |
 | Körper-Quelle | **A1** — Manifest in `ROLLEN.md` |
 | GameDLL | `server/game/` — Pin `b088984`, Target `csretro_gamedll` |
 | Stapel | Xash → Export → A1-Body → (später) NextClient-Funktionen |
@@ -81,6 +81,8 @@ Abschluss-Release nur wenn die Phase wirklich fertig ist. Zwischenstand darf auf
 - Listen-`+map`: `.rc` mit `stuffcmds` in Game-Data und BASEDIR
 - 3C/Menü-Tests: headless über `gamescope --backend headless` (kein Fokusdiebstahl). Sichtbar: `CSRETRO_FOREGROUND=1 ./scripts/interactive-3c.sh`
 - Menü: Endziel eine Lib (`client/menu/`, `docs/MENUS.md`, `docs/PHASE3M.md`). 3C-Baseline (`v0.1.5`): Xash-MainUI + `ShowMenu`. 3M ersetzt das als Primär-UI, `ShowMenu` bleibt Legacy.
+- UI-Schrift: **Noto Sans** (OFL-1.1) liegt im Repo unter `data/ui-overrides/platform/resource/csretro_fonts/` und landet per Bootstrap in `gamedata/`. Keine System-Fonts nötig; Steam-`linux_fonts` wird bewusst entfernt.
+- UI-Hintergrund: **CS-Retro-PNG** `data/ui-overrides/cstrike/resource/background/csretro.png` (Bootstrap → `gamedata/cstrike/resource/background/`). Steam-Menükacheln werden nicht importiert.
 - `cstrike/liblist.gam` ist CS-Retro-owned (Branding + `dlls/cs.so` → Xash `cs_amd64.so`).
 - Steam-`dlls/cs_amd64.so` nicht laden. Ohne `-dll`/`-clientlib` findet Xash die Libraries über `liblist` (`dlls/cs.so` → `cs_amd64.so`, `cl_dlls/client_amd64.so`), sofern sie in BASEDIR oder Game-Data liegen. Tests dürfen die Flags weiter nutzen.
 
@@ -100,6 +102,13 @@ python3 ./scripts/bootstrap-gamedata.py
 ./scripts/interactive-3c.sh
 ./scripts/interactive-menus.sh   # Team/Buy/Radio ohne Auto-Join, ohne touch/*.cfg
 ./scripts/vgui-v1-poc-runtime.sh # V1-PoC Auto-Test (CSRETRO_V1POC)
+./scripts/vgui-mainmenu-gate.sh   # Hauptmenü-VGUI2: Items, Localization, Layout, Shot
+./scripts/vgui-creategame-gate.sh # Create Game: Map/Bots + settings.scr
+./scripts/vgui-serverbrowser-gate.sh # Server Browser: LAN-Liste, Filter, ESC
+./scripts/vgui-console-gate.sh    # frei belegbare VGUI2-Konsole: Eingabe + Persistenz
+./scripts/vgui-teamselect-gate.sh # In-Game Team-Wahl VGUI2: Slots, Loc, ESC, jointeam 2
+./scripts/vgui-classselect-gate.sh # In-Game Class-Wahl VGUI2: TER+CT, Loc, Class_Info leer, ESC, joinclass 1
+./scripts/vgui-buy-gate.sh        # In-Game Buy VGUI2: Kategorien, Pistolen, glock, ESC, quit
 ./scripts/play.sh                 # manuelles Fenster (bleibt offen)
 ```
 
@@ -107,10 +116,13 @@ Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-
 
 ## Offene Arbeit
 
-1. **Phase 3M** — Mouse/Audio/Video **PASS / Regression**. Keyboard **AUTOMATED PASS / MANUAL RECHECK OPEN** nach Persistenz-Fix (staged Bindings überleben Page-Wechsel, Apply schreibt Engine/Config; `play.sh` schützt `build/run` und seedet CS-Defaults nur bei leerer/HL-Fallback/Gate-Config) — `docs/PHASE3M-KEYBOARD.md`. Alte Options-Gates defaulten auf `build/run-gate/*`, nicht `build/run`. Adaptive Layout **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN** (natives Resize über acht Grips, Min **512×406**, Live-Save ohne Apply, Restart/Restore grün; ASan-Restart-Teardown noch offen; Audio-Sound-Quality-Abstand reduziert) — `docs/PHASE3M-LAYOUT.md`, Gate `./scripts/vgui-options-layout-gate.sh`. Danach Visual Polish **OPEN**. **Kein Phase-3-Tag. FOV/3D gesperrt.** Keine nächste Subpage.
+1. **Phase 3M** — Mouse/Audio/Video **PASS / Regression** (Brightness/Gamma: CVars ja, **keine sichtbare Wirkung**, offen — `docs/PHASE3M-VIDEO.md`). Keyboard **AUTOMATED PASS / MANUAL RECHECK OPEN**. Adaptive Layout **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN**. Die aktuelle Desktop-UI-Optik (Options, Hauptmenü, Create Game, LAN-Browser) ist seit **2026-09-04 vom Inhaber visuell abgenommen**; keine erneute Grundsatzgestaltung ohne neuen Befund. Die neue frei belegbare VGUI2-Konsole ist **AUTOMATED PASS / MANUAL VISUAL CHECK OPEN** (`vgui-console-gate.sh`). **Team-Wahl: AUTOMATED PASS + Inhaber visuell bestätigt** (Namen/Auswahl). **Class-Wahl: AUTOMATED + Inhaber-Check Namen ok**; `#Cstrike_Class_Info` wird nicht mehr roh gezeigt (Token fehlt in Steam-`cstrike_english`, Label bleibt leer). **Buy: AUTOMATED PASS** (`vgui-buy-gate.sh` @800×600 — Kategorien, Pistolen, `glock`, ESC, quit); manueller Check (B-Taste, restliche Waffen-/Equipment-Seiten) offen. Radio bleibt `ShowMenu`. Runtime-Start/Shutdown ist ohne CS-Retro-Enginewarnungen grün; der umfangreiche historische Compiler-Warnungsbestand ist weiterhin offen und darf nicht als „0 Warnungen“ bezeichnet oder ausgeblendet werden. Internet-Tab bleibt ein eigenes Vorhaben (`docs/SERVER.md`). **Kein Phase-3-Tag. FOV/3D gesperrt.** Radar-Minimap, individuelles Crosshair und MetaHook als Abguck-Quelle sind **Zielbild nach 3M** (`docs/PHASE3M.md`, `docs/UPSTREAM.md`) — kein Bau jetzt.
 2. Renderer-Multi wenn Extended API.
 3. Windows/macOS Compile-Gates. **`Csretro_PlatformShellOpen` Windows = offenes Plattform-Gate**.
-4. Bot-Grenze → `bots/`.
+4. Zwei Zielvorgaben quer über die UI (`docs/MENUS.md`, Abschnitt Endziel): **alles Relevante im Menü** — keine Einstellung, für die man eine `.cfg` von Hand editieren muss — und **gute Voreinstellungen ab Werk** für Grafik, Server und Bots. Die Auswahl, was relevant ist, hängt künftig am **CVar-Katalog** (Server-/Client-/Bot-CVars und Registers), nicht an einer einzelnen `.scr`. Beim Create-Game-Dialog heißt das später eigene Bot-Registerkarten (Auswahl, Anzahl, Team, Waffenfreigaben, `docs/BOTS.md`).
+5. Bot-Grenze → `bots/`. Produktiv bleibt der ReGameDLL-ZBot unverändert; Zielbild „CS Retro Bot“ (eigener Bot aus den besten Mechaniken bekannter GoldSrc-Bots, Auto-Nav/Waypoints, Bot-Konfiguration beim Servererstellen, In-Game-Bot-Menü) steht in `docs/BOTS.md` — **Planung, nicht in Arbeit**. Feature-Auswahl dort ausdrücklich interaktiv.
+6. Geplante Phasen nach 3M: **Phase 5 Installationslayout** (aufgeräumter Installationsordner, README je Ordner, Pfadtreue als harte Bedingung), **Phase 6 Mehrsprachigkeit** (ein Sprachordner und ein Leser für alles, UTF-8, EN Default + DE, Community kann Sprachen nachlegen), **Phase 7 Natives Plugin-System** (Plugin-Idee von AMXX behalten, AMXX als eigene Ebene auflösen) und **Phase 8 Faceit-Anbindung** (nur wenn kostenlos; Planung, nicht in Arbeit). `docs/PHASEN.md`. **Leitsatz:** alles wird nach und nach nativ; es gibt keinen Fremdcode im Baum, nur Fork — Übergangslösungen sind als Übergang zu kennzeichnen.
+7. **Zielbild (nicht 3M):** Dedicated Server vom laufenden Client starten — gleiche `ServerProfile`-Konfiguration wie Create Game, kein Extra-Tool. `docs/SERVER.md`, `docs/MENUS.md`.
 
 ## Nicht anfassen
 

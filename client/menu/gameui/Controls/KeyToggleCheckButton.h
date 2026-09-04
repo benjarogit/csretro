@@ -4,7 +4,7 @@
 
 class CKeyToggleCheckButton : public vgui2::CheckButton
 {
-	DECLARE_CLASS_SIMPLE(CKeyToggleCheckButton, vgui2::CheckButton);
+	DECLARE_CLASS_SIMPLE_OVERRIDE(CKeyToggleCheckButton, vgui2::CheckButton);
 
 public:
 	CKeyToggleCheckButton(vgui2::Panel *parent, const char *panelName, const char *text,

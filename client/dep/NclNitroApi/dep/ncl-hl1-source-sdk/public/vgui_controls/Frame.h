@@ -231,7 +231,7 @@ private:
 	int		m_iClientInsetX;
 	int		m_iClientInsetY;
 	int		m_iTitleTextInsetX;
-	int		m_nGripperWidth;
+	[[maybe_unused]] int		m_nGripperWidth;
 	VPANEL	m_hPreviousModal;
 	HFont	m_hCustomTitleFont;
 

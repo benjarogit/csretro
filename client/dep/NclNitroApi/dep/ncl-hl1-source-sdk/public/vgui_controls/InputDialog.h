@@ -32,7 +32,8 @@ public:
 	BaseInputDialog( vgui2::Panel *parent, const char *title );
 	~BaseInputDialog();
 
-	void DoModal( KeyValues *pContextKeyValues = NULL );
+	virtual void DoModal() { DoModal(NULL); }
+	void DoModal( KeyValues *pContextKeyValues );
 
 protected:
 	virtual void PerformLayout();

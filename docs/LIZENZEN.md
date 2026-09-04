@@ -15,6 +15,7 @@ Vor öffentlicher Distribution: vollständiger Audit. Repo bis dahin privat.
 | Server-Protokoll | NextClientServerApi | **MIT** | Notice behalten |
 | Body (A1) | Velaron/cs16-client Manifest | **GPL-2.0-or-later** + Valve HL1-SDK-Ausnahme | `client/body/LICENSE`, `ATTRIBUTION.md` |
 | GameDLL | rehlds/ReGameDLL_CS `b088984` | **MIT** + Valve-SDK in den Quellen | `server/game/` — nicht Ref-A-Kopie |
+| UI-Schrift | Noto Sans / Noto Sans Mono (Noto Project Authors) | **OFL-1.1** | `data/ui-overrides/platform/resource/csretro_fonts/OFL.txt` mitliefern; Weitergabe erlaubt, Verkauf der Fonts allein nicht |
 
 ## Referenzen
 
@@ -28,8 +29,12 @@ Vor öffentlicher Distribution: vollständiger Audit. Repo bis dahin privat.
 - Engine GPL-3 + Body GPL-2+ führt keine neue Kategorie ein, ersetzt keinen Audit.
 - Valve-HL1-SDK-Ausnahme: nur kostenlose Weitergabe; LICENSE der übernommenen Dateien behalten.
 - NextClient ohne LICENSE blockiert ein öffentliches Repo.
+- Noto Sans ist der einzige mitgelieferte Font und **unproblematisch** (OFL-1.1): keine Microsoft-Tahoma-Weitergabe, keine Steam-Font-Abhängigkeit.
 - Kombination Engine + Body + NextClient + Server ist **nicht** pauschal verteilsicher.
 - Ref-A-YaPB/ReGameDLL: nicht Teil von A1.
+- **Künftiger CS Retro Bot:** Quellbots überwiegend GPL (YaPB, SyPB, E-BOT, RealBot, joebot, …),
+  ZBot-Basis aus ReGameDLL MIT. Notiz für den späteren Audit — **kein** Gate für die Entwicklung
+  und keine Vorbedingung für Ports. Zielbild und Quellenliste: `docs/BOTS.md`.
 
 ## Third-Party Engine
 

@@ -83,8 +83,17 @@ typedef int qboolean;
 #define BIT( n )   ( 1U << ( n ))
 #define BIT64( n ) ( 1ULL << ( n ))
 
+#ifdef SetBits
+#undef SetBits
+#endif
 #define SetBits( bit_vector, bits )   (( bit_vector ) |= ( bits ))
+#ifdef ClearBits
+#undef ClearBits
+#endif
 #define ClearBits( bit_vector, bits ) (( bit_vector ) &= ~( bits ))
+#ifdef FBitSet
+#undef FBitSet
+#endif
 #define FBitSet( bit_vector, bits )   (( bit_vector ) & ( bits ))
 
 // color strings
@@ -93,9 +102,15 @@ typedef int qboolean;
 
 #if defined( __GNUC__ )
 	#if defined( __i386__ )
+		#ifdef EXPORT
+		#undef EXPORT
+		#endif
 		#define EXPORT         __attribute__(( visibility( "default" ), force_align_arg_pointer ))
 		#define GAME_EXPORT    __attribute__(( force_align_arg_pointer ))
 	#else // !defined( __i386__ )
+		#ifdef EXPORT
+		#undef EXPORT
+		#endif
 		#define EXPORT __attribute__(( visibility ( "default" )))
 	#endif // !defined( __i386__ )
 
@@ -112,6 +127,9 @@ typedef int qboolean;
 		// clang has bugged returns_nonnull for functions pointers, it's ignored and generates a warning about objective-c? O_o
 		// lcc doesn't support it at all
 		#define PFN_RETURNS_NONNULL RETURNS_NONNULL
+	#endif
+	#ifdef NORETURN
+	#undef NORETURN
 	#endif
 	#define NORETURN           __attribute__(( noreturn ))
 	#define NONNULL            __attribute__(( nonnull ))
@@ -260,23 +278,59 @@ typedef int qboolean;
 #define BigFourCC( a, b, c, d )    (((uint32_t)( a ) << 24 ) | ((uint32_t)( b ) << 16 ) | ((uint32_t)( c ) << 8 ) | (uint32_t)( d ))
 
 #if XASH_BIG_ENDIAN
+	#ifdef LittleLong
+	#undef LittleLong
+	#endif
 	#define LittleLong( x )    Swap32( x )
+	#ifdef LittleShort
+	#undef LittleShort
+	#endif
 	#define LittleShort( x )   Swap16( x )
 	#define LittleLongSW( x )  Swap32Store( x )
 	#define LittleShortSW( x ) Swap16Store( x )
+	#ifdef LittleFloat
+	#undef LittleFloat
+	#endif
 	#define LittleFloat( x )   SwapFloat( x )
+	#ifdef BigLong
+	#undef BigLong
+	#endif
 	#define BigLong( x )  ( x )
+	#ifdef BigShort
+	#undef BigShort
+	#endif
 	#define BigShort( x ) ( x )
+	#ifdef BigFloat
+	#undef BigFloat
+	#endif
 	#define BigFloat( x ) ( x )
 	#define HostFourCC( a, b, c, d ) BigFourCC( a, b, c, d )
 #else
+	#ifdef LittleLong
+	#undef LittleLong
+	#endif
 	#define LittleLong( x )  ( x )
+	#ifdef LittleShort
+	#undef LittleShort
+	#endif
 	#define LittleShort( x )  ( x )
+	#ifdef LittleFloat
+	#undef LittleFloat
+	#endif
 	#define LittleFloat( x )  ( x )
 	#define LittleLongSW( x )
 	#define LittleShortSW( x )
+	#ifdef BigLong
+	#undef BigLong
+	#endif
 	#define BigLong( x )  Swap32( x )
+	#ifdef BigShort
+	#undef BigShort
+	#endif
 	#define BigShort( x ) Swap16( x )
+	#ifdef BigFloat
+	#undef BigFloat
+	#endif
 	#define BigFloat( x ) SwapFloat( x )
 	#define HostFourCC( a, b, c, d ) LittleFourCC( a, b, c, d )
 #endif

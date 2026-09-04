@@ -1,0 +1,192 @@
+// CS-Retro Server-Optionen. Basis: Steam-cstrike/settings.scr.
+// Neue Zeilen nur mit ReGameDLL-Beleg (dlls/game.cpp, Clamp in GameDLL).
+// Bewusst weggelassen: Logging-CVars, Infinite-Ammo, Scoreboard-Feintuning.
+//
+// Format:
+//  "cvar" { "#Prompt" { TYPE [Typinfo] } { "default" } }
+//  TYPE = BOOL | NUMBER min max | STRING | LIST "Text" "Wert" …
+//  Bei NUMBER heißt -1 „keine Grenze“.
+
+VERSION 1.0
+
+DESCRIPTION SERVER_OPTIONS
+{
+	"hostname"
+	{
+		"#Valve_Hostname"
+		{ STRING }
+		{ "Counter-Strike" }
+	}
+
+	"maxplayers"
+	{
+		"#Valve_Max_Players"
+		{ NUMBER 1.000000 32.000000 }
+		{ "32.000000" }
+	}
+
+	"sv_password"
+	{
+		"#Valve_Server_Password"
+		{ STRING }
+		{ "" }
+	}
+
+	"mp_timelimit"
+	{
+		"#Cstrike_Timelimit"
+		{ NUMBER 0.000000 -1.000000 }
+		{ "20.000000" }
+	}
+
+	"mp_winlimit"
+	{
+		"#Cstrike_WinLimit"
+		{ NUMBER 0.000000 -1.000000 }
+		{ "0.000000" }
+	}
+
+	"mp_maxrounds"
+	{
+		"#Cstrike_RoundLimit"
+		{ NUMBER 0.000000 -1.000000 }
+		{ "0.000000" }
+	}
+
+	"mp_roundtime"
+	{
+		"#Cstrike_RoundTime"
+		{ NUMBER 0.000000 15.000000 }
+		{ "5.000000" }
+	}
+
+	"mp_c4timer"
+	{
+		"#CsretroGameUI_C4Timer"
+		{ NUMBER 10.000000 90.000000 }
+		{ "35.000000" }
+	}
+
+	"mp_freezetime"
+	{
+		"#Cstrike_FreezeTime"
+		{ NUMBER 0.000000 60.000000 }
+		{ "6.000000" }
+	}
+
+	"mp_buytime"
+	{
+		"#Cstrike_BuyTime"
+		{ NUMBER 0.250000 -1.000000 }
+		{ "1.500000" }
+	}
+
+	"mp_startmoney"
+	{
+		"#Cstrike_StartMoney"
+		{ NUMBER 800.000000 16000.000000 }
+		{ "800.000000" }
+	}
+
+	"mp_maxmoney"
+	{
+		"#CsretroGameUI_MaxMoney"
+		{ NUMBER 800.000000 999999.000000 }
+		{ "16000.000000" }
+	}
+
+	"mp_footsteps"
+	{
+		"#Valve_Footsteps"
+		{ BOOL }
+		{ "1" }
+	}
+
+	"mp_flashlight"
+	{
+		"#Cstrike_Allow_Flashlight"
+		{ BOOL }
+		{ "0" }
+	}
+
+	"mp_forcecamera"
+	{
+		"#Cstrike_Death_Camera_Type"
+		{
+			LIST
+			"#Cstrike_Spectate_Anyone" "0"
+			"#Cstrike_Spectate_Team_Only" "1"
+			"#Cstrike_Only_First_Person" "2"
+		}
+		{ "0.000000" }
+	}
+
+	"mp_fadetoblack"
+	{
+		"#Cstrike_Fade_To_Black"
+		{ BOOL }
+		{ "0" }
+	}
+
+	"mp_friendlyfire"
+	{
+		"#Valve_Friendly_Fire"
+		{ BOOL }
+		{ "0" }
+	}
+
+	"mp_tkpunish"
+	{
+		"#Cstrike_TK_Punish"
+		{ BOOL }
+		{ "1" }
+	}
+
+	"mp_autokick"
+	{
+		"#Cstrike_AutoKick"
+		{ BOOL }
+		{ "0" }
+	}
+
+	"mp_autoteambalance"
+	{
+		"#CsretroGameUI_AutoTeamBalance"
+		{ BOOL }
+		{ "1" }
+	}
+
+	"mp_limitteams"
+	{
+		"#CsretroGameUI_LimitTeams"
+		{ NUMBER 0.000000 20.000000 }
+		{ "2.000000" }
+	}
+
+	"mp_hostagepenalty"
+	{
+		"#Cstrike_Hostage_Penalty"
+		{ NUMBER 0.000000 -1.000000 }
+		{ "5.000000" }
+	}
+
+	"mp_playerid"
+	{
+		"#CsretroGameUI_PlayerID"
+		{
+			LIST
+			"#CsretroGameUI_PlayerID_All" "0"
+			"#CsretroGameUI_PlayerID_Team" "1"
+			"#CsretroGameUI_PlayerID_Off" "2"
+		}
+		{ "0.000000" }
+	}
+
+	"allow_spectators"
+	{
+		"#CsretroGameUI_AllowSpectators"
+		{ BOOL }
+		{ "1" }
+	}
+
+}

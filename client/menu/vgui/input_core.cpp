@@ -14,7 +14,7 @@
 
 #include "vgui_internal.h"
 #include "VPanel.h"
-#include "UtlVector.h"
+#include "tier1/utlvector.h"
 #include <KeyValues.h>
 #include "tier0/vcrmode.h"
 
@@ -28,7 +28,7 @@
 #include <vgui/MouseCode.h>
 #include "vgui/Cursor.h"
 
-#include "UtlLinkedList.h"
+#include "tier1/utllinkedlist.h"
 #include "tier0/icommandline.h"
 #include "vgui_key_translation.h"
 
@@ -150,7 +150,7 @@ private:
     InputContext_t* GetCurrentContext();
 
     const char* _keyTrans[KEY_LAST];
-    HCursor _cursorOverride;
+    [[maybe_unused]] HCursor _cursorOverride;
 
     InputContext_t m_DefaultInputContext;
     HInputContext m_hContext;

@@ -224,28 +224,6 @@ static void SDLash_MouseEvent( const SDL_MouseButtonEvent *button )
 	}
 }
 
-static void SDLash_TouchEvent( const SDL_TouchFingerEvent *touch )
-{
-	touchEventType type;
-
-	switch( touch->type )
-	{
-	case SDL_EVENT_FINGER_DOWN:
-		type = event_down;
-		break;
-	case SDL_EVENT_FINGER_UP:
-		type = event_up;
-		break;
-	case SDL_EVENT_FINGER_MOTION:
-		type = event_motion;
-		break;
-	default:
-		return;
-	}
-
-	IN_TouchEvent( type, touch->fingerID, touch->x, touch->y, touch->dx, touch->dy );
-}
-
 static void SDLash_EventHandler( const SDL_Event *ev )
 {
 	switch( ev->type )
@@ -297,16 +275,8 @@ static void SDLash_EventHandler( const SDL_Event *ev )
 	case SDL_EVENT_GAMEPAD_BUTTON_UP:
 	case SDL_EVENT_GAMEPAD_ADDED:
 	case SDL_EVENT_GAMEPAD_REMOVED:
-	case SDL_EVENT_GAMEPAD_TOUCHPAD_DOWN:
-	case SDL_EVENT_GAMEPAD_TOUCHPAD_MOTION:
-	case SDL_EVENT_GAMEPAD_TOUCHPAD_UP:
 	case SDL_EVENT_GAMEPAD_SENSOR_UPDATE:
 		// TODO:
-		break;
-	case SDL_EVENT_FINGER_DOWN:
-	case SDL_EVENT_FINGER_UP:
-	case SDL_EVENT_FINGER_MOTION:
-		SDLash_TouchEvent( &ev->tfinger );
 		break;
 	}
 }

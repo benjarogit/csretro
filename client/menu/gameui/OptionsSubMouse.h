@@ -14,7 +14,7 @@ class TextEntry;
 
 class COptionsSubMouse : public vgui2::PropertyPage
 {
-	DECLARE_CLASS_SIMPLE(COptionsSubMouse, vgui2::PropertyPage);
+	DECLARE_CLASS_SIMPLE_OVERRIDE(COptionsSubMouse, vgui2::PropertyPage);
 
 public:
 	explicit COptionsSubMouse(vgui2::Panel *parent);

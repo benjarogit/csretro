@@ -573,6 +573,8 @@ void Label::Paint()
 					x -= _textInset[0];
 					break;
 				}
+				default:
+					break;
 			}
 		}
 

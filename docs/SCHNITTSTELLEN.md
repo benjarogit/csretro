@@ -7,10 +7,12 @@ Bereiche inkludieren sich nur über diese Verträge.
 Xash lädt `cstrike/cl_dlls/client_amd64.so` (Name: `docs/PLATTFORMEN.md`) in `CL_LoadProgs`:
 
 1. `GetClientAPI(cldll_func_t *)` — einzig aktiver Tabellen-Export
-2. sonst einzelne Namen aus `cdll_exports[]`
-3. Pflicht: `pfnInitialize(&gEngfuncs, CLDLL_INTERFACE_VERSION)`
+2. vollständige Pflicht-Callback-Tabelle gemäß `engine/engine/cdll_exp.h`
+3. `pfnInitialize(&gEngfuncs, CLDLL_INTERFACE_VERSION)`
 
 Vertrag: `engine/engine/cdll_exp.h`. CS-Retro füllt das in `client/export/csretro_cdll_export.cpp` (eigenes Struct, gleiches Layout). Ref-A-`F()` ist entfernt: deren `cldll_func_t` hat `HUD_GetPlayerTeam` dort, wo Xash `pfnGetRenderInterface` erwartet.
+
+Kein Einzel-Symbol-, Secured-Client-, Mobility-, Touch-, Sound- oder Voice-Fallback. Fehlt `GetClientAPI` oder ein Pflicht-Callback, bricht der Ladevorgang mit einem Fehler ab. Zusätzliche Engine/Client-Funktionen werden erst nach einer bewussten Erweiterung dieses gemeinsamen, versionierten Produktvertrags aufgenommen.
 
 `Initialize` bekommt `gEngfuncs` direkt von Xash. Kein NitroApi-Laufzeitbind, keine Valve-`client.dll`, kein `hw.dll`, kein Steam, keine 8684-Annahme.
 

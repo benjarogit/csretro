@@ -133,6 +133,10 @@ def configure(conf):
 		conf.check(features='c cprogram', framework=i, uselib_store=i, msg='Checking for %s framework' % i)
 
 	conf.define('ENGINE_DLL', 1)
+	# CS Retro targets desktop Linux, Windows and macOS only. Keep the legacy
+	# touchscreen implementation out of the product build; input.h supplies the
+	# compile-time no-op surface required by shared engine code.
+	conf.define('XASH_NO_TOUCH', 1)
 
 	if conf.options.FFMPEG:
 		pkgconf_args = '--cflags' if conf.options.FFMPEG_DLOPEN else '--cflags --libs'

@@ -55,10 +55,9 @@ void IN_SetMouseGrab( qboolean set );
 
 extern convar_t m_yaw;
 extern convar_t m_pitch;
-extern convar_t touch_enable;
 
 //
-// in_touch.c
+// Desktop-only no-touch surface used by shared engine code.
 //
 typedef enum
 {
@@ -67,7 +66,6 @@ typedef enum
 	event_motion
 } touchEventType;
 
-#if XASH_NO_TOUCH
 static inline void Touch_Draw( void ) { }
 static inline void Touch_SetClientOnly( byte state ) { }
 static inline void Touch_RemoveButton( const char *name, qboolean privileged ) { }
@@ -83,23 +81,6 @@ static inline int IN_TouchEvent( touchEventType type, int fingerID, float x, flo
 static inline void Touch_KeyEvent( int key, int down ) { }
 static inline qboolean Touch_WantVisibleCursor( void ) { return false; }
 static inline void Touch_NotifyResize( void ) { }
-#else
-void Touch_Draw( void );
-void Touch_SetClientOnly( byte state );
-void Touch_RemoveButton( const char *name, qboolean privileged );
-void Touch_HideButtons( const char *name, unsigned char hide, qboolean privileged );
-void Touch_AddClientButton( const char *name, const char *texture, const char *command, float x1, float y1, float x2, float y2, byte *color, int round, float aspect, int flags );
-void Touch_AddDefaultButton( const char *name, const char *texturefile, const char *command, float x1, float y1, float x2, float y2, byte *color, int round, float aspect, int flags );
-void Touch_WriteConfig( void );
-void Touch_Init( void );
-void Touch_Shutdown( void );
-void Touch_GetMove( float * forward, float *side, float *pitch, float *yaw );
-void Touch_ResetDefaultButtons( void );
-int IN_TouchEvent( touchEventType type, int fingerID, float x, float y, float dx, float dy );
-void Touch_KeyEvent( int key, int down );
-qboolean Touch_WantVisibleCursor( void );
-void Touch_NotifyResize( void );
-#endif
 
 //
 // in_osk.c

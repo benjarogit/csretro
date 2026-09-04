@@ -22,6 +22,8 @@ Alle Komponenten einer Installation haben **dieselbe** Architektur: Engine, Clie
 - Engine ohne Waf-`-8`
 - Mischung 32/64 im selben Prozess
 
+Der Engine-Produktbuild definiert `XASH_NO_TOUCH=1`; gemeinsam genutzter Engine-Code erhält nur Compile-time-No-Ops. Es gibt keinen Mobility-/Touch-Callback im CS-Retro-Client-ABI und keinen Runtime-Fallback auf diese Pfade.
+
 Linux-aarch64 ist 64-Bit und nicht verboten, aber **kein** Produkt-Desktopziel. Toolchain-Datei bleibt optional.
 
 ## Build

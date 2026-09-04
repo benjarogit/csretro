@@ -290,16 +290,15 @@ void CL_ClipPMoveToEntity( physent_t *pe, const vec3_t start, vec3_t mins, vec3_
 {
 	Assert( tr != NULL );
 
-	if( clgame.dllFuncs.pfnClipMoveToEntity != NULL )
-	{
-		// do custom sweep test
-		clgame.dllFuncs.pfnClipMoveToEntity( pe, start, mins, maxs, end, tr );
-	}
-	else
-	{
-		// function is missed, so we didn't hit anything
-		tr->allsolid = false;
-	}
+	// CS Retro's single owned client ABI has no custom-solid sweep callback.
+	// The game does not publish SOLID_CUSTOM client entities, so preserve the
+	// previous missing-callback behavior without probing an optional extension.
+	(void)pe;
+	(void)start;
+	(void)mins;
+	(void)maxs;
+	(void)end;
+	tr->allsolid = false;
 }
 
 static void CL_CopyEntityToPhysEnt( physent_t *pe, entity_state_t *state, qboolean visent )

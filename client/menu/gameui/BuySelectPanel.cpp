@@ -265,6 +265,11 @@ public:
 		StyleButtons();
 		BindHover();
 		m_pageIsMain = FindChildByName("pistols") != nullptr;
+		// Steam-MainBuyMenu.res hat kein BuyMenu/Frame mit wide/tall (anders
+		// als TeamMenu/ClassMenu). Default-Panel ist 64×24 — Kinder bei ypos
+		// 116+ werden geclippt: Overlay-Dim ohne Buttons. Kinder stehen in
+		// Viewport-Koordinaten, also Panel = Overlay (Ref B: Buy-Wizard).
+		FitToParent();
 		Open(validSlots);
 		return HasBuyButtons();
 	}
@@ -284,6 +289,7 @@ public:
 
 	void Open(int validSlots)
 	{
+		FitToParent();
 		m_slots = validSlots;
 		if (m_slots == 0)
 			m_slots = MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 |
@@ -293,6 +299,39 @@ public:
 		MoveToFront();
 		RequestFocus();
 		LogOpen();
+	}
+
+	void FitToParent()
+	{
+		Panel *p = GetParent();
+		if (!p)
+			return;
+		int w = 0, h = 0;
+		p->GetSize(w, h);
+		if (w < 1 || h < 1)
+			return;
+		SetBounds(0, 0, w, h);
+	}
+
+	bool ButtonsOnPanel()
+	{
+		const int pw = GetWide();
+		const int ph = GetTall();
+		if (pw < 400 || ph < 300)
+			return false;
+		int checked = 0;
+		for (int i = 0; i < GetChildCount(); ++i)
+		{
+			auto *btn = dynamic_cast<Button *>(GetChild(i));
+			if (!btn || !btn->IsVisible())
+				continue;
+			int x = 0, y = 0, w = 0, h = 0;
+			btn->GetBounds(x, y, w, h);
+			if (x < 0 || y < 0 || x + w > pw || y + h > ph)
+				return false;
+			++checked;
+		}
+		return checked >= 2;
 	}
 
 	void ApplySlots()
@@ -516,6 +555,12 @@ public:
 		BaseClass::OnKeyCodeTyped(code);
 	}
 
+	void PerformLayout() override
+	{
+		FitToParent();
+		BaseClass::PerformLayout();
+	}
+
 private:
 	int m_type = MENU_BUY;
 	int m_team = TEAM_TERRORIST;
@@ -719,9 +764,18 @@ private:
 
 	void LogOpen()
 	{
+		int px = 0, py = 0, pw = 0, ph = 0;
+		GetBounds(px, py, pw, ph);
+		int bx = -1, by = -1, bw = 0, bh = 0;
+		if (Panel *pistols = FindChildByName("pistols"))
+			pistols->GetBounds(bx, by, bw, bh);
+		else if (Panel *glock = FindChildByName("Glock18"))
+			glock->GetBounds(bx, by, bw, bh);
 		Menu_Con("CSRetro-VGUI: %s (%d)", m_res, m_type);
 		Menu_Con("CSRETRO_BUY_VGUI open type=%d team=%d main=%d buttons=%d slots=%d",
 			m_type, m_team, m_pageIsMain ? 1 : 0, VisibleButtonCount(), m_slots);
+		Menu_Con("CSRETRO_BUY_LAYOUT panel=%d,%d %dx%d child=%d,%d %dx%d fit=%d",
+			px, py, pw, ph, bx, by, bw, bh, ButtonsOnPanel() ? 1 : 0);
 	}
 };
 
@@ -766,6 +820,12 @@ public:
 			SetBounds(0, 0, w, h);
 		}
 		BaseClass::PerformLayout();
+		if (m_buy)
+		{
+			int w = 0, h = 0;
+			GetSize(w, h);
+			m_buy->SetBounds(0, 0, w, h);
+		}
 	}
 
 	void OnKeyCodeTyped(KeyCode code) override
@@ -853,6 +913,7 @@ bool BuySelect_Show(Panel *root, int menuType, int validSlots)
 	g_overlay->SetBounds(0, 0, w, h);
 	g_overlay->SetVisible(true);
 	g_overlay->MoveToFront();
+	g_panel->Open(validSlots);
 	g_overlay->RequestFocus();
 	if (gEng.pfnSetKeyDest)
 	{
@@ -974,6 +1035,11 @@ void BuySelect_GateTick()
 		{
 			if (hold < 30)
 				return;
+			if (!g_panel->ButtonsOnPanel())
+			{
+				failDone("layout clip");
+				return;
+			}
 			const int title = g_panel->LabelLooksLocalized("Title") ? 1 : 0;
 			const int pistols = g_panel->LabelLooksLocalized("pistols") ? 1 : 0;
 			const int shotguns = g_panel->LabelLooksLocalized("shotguns") ? 1 : 0;
@@ -1068,6 +1134,11 @@ void BuySelect_GateTick()
 		{
 			if (hold < 20)
 				return;
+			if (!g_panel->ButtonsOnPanel())
+			{
+				failDone("pistol layout clip");
+				return;
+			}
 			const int title = g_panel->LabelLooksLocalized("Title") ? 1 : 0;
 			const int glock = g_panel->LabelLooksLocalized("Glock18") ? 1 : 0;
 			const int raw = g_panel->AnyRawToken() ? 1 : 0;

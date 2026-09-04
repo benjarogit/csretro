@@ -173,6 +173,8 @@ run_one() {
 	}
 
 	rg -q 'CSRETRO_BUY_VGUI open type=28' "${ALL}" || fail "Buy-VGUI nicht geöffnet ${W}x${H}"
+	rg -q 'CSRETRO_BUY_LAYOUT .*fit=1' "${ALL}" \
+		|| fail "Buy-Panel clippt die Buttons (64x24 ohne Root-Maße) ${W}x${H}"
 	rg -q 'CSRETRO_BUY_GATE_OPEN .*visible=1 main=1' "${ALL}" || fail "Buy-Gate-Audit fehlt ${W}x${H}"
 	rg -q 'CSRETRO_BUY_GATE_OPEN .*title=1 pistols=1 shotguns=1 rifles=1 cancel=1 raw=0' "${ALL}" \
 		|| fail "Localization der Buy-Hauptseite fehlt ${W}x${H}"

@@ -2,6 +2,8 @@
 
 #include "BuySelectPanel.h"
 #include "Controls/MenuEngine.h"
+#include "InGameViewportLook.h"
+#include "RadioSelectPanel.h"
 #include "TeamSelectPanel.h"
 
 #include <tier1/KeyValues.h>
@@ -110,12 +112,39 @@ public:
 
 	void SetHost(CClassSelectPanel *host) { m_host = host; }
 	void SetPreviewName(const char *name) { m_preview = name ? name : ""; }
+	void SetAccent(Color accent)
+	{
+		m_accent = accent;
+		ApplyLook();
+	}
+
+	void ApplySchemeSettings(IScheme *pScheme) override
+	{
+		BaseClass::ApplySchemeSettings(pScheme);
+		ApplyLook();
+	}
+
+	void PerformLayout() override
+	{
+		BaseClass::PerformLayout();
+		ApplyLook();
+	}
 
 	void OnCursorEntered() override;
 
 private:
 	CClassSelectPanel *m_host = nullptr;
 	std::string m_preview;
+	Color m_accent = InGameViewportLook::Text();
+
+	void ApplyLook()
+	{
+		InGameViewportLook::StyleCardButton(this, m_accent);
+		SetContentAlignment(Label::a_west);
+		SetTextInset(16, 0);
+		SetFgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::Text() : m_accent);
+		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::CardArmed() : InGameViewportLook::Card());
+	}
 };
 
 class CClassSelectPanel : public EditablePanel
@@ -160,7 +189,21 @@ public:
 		MoveToFront();
 		RequestFocus();
 		ShowDefaultPreview();
+		LayoutFamily();
 		LogOpen();
+	}
+
+	void ApplySchemeSettings(IScheme *pScheme) override
+	{
+		BaseClass::ApplySchemeSettings(pScheme);
+		SetPaintBackgroundEnabled(false);
+		StyleButtons();
+	}
+
+	void LayoutFamily()
+	{
+		StyleButtons();
+		RelayoutVisibleButtons();
 	}
 
 	void ApplySlots()
@@ -275,6 +318,8 @@ public:
 	Panel *CreateControlByName(const char *controlName) override
 	{
 		if (controlName && !strcasecmp(controlName, "MouseOverPanelButton"))
+			return new CClassHoverButton(nullptr, nullptr);
+		if (controlName && !strcasecmp(controlName, "Button"))
 			return new CClassHoverButton(nullptr, nullptr);
 		return BaseClass::CreateControlByName(controlName);
 	}
@@ -422,32 +467,28 @@ private:
 
 	void StyleButtons()
 	{
-		IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
-		const Color fg = GetSchemeColor("BrightControlText", Color(255, 176, 0, 255), sch);
-		const Color armed = GetSchemeColor("BrightBaseText", Color(255, 220, 80, 255), sch);
-		const Color bg(0, 0, 0, 0);
-		const Color armedBg = GetSchemeColor("SelectionBG", Color(255, 176, 0, 100), sch);
-
+		const Color accent = (m_type == MENU_CLASS_CT) ? InGameViewportLook::CT()
+							      : InGameViewportLook::Terror();
 		for (int i = 0; i < GetChildCount(); ++i)
 		{
 			auto *btn = dynamic_cast<Button *>(GetChild(i));
 			if (!btn)
 				continue;
-			btn->SetPaintBackgroundEnabled(true);
-			btn->SetDefaultColor(fg, bg);
-			btn->SetArmedColor(armed, armedBg);
-			btn->SetDepressedColor(armed, armedBg);
-			btn->SetDefaultBorder(nullptr);
-			btn->SetDepressedBorder(nullptr);
-			btn->SetKeyFocusBorder(nullptr);
+			if (auto *look = dynamic_cast<CClassHoverButton *>(btn))
+				look->SetAccent(accent);
+			else
+				InGameViewportLook::StyleCardButton(btn, accent);
 			btn->SetContentAlignment(Label::a_west);
-			btn->SetButtonActivationType(Button::ACTIVATE_ONPRESSED);
+			btn->SetTextInset(16, 0);
 		}
-
-		if (auto *title = dynamic_cast<Label *>(FindChildByName("joinClass")))
-			title->SetFgColor(fg);
+		InGameViewportLook::StyleTitle(dynamic_cast<Label *>(FindChildByName("joinClass")));
 		if (auto *info = dynamic_cast<Label *>(FindChildByName("classInfoLabel")))
-			info->SetFgColor(fg);
+			info->SetFgColor(InGameViewportLook::TextDim());
+		if (Panel *box = FindChildByName("ClassInfo"))
+		{
+			box->SetPaintBackgroundEnabled(true);
+			box->SetBgColor(InGameViewportLook::Card());
+		}
 	}
 
 	void BindHover()
@@ -458,7 +499,7 @@ private:
 			info->SetPaintBackgroundEnabled(true);
 			info->SetMouseInputEnabled(false);
 			IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
-			info->SetBgColor(GetSchemeColor("WindowBG", Color(0, 0, 0, 200), sch));
+			info->SetBgColor(InGameViewportLook::Card());
 			int w = 0, h = 0;
 			info->GetSize(w, h);
 			m_preview = new ImagePanel(info, "ClassPreview");
@@ -508,30 +549,52 @@ private:
 
 	void RelayoutVisibleButtons()
 	{
-		std::vector<Panel *> visible;
-		visible.reserve(8);
+		int w = 0, h = 0;
+		GetSize(w, h);
+		if (w < 200 || h < 160)
+			return;
+		const int pad = w / 18;
+		const int gap = h / 50;
+		const int titleH = h / 12;
+		if (auto *title = FindChildByName("joinClass"))
+		{
+			title->SetBounds(pad, h / 24, w - pad * 2, titleH);
+			if (auto *lab = dynamic_cast<Label *>(title))
+				lab->SetContentAlignment(Label::a_west);
+		}
+
+		std::vector<Panel *> list;
+		Panel *cancel = nullptr;
 		const SlotBind *binds = Binds();
 		const int n = BindCount();
 		for (int i = 0; i < n; ++i)
 		{
 			Panel *child = FindChildByName(binds[i].name);
-			if (child && child->IsVisible())
-				visible.push_back(child);
+			if (!child || !child->IsVisible())
+				continue;
+			if (binds[i].slot == 10)
+			{
+				cancel = child;
+				continue;
+			}
+			list.push_back(child);
 		}
-		if (visible.empty())
-			return;
-		int x = 0, y = 0, w = 0, h = 0;
-		visible[0]->GetBounds(x, y, w, h);
-		int gap = 12;
-		if (IsProportional() && scheme())
-			gap = scheme()->GetProportionalScaledValue(12);
-		const int step = h > 0 ? h + gap : 32;
-		for (size_t i = 0; i < visible.size(); ++i)
-		{
-			int cx = 0, cy = 0, cw = 0, ch = 0;
-			visible[i]->GetBounds(cx, cy, cw, ch);
-			visible[i]->SetPos(cx, y + static_cast<int>(i) * step);
-		}
+		const int listW = w * 38 / 100;
+		const int listY = h / 24 + titleH + gap;
+		const int listH = h - listY - pad;
+		const int rowH = list.empty() ? 32 : (listH - gap * static_cast<int>(list.size())) /
+			static_cast<int>(list.size());
+		for (size_t i = 0; i < list.size(); ++i)
+			list[i]->SetBounds(pad, listY + static_cast<int>(i) * (rowH + gap), listW, rowH);
+		if (cancel)
+			cancel->SetBounds(pad, h - pad - h / 14, listW, h / 14);
+
+		const int infoX = pad + listW + pad;
+		const int infoW = w - infoX - pad;
+		if (Panel *info = FindChildByName("ClassInfo"))
+			info->SetBounds(infoX, listY, infoW, listH);
+		if (Panel *lab = FindChildByName("classInfoLabel"))
+			lab->SetBounds(infoX, listY, infoW, titleH / 2);
 	}
 
 	void LogOpen()
@@ -578,7 +641,10 @@ public:
 	void ApplySchemeSettings(IScheme *pScheme) override
 	{
 		BaseClass::ApplySchemeSettings(pScheme);
-		SetBgColor(GetSchemeColor("ViewportBG", Color(0, 0, 0, 200), pScheme));
+		SetPaintBackgroundEnabled(true);
+		SetPaintBorderEnabled(false);
+		SetBorder(nullptr);
+		SetBgColor(InGameViewportLook::OverlayBg());
 	}
 
 	void PerformLayout() override
@@ -590,6 +656,13 @@ public:
 			SetBounds(0, 0, w, h);
 		}
 		BaseClass::PerformLayout();
+		if (m_cls)
+		{
+			int w = 0, h = 0;
+			GetSize(w, h);
+			m_cls->SetBounds(0, 0, w, h);
+			m_cls->LayoutFamily();
+		}
 	}
 
 	void OnKeyCodeTyped(KeyCode code) override
@@ -678,7 +751,8 @@ void ClassSelect_Hide()
 		g_panel->SetVisible(false);
 	if (g_overlay)
 		g_overlay->SetVisible(false);
-	if (g_keyDestPushed && !gMenuVisible && !TeamSelect_IsActive() && !BuySelect_IsActive())
+	if (g_keyDestPushed && !gMenuVisible && !TeamSelect_IsActive() && !BuySelect_IsActive() &&
+		!RadioSelect_IsActive())
 	{
 		if (gEng.pfnSetKeyDest)
 			gEng.pfnSetKeyDest(KEY_DEST_GAME);

@@ -370,9 +370,14 @@ int DLLEXPORT HUD_Key_Event( int down, int keynum, const char *pszCurrentBinding
 {
 	if( g_pMenu && g_pMenu->IsActive() && !g_pMenu->IsMainMenuActive() )
 	{
-		g_pMenu->Key( keynum, down );
-		if( down && ( keynum == K_ESCAPE || ( keynum >= '0' && keynum <= '9' ) ||
-			( keynum >= K_MOUSE1 && keynum <= K_MOUSE5 ) ) )
+		const bool slotKey = ( keynum == K_ESCAPE || ( keynum >= '0' && keynum <= '9' ) );
+		const bool mouse = ( keynum >= K_MOUSE1 && keynum <= K_MOUSE5 );
+		const bool modal = g_pMenu->IsModalInGame();
+		if( modal || slotKey )
+			g_pMenu->Key( keynum, down );
+		if( down && slotKey )
+			return 0;
+		if( modal && down && mouse )
 			return 0;
 	}
 

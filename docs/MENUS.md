@@ -30,7 +30,21 @@ Verbindlich seit 2026-09-03, **korrigiert 2026-09-03 (Abend):** Create-Game mit 
 | **Dialog-Chrome (Standard-Optik)** | **Counter-Strike: Source:** genau **eine** gerundete Hülle (`Frame`, dezent ~8px, dünner heller Rand, durchscheinendes Olive). Alles innen — Tab-Inhalt, Listen, Settings-Liste, Buttons, Combos — **scharf, 90°**, flaches dunkles Rechteck, dünne 1px-Kante. Aktiver Tab geht in die Inhaltsfläche über. |
 | **Nicht** | Nibble/Glass-Karte an Kind-Panels · 14px-Ball plus innere 8px-Kurve · Orange-Theme · Glow · pixelgenaue 2003-Kopie · fremdes zweites Design-System · Hauptmenü auf CS:S-Versalien umbauen |
 
-Feeling bleibt CS 1.6. Aussehen der **Fenster** ist die CS:Source-Hierarchie — dieselbe Sprache auf Create Game, Find Servers und Options.
+Feeling bleibt CS 1.6. Aussehen der **Fenster** ist die CS:Source-Hierarchie — dieselbe Sprache auf Create Game, Find Servers und Options. Diese Desktop-Optik ist seit **2026-09-04 visuell abgenommen** und bleibt. Sie gilt **nicht** für In-Game-Menüs.
+
+### In-Game-Familien (nicht eine Optik für alles)
+
+Team/Class/Buy sind **eine** Familie (Steam-`.res`, Viewport). Radio ist eine **andere** (HUD-Befehlsliste). Spectator ist wieder eine **eigene** Fläche (Rahmen um die Welt). Scoreboard kommt danach und bleibt getrennt.
+
+| Familie | Wer | Jetzt | Nicht |
+|---------|-----|-------|--------|
+| **Desktop-GameUI** | Hauptmenü, **Pause** (Escape im Spiel), Options, Create Game, LAN-Browser, Konsole | CS:Source-Frame, TrackerScheme — **bleibt**. Pause = Welt unscharf + mittig „Pausiert“, dieselbe Liste zentriert | In-Game-Orange, Titelseiten-PNG als Pause, Team-Viewport |
+| **Team / Class / Buy** | Wahl- und Kauf-Viewport | Steam-`.res` bleibt Funktion; Look: dunkle Karten, Team Split-T/CT, Buy-Raster, Welt durchscheinend (`InGameViewportLook`) | Radio-Karte, GameUI-Frame, Orange-ClientScheme |
+| **Radio** | `radio1`/`radio2`/`radio3` | Kompakte HUD-Karte, `titles.txt`, Bewegung bleibt (`KEY_DEST_GAME`). Anreiz 2026-09-04: dunkle Liste, nummeriert, Welt sichtbar | Team-Viewport, Bewegungssperre, GameUI-Frame |
+| **Spectator** | Zuschauermodus | Grundfunktion + erste Look-Scheibe (`HudFrameLook`: Rahmen, T/CT-Akzent oben). Feinschliff später. Kein Faceit-1:1 | Team-Viewport, `KEY_DEST_MENU`, Steam-`.res` als Overlay, Radar/Veto/Avatare/Waffen-Icons/Rundenhistorie |
+| **Scoreboard** | TAB / `+showscores` | Grundfunktion + erste Look-Scheibe (Tafel, Gold/Blau-Kopf, Name/K/D/Ping). Feinschliff später | Spectator-Klon, Team-Viewport, `KEY_DEST_MENU` |
+
+Abguck für In-Game-Modernisierung: Steam-`.res` + Ref B (Team/Class/Buy/Spectator-Felder), `TEMP_EXTRA/hl2_src` (CS:S VGUI), `TEMP_EXTRA/cstrike15_src` (CS:GO Scaleform `RadioPanel` / Team/Buy). **Inhaber-Anreize 2026-09-04 (Idee, kein Pixel-1:1):** Radio = kompakte dunkle Listen (Bild 1); Team = moderne Split-T/CT-Fläche mit Modellen/Listen (Bilder 2–3); Buy = Kategorie-Raster mit Preis/Icon, Welt durchscheinend (Bild 4); Spectator = dunkler Rahmen, Scores/Timer oben, Spielerdaten am Rand (Bild 5) — ohne Map-Veto, Avatare, Waffen-Icons, Radar, 30-Runden-Historie, Turnier-Branding. Selektive Ideen, kein Engine-Merge, kein CS2-Port.
 
 Umsetzungsweg: die Schicht entsteht **im VGUI2-Core und im Scheme**, nicht als Pixelhack pro Dialog. `Frame::PaintBackground` zeichnet die einzige Rundung + Outline. `CreateGameSettingsList` und `ListPanel` sind rechteckig (Padding bleibt). `Panel::DrawBox` Type 2 ohne Ecktexturen fällt auf ein scharfes Rechteck zurück, nicht auf Nibble.
 
@@ -103,11 +117,11 @@ Ziel: **NextClient-GameUI-Verhalten → native CS-Retro/Xash-Desktop-UI.**
 
 ## Jetzt vs. Bootstrap (3C)
 
-| Zustand | Hauptmenü | In-Game Team/Klasse/Buy/Radio |
+| Zustand | Hauptmenü / Pause | In-Game Team/Klasse/Buy/Radio |
 |---------|-----------|-------------------------------|
 | **3C-Baseline** (Release `v0.1.5`, bleibt gültig) | Xash-MainUI (`GetMenuAPI`, kein `CreateInterface`) | GoldSrc-`ShowMenu` + `titles.txt` (`_vgui_menus` 0) |
 | **3M-Ziel** | CS-Retro-Menü-Lib, `GameMenu.res` + **TrackerScheme** (GameUI) | VGUI-Viewport über `GameMenuExports001` |
-| **3M jetzt** (dieser Host) | CS-Retro-Lib (`-menulib menu_amd64.so`) | Team/Class/Buy = echte VGUI2 (`Teammenu.res`, `Classmenu_*.res`, `Buy*.res`); Radio = `ShowMenu` |
+| **3M jetzt** (dieser Host) | CS-Retro-Lib (`-menulib menu_amd64.so`); Pause = dieselbe Liste über der Welt | Team/Class/Buy = VGUI2-`.res`-Viewport (Modernisierung offen); Radio = eigene HUD-Karte; Spectator = Rahmen; Scoreboard = mittige Tafel |
 
 `ShowMenu` wird **nicht gelöscht**. Es bleibt Kompatibilität für serverseitige Textmenüs, Plugins, später AMXX/Metamod. Es ist **nicht** die primäre CS-Retro-Team-/Buy-/Radio-Oberfläche.
 
@@ -127,7 +141,7 @@ Xash-MainUI ist nur Bootstrap, bis die eigene Lib lädt.
 - In-Game: `GameMenuExports001` auf demselben Core
 - V1-Runtime-PoC **bestanden** unter Xash (zeichnen + Maus/Tastatur/TextEntry/Tab/Escape/Resize, FreeType-Glyphen): `./scripts/vgui-v1-poc-runtime.sh`
 
-V1 zeichnet bereits. Der Text-/Rect-Bootstrap in `client/menu/` bleibt nur **pro UI-Bereich**, bis die jeweilige echte VGUI2-Rekonstruktion ihn ersetzt. **Hauptmenü, Options, Create Game, LAN-Server-Browser, Team-, Class- und Buy-Wahl sind ersetzt**; Radio bleibt `ShowMenu`. Der Browser hat bewusst kein Internet-Tab — eigene Serverliste kommt später (`docs/SERVER.md`). Kein paralleles zweites GUI-Framework.
+V1 zeichnet bereits. Der Text-/Rect-Bootstrap in `client/menu/` bleibt nur **pro UI-Bereich**, bis die jeweilige echte VGUI2-Rekonstruktion ihn ersetzt. **Hauptmenü, Pause, Options, Create Game, LAN-Server-Browser, Team-, Class-, Buy- und Radio-Wahl sind ersetzt.** Der Browser hat bewusst kein Internet-Tab — eigene Serverliste kommt später (`docs/SERVER.md`). Kein paralleles zweites GUI-Framework.
 
 Der Interim-Pfad `Menu_DrawText` → `pfnDrawConsoleString` zeichnet mit dem **Engine-Konsolenfont**, nicht mit der UI-Schrift. Jeder Bereich, der noch darüber läuft, sieht deshalb anders aus als der Rest — das ist der sichtbare Rest-Indikator, kein Font-Bug.
 
@@ -140,7 +154,7 @@ Der Interim-Pfad `Menu_DrawText` → `pfnDrawConsoleString` zeichnet mit dem **E
 
 Nicht distributieren. Steam bleibt read-only Quelle.
 
-**Kodierung:** Valve-Localization (`resource/*_english.txt`) ist **UTF-16LE**. Overrides in `data/ui-overrides/` müssen das behalten — eine als UTF-8 eingefügte Zeile macht die ganze Datei unlesbar, ohne dass die UI abstürzt; sichtbar nur an `CSRETRO_LOC_<tag> FAIL` im Log. `.res`-Dateien sind dagegen ASCII/UTF-8.
+**Kodierung:** Valve-Localization (`resource/*_english.txt`) ist **UTF-16LE**. Overrides in `data/ui-overrides/` müssen das behalten — eine als UTF-8 eingefügte Zeile macht die ganze Datei unlesbar, ohne dass die UI abstürzt; sichtbar an `CSRETRO_LOC_<tag> FAIL` oder `CSRETRO_LOC_MISSING` (UTF-8 im BASEDIR überschattet die gültige GameData-Datei). Play/Isolate/Bootstrap wandeln UTF-8-Kopien nach UTF-16LE. `.res`-Dateien sind dagegen ASCII/UTF-8.
 
 ## Serverprofil
 
@@ -194,7 +208,7 @@ braucht die Slots als Zahl. `Bots` und `Modules` folgen den geplanten Phasen (`d
 2. Lokale Steam-CS-1.6-Resources — Optik
 3. Ref B — Menü-/VGUI-Referenz bereits in Phase 3M (In-Game-Verhalten / `.res`-Mapping); gezielte zusätzliche Feature-Ports später
 4. [DeadZoneLuna/css-community](https://github.com/DeadZoneLuna/css-community) — CS:Source In-Game-VGUI-Vergleich (Class/Buy; Team bei uns schon `CTeamSelectPanel`). Beobachten, nicht importieren; nicht Engine-Ziel. `docs/UPSTREAM.md`
-5. `TEMP_EXTRA/` (lokal, nicht im Git) — Source SDK 2013 (`hl2_src`, CS:Source VGUI/HUD-Radar) und CS:GO cstrike15 (`cstrike15_src`, Scaleform-Radar/Team). Abgucken für Menüs und Features nach 3M; andere Engines, kein Vendor. `docs/UPSTREAM.md`
+5. `TEMP_EXTRA/` (lokal, nicht im Git) — Source SDK 2013 (`hl2_src`, CS:Source Team/Buy-VGUI) und CS:GO cstrike15 (`cstrike15_src`, Scaleform `RadioPanel`/Team/Buy/Radar). Abgucken **jetzt** für In-Game-Familien (Radio ≠ Team), Radar nach 3M. Andere Engines, kein Vendor. `docs/UPSTREAM.md`
 6. Xash MenuAPI / MenuFactory
 7. `kungfulon/fwgs-vgui2-support` — nur Forschung (`docs/UPSTREAM.md`)
 8. Ghidra auf lokalen Original-Binaries — nur wenn 1–7 nicht reicht

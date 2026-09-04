@@ -28,9 +28,24 @@ GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${CSRETRO_SMOKE_MAP:-de_dust}")"
 [[ -f "${GAMEDLL}" ]] || { echo "play: GameDLL fehlt — ./scripts/build-gamedll.sh" >&2; exit 1; }
 [[ -f "${MENU}" ]] || { echo "play: Menü fehlt — ./scripts/build-menu.sh" >&2; exit 1; }
 
-mkdir -p "${RUN}/cstrike/dlls" "${RUN}/cstrike/cl_dlls" "${RUN}/valve" "${RUN}/cfg" "${RUN}/cstrike/resource"
-cp -a "${ROOT}/data/ui-overrides/cstrike/resource/csretro_gameui_english.txt" \
-	"${RUN}/cstrike/resource/csretro_gameui_english.txt" 2>/dev/null || true
+mkdir -p "${RUN}/cstrike/dlls" "${RUN}/cstrike/cl_dlls" "${RUN}/valve" "${RUN}/cfg" "${RUN}/cstrike/resource" "${RUN}/logs"
+csretro_stage_valve_loc \
+	"${ROOT}/data/ui-overrides/cstrike/resource/csretro_gameui_english.txt" \
+	"${RUN}/cstrike/resource/csretro_gameui_english.txt"
+for play_txt in autobuy.txt rebuy.txt; do
+	if [[ -f "${ROOT}/data/ui-overrides/cstrike/${play_txt}" ]]; then
+		cp -a "${ROOT}/data/ui-overrides/cstrike/${play_txt}" "${RUN}/cstrike/${play_txt}"
+	fi
+done
+PLAY_STAMP="$(date +%Y%m%d-%H%M%S)"
+PLAY_LOG="${RUN}/logs/play-${PLAY_STAMP}.log"
+ln -sfn "play-${PLAY_STAMP}.log" "${RUN}/logs/play-latest.log"
+ln -sfn "logs/play-${PLAY_STAMP}.log" "${RUN}/play.log"
+# Ab hier: Terminal und Session-Log gleichzeitig.
+exec > >(tee -a "${PLAY_LOG}") 2>&1
+echo "CSRETRO_PLAY_LOG session=${PLAY_LOG}"
+echo "CSRETRO_PLAY_LOG latest=${RUN}/logs/play-latest.log"
+echo "CSRETRO_PLAY_LOG engine=${RUN}/engine.log"
 if [[ "${CSRETRO_PLAY_KEEP_FIXTURES:-0}" != 1 ]]; then
 	csretro_play_sanitize_usercfg "${RUN}" "${GAMEDATA}"
 fi
@@ -72,19 +87,25 @@ export CSRETRO_MENU_SHA256="${MENU_SHA}"
 export CSRETRO_RUN_DIR="${RUN}"
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-x11}"
 
-EXTRA_ARGS=()
+EXTRA_ARGS=(-log)
 if [[ -n "${CSRETRO_KEYBOARD_CAPTURE_DEBUG:-}" && "${CSRETRO_KEYBOARD_CAPTURE_DEBUG}" != "0" ]]; then
 	# Ensure Con_Printf + engine.log; capture also prints to stderr.
-	EXTRA_ARGS+=(-dev 2 -log)
+	EXTRA_ARGS+=(-dev 2)
 	echo "CSRETRO_PLAY: capture debug on — watch stderr for [CSRETRO_KB] and ${RUN}/engine.log"
 fi
 
 cd "${RUN}"
 # Absolute -menulib path so Xash cannot pick a stale relative/other menu.
-exec ./xash3d -game cstrike \
+set +e
+./xash3d -game cstrike \
 	-dll cstrike/dlls/cs_amd64.so \
 	-clientlib cstrike/cl_dlls/client_amd64.so \
 	-menulib "${MENU_ABS}" \
 	-windowed -width "${WIDTH}" -height "${HEIGHT}" \
 	"${EXTRA_ARGS[@]}" \
 	"$@"
+rc=$?
+set -e
+echo "CSRETRO_PLAY_EXIT ${rc}"
+echo "CSRETRO_PLAY_LOG wrote ${PLAY_LOG}"
+exit "${rc}"

@@ -85,10 +85,47 @@ void CHudSpectatorGui::Shutdown()
 int CHudSpectatorGui::Draw( float flTime )
 {
 	if( !g_iUser1 )
+	{
+		if( g_pMenu )
+		{
+			SpectatorHudState s;
+			memset( &s, 0, sizeof( s ) );
+			g_pMenu->SetSpectatorHud( &s );
+		}
 		return 1;
+	}
 
-	// function name says it
 	CalcAllNeededData( );
+
+	if( g_pMenu )
+	{
+		SpectatorHudState s;
+		memset( &s, 0, sizeof( s ) );
+		s.observerMode = g_iUser1;
+		s.targetIndex = g_iUser2;
+		s.tScore = label.m_iTerrorists;
+		s.ctScore = label.m_iCounterTerrorists;
+		if( g_iUser2 > 0 && g_iUser2 < MAX_PLAYERS )
+		{
+			s.playerTeam = g_PlayerExtraInfo[g_iUser2].teamnumber;
+			hud_player_info_t info;
+			GetPlayerInfo( g_iUser2, &info );
+			if( info.name )
+				strncpy( s.player, info.name, sizeof( s.player ) - 1 );
+			s.health = g_PlayerExtraInfo[g_iUser2].sb_health > 255
+				? g_PlayerExtraInfo[g_iUser2].sb_health
+				: g_PlayerExtraInfo[g_iUser2].health;
+		}
+		strncpy( s.timer, label.m_szTimer, sizeof( s.timer ) - 1 );
+		const char *map = label.m_szMap;
+		if( !strncmp( map, "Map: ", 5 ) )
+			map += 5;
+		strncpy( s.map, map, sizeof( s.map ) - 1 );
+		g_pMenu->SetSpectatorHud( &s );
+		if( gHUD.m_Spectator.m_pip )
+			gHUD.m_Spectator.m_pip->value = INSET_OFF;
+		return 1;
+	}
 
 	int r = 255, g = 140, b = 0;
 

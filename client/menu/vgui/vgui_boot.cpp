@@ -7,6 +7,9 @@
 #include "../gameui/TeamSelectPanel.h"
 #include "../gameui/ClassSelectPanel.h"
 #include "../gameui/BuySelectPanel.h"
+#include "../gameui/RadioSelectPanel.h"
+#include "../gameui/SpectatorHudPanel.h"
+#include "../gameui/ScoreboardHudPanel.h"
 #include "../gameui/OptionsDialog.h"
 #include "../gameui/OptionsClassicMetrics.h"
 #include "../gameui/OptionsMouseGate.h"
@@ -282,6 +285,8 @@ void VGuiXash_Init()
 	if (g_pVGuiSurface)
 		g_pVGuiSurface->SetEmbeddedPanel(g_root->GetVPanel());
 	GameConsole_Initialize(g_root);
+	SpectatorHud_BindHost(g_root);
+	ScoreboardHud_BindHost(g_root);
 
 	g_inited = true;
 	CsretroMenu_LogProvenance("VGuiXash_Init");
@@ -322,6 +327,9 @@ void VGuiXash_Shutdown()
 	PocDialog_Hide();
 	ClassSelect_Shutdown();
 	BuySelect_Shutdown();
+	RadioSelect_Shutdown();
+	SpectatorHud_Shutdown();
+	ScoreboardHud_Shutdown();
 	TeamSelect_Shutdown();
 	GameConsole_Shutdown();
 	ServerBrowser_Shutdown();
@@ -353,10 +361,14 @@ void VGuiXash_RunFrame()
 	g_pVGui->RunFrame();
 	BuySelect_AfterFrame();
 	MainMenu_GateTick();
+	MainMenu_PauseGateTick();
 	CreateGame_GateTick();
 	TeamSelect_GateTick();
 	ClassSelect_GateTick();
 	BuySelect_GateTick();
+	RadioSelect_GateTick();
+	SpectatorHud_GateTick();
+	ScoreboardHud_GateTick();
 	ServerBrowser_RunFrame();
 
 	// Workspace change: clamp saved/current bounds. Do not stomp back to 512×406.
@@ -671,6 +683,7 @@ bool VGuiXash_ShowTeamSelect(int validSlots)
 	}
 	ClassSelect_Hide();
 	BuySelect_Hide();
+	RadioSelect_Hide();
 	return TeamSelect_Show(g_root, validSlots);
 }
 
@@ -691,6 +704,7 @@ bool VGuiXash_ShowClassSelect(int menuType, int validSlots)
 	}
 	TeamSelect_Hide();
 	BuySelect_Hide();
+	RadioSelect_Hide();
 	return ClassSelect_Show(g_root, menuType, validSlots);
 }
 
@@ -711,6 +725,7 @@ bool VGuiXash_ShowBuySelect(int menuType, int validSlots)
 	}
 	TeamSelect_Hide();
 	ClassSelect_Hide();
+	RadioSelect_Hide();
 	return BuySelect_Show(g_root, menuType, validSlots);
 }
 
@@ -720,11 +735,46 @@ bool VGuiXash_IsBuySelectActive() { return BuySelect_IsActive(); }
 
 bool VGuiXash_BuyActivateSlot(int slot) { return BuySelect_ActivateSlot(slot); }
 
-bool VGuiXash_IsUiActive()
+bool VGuiXash_ShowRadioSelect(int menuType, int validSlots)
+{
+	if (!g_inited)
+		VGuiXash_Init();
+	if (!g_root)
+	{
+		Menu_Con("CSRETRO_RADIO_VGUI fail — kein VGUI-Root");
+		return false;
+	}
+	TeamSelect_Hide();
+	ClassSelect_Hide();
+	BuySelect_Hide();
+	return RadioSelect_Show(g_root, menuType, validSlots);
+}
+
+void VGuiXash_HideRadioSelect() { RadioSelect_Hide(); }
+
+bool VGuiXash_IsRadioSelectActive() { return RadioSelect_IsActive(); }
+
+bool VGuiXash_RadioActivateSlot(int slot) { return RadioSelect_ActivateSlot(slot); }
+
+void VGuiXash_HideSpectatorHud() { SpectatorHud_Hide(); }
+
+bool VGuiXash_IsSpectatorActive() { return SpectatorHud_IsActive(); }
+
+void VGuiXash_HideScoreboardHud() { ScoreboardHud_Hide(); }
+
+bool VGuiXash_IsScoreboardActive() { return ScoreboardHud_IsActive(); }
+
+bool VGuiXash_IsInteractiveUiActive()
 {
 	return VGuiXash_IsPocActive() || VGuiXash_IsOptionsActive() || VGuiXash_IsMainMenuActive() ||
 		VGuiXash_IsCreateGameActive() || VGuiXash_IsServerBrowserActive() || VGuiXash_IsConsoleActive() ||
-		VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() || VGuiXash_IsBuySelectActive();
+		VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() || VGuiXash_IsBuySelectActive() ||
+		VGuiXash_IsRadioSelectActive();
+}
+
+bool VGuiXash_IsUiActive()
+{
+	return VGuiXash_IsInteractiveUiActive() || SpectatorHud_IsActive() || ScoreboardHud_IsActive();
 }
 
 void VGuiXash_Key(int key, int down)

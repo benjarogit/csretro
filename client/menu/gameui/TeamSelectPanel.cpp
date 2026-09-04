@@ -3,6 +3,8 @@
 #include "BuySelectPanel.h"
 #include "ClassSelectPanel.h"
 #include "Controls/MenuEngine.h"
+#include "InGameViewportLook.h"
+#include "RadioSelectPanel.h"
 
 #include <tier1/KeyValues.h>
 #include <vgui/ILocalize.h>
@@ -41,6 +43,45 @@ void UI_KeyEvent(int key, int down);
 namespace
 {
 const char kResource[] = "resource/UI/Teammenu.res";
+
+class CTeamLookButton : public Button
+{
+	DECLARE_CLASS_SIMPLE_OVERRIDE(CTeamLookButton, Button);
+
+public:
+	CTeamLookButton(Panel *parent, const char *name)
+		: BaseClass(parent, name, "")
+	{
+	}
+
+	void SetAccent(Color accent)
+	{
+		m_accent = accent;
+		ApplyLook();
+	}
+
+	void ApplySchemeSettings(IScheme *pScheme) override
+	{
+		BaseClass::ApplySchemeSettings(pScheme);
+		ApplyLook();
+	}
+
+	void PerformLayout() override
+	{
+		BaseClass::PerformLayout();
+		ApplyLook();
+	}
+
+private:
+	Color m_accent = InGameViewportLook::Text();
+
+	void ApplyLook()
+	{
+		InGameViewportLook::StyleCardButton(this, m_accent);
+		SetFgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::Text() : m_accent);
+		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::CardArmed() : InGameViewportLook::Card());
+	}
+};
 
 struct SlotBind
 {
@@ -119,10 +160,24 @@ public:
 			m_slots = MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_5 | MENU_KEY_6;
 		ApplySlots();
 		LoadMapBriefing();
+		LayoutFamily();
 		SetVisible(true);
 		MoveToFront();
 		RequestFocus();
 		LogOpen();
+	}
+
+	void ApplySchemeSettings(IScheme *pScheme) override
+	{
+		BaseClass::ApplySchemeSettings(pScheme);
+		SetPaintBackgroundEnabled(false);
+		StyleButtons();
+	}
+
+	void LayoutFamily()
+	{
+		StyleButtons();
+		RelayoutVisibleButtons();
 	}
 
 	void ApplySlots()
@@ -184,6 +239,8 @@ public:
 		// keinen HTML-Browser — RichText liest dieselbe maps/*.txt.
 		if (controlName && !strcasecmp(controlName, "HTML"))
 			return new RichText(nullptr, nullptr);
+		if (controlName && !strcasecmp(controlName, "Button"))
+			return new CTeamLookButton(nullptr, nullptr);
 		return BaseClass::CreateControlByName(controlName);
 	}
 
@@ -247,55 +304,84 @@ private:
 
 	void StyleButtons()
 	{
-		IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
-		const Color fg = GetSchemeColor("BrightControlText", Color(255, 176, 0, 255), sch);
-		const Color armed = GetSchemeColor("BrightBaseText", Color(255, 220, 80, 255), sch);
-		const Color bg(0, 0, 0, 0);
-		const Color armedBg = GetSchemeColor("SelectionBG", Color(255, 176, 0, 100), sch);
-
 		for (int i = 0; i < GetChildCount(); ++i)
 		{
 			auto *btn = dynamic_cast<Button *>(GetChild(i));
 			if (!btn)
 				continue;
-			btn->SetPaintBackgroundEnabled(true);
-			btn->SetDefaultColor(fg, bg);
-			btn->SetArmedColor(armed, armedBg);
-			btn->SetDepressedColor(armed, armedBg);
-			btn->SetDefaultBorder(nullptr);
-			btn->SetDepressedBorder(nullptr);
-			btn->SetKeyFocusBorder(nullptr);
-			btn->SetContentAlignment(Label::a_west);
-			btn->SetButtonActivationType(Button::ACTIVATE_ONPRESSED);
+			const char *name = btn->GetName();
+			Color accent = InGameViewportLook::Text();
+			if (name && !strcasecmp(name, "terbutton"))
+				accent = InGameViewportLook::Terror();
+			else if (name && !strcasecmp(name, "ctbutton"))
+				accent = InGameViewportLook::CT();
+			if (auto *look = dynamic_cast<CTeamLookButton *>(btn))
+				look->SetAccent(accent);
+			else
+				InGameViewportLook::StyleCardButton(btn, accent);
+			btn->SetContentAlignment(Label::a_center);
 		}
-
-		if (auto *title = dynamic_cast<Label *>(FindChildByName("joinTeam")))
-			title->SetFgColor(fg);
+		InGameViewportLook::StyleTitle(dynamic_cast<Label *>(FindChildByName("joinTeam")));
+		if (auto *map = dynamic_cast<Label *>(FindChildByName("mapname")))
+			map->SetFgColor(InGameViewportLook::TextDim());
+		if (auto *info = dynamic_cast<RichText *>(FindChildByName("MapInfo")))
+		{
+			info->SetPaintBackgroundEnabled(true);
+			info->SetFgColor(InGameViewportLook::TextDim());
+			info->SetBgColor(InGameViewportLook::Card());
+		}
 	}
 
 	void RelayoutVisibleButtons()
 	{
-		std::vector<Panel *> visible;
-		visible.reserve(6);
-		for (const SlotBind &bind : kSlots)
-		{
-			Panel *child = FindChildByName(bind.name);
-			if (child && child->IsVisible())
-				visible.push_back(child);
-		}
-		if (visible.empty())
+		int w = 0, h = 0;
+		GetSize(w, h);
+		if (w < 200 || h < 160)
 			return;
-		int x = 0, y = 0, w = 0, h = 0;
-		visible[0]->GetBounds(x, y, w, h);
-		int gap = 12;
-		if (IsProportional() && scheme())
-			gap = scheme()->GetProportionalScaledValue(12);
-		const int step = h > 0 ? h + gap : 32;
-		for (size_t i = 0; i < visible.size(); ++i)
+		const int pad = w / 16;
+		const int gap = w / 40;
+		const int titleH = h / 10;
+		if (auto *title = FindChildByName("joinTeam"))
 		{
-			int cx = 0, cy = 0, cw = 0, ch = 0;
-			visible[i]->GetBounds(cx, cy, cw, ch);
-			visible[i]->SetPos(cx, y + static_cast<int>(i) * step);
+			title->SetBounds(pad, h / 20, w - pad * 2, titleH);
+			if (auto *lab = dynamic_cast<Label *>(title))
+				lab->SetContentAlignment(Label::a_center);
+		}
+		if (auto *map = FindChildByName("mapname"))
+			map->SetBounds(pad, h / 20 + titleH, w - pad * 2, titleH / 2);
+
+		const int cardY = h * 22 / 100;
+		const int cardH = h * 38 / 100;
+		const int cardW = (w - pad * 2 - gap) / 2;
+		if (Panel *t = FindChildByName("terbutton"))
+			if (t->IsVisible())
+				t->SetBounds(pad, cardY, cardW, cardH);
+		if (Panel *ct = FindChildByName("ctbutton"))
+			if (ct->IsVisible())
+				ct->SetBounds(pad + cardW + gap, cardY, cardW, cardH);
+
+		std::vector<Panel *> row;
+		for (const char *name : {"vipbutton", "autobutton", "specbutton", "CancelButton"})
+		{
+			if (Panel *p = FindChildByName(name))
+				if (p->IsVisible())
+					row.push_back(p);
+		}
+		const int rowY = cardY + cardH + gap;
+		const int rowH = h * 8 / 100;
+		if (!row.empty())
+		{
+			const int rw = (w - pad * 2 - gap * static_cast<int>(row.size() - 1)) /
+				static_cast<int>(row.size());
+			for (size_t i = 0; i < row.size(); ++i)
+				row[i]->SetBounds(pad + static_cast<int>(i) * (rw + gap), rowY, rw, rowH);
+		}
+
+		if (Panel *info = FindChildByName("MapInfo"))
+		{
+			const int iy = rowY + rowH + gap;
+			info->SetBounds(pad, iy, w - pad * 2, h - iy - h / 30);
+			info->SetVisible(true);
 		}
 	}
 
@@ -307,8 +393,8 @@ private:
 		info->SetPanelInteractive(false);
 		info->SetUnusedScrollbarInvisible(true);
 		IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
-		info->SetFgColor(GetSchemeColor("MapDescriptionText", Color(255, 176, 0, 255), sch));
-		info->SetBgColor(GetSchemeColor("WindowBG", Color(0, 0, 0, 200), sch));
+		info->SetFgColor(InGameViewportLook::TextDim());
+		info->SetBgColor(InGameViewportLook::Card());
 		if (HFont font = sch ? sch->GetFont("Default", IsProportional()) : INVALID_FONT)
 		{
 			if (font != INVALID_FONT)
@@ -366,6 +452,7 @@ private:
 		Menu_Con("CSRetro-VGUI: %s (%d)", kResource, MENU_TEAM);
 		Menu_Con("CSRETRO_TEAM_VGUI open slots=%d t=%d ct=%d auto=%d vip=%d spec=%d cancel=%d",
 			m_slots, t, ct, autoas, vip, spec, cancel);
+		Menu_Con("CSRETRO_TEAM_LOOK split=1");
 	}
 };
 
@@ -391,7 +478,17 @@ public:
 	void ApplySchemeSettings(IScheme *pScheme) override
 	{
 		BaseClass::ApplySchemeSettings(pScheme);
-		SetBgColor(GetSchemeColor("ViewportBG", Color(0, 0, 0, 200), pScheme));
+		SetPaintBackgroundEnabled(true);
+		SetPaintBorderEnabled(false);
+		SetBorder(nullptr);
+		SetBgColor(InGameViewportLook::OverlayBg());
+	}
+
+	void PaintBackground() override
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		InGameViewportLook::PaintSplitBackdrop(w, h);
 	}
 
 	void PerformLayout() override
@@ -403,6 +500,13 @@ public:
 			SetBounds(0, 0, w, h);
 		}
 		BaseClass::PerformLayout();
+		if (m_team)
+		{
+			int w = 0, h = 0;
+			GetSize(w, h);
+			m_team->SetBounds(0, 0, w, h);
+			m_team->LayoutFamily();
+		}
 	}
 
 	void OnKeyCodeTyped(KeyCode code) override
@@ -480,7 +584,8 @@ void TeamSelect_Hide()
 		g_panel->SetVisible(false);
 	if (g_overlay)
 		g_overlay->SetVisible(false);
-	if (g_keyDestPushed && !gMenuVisible && !ClassSelect_IsActive() && !BuySelect_IsActive())
+	if (g_keyDestPushed && !gMenuVisible && !ClassSelect_IsActive() && !BuySelect_IsActive() &&
+		!RadioSelect_IsActive())
 	{
 		if (gEng.pfnSetKeyDest)
 			gEng.pfnSetKeyDest(KEY_DEST_GAME);

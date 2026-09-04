@@ -938,19 +938,20 @@ private:
 
 	// 1 == Textured (TextureId1 only)
 	// 2 == Rounded Corner Box
+	// CS Retro: keine Steam-800corner-Defaults. DrawBox Type 2 bleibt scharfes Rechteck.
 	CPanelAnimationVar( int, m_nPaintBackgroundType, "PaintBackgroundType", "0" );
-	CPanelAnimationVarAliasType( int, m_nBgTextureId1, "Texture1", SOURCE_SDK_GFX_PATH "/800corner1", "textureid" );
-	CPanelAnimationVarAliasType( int, m_nBgTextureId2, "Texture2", SOURCE_SDK_GFX_PATH "/800corner2", "textureid" );
-	CPanelAnimationVarAliasType( int, m_nBgTextureId3, "Texture3", SOURCE_SDK_GFX_PATH "/800corner3", "textureid" );
-	CPanelAnimationVarAliasType( int, m_nBgTextureId4, "Texture4", SOURCE_SDK_GFX_PATH "/800corner4", "textureid" );
-	CPanelAnimationVarAliasType( int, m_nBgTextureBorderId1, "TextureBorder1", SOURCE_SDK_GFX_PATH "/800cornerborder1", "textureid" );
-	CPanelAnimationVarAliasType( int, m_nBgTextureBorderId2, "TextureBorder2", SOURCE_SDK_GFX_PATH "/800cornerborder2", "textureid" );
-	CPanelAnimationVarAliasType( int, m_nBgTextureBorderId3, "TextureBorder3", SOURCE_SDK_GFX_PATH "/800cornerborder3", "textureid" );
-	CPanelAnimationVarAliasType( int, m_nBgTextureBorderId4, "TextureBorder4", SOURCE_SDK_GFX_PATH "/800cornerborder4", "textureid" );
-    CPanelAnimationVarAliasType( int, m_nBgTextureBorderHalfId1, "TextureBorderHalf1", SOURCE_SDK_GFX_PATH "/800cornerborder_half1", "textureid" );
-    CPanelAnimationVarAliasType( int, m_nBgTextureBorderHalfId2, "TextureBorderHalf2", SOURCE_SDK_GFX_PATH "/800cornerborder_half2", "textureid" );
-    CPanelAnimationVarAliasType( int, m_nBgTextureBorderHalfId3, "TextureBorderHalf3", SOURCE_SDK_GFX_PATH "/800cornerborder_half3", "textureid" );
-    CPanelAnimationVarAliasType( int, m_nBgTextureBorderHalfId4, "TextureBorderHalf4", SOURCE_SDK_GFX_PATH "/800cornerborder_half4", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureId1, "Texture1", "", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureId2, "Texture2", "", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureId3, "Texture3", "", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureId4, "Texture4", "", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureBorderId1, "TextureBorder1", "", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureBorderId2, "TextureBorder2", "", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureBorderId3, "TextureBorder3", "", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureBorderId4, "TextureBorder4", "", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureBorderHalfId1, "TextureBorderHalf1", "", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureBorderHalfId2, "TextureBorderHalf2", "", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureBorderHalfId3, "TextureBorderHalf3", "", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nBgTextureBorderHalfId4, "TextureBorderHalf4", "", "textureid" );
 
 	//=============================================================================
 	// HPE_BEGIN:

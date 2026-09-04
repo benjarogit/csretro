@@ -532,7 +532,8 @@ void CSurfaceXash::DrawSetTextureFile(int id, const char *filename, int, bool fo
 	if (static_cast<size_t>(id) >= g_textures.size())
 		g_textures.resize(static_cast<size_t>(id) + 1);
 	Texture &t = g_textures[static_cast<size_t>(id)];
-	if (!forceReload && t.pic && t.picName == filename)
+	// Gleicher Name schon versucht (Treffer oder Fehlschlag): nicht erneut PIC_Load.
+	if (!forceReload && t.picName == filename)
 		return;
 
 	if (t.pic && gEng.pfnPIC_Free && !t.picName.empty())

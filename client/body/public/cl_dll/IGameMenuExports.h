@@ -19,6 +19,43 @@
 // Purpose: Exports a set of functions for the game client to interact with the GameUI
 //-----------------------------------------------------------------------------
 
+struct SpectatorHudState
+{
+	int observerMode; // 0 = aus, sonst OBS_*
+	int targetIndex;
+	int tScore;
+	int ctScore;
+	int health;
+	int playerTeam; // 1 T, 2 CT
+	char timer[16];
+	char map[64];
+	char player[80];
+};
+
+enum { CSRETRO_SCOREBOARD_PLAYERS = 32 };
+
+struct ScoreboardPlayerRow
+{
+	int team; // 1 T, 2 CT, 3 spectator
+	int frags;
+	int deaths;
+	int ping;
+	int thisPlayer;
+	int dead;
+	int bot;
+	char name[32];
+};
+
+struct ScoreboardHudState
+{
+	int visible; // 0 = aus
+	int tScore;
+	int ctScore;
+	int playerCount;
+	char server[80];
+	ScoreboardPlayerRow players[CSRETRO_SCOREBOARD_PLAYERS];
+};
+
 class IGameMenuExports : public IBaseInterface
 {
 public:
@@ -28,6 +65,8 @@ public:
 
 	virtual bool  IsActive( void ) = 0;
 	virtual bool  IsMainMenuActive( void ) = 0;
+	// Team/Class/Buy: Tasten+Maus gehören dem Overlay. Radio: HUD, Bewegung bleibt.
+	virtual bool  IsModalInGame( void ) = 0;
 
 	virtual void  Key( int key, int down ) = 0;
 	virtual void  MouseMove( int x, int y ) = 0;
@@ -51,6 +90,12 @@ public:
 
 	virtual void  ShowVGUIMenu( int menuType, int param1, int param2 ) = 0;
 	virtual void  HideVGUIMenu( void ) = 0;
+
+	// Spectator-HUD (eigene Familie). mode=0 blendet aus. Kein vtable-Einschub oben.
+	virtual void  SetSpectatorHud( const SpectatorHudState *state ) = 0;
+
+	// Scoreboard (eigene Familie). visible=0 blendet aus. Kein vtable-Einschub oben.
+	virtual void  SetScoreboardHud( const ScoreboardHudState *state ) = 0;
 };
 
 #define GAMEMENUEXPORTS_INTERFACE_VERSION "GameMenuExports001"

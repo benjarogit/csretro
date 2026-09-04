@@ -20,4 +20,7 @@ void MainMenu_InvalidateLayout();
 // Per-frame hook; only active under CSRETRO_MAINMENU_GATE (delayed engine screenshot).
 void MainMenu_GateTick();
 
+// Per-frame hook; only active under CSRETRO_PAUSE_GATE (in-game Escape → Pause).
+void MainMenu_PauseGateTick();
+
 void MainMenu_Shutdown();

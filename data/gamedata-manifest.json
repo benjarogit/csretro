@@ -90,6 +90,8 @@
     {"glob": "valve/liblist.gam", "why": "HL-Basis-Metadaten, nur valve-Hierarchie."},
     {"glob": "cstrike/delta.lst", "why": "Netz-Delta, Dedicated-Trace."},
     {"glob": "cstrike/titles.txt", "why": "HUD-Titel, Listen-Trace."},
+    {"glob": "cstrike/autobuy.txt", "why": "AutoBuy-Liste. Client-Command autobuy; Produkt-Override in data/ui-overrides/cstrike/autobuy.txt."},
+    {"glob": "cstrike/rebuy.txt", "why": "Rebuy-Reihenfolge. Client-Command rebuy; Produkt-Override in data/ui-overrides/cstrike/rebuy.txt."},
     {"glob": "cstrike/game.tga", "why": "MainUI-Icon, Listen-Trace."},
     {"glob": "valve/game.cfg", "why": "Default-CVars, Dedicated-Trace."},
     {"glob": "cstrike/settings.scr", "why": "Optionsbeschreibung Create-Game (Identity/Rules/Fairness). Steam-Basis; CS-Retro-Erweiterungen liegen in data/ui-overrides/cstrike/settings.scr."}

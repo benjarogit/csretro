@@ -103,6 +103,19 @@ static bool IsTeamSelectTitle( const char *title )
 		!strcmp( title, "#IG_VIP_Team_Select_Spect" );
 }
 
+static int RadioMenuTypeFromTitle( const char *title )
+{
+	if( !title || !title[0] )
+		return 0;
+	if( !strcmp( title, "#RadioA" ) )
+		return MENU_RADIOA;
+	if( !strcmp( title, "#RadioB" ) )
+		return MENU_RADIOB;
+	if( !strcmp( title, "#RadioC" ) )
+		return MENU_RADIOC;
+	return 0;
+}
+
 static const char *VguiMenuTitle( int menuType, int bits )
 {
 	const int team = PlayerTeamNumber();
@@ -289,7 +302,7 @@ void CHudMenu::UserCmd_MenuSelect()
 
 bool CHudMenu::HandleEscape( void )
 {
-	if( g_pMenu && g_pMenu->IsActive() )
+	if( g_pMenu && g_pMenu->IsActive() && !g_pMenu->IsMainMenuActive() )
 	{
 		g_pMenu->HideVGUIMenu();
 		Close();
@@ -368,6 +381,16 @@ int CHudMenu::MsgFunc_ShowMenu( const char *pszName, int iSize, void *pbuf )
 		if( g_pMenu && IsTeamSelectTitle( g_szPrelocalisedMenuString ) )
 		{
 			g_pMenu->ShowVGUIMenu( MENU_TEAM, m_bitsValidSlots, PlayerTeamNumber() );
+			if( g_pMenu->IsActive() )
+			{
+				Close();
+				return 1;
+			}
+		}
+		const int radioType = RadioMenuTypeFromTitle( g_szPrelocalisedMenuString );
+		if( g_pMenu && radioType )
+		{
+			g_pMenu->ShowVGUIMenu( radioType, m_bitsValidSlots, PlayerTeamNumber() );
 			if( g_pMenu->IsActive() )
 			{
 				Close();

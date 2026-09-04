@@ -192,6 +192,10 @@ std::vector<GameMenuItem> Menu_LoadGameMenu()
 			cur.command = val;
 		else if (!strcasecmp(key.c_str(), "OnlyInGame"))
 			cur.onlyInGame = atoi(val.c_str()) != 0;
+		else if (!strcasecmp(key.c_str(), "notsingle"))
+			cur.notSingle = atoi(val.c_str()) != 0;
+		else if (!strcasecmp(key.c_str(), "notmulti"))
+			cur.notMulti = atoi(val.c_str()) != 0;
 	}
 	return items;
 }

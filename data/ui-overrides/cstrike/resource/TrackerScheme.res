@@ -381,6 +381,16 @@ Scheme
 				"antialias" "1"
 			}
 		}
+		"PauseTitle"
+		{
+			"1"
+			{
+				"name"		"Tahoma"
+				"tall"		"36"
+				"weight"	"700"
+				"antialias" "1"
+			}
+		}
 
 		"ConsoleText"
 		{

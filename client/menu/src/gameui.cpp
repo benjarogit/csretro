@@ -190,6 +190,7 @@ void GameUI_ShowInGame(int menuType, int validSlots)
 	{
 		VGuiXash_HideClassSelect();
 		VGuiXash_HideBuySelect();
+		VGuiXash_HideRadioSelect();
 		if (VGuiXash_ShowTeamSelect(validSlots))
 			return;
 		Menu_Con("CSRETRO_TEAM_VGUI fail — Interim");
@@ -198,6 +199,7 @@ void GameUI_ShowInGame(int menuType, int validSlots)
 	{
 		VGuiXash_HideTeamSelect();
 		VGuiXash_HideBuySelect();
+		VGuiXash_HideRadioSelect();
 		Menu_NotePlayerTeam(menuType == 27 ? 2 : 1);
 		if (VGuiXash_ShowClassSelect(menuType, validSlots))
 			return;
@@ -207,15 +209,26 @@ void GameUI_ShowInGame(int menuType, int validSlots)
 	{
 		VGuiXash_HideTeamSelect();
 		VGuiXash_HideClassSelect();
+		VGuiXash_HideRadioSelect();
 		if (VGuiXash_ShowBuySelect(menuType, validSlots))
 			return;
 		Menu_Con("CSRETRO_BUY_VGUI fail — Interim");
+	}
+	else if (menuType >= 35 && menuType <= 37)
+	{
+		VGuiXash_HideTeamSelect();
+		VGuiXash_HideClassSelect();
+		VGuiXash_HideBuySelect();
+		if (VGuiXash_ShowRadioSelect(menuType, validSlots))
+			return;
+		Menu_Con("CSRETRO_RADIO_VGUI fail — ShowMenu-Legacy");
 	}
 	else
 	{
 		VGuiXash_HideTeamSelect();
 		VGuiXash_HideClassSelect();
 		VGuiXash_HideBuySelect();
+		VGuiXash_HideRadioSelect();
 	}
 
 	const char *path = InGameResPath(menuType);
@@ -239,6 +252,7 @@ void GameUI_HideInGame()
 	VGuiXash_HideTeamSelect();
 	VGuiXash_HideClassSelect();
 	VGuiXash_HideBuySelect();
+	VGuiXash_HideRadioSelect();
 	gInGameOn = false;
 	gInGame.clear();
 }
@@ -246,7 +260,7 @@ void GameUI_HideInGame()
 bool GameUI_InGameActive()
 {
 	return gInGameOn || VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() ||
-		VGuiXash_IsBuySelectActive();
+		VGuiXash_IsBuySelectActive() || VGuiXash_IsRadioSelectActive();
 }
 
 static void ScaleRect(int *x, int *y, int *w, int *h)
@@ -341,6 +355,8 @@ bool GameUI_ActivateSlot(int slot)
 		return VGuiXash_ClassActivateSlot(slot);
 	if (VGuiXash_IsBuySelectActive())
 		return VGuiXash_BuyActivateSlot(slot);
+	if (VGuiXash_IsRadioSelectActive())
+		return VGuiXash_RadioActivateSlot(slot);
 	if (!gInGameOn)
 		return false;
 	auto btns = VisibleButtons();
@@ -374,7 +390,27 @@ bool GameUI_ActivateSlot(int slot)
 
 void GameUI_InGameKey(int key, int down)
 {
-	if (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() || VGuiXash_IsBuySelectActive())
+	if (VGuiXash_IsRadioSelectActive() && !VGuiXash_IsTeamSelectActive() &&
+		!VGuiXash_IsClassSelectActive() && !VGuiXash_IsBuySelectActive())
+	{
+		if (!down)
+			return;
+		if (key == K_ESCAPE)
+		{
+			VGuiXash_HideRadioSelect();
+			return;
+		}
+		if (key >= '1' && key <= '9')
+		{
+			VGuiXash_RadioActivateSlot(key - '0');
+			return;
+		}
+		if (key == '0')
+			VGuiXash_RadioActivateSlot(10);
+		return;
+	}
+	if (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() ||
+		VGuiXash_IsBuySelectActive())
 	{
 		const bool mouse = (key >= K_MOUSE1 && key <= K_MOUSE5) ||
 			key == K_MWHEELUP || key == K_MWHEELDOWN;
@@ -403,8 +439,9 @@ void GameUI_InGameKey(int key, int down)
 				VGuiXash_ClassActivateSlot(key - '0');
 			else
 				VGuiXash_TeamActivateSlot(key - '0');
+			return;
 		}
-		else if (key == '0')
+		if (key == '0')
 		{
 			if (VGuiXash_IsBuySelectActive())
 				VGuiXash_BuyActivateSlot(10);
@@ -412,7 +449,10 @@ void GameUI_InGameKey(int key, int down)
 				VGuiXash_ClassActivateSlot(10);
 			else
 				VGuiXash_TeamActivateSlot(10);
+			return;
 		}
+		// A/R Autobuy/Rebuy und sonstige Tasten an das Overlay.
+		VGuiXash_Key(key, down);
 		return;
 	}
 	if (!down || !gInGameOn)
@@ -469,6 +509,8 @@ void GameUI_RunMenuCommand(const char *command)
 		VGuiXash_HideMainMenu();
 		gMenuVisible = false;
 		gEng.pfnSetKeyDest(KEY_DEST_GAME);
+		PauseBackdrop_Invalidate();
+		Menu_Con("CSRETRO_PAUSE_VGUI close");
 	}
 	else if (cmd == "Disconnect")
 		gEng.pfnClientCmd(0, "disconnect\n");
@@ -551,14 +593,22 @@ void UI_Redraw(float)
 	if (VGuiXash_IsUiActive())
 	{
 		if (gMenuVisible && !VGuiXash_IsTeamSelectActive() && !VGuiXash_IsClassSelectActive() &&
-			!VGuiXash_IsBuySelectActive())
-			Menu_DrawBackground();
+			!VGuiXash_IsBuySelectActive() && !VGuiXash_IsRadioSelectActive() &&
+			!VGuiXash_IsSpectatorActive() && !VGuiXash_IsScoreboardActive())
+		{
+			if (InGame())
+				PauseBackdrop_Paint();
+			else
+				Menu_DrawBackground();
+		}
 		VGuiXash_RunFrame();
 		VGuiXash_Paint();
 		return;
 	}
 	// Gate muss auch nach ESC weiterticken, sonst hängt Reopen/Join.
-	if (getenv("CSRETRO_TEAM_GATE") || getenv("CSRETRO_CLASS_GATE") || getenv("CSRETRO_BUY_GATE"))
+	if (getenv("CSRETRO_TEAM_GATE") || getenv("CSRETRO_CLASS_GATE") || getenv("CSRETRO_BUY_GATE") ||
+		getenv("CSRETRO_RADIO_GATE") || getenv("CSRETRO_PAUSE_GATE") || getenv("CSRETRO_SPEC_GATE") ||
+		getenv("CSRETRO_SCORE_GATE"))
 		VGuiXash_RunFrame();
 	if (gInGameOn)
 	{
@@ -572,12 +622,19 @@ void UI_Redraw(float)
 
 void UI_KeyEvent(int key, int down)
 {
-	if (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() || VGuiXash_IsBuySelectActive())
+	if (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() ||
+		VGuiXash_IsBuySelectActive())
 	{
 		GameUI_InGameKey(key, down);
 		return;
 	}
-	if (VGuiXash_IsUiActive())
+	if (VGuiXash_IsRadioSelectActive())
+	{
+		if (key == K_ESCAPE || (key >= '0' && key <= '9'))
+			GameUI_InGameKey(key, down);
+		return;
+	}
+	if (VGuiXash_IsInteractiveUiActive())
 	{
 		// ESC during keyboard capture: cancel capture only — never close Options.
 		if (down && key == K_ESCAPE && VGuiXash_IsKeyboardCapturing())
@@ -610,6 +667,11 @@ void UI_KeyEvent(int key, int down)
 				VGuiXash_HideBuySelect();
 				return;
 			}
+			if (VGuiXash_IsRadioSelectActive())
+			{
+				VGuiXash_HideRadioSelect();
+				return;
+			}
 			if (VGuiXash_IsConsoleActive())
 			{
 				VGuiXash_HideConsole();
@@ -632,6 +694,8 @@ void UI_KeyEvent(int key, int down)
 				VGuiXash_HideMainMenu();
 				gMenuVisible = false;
 				gEng.pfnSetKeyDest(KEY_DEST_GAME);
+				PauseBackdrop_Invalidate();
+				Menu_Con("CSRETRO_PAUSE_VGUI close");
 			}
 		}
 		return;
@@ -656,6 +720,8 @@ void UI_KeyEvent(int key, int down)
 		{
 			gMenuVisible = false;
 			gEng.pfnSetKeyDest(KEY_DEST_GAME);
+			PauseBackdrop_Invalidate();
+			Menu_Con("CSRETRO_PAUSE_VGUI close");
 		}
 		return;
 	}
@@ -665,7 +731,7 @@ void UI_MouseMove(int x, int y)
 {
 	gMouseX = x;
 	gMouseY = y;
-	if (VGuiXash_IsUiActive())
+	if (VGuiXash_IsInteractiveUiActive())
 		VGuiXash_MouseMove(x, y);
 }
 
@@ -676,12 +742,21 @@ void UI_SetActiveMenu(int active)
 	{
 		gScreen = SCREEN_MAIN;
 		gEng.pfnSetKeyDest(KEY_DEST_MENU);
+		VGuiXash_HideTeamSelect();
+		VGuiXash_HideClassSelect();
+		VGuiXash_HideBuySelect();
+		VGuiXash_HideRadioSelect();
+		VGuiXash_HideSpectatorHud();
+		VGuiXash_HideScoreboardHud();
 		if (getenv("CSRETRO_V1POC"))
 			VGuiXash_ShowPocDialog();
 		else
 			VGuiXash_ShowMainMenu();
+		if (InGame())
+			Menu_Con("CSRETRO_PAUSE_VGUI open wallpaper=0 blur=1");
 		return;
 	}
+	PauseBackdrop_Invalidate();
 	VGuiXash_HideMainMenu();
 	// Wie Xash-MainUI UI_CloseMenu: In-Game-VGUI ist Overlay, nicht key_menu.
 	if (!gInGameOn && !VGuiXash_IsTeamSelectActive() && !VGuiXash_IsClassSelectActive() &&

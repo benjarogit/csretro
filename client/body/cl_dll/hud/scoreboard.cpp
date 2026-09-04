@@ -169,7 +169,57 @@ bool CHudScoreboard :: ShouldDrawScoreboard() const
 int CHudScoreboard :: Draw( float flTime )
 {
 	if( !ShouldDrawScoreboard( ))
+	{
+		if( g_pMenu )
+		{
+			ScoreboardHudState s;
+			memset( &s, 0, sizeof( s ) );
+			g_pMenu->SetScoreboardHud( &s );
+		}
 		return 1;
+	}
+
+	if( g_pMenu )
+	{
+		GetAllPlayersInfo();
+		ScoreboardHudState s;
+		memset( &s, 0, sizeof( s ) );
+		s.visible = 1;
+		if( gHUD.m_szServerName[0] )
+			strncpy( s.server, gHUD.m_szServerName, sizeof( s.server ) - 1 );
+		for( int i = 1; i <= m_iNumTeams; i++ )
+		{
+			switch( g_TeamInfo[i].teamnumber )
+			{
+			case TEAM_CT:
+				s.ctScore = g_TeamInfo[i].frags;
+				break;
+			case TEAM_TERRORIST:
+				s.tScore = g_TeamInfo[i].frags;
+				break;
+			}
+		}
+		int n = 0;
+		for( int i = 1; i < MAX_PLAYERS && n < CSRETRO_SCOREBOARD_PLAYERS; i++ )
+		{
+			if( !g_PlayerInfoList[i].name || !g_PlayerInfoList[i].name[0] )
+				continue;
+			ScoreboardPlayerRow &row = s.players[n];
+			strncpy( row.name, g_PlayerInfoList[i].name, sizeof( row.name ) - 1 );
+			row.frags = g_PlayerExtraInfo[i].frags;
+			row.deaths = g_PlayerExtraInfo[i].deaths;
+			row.ping = g_PlayerInfoList[i].ping;
+			row.thisPlayer = g_PlayerInfoList[i].thisplayer ? 1 : 0;
+			row.dead = g_PlayerExtraInfo[i].dead ? 1 : 0;
+			row.team = g_PlayerExtraInfo[i].teamnumber;
+			const char *bot = gEngfuncs.PlayerInfo_ValueForKey( i, "*bot" );
+			row.bot = ( bot && atoi( bot ) > 0 ) ? 1 : 0;
+			++n;
+		}
+		s.playerCount = n;
+		g_pMenu->SetScoreboardHud( &s );
+		return 1;
+	}
 
 	if( !m_bForceDraw )
 	{

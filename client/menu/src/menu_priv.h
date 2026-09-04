@@ -23,6 +23,8 @@ struct GameMenuItem
 	std::string label;
 	std::string command;
 	bool onlyInGame = false;
+	bool notSingle = false;
+	bool notMulti = false;
 	bool empty = false;
 };
 
@@ -63,6 +65,9 @@ std::vector<ResField> Menu_LoadRes(const char *path);
 std::vector<GameMenuItem> Menu_LoadGameMenu();
 void Menu_LoadBackground();
 void Menu_DrawBackground();
+void PauseBackdrop_Invalidate();
+void PauseBackdrop_Paint();
+bool PauseBackdrop_IsBlurred();
 void Menu_DrawText(int x, int y, const char *text, int r, int g, int b, int a);
 bool Menu_Hit(int mx, int my, int x, int y, int w, int h);
 

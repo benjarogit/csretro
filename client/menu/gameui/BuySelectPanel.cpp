@@ -2,6 +2,8 @@
 
 #include "ClassSelectPanel.h"
 #include "Controls/MenuEngine.h"
+#include "InGameViewportLook.h"
+#include "RadioSelectPanel.h"
 #include "TeamSelectPanel.h"
 
 #include <tier1/KeyValues.h>
@@ -171,13 +173,9 @@ void MapSteamBuyAlias(char *out, size_t outsz, const char *cmd)
 		out[0] = '\0';
 		return;
 	}
-	// Steam-.res sagt autobuy/rebuy; ReGameDLL hört auf cl_autobuy / cl_rebuy.
-	if (!strcasecmp(cmd, "autobuy"))
-		snprintf(out, outsz, "cl_autobuy");
-	else if (!strcasecmp(cmd, "rebuy"))
-		snprintf(out, outsz, "cl_rebuy");
-	else
-		snprintf(out, outsz, "%s", cmd);
+	// Steam-.res und CS-1.6-HUD: autobuy/rebuy. Der Client lädt autobuy.txt/rebuy.txt
+	// und schickt cl_setautobuy/cl_setrebuy. Direktes cl_autobuy ohne Liste kauft nichts.
+	snprintf(out, outsz, "%s", cmd);
 }
 
 bool IsResCommand(const char *cmd)
@@ -199,6 +197,23 @@ public:
 
 	void SetHost(CBuySelectPanel *host) { m_host = host; }
 	void SetPreviewName(const char *name) { m_preview = name ? name : ""; }
+	void SetAccent(Color accent)
+	{
+		m_accent = accent;
+		ApplyLook();
+	}
+
+	void ApplySchemeSettings(IScheme *pScheme) override
+	{
+		BaseClass::ApplySchemeSettings(pScheme);
+		ApplyLook();
+	}
+
+	void PerformLayout() override
+	{
+		BaseClass::PerformLayout();
+		ApplyLook();
+	}
 
 	void ApplySettings(KeyValues *inResourceData) override
 	{
@@ -217,6 +232,16 @@ public:
 private:
 	CBuySelectPanel *m_host = nullptr;
 	std::string m_preview;
+	Color m_accent = InGameViewportLook::Text();
+
+	void ApplyLook()
+	{
+		InGameViewportLook::StyleCardButton(this, m_accent);
+		SetContentAlignment(Label::a_west);
+		SetTextInset(12, 0);
+		SetFgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::Text() : m_accent);
+		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::CardArmed() : InGameViewportLook::Card());
+	}
 };
 
 class CBuySelectPanel : public EditablePanel
@@ -295,10 +320,28 @@ public:
 			m_slots = MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 |
 				  MENU_KEY_6 | MENU_KEY_7 | MENU_KEY_8 | MENU_KEY_0;
 		ApplySlots();
+		LayoutFamily();
 		SetVisible(true);
 		MoveToFront();
 		RequestFocus();
 		LogOpen();
+	}
+
+	void ApplySchemeSettings(IScheme *pScheme) override
+	{
+		BaseClass::ApplySchemeSettings(pScheme);
+		SetPaintBackgroundEnabled(false);
+		StyleButtons();
+	}
+
+	void LayoutFamily()
+	{
+		StyleButtons();
+		FitToParent();
+		if (m_pageIsMain)
+			RelayoutMainGrid();
+		else
+			RelayoutWeaponList();
 	}
 
 	void FitToParent()
@@ -476,6 +519,8 @@ public:
 	{
 		if (controlName && !strcasecmp(controlName, "MouseOverPanelButton"))
 			return new CBuyHoverButton(nullptr, nullptr);
+		if (controlName && !strcasecmp(controlName, "Button"))
+			return new CBuyHoverButton(nullptr, nullptr);
 		if (controlName && (!strcasecmp(controlName, "WizardSubPanel") ||
 				    !strcasecmp(controlName, "WizardPanel") ||
 				    !strcasecmp(controlName, "HTML")))
@@ -532,6 +577,10 @@ public:
 		char buf[80];
 		snprintf(buf, sizeof(buf), "%s\n", mapped);
 		MenuEngine::ClientCmdNow(buf);
+		// Kategorie bleibt offen. Munition auf der Hauptseite auch (6+7).
+		// Waffe / Equipment / Autobuy / Rebuy: Menü zu, wie CS-1.6-Tastatur.
+		if (strcasecmp(mapped, "primammo") != 0 && strcasecmp(mapped, "secammo") != 0)
+			BuySelect_Hide();
 		return;
 	}
 
@@ -540,6 +589,16 @@ public:
 		if (code == KEY_ESCAPE)
 		{
 			BuySelect_Hide();
+			return;
+		}
+		if (code == KEY_A)
+		{
+			OnCommand("autobuy");
+			return;
+		}
+		if (code == KEY_R)
+		{
+			OnCommand("rebuy");
 			return;
 		}
 		if (code == KEY_0)
@@ -692,32 +751,128 @@ private:
 
 	void StyleButtons()
 	{
-		IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
-		const Color fg = GetSchemeColor("BrightControlText", Color(255, 176, 0, 255), sch);
-		const Color armed = GetSchemeColor("BrightBaseText", Color(255, 220, 80, 255), sch);
-		const Color bg(0, 0, 0, 0);
-		const Color armedBg = GetSchemeColor("SelectionBG", Color(255, 176, 0, 100), sch);
-
 		for (int i = 0; i < GetChildCount(); ++i)
 		{
 			auto *btn = dynamic_cast<Button *>(GetChild(i));
 			if (!btn)
 				continue;
-			btn->SetPaintBackgroundEnabled(true);
-			btn->SetDefaultColor(fg, bg);
-			btn->SetArmedColor(armed, armedBg);
-			btn->SetDepressedColor(armed, armedBg);
-			btn->SetDefaultBorder(nullptr);
-			btn->SetDepressedBorder(nullptr);
-			btn->SetKeyFocusBorder(nullptr);
+			if (auto *look = dynamic_cast<CBuyHoverButton *>(btn))
+				look->SetAccent(InGameViewportLook::Text());
+			else
+				InGameViewportLook::StyleCardButton(btn, InGameViewportLook::Text());
 			btn->SetContentAlignment(Label::a_west);
-			btn->SetButtonActivationType(Button::ACTIVATE_ONPRESSED);
+			btn->SetTextInset(12, 0);
+		}
+		InGameViewportLook::StyleTitle(dynamic_cast<Label *>(FindChildByName("Title")));
+		if (auto *cat = dynamic_cast<Label *>(FindChildByName("selectCategory")))
+		{
+			cat->SetTextColorState(Label::CS_NORMAL);
+			cat->SetFgColor(InGameViewportLook::TextDim());
+		}
+		if (Panel *info = FindChildByName("ItemInfo"))
+		{
+			info->SetPaintBackgroundEnabled(true);
+			info->SetBgColor(InGameViewportLook::Card());
+		}
+		if (Panel *div = FindChildByName("Divider1"))
+			div->SetVisible(false);
+	}
+
+	void RelayoutMainGrid()
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		if (w < 400 || h < 300)
+			return;
+		const int pad = w / 16;
+		const int gap = w / 50;
+		if (auto *title = FindChildByName("Title"))
+			title->SetBounds(pad, h / 24, w - pad * 2, h / 12);
+		if (auto *cat = FindChildByName("selectCategory"))
+			cat->SetBounds(pad, h / 24 + h / 14, w - pad * 2, h / 20);
+
+		const char *cells[] = {
+			"pistols", "shotguns", "submachineguns", "rifles",
+			"machineguns", "equipment", "primaryammo", "secammo"};
+		const int cols = 2;
+		const int rows = 4;
+		const int gridY = h * 22 / 100;
+		const int gridH = h * 58 / 100;
+		const int cellW = (w - pad * 2 - gap) / cols;
+		const int cellH = (gridH - gap * (rows - 1)) / rows;
+		for (int i = 0; i < 8; ++i)
+		{
+			Panel *p = FindChildByName(cells[i]);
+			if (!p || !p->IsVisible())
+				continue;
+			const int col = i % cols;
+			const int row = i / cols;
+			p->SetBounds(pad + col * (cellW + gap), gridY + row * (cellH + gap), cellW, cellH);
 		}
 
-		if (auto *title = dynamic_cast<Label *>(FindChildByName("Title")))
-			title->SetFgColor(fg);
-		if (auto *cat = dynamic_cast<Label *>(FindChildByName("selectCategory")))
-			cat->SetFgColor(fg);
+		std::vector<Panel *> bottom;
+		for (const char *name : {"AutobuyButton", "RebuyButton", "CancelButton"})
+		{
+			if (Panel *p = FindChildByName(name))
+				if (p->IsVisible())
+					bottom.push_back(p);
+		}
+		if (bottom.empty())
+			return;
+		const int by = h - h / 10 - pad / 2;
+		const int bh = h / 12;
+		const int bw = (w - pad * 2 - gap * static_cast<int>(bottom.size() - 1)) /
+			static_cast<int>(bottom.size());
+		for (size_t i = 0; i < bottom.size(); ++i)
+			bottom[i]->SetBounds(pad + static_cast<int>(i) * (bw + gap), by, bw, bh);
+	}
+
+	void RelayoutWeaponList()
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		if (w < 400 || h < 300)
+			return;
+		const int pad = w / 18;
+		const int gap = h / 60;
+		if (auto *title = FindChildByName("Title"))
+			title->SetBounds(pad, h / 24, w - pad * 2, h / 14);
+		if (auto *cat = FindChildByName("selectCategory"))
+			cat->SetBounds(pad, h / 24 + h / 16, w - pad * 2, h / 22);
+
+		std::vector<Button *> weapons;
+		Button *cancel = nullptr;
+		for (int i = 0; i < GetChildCount(); ++i)
+		{
+			auto *btn = dynamic_cast<Button *>(GetChild(i));
+			if (!btn || !btn->IsVisible())
+				continue;
+			const char *name = btn->GetName();
+			if (name && (!strcasecmp(name, "CancelButton") || !strcasecmp(name, "cancelbutton")))
+			{
+				cancel = btn;
+				continue;
+			}
+			weapons.push_back(btn);
+		}
+		std::sort(weapons.begin(), weapons.end(), [](Button *a, Button *b) {
+			int ax = 0, ay = 0, bx = 0, by = 0;
+			a->GetPos(ax, ay);
+			b->GetPos(bx, by);
+			return ay < by;
+		});
+		const int listW = w * 42 / 100;
+		const int listY = h * 20 / 100;
+		const int listH = h * 66 / 100;
+		const int rowH = weapons.empty() ? 28
+						: (listH - gap * static_cast<int>(weapons.size())) /
+							static_cast<int>(weapons.size());
+		for (size_t i = 0; i < weapons.size(); ++i)
+			weapons[i]->SetBounds(pad, listY + static_cast<int>(i) * (rowH + gap), listW, rowH);
+		if (cancel)
+			cancel->SetBounds(pad, h - pad - h / 14, listW, h / 14);
+		if (Panel *info = FindChildByName("ItemInfo"))
+			info->SetBounds(pad + listW + pad, listY, w - pad * 3 - listW, listH);
 	}
 
 	void BindHover()
@@ -732,7 +887,7 @@ private:
 				info->SetPaintBackgroundEnabled(true);
 				info->SetMouseInputEnabled(false);
 				IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
-				info->SetBgColor(GetSchemeColor("WindowBG", Color(0, 0, 0, 200), sch));
+				info->SetBgColor(InGameViewportLook::Card());
 				int pad = 8;
 				if (IsProportional() && scheme())
 					pad = scheme()->GetProportionalScaledValue(8);
@@ -808,7 +963,10 @@ public:
 	void ApplySchemeSettings(IScheme *pScheme) override
 	{
 		BaseClass::ApplySchemeSettings(pScheme);
-		SetBgColor(GetSchemeColor("ViewportBG", Color(0, 0, 0, 200), pScheme));
+		SetPaintBackgroundEnabled(true);
+		SetPaintBorderEnabled(false);
+		SetBorder(nullptr);
+		SetBgColor(InGameViewportLook::OverlayBg());
 	}
 
 	void PerformLayout() override
@@ -825,6 +983,7 @@ public:
 			int w = 0, h = 0;
 			GetSize(w, h);
 			m_buy->SetBounds(0, 0, w, h);
+			m_buy->LayoutFamily();
 		}
 	}
 
@@ -931,7 +1090,8 @@ void BuySelect_Hide()
 		g_panel->SetVisible(false);
 	if (g_overlay)
 		g_overlay->SetVisible(false);
-	if (g_keyDestPushed && !gMenuVisible && !TeamSelect_IsActive() && !ClassSelect_IsActive())
+	if (g_keyDestPushed && !gMenuVisible && !TeamSelect_IsActive() && !ClassSelect_IsActive() &&
+		!RadioSelect_IsActive())
 	{
 		if (gEng.pfnSetKeyDest)
 			gEng.pfnSetKeyDest(KEY_DEST_GAME);

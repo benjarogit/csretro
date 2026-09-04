@@ -42,7 +42,16 @@ bool VGuiXash_ShowBuySelect(int menuType, int validSlots);
 void VGuiXash_HideBuySelect();
 bool VGuiXash_IsBuySelectActive();
 bool VGuiXash_BuyActivateSlot(int slot);
-bool VGuiXash_IsUiActive(); // PoC, Options, Hauptmenü, Create Game, Server Browser, Console, Team, Class, Buy
+bool VGuiXash_ShowRadioSelect(int menuType, int validSlots);
+void VGuiXash_HideRadioSelect();
+bool VGuiXash_IsRadioSelectActive();
+bool VGuiXash_RadioActivateSlot(int slot);
+void VGuiXash_HideSpectatorHud();
+bool VGuiXash_IsSpectatorActive();
+void VGuiXash_HideScoreboardHud();
+bool VGuiXash_IsScoreboardActive();
+bool VGuiXash_IsInteractiveUiActive(); // alles außer Spectator-/Scoreboard-HUD
+bool VGuiXash_IsUiActive(); // Interactive + Spectator/Scoreboard-Paint
 void VGuiXash_Key(int key, int down);
 void VGuiXash_MouseMove(int x, int y);
 void VGuiXash_Char(int ch);

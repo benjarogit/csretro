@@ -259,7 +259,7 @@ int CHudSpectator::Init()
 	m_drawstatus	= gEngfuncs.pfnRegisterVariable("spec_drawstatus_internal","1",0);
 	m_autoDirector	= gEngfuncs.pfnRegisterVariable("spec_autodirector_internal","1",0);
 	m_HUD_saytext 	= gEngfuncs.pfnRegisterVariable("hud_saytext_internal","1",0);
-	m_pip			= gEngfuncs.pfnRegisterVariable("spec_pip_internal","1",0);
+	m_pip			= gEngfuncs.pfnRegisterVariable("spec_pip_internal","0",0);
 	m_lastAutoDirector = 0.0f;
 	
 	if ( !m_drawnames || !m_drawcone || !m_drawstatus || !m_autoDirector || !m_pip )
@@ -1720,6 +1720,10 @@ void CHudSpectator::CheckSettings()
 
 	// disble in intermission screen
 	if ( gHUD.m_iIntermission )
+		m_pip->value = INSET_OFF;
+
+	// VGUI-Spectator-HUD: kein zweites Kamera-Fenster oben links (Anreiz: kein Radar/Inset).
+	if ( g_pMenu )
 		m_pip->value = INSET_OFF;
 
 	// check chat mode

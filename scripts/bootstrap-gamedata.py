@@ -501,6 +501,12 @@ def apply_ui_overrides(dest_root: Path) -> list[str]:
         rel = path.relative_to(src_root).as_posix()
         dest = dest_root / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
+        if path.name.endswith("_english.txt"):
+            raw = path.read_bytes()
+            if not raw.startswith(b"\xff\xfe") and not raw.startswith(b"\xfe\xff"):
+                dest.write_bytes(raw.decode("utf-8").encode("utf-16"))
+                copied.append(rel)
+                continue
         shutil.copy2(path, dest)
         copied.append(rel)
     return copied

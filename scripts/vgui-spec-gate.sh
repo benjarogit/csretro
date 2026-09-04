@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Class-Select Gate: In-Game Class-Wahl als echte VGUI2-Controls.
-# Startet de_dust (kein Auto-Join), Team → T, prüft Classmenu_TER.res,
-# Localization (kein Cstrike_ roh), ESC, joinclass 1, danach CT-Menü + joinclass 1, quit.
-# Usage: ./scripts/build-menu.sh && ./scripts/build-client.sh && ./scripts/vgui-classselect-gate.sh
+# Spectator-Gate: Team → Taste 6 (spectate) → VGUI-Rahmen (keine orangen HUD-Balken).
+# Eigene Familie: dunkle Top/Bottom-Bars, Welt sichtbar, kein KEY_DEST_MENU.
+# Usage: ./scripts/build-menu.sh && ./scripts/build-client.sh && ./scripts/vgui-spec-gate.sh
 # Optional: CSRETRO_FOREGROUND=1, CSRETRO_GATE_RES=800x600
 set -euo pipefail
 
@@ -19,7 +18,7 @@ MENU="${CSRETRO_MENU_SO:-${ROOT}/build/client-cmake/menu/menu_amd64.so}"
 MAP="${CSRETRO_SMOKE_MAP:-de_dust}"
 cd "${ROOT}"
 
-fail() { echo "CLASSSELECT_GATE FAIL: $*" >&2; exit 1; }
+fail() { echo "SPEC_GATE FAIL: $*" >&2; exit 1; }
 
 [[ -f "${MENU}" ]] || fail "menu fehlt"
 [[ -f "${CLIENT}" ]] || fail "Client fehlt"
@@ -31,7 +30,7 @@ GAMEDATA="$(csretro_gamedata_require "${ROOT}" "${MAP}")" || fail "Game-Data feh
 
 if [[ "${CSRETRO_FOREGROUND:-}" == "" && -n "${DISPLAY:-}" ]]; then
 	export CSRETRO_FOREGROUND=1
-	echo "CLASSSELECT_GATE: CSRETRO_FOREGROUND=1 (nativ; Gamescope-Teardown getrennt)"
+	echo "SPEC_GATE: CSRETRO_FOREGROUND=1 (nativ; Gamescope-Teardown getrennt)"
 fi
 if [[ "${CSRETRO_FOREGROUND:-0}" != 1 ]]; then
 	command -v gamescope >/dev/null 2>&1 || fail "gamescope fehlt (oder CSRETRO_FOREGROUND=1)"
@@ -39,11 +38,11 @@ fi
 
 export CSRETRO_ENGINE_OUT="${ENG}" CSRETRO_CLIENT_SO="${CLIENT}" \
 	CSRETRO_GAMEDLL_SO="${GAMEDLL}" CSRETRO_MENU_SO="${MENU}"
-csretro_gate_isolate_begin "classselect" || fail "isolate"
+csretro_gate_isolate_begin "spec" || fail "isolate"
 csretro_gate_isolate_stage_runtime
 RUN="${CSRETRO_RUN_DIR}"
 LOG="${RUN}/engine.log"
-SHOT_DIR="${ROOT}/build/classselect-shots"
+SHOT_DIR="${ROOT}/build/spec-shots"
 mkdir -p "${SHOT_DIR}"
 
 printf '%s\n' 'exec autoexec.cfg' 'stuffcmds' > "${RUN}/valve/valve.rc"
@@ -55,8 +54,9 @@ mp_auto_join_team 0
 mp_limitteams 0
 mp_autoteambalance 0
 bot_quota 0
+allow_spectators 1
 _vgui_menus 1
-echo CSRETRO_CLASS_GATE_CFG
+echo CSRETRO_SPEC_GATE_CFG
 EOF
 cp -a "${RUN}/cstrike/autoexec.cfg" "${RUN}/cstrike/config.cfg"
 cat > "${RUN}/cstrike/listenserver.cfg" <<'EOF'
@@ -64,6 +64,7 @@ mp_auto_join_team 0
 mp_limitteams 0
 mp_autoteambalance 0
 bot_quota 0
+allow_spectators 1
 sv_lan 1
 EOF
 
@@ -71,11 +72,11 @@ export LD_LIBRARY_PATH="${ENG}/engine:${ENG}/ref/gl:${ENG}/filesystem:${LD_LIBRA
 export XASH3D_RODIR="${GAMEDATA}"
 export XASH3D_BASEDIR="${RUN}"
 export CSRETRO_UI_OVERRIDE="${ROOT}/data/ui-overrides/cstrike"
-export CSRETRO_CLASS_GATE=1
+export CSRETRO_SPEC_GATE=1
 export CSRETRO_GATE_GRACEFUL_QUIT=1
 unset CSRETRO_V1POC CSRETRO_OPTIONS_AUTO CSRETRO_OPTIONS_GATE CSRETRO_MAINMENU_GATE \
-	CSRETRO_CREATE_GATE CSRETRO_BROWSER_GATE CSRETRO_TEAM_GATE CSRETRO_BUY_GATE \
-	CSRETRO_RADIO_GATE CSRETRO_PAUSE_GATE CSRETRO_SPEC_GATE CSRETRO_SCORE_GATE 2>/dev/null || true
+	CSRETRO_CREATE_GATE CSRETRO_BROWSER_GATE CSRETRO_TEAM_GATE CSRETRO_CLASS_GATE \
+	CSRETRO_BUY_GATE CSRETRO_RADIO_GATE CSRETRO_PAUSE_GATE CSRETRO_SCORE_GATE 2>/dev/null || true
 export CSRETRO_RUN_DIR="${RUN}"
 
 wait_log() {
@@ -121,7 +122,7 @@ run_one() {
 	local W="$1" H="$2"
 	export CSRETRO_GAMESCOPE_W="${W}"
 	export CSRETRO_GAMESCOPE_H="${H}"
-	export CSRETRO_GAMESCOPE_LOG="${RUN}/gamescope-classselect-${W}x${H}.log"
+	export CSRETRO_GAMESCOPE_LOG="${RUN}/gamescope-spec-${W}x${H}.log"
 
 	csretro_headless_x11_prepare || fail "gamescope"
 	rm -f "${LOG}"
@@ -149,7 +150,7 @@ run_one() {
 
 	csretro_headless_x11_wait_display \
 		|| { terminate_after_failure "${XASH_PID}"; fail "X11 ${W}x${H}"; }
-	wait_log 'CSRETRO_CLASS_GATE_DONE' 120 \
+	wait_log 'CSRETRO_SPEC_GATE_DONE' 180 \
 		|| { terminate_after_failure "${XASH_PID}"; fail "Gate-Lauf unvollständig ${W}x${H}"; }
 
 	local quit_ok=1
@@ -161,44 +162,25 @@ run_one() {
 
 	[[ "${quit_ok}" -eq 1 ]] || fail "Engine-Shutdown nach quit nicht sauber ${W}x${H}"
 
-	rg -q 'CSRETRO_CLASS_GATE_FAIL' "${ALL}" && {
-		rg 'CSRETRO_CLASS' "${ALL}" | head -30 >&2
+	rg -q 'CSRETRO_SPEC_GATE_FAIL' "${ALL}" && {
+		rg 'CSRETRO_SPEC' "${ALL}" | head -40 >&2
 		fail "Gate meldet Fehler ${W}x${H}"
 	}
 
-	rg -q 'CSRETRO_CLASS_VGUI open type=26' "${ALL}" || fail "TER-Class-VGUI nicht geöffnet ${W}x${H}"
-	rg -q 'CSRETRO_CLASS_GATE_OPEN .*visible=1' "${ALL}" || fail "TER-Gate-Audit fehlt ${W}x${H}"
-	rg -q 'CSRETRO_CLASS_GATE_OPEN .*title=1 terror=1 leet=1 arctic=1 guerilla=1 auto=1 cancel=1' "${ALL}" \
-		|| fail "Localization der TER-Labels fehlt ${W}x${H}"
-	rg -q 'CSRETRO_CLASS_GATE_OPEN .*classinfo=1' "${ALL}" \
-		|| fail "Class-Info zeigt Roh-Token oder Gate-Audit fehlt ${W}x${H}"
-	rg -q '#Cstrike_Class_Info' "${ALL}" && fail "Roh-Token #Cstrike_Class_Info im Log ${W}x${H}"
-	rg -q 'CSRETRO_CLASS_GATE_OPEN .*militia=0' "${ALL}" \
-		|| fail "Militia auf CS-1.6 ${MAP} darf nicht sichtbar sein ${W}x${H}"
-	rg -q 'CSRETRO_CLASS_GATE_ESC visible=0' "${ALL}" \
-		|| fail "ESC schließt die Class-Wahl nicht ${W}x${H}"
-	rg -q 'CSRETRO_CLASS_CMD joinclass 1' "${ALL}" \
-		|| fail "Taste 1 sendet joinclass 1 nicht ${W}x${H}"
-	rg -q 'CSRETRO_CLASS_VGUI open type=27' "${ALL}" || fail "CT-Class-VGUI nicht geöffnet ${W}x${H}"
-	rg -q 'CSRETRO_CLASS_GATE_CT .*title=1 urban=1 gsg9=1 sas=1 gign=1 auto=1' "${ALL}" \
-		|| fail "Localization der CT-Labels fehlt ${W}x${H}"
-	rg -q 'CSRETRO_CLASS_GATE_CT .*spetsnaz=0' "${ALL}" \
-		|| fail "Spetsnaz auf CS-1.6 ${MAP} darf nicht sichtbar sein ${W}x${H}"
-	rg -q 'CSRETRO_LOC_MISSING' "${ALL}" && {
-		rg 'CSRETRO_LOC_MISSING' "${ALL}" | head >&2
-		fail "fehlende Localization-Tokens ${W}x${H}"
-	}
-	rg -q 'CSRETRO_LOC_cstrike OK' "${ALL}" \
-		|| fail "cstrike-Localization nicht geladen ${W}x${H}"
+	rg -q 'CSRETRO_SPEC_VGUI open' "${ALL}" || fail "Spectator-VGUI nicht geöffnet ${W}x${H}"
+	rg -q 'CSRETRO_SPEC_GATE_OPEN visible=1' "${ALL}" \
+		|| fail "Spectator-Audit fehlt ${W}x${H}"
+	rg -q 'CSRETRO_SPEC_GATE_OPEN .*raw=0' "${ALL}" \
+		|| fail "Spectator-Titel roh ${W}x${H}"
 
 	mkdir -p "${SHOT_DIR}"
 	find "${RUN}/cstrike" -maxdepth 2 \( -name '*.tga' -o -name '*.bmp' -o -name '*.png' \) \
 		-printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | while read -r _ shot; do
 		[[ -n "${shot}" ]] || continue
-		cp -a "${shot}" "${SHOT_DIR}/classselect-${W}x${H}.${shot##*.}" 2>/dev/null || true
+		cp -a "${shot}" "${SHOT_DIR}/spec-${W}x${H}.${shot##*.}" 2>/dev/null || true
 	done
 
-	echo "CLASSSELECT_GATE PASS ${W}x${H}"
+	echo "SPEC_GATE PASS ${W}x${H}"
 }
 
 RES_LIST=("800x600")
@@ -210,4 +192,4 @@ for res in "${RES_LIST[@]}"; do
 	run_one "${res%x*}" "${res#*x}"
 done
 
-echo "CLASSSELECT_GATE PASS all resolutions"
+echo "SPEC_GATE PASS all resolutions"

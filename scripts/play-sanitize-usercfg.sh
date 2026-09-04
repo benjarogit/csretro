@@ -38,6 +38,10 @@ csretro_play_seed_cs_defaults() {
 			fi
 		} | rg -v '^bind "ESCAPE" ' | awk '!seen[$0]++'
 		printf '%s\n' 'bind "ESCAPE" "cancelselect"'
+		printf '%s\n' 'cl_updaterate "102"'
+		printf '%s\n' 'cl_cmdrate "100"'
+		printf '%s\n' 'rate "100000"'
+		printf '%s\n' 'sv_maxupdaterate "102"'
 		printf '%s\n' 'exec userconfig.cfg'
 	} > "${tmp}"
 	mv -f "${tmp}" "${cs}/config.cfg"
@@ -55,6 +59,62 @@ csretro_play_config_needs_cs_defaults() {
 		return 0
 	fi
 	return 1
+}
+
+# Xash archive defaults (20/30/60/25000) make listen fire wait for the next snapshot.
+csretro_play_upgrade_stock_net_rates() {
+	local cfg="$1"
+	[[ -f "${cfg}" ]] || return 0
+	python3 - "${cfg}" <<'PY'
+import re, sys
+path = sys.argv[1]
+stock = {
+    "cl_updaterate": {"20", "20.0"},
+    "cl_cmdrate": {"30", "30.0"},
+    "rate": {"25000", "25000.0"},
+    "sv_maxupdaterate": {"60", "60.0"},
+}
+want = {
+    "cl_updaterate": "102",
+    "cl_cmdrate": "100",
+    "rate": "100000",
+    "sv_maxupdaterate": "102",
+}
+pat = re.compile(r'^(?P<pre>\s*(?P<key>cl_updaterate|cl_cmdrate|rate|sv_maxupdaterate)\s+")(?P<val>[^"]*)(?P<post>".*)$')
+text = open(path, "r", encoding="utf-8", errors="replace").read()
+out = []
+seen = set()
+changed = False
+for line in text.splitlines(True):
+    nl = "\n" if line.endswith("\n") else ""
+    s = line.rstrip("\n")
+    m = pat.match(s)
+    if not m:
+        out.append(line)
+        continue
+    key = m.group("key")
+    seen.add(key)
+    val = m.group("val")
+    if val in stock[key]:
+        out.append(f'{m.group("pre")}{want[key]}{m.group("post")}{nl}')
+        changed = True
+    else:
+        out.append(line)
+if not text.endswith("\n") and out:
+    pass
+missing = [k for k in want if k not in seen]
+if missing:
+    if out and not out[-1].endswith("\n"):
+        out[-1] += "\n"
+    for key in missing:
+        out.append(f'{key} "{want[key]}"\n')
+        changed = True
+if changed:
+    open(path, "w", encoding="utf-8").writelines(out)
+    print("changed")
+else:
+    print("ok")
+PY
 }
 
 csretro_play_sanitize_usercfg() {
@@ -137,6 +197,15 @@ PY
 			printf '%s\n' 'exec config.cfg' 'exec userconfig.cfg' 'stuffcmds' > "${cs}/cstrike.rc"
 			changed=1
 			echo "CSRETRO_PLAY_SANITIZE cstrike.rc (config.cfg + userconfig.cfg, no gate autoexec)"
+		fi
+	fi
+
+	if [[ -f "${cs}/config.cfg" ]]; then
+		local net_st
+		net_st="$(csretro_play_upgrade_stock_net_rates "${cs}/config.cfg")"
+		if [[ "${net_st}" == "changed" ]]; then
+			changed=1
+			echo "CSRETRO_PLAY_SANITIZE config.cfg (Xash 20/30/60 rates → 102/100/102)"
 		fi
 	fi
 

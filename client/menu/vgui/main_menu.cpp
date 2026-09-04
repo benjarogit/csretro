@@ -8,17 +8,24 @@
 #include <vgui/MouseCode.h>
 #include <vgui/ISurfaceNext.h>
 #include <vgui_controls/Controls.h>
+#include <vgui_controls/Label.h>
 #include <vgui_controls/Menu.h>
 #include <vgui_controls/MenuItem.h>
 #include <vgui_controls/Panel.h>
 
 #include <tier1/KeyValues.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
 #include "keydefs.h"
 
+#include "../gameui/BuySelectPanel.h"
+#include "../gameui/ClassSelectPanel.h"
+#include "../gameui/Controls/MenuEngine.h"
+#include "../gameui/RadioSelectPanel.h"
+#include "../gameui/TeamSelectPanel.h"
 #include "../src/menu_priv.h"
 #include "vgui_boot.h"
 
@@ -168,6 +175,11 @@ public:
 		SetKeyBoardInputEnabled(true);
 
 		m_menu = new CsretroGameMenu(this, "GameMenu");
+		m_pausedTitle = new Label(this, "PausedTitle", "#CsretroGameUI_Paused");
+		m_pausedTitle->SetContentAlignment(Label::a_center);
+		m_pausedTitle->SetPaintBackgroundEnabled(false);
+		m_pausedTitle->SetMouseInputEnabled(false);
+		m_pausedTitle->SetVisible(false);
 		BuildItems();
 	}
 
@@ -177,6 +189,20 @@ public:
 		m_inset = SchemeInt(scheme, "InGameDesktop/GameMenuInset", kFallbackInset);
 		if (m_inset <= 0)
 			m_inset = kFallbackInset;
+		if (m_pausedTitle)
+		{
+			HFont font = scheme->GetFont("PauseTitle", IsProportional());
+			if (font == INVALID_FONT)
+				font = scheme->GetFont("DefaultLarge", IsProportional());
+			if (font != INVALID_FONT)
+				m_pausedTitle->SetFont(font);
+			m_pausedTitle->SetFgColor(scheme->GetColor("White", Color(255, 255, 255, 255)));
+			m_pausedTitle->SetText("#CsretroGameUI_Paused");
+			char shown[128] = {0};
+			m_pausedTitle->GetText(shown, sizeof(shown));
+			if (!shown[0] || shown[0] == '#')
+				m_pausedTitle->SetText("Pausiert");
+		}
 	}
 
 	void PerformLayout() override
@@ -194,10 +220,32 @@ public:
 		int menuWide = 0, menuTall = 0;
 		m_menu->GetSize(menuWide, menuTall);
 
-		// Classic anchor: bottom-left, one inset above the lower screen edge.
-		const int x = m_inset;
+		const bool pause = GameUI_IsClientInGame();
+		if (m_pausedTitle)
+			m_pausedTitle->SetVisible(pause);
+
+		int x = m_inset;
 		int y = screenTall - menuTall - m_inset;
-		if (y < 0)
+		if (pause)
+		{
+			int titleH = 40;
+			if (m_pausedTitle)
+			{
+				int tw = 0, th = 0;
+				m_pausedTitle->GetContentSize(tw, th);
+				if (th < 36)
+					th = 36;
+				titleH = th + 8;
+				m_pausedTitle->SetBounds(0, screenTall * 30 / 100, screenWide, titleH);
+			}
+			x = (screenWide - menuWide) / 2;
+			if (x < 0)
+				x = 0;
+			y = screenTall * 30 / 100 + titleH + 20;
+			if (y + menuTall > screenTall - m_inset)
+				y = std::max(0, screenTall - menuTall - m_inset);
+		}
+		else if (y < 0)
 			y = 0;
 		m_menu->SetPos(x, y);
 
@@ -226,13 +274,24 @@ public:
 			if (!data)
 				continue;
 			const bool onlyInGame = data->GetInt("OnlyInGame") != 0;
-			item->SetVisible(!onlyInGame || inGame);
+			const bool notSingle = data->GetInt("notsingle") != 0;
+			const bool notMulti = data->GetInt("notmulti") != 0;
+			const bool multi = inGame && gGlobals && gGlobals->maxClients > 1;
+			bool show = true;
+			if (onlyInGame && !inGame)
+				show = false;
+			else if (inGame && !multi && notSingle)
+				show = false;
+			else if (multi && notMulti)
+				show = false;
+			item->SetVisible(show);
 		}
 		m_menu->InvalidateLayout();
 		InvalidateLayout();
 	}
 
 	CsretroGameMenu *GetMenu() { return m_menu; }
+	Label *PausedTitle() { return m_pausedTitle; }
 
 private:
 	void ReportLayout(int screenWide, int screenTall, int x, int y, int menuWide, int menuTall)
@@ -278,6 +337,8 @@ private:
 
 			KeyValues *userData = new KeyValues("GameMenuItem");
 			userData->SetInt("OnlyInGame", entry.onlyInGame ? 1 : 0);
+			userData->SetInt("notsingle", entry.notSingle ? 1 : 0);
+			userData->SetInt("notmulti", entry.notMulti ? 1 : 0);
 
 			// Label mit führendem '#' unverändert weiterreichen: Label::SetText löst das
 			// über g_pVGuiLocalize auf. Menu_L ist der Interim-Localizer und würde bei
@@ -296,6 +357,7 @@ private:
 	}
 
 	CsretroGameMenu *m_menu = nullptr;
+	Label *m_pausedTitle = nullptr;
 	int m_inset = kFallbackInset;
 };
 
@@ -441,4 +503,171 @@ void MainMenu_Shutdown()
 {
 	// Parented to the VGUI root, which deletes the tree; just drop our handle.
 	g_mainMenu = nullptr;
+}
+
+void MainMenu_PauseGateTick()
+{
+	if (!getenv("CSRETRO_PAUSE_GATE"))
+		return;
+
+	static int step = 0;
+	static int hold = 0;
+	if (step >= 99)
+		return;
+
+	auto failDone = [](const char *why) {
+		Menu_Con("CSRETRO_PAUSE_GATE_FAIL %s", why);
+		if (getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
+			MenuEngine::ClientCmd("quit\n");
+		Menu_Con("CSRETRO_PAUSE_GATE_DONE");
+		step = 99;
+	};
+
+	auto itemVisible = [](const char *cmd) -> bool {
+		if (!g_mainMenu || !g_mainMenu->GetMenu())
+			return false;
+		for (int i = 0; i < g_mainMenu->GetMenu()->GetChildCount(); ++i)
+		{
+			MenuItem *item = dynamic_cast<MenuItem *>(g_mainMenu->GetMenu()->GetChild(i));
+			if (item && item->IsVisible() && !strcmp(item->GetName(), cmd))
+				return true;
+		}
+		return false;
+	};
+
+	auto itemRaw = [](const char *cmd) -> bool {
+		if (!g_mainMenu || !g_mainMenu->GetMenu())
+			return true;
+		for (int i = 0; i < g_mainMenu->GetMenu()->GetChildCount(); ++i)
+		{
+			MenuItem *item = dynamic_cast<MenuItem *>(g_mainMenu->GetMenu()->GetChild(i));
+			if (!item || strcmp(item->GetName(), cmd) != 0)
+				continue;
+			char text[128] = {0};
+			item->GetText(text, sizeof(text));
+			return text[0] == '#';
+		}
+		return true;
+	};
+
+	if (step == 0)
+	{
+		if (!TeamSelect_IsActive())
+			return;
+		++hold;
+		if (hold < 20)
+			return;
+		UI_KeyEvent('1', 1);
+		UI_KeyEvent('1', 0);
+		++step;
+		hold = 0;
+		return;
+	}
+
+	if (step == 1)
+	{
+		if (!ClassSelect_IsActive())
+			return;
+		++hold;
+		if (hold < 30)
+			return;
+		UI_KeyEvent('1', 1);
+		UI_KeyEvent('1', 0);
+		++step;
+		hold = 0;
+		return;
+	}
+
+	if (step == 2)
+	{
+		if (ClassSelect_IsActive() || TeamSelect_IsActive() || BuySelect_IsActive() ||
+			RadioSelect_IsActive())
+			return;
+		++hold;
+		if (hold < 60)
+			return;
+		MenuEngine::ClientCmdNow("escape\n");
+		Menu_Con("CSRETRO_PAUSE_GATE_REQUEST");
+		++step;
+		hold = 0;
+		return;
+	}
+
+	if (step == 3)
+	{
+		++hold;
+		if (MainMenu_IsActive() && GameUI_IsClientInGame())
+		{
+			if (hold < 30)
+				return;
+			const int resume = itemVisible("ResumeGame") ? 1 : 0;
+			const int disconnect = itemVisible("Disconnect") ? 1 : 0;
+			const int raw = (itemRaw("ResumeGame") || itemRaw("Disconnect")) ? 1 : 0;
+			char title[128] = {0};
+			int titleVis = 0;
+			int titleRaw = 1;
+			if (g_mainMenu && g_mainMenu->PausedTitle())
+			{
+				g_mainMenu->PausedTitle()->GetText(title, sizeof(title));
+				titleVis = g_mainMenu->PausedTitle()->IsVisible() ? 1 : 0;
+				titleRaw = title[0] == '#' ? 1 : 0;
+			}
+			Menu_Con("CSRETRO_PAUSE_GATE_OPEN resume=%d disconnect=%d wallpaper=0 blur=%d raw=%d",
+				resume, disconnect, PauseBackdrop_IsBlurred() ? 1 : 0, raw);
+			Menu_Con("CSRETRO_PAUSE_TITLE text=\"%s\" visible=%d raw=%d", title, titleVis, titleRaw);
+			if (g_mainMenu && g_mainMenu->GetMenu())
+			{
+				for (int i = 0; i < g_mainMenu->GetMenu()->GetChildCount(); ++i)
+				{
+					MenuItem *item = dynamic_cast<MenuItem *>(g_mainMenu->GetMenu()->GetChild(i));
+					if (!item)
+						continue;
+					char text[128] = {0};
+					item->GetText(text, sizeof(text));
+					Menu_Con("CSRETRO_PAUSE_ITEM cmd=%s text=\"%s\" visible=%d",
+						item->GetName(), text, item->IsVisible() ? 1 : 0);
+				}
+			}
+			MenuEngine::ClientCmd("screenshot\n");
+			++step;
+			hold = 0;
+			return;
+		}
+		if (hold > 180)
+		{
+			failDone("pause fehlt");
+			return;
+		}
+		return;
+	}
+
+	if (step == 4)
+	{
+		++hold;
+		if (hold < 20)
+			return;
+		UI_KeyEvent(K_ESCAPE, 1);
+		UI_KeyEvent(K_ESCAPE, 0);
+		++step;
+		hold = 0;
+		return;
+	}
+
+	if (step == 5)
+	{
+		++hold;
+		if (MainMenu_IsActive())
+		{
+			if (hold > 120)
+				failDone("esc resume");
+			return;
+		}
+		if (hold < 15)
+			return;
+		Menu_Con("CSRETRO_PAUSE_GATE_ESC visible=0");
+		if (getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
+			MenuEngine::ClientCmd("quit\n");
+		Menu_Con("CSRETRO_PAUSE_GATE_DONE");
+		step = 99;
+	}
 }

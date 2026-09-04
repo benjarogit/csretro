@@ -68,6 +68,13 @@ csretro_gate_isolate_stage_runtime() {
 		cp -a "${ROOT}/data/ui-overrides/cstrike/resource/." "${isolate}/cstrike/resource/" 2>/dev/null || true
 		mkdir -p "${isolate}/cstrike/gfx/shell"
 		cp -a "${ROOT}/data/ui-overrides/cstrike/gfx/shell/." "${isolate}/cstrike/gfx/shell/" 2>/dev/null || true
+		if [[ -f "${ROOT}/scripts/gamedata-env.sh" ]]; then
+			# shellcheck source=gamedata-env.sh
+			source "${ROOT}/scripts/gamedata-env.sh"
+			csretro_stage_valve_loc \
+				"${ROOT}/data/ui-overrides/cstrike/resource/csretro_gameui_english.txt" \
+				"${isolate}/cstrike/resource/csretro_gameui_english.txt"
+		fi
 	fi
 }
 

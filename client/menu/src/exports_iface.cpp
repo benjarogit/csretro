@@ -1,5 +1,7 @@
 #include "menu_priv.h"
 #include "../vgui/vgui_boot.h"
+#include "../gameui/SpectatorHudPanel.h"
+#include "../gameui/ScoreboardHudPanel.h"
 
 #include "interface.h"
 #include "cl_dll/IGameMenuExports.h"
@@ -13,6 +15,11 @@ public:
 	const char *L(const char *szStr) override { return Menu_L(szStr); }
 	bool IsActive(void) override { return GameUI_InGameActive() || gMenuVisible || VGuiXash_IsConsoleActive(); }
 	bool IsMainMenuActive(void) override { return gMenuVisible && !GameUI_InGameActive(); }
+	bool IsModalInGame(void) override
+	{
+		return VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() ||
+			VGuiXash_IsBuySelectActive();
+	}
 	void Key(int key, int down) override { GameUI_InGameKey(key, down); }
 	void MouseMove(int x, int y) override
 	{
@@ -35,6 +42,8 @@ public:
 	void SetupScoreboard(int, int, int, int, unsigned int, bool) override {}
 	void DrawScoreboard(void) override {}
 	void DrawSpectatorMenu(void) override {}
+	void SetSpectatorHud(const SpectatorHudState *state) override { SpectatorHud_Set(state); }
+	void SetScoreboardHud(const ScoreboardHudState *state) override { ScoreboardHud_Set(state); }
 	void ShowVGUIMenu(int menuType, int param1, int param2) override
 	{
 		Menu_NotePlayerTeam(param2);

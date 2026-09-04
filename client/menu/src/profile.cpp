@@ -36,6 +36,8 @@ void Profile_WriteListen(const ServerProfile *p)
 	AppendLine(cfg, "bot_difficulty %d\n", p->bot_difficulty);
 	AppendLine(cfg, "bot_join_team \"%s\"\n", p->bot_join_team.c_str());
 	AppendLine(cfg, "bot_enable %d\n", p->bot_quota > 0 ? 1 : 0);
+	// Listen (maxclients>1) drosselt den Host auf cl_updaterate; 60 war die Xash-Kappe.
+	AppendLine(cfg, "sv_maxupdaterate 102\n");
 
 	// Gameplay-Regeln so, wie die Settings-Listen sie aus settings.scr gelesen haben.
 	for (const auto &kv : p->gameplay)

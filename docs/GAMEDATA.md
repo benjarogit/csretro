@@ -60,7 +60,7 @@ Windows zusätzlich: Registry `SteamPath`. Linux: inkl. Flatpak-Pfad. macOS: `~/
 
 **IGNORE** — Steam-/GoldSrc-Binaries (`*.so`/`*.dll`/`*.exe`, `hl_linux`, `hw.so`, `steam_api`, CEF), `platform/steam`, `platform/servers`, `platform/config`, `platform/gl_shaders`, `redist/`, `cstrike_hd/`, Steam-`config.cfg`, `steam.inf` / `steam_appid.txt`.
 
-**OVERRIDE** — `data/ui-overrides/` (Git) wird nach der Steam-Kopie über `gamedata/` gelegt (Branding, zusätzliche Menüeinträge, **`platform/resource/csretro_fonts/`** mit Noto Sans, **Hauptmenü-Hintergrund** `cstrike/resource/background/csretro.png`). Originalressourcen bleiben unangetastet.
+**OVERRIDE** — `data/ui-overrides/` (Git) wird nach der Steam-Kopie über `gamedata/` gelegt (Branding, zusätzliche Menüeinträge, **`platform/resource/csretro_fonts/`** mit Noto Sans, **Hauptmenü-Hintergrund** `cstrike/resource/background/csretro.png`, **`cstrike/autobuy.txt`** / **`rebuy.txt`**). Originalressourcen bleiben unangetastet.
 
 Steam-Schriften (`platform/resource/linux_fonts`) werden nicht importiert; bestehende Bäume räumt die `prune`-Regel im Manifest auf. Dasselbe gilt für die Steam-Menükacheln (`cstrike`/`valve` `resource/background/`, `BackgroundLayout.txt`): CS Retro liefert ein eigenes Motiv unter `data/ui-overrides/cstrike/resource/background/csretro.png`.
 

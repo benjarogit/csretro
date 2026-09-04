@@ -147,6 +147,7 @@ void COptionsSubVideo::OnApplyChanges()
 	if (m_bConfirmOpen)
 		return;
 	ApplyLiveCvars();
+	m_bGammaBrightnessPreview = false;
 	ApplyModeChangesTransactional();
 }
 
@@ -156,6 +157,31 @@ void COptionsSubVideo::ApplyLiveCvars()
 	m_pGamma->ApplyChanges();
 	m_pVSync->ApplyChanges();
 	m_pDetailTextures->ApplyChanges();
+}
+
+void COptionsSubVideo::PreviewGammaBrightness()
+{
+	if (!m_bGammaBrightnessPreview)
+	{
+		m_previewOriginalBrightness = MenuEngine::GetCvarFloat("brightness");
+		m_previewOriginalGamma = MenuEngine::GetCvarFloat("gamma");
+		m_bGammaBrightnessPreview = true;
+	}
+
+	// Xash rebuilds the current world's lightmaps when either cvar changes.
+	// Updating while the user drags makes the effect visible behind the pause
+	// dialog; Apply commits it, while every close/cancel path restores it.
+	MenuEngine::CvarSetValue("brightness", m_pBrightness->GetSliderValue());
+	MenuEngine::CvarSetValue("gamma", m_pGamma->GetSliderValue());
+}
+
+void COptionsSubVideo::CancelGammaBrightnessPreview()
+{
+	if (!m_bGammaBrightnessPreview)
+		return;
+	MenuEngine::CvarSetValue("brightness", m_previewOriginalBrightness);
+	MenuEngine::CvarSetValue("gamma", m_previewOriginalGamma);
+	m_bGammaBrightnessPreview = false;
 }
 
 void COptionsSubVideo::ReadAppliedFromEngine(VidSnapshot &out) const
@@ -445,8 +471,10 @@ void COptionsSubVideo::MarkDirty()
 	PostActionSignal(new KeyValues("ApplyButtonEnable"));
 }
 
-void COptionsSubVideo::OnControlModified()
+void COptionsSubVideo::OnControlModified(Panel *panel)
 {
+	if (panel == m_pBrightness || panel == m_pGamma)
+		PreviewGammaBrightness();
 	MarkDirty();
 }
 
@@ -480,6 +508,11 @@ void COptionsSubVideo::Gate_SetGammaPending(float value)
 float COptionsSubVideo::Gate_GetGammaPending() const
 {
 	return m_pGamma->GetSliderValue();
+}
+
+void COptionsSubVideo::Gate_PreviewGammaBrightness()
+{
+	PreviewGammaBrightness();
 }
 
 void COptionsSubVideo::Gate_SetVSyncPending(bool on)

@@ -48,13 +48,15 @@ mkdir -p "${SHOT_DIR}"
 printf '%s\n' 'exec autoexec.cfg' 'stuffcmds' > "${RUN}/valve/valve.rc"
 printf '%s\n' 'exec autoexec.cfg' 'stuffcmds' > "${RUN}/cstrike/cstrike.rc"
 
-cat > "${RUN}/cstrike/autoexec.cfg" <<'EOF'
+cat > "${RUN}/cstrike/autoexec.cfg" <<EOF
 developer 2
 mp_auto_join_team 0
 mp_limitteams 0
 mp_autoteambalance 0
 bot_quota 0
 _vgui_menus 1
+brightness ${CSRETRO_GATE_BRIGHTNESS:-0.0}
+gamma ${CSRETRO_GATE_GAMMA:-2.5}
 echo CSRETRO_SCORE_GATE_CFG
 EOF
 cp -a "${RUN}/cstrike/autoexec.cfg" "${RUN}/cstrike/config.cfg"

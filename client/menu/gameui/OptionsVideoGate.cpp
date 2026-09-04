@@ -9,7 +9,6 @@
 #include "../src/menu_priv.h"
 
 #include <cmath>
-#include <cstdlib>
 
 namespace
 {
@@ -73,10 +72,16 @@ void OptionsVideo_RunFunctionalGate(COptionsDialog *dialog)
 
 	// Cancel discards pending live cvars
 	MenuEngine::CvarSetValue("brightness", 0.4f);
+	MenuEngine::CvarSetValue("gamma", 2.1f);
 	dialog->ResetAllData();
 	video->Gate_SetBrightnessPending(1.8f);
+	video->Gate_SetGammaPending(2.9f);
+	video->Gate_PreviewGammaBrightness();
+	Expect(Near(MenuEngine::GetCvarFloat("brightness"), 1.8f), "live_preview_brightness");
+	Expect(Near(MenuEngine::GetCvarFloat("gamma"), 2.9f), "live_preview_gamma");
 	dialog->Gate_Cancel();
 	Expect(Near(MenuEngine::GetCvarFloat("brightness"), 0.4f), "cancel_discards");
+	Expect(Near(MenuEngine::GetCvarFloat("gamma"), 2.1f), "cancel_restores_gamma_preview");
 
 	// OK applies + closes
 	dialog->Activate();
@@ -121,6 +126,4 @@ void OptionsVideo_RunFunctionalGate(COptionsDialog *dialog)
 	Menu_Con("CSRETRO_VIDEO_GATE_WRITECONFIG");
 	Menu_Con("CSRETRO_VIDEO_GATE_SHOT_READY");
 	Menu_Con("CSRETRO_VIDEO_GATE_DONE");
-	if (std::getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
-		MenuEngine::ClientCmd("quit\n");
 }

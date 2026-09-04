@@ -34,7 +34,7 @@ Preferred Size 512×406 + Mouse/Audio/Video grün. **Kein Phase-3-Tag/Release. F
 
 Layout · CVars · ComboBox/Menu-Hover · Mouse/Keyboard · Resolution-/Aspect-/DisplayMode-Control · Renderer-Anzeige · Brightness/Gamma/VSync · Apply/OK/Cancel/Reset · 640/800/1024/1366
 
-Brightness/Gamma im Automated Gate = Slider- und CVar-Vertrag, **nicht** Bildschirmwirkung. Inhaber 2026-09-03: keine sichtbare Auswirkung — Funktion fehlt, Ursache offen.
+Brightness/Gamma sind jetzt bis zur sichtbaren Spielwelt belegt: Ziehen schreibt beide CVars sofort, Xash baut die Lightmaps neu auf, Cancel/X/ESC stellen die Ausgangswerte wieder her und Apply/OK übernehmen sie. Ein deterministischer Scoreboard-Szenenvergleich belegt die Bildwirkung; Hauptmenü-Wallpaper und VGUI werden dabei bewusst nicht global nachbearbeitet.
 
 Behoben (nicht mehr Blocker): VPANEL-Crash, Footer-Labels, AnimationDictionary-Shutdown-SIGABRT, Confirm-`Close()` (statt nur `MarkForDeletion`).
 
@@ -70,8 +70,8 @@ Overall / Wanduhr + Visual:
 
 | Control | NextClient / Original | Xash / CS-Retro Backend | Apply | Entscheidung |
 |---------|----------------------|-------------------------|-------|--------------|
-| Brightness | `brightness` 0…2 | `brightness` (`gamma.c`, ARCHIVE) | CVar beim Apply | **keep** — CVar-Schreiben ja; **sichtbare Wirkung fehlt** (offen) |
-| Gamma | `gamma` 1…3 | `gamma` ARCHIVE | CVar beim Apply | **keep** — dito |
+| Brightness | `brightness` 0…2 | `brightness` (`gamma.c`, ARCHIVE) | Live-Vorschau; Apply/OK committen | **keep** — Spielweltwirkung und Cancel-Rollback belegt |
+| Gamma | `gamma` 1…3 | `gamma` ARCHIVE | Live-Vorschau; Apply/OK committen | **keep** — dito |
 | VSync | `gl_vsync` | `gl_vsync` ARCHIVE (kein VIDRESTART) | live CVar | **keep** — Control vorhanden + sichtbar (ypos 145); bei offenem Display-Mode-Dropdown vom Menu-Popup verdeckt (normal) |
 | Resolution | `_setvideomode` + Modes via `IGameUIFuncs` | `width`/`height`/`vid_mode` + `vid_setmode` (FCVAR_VIDRESTART) · Modes: `pfnGetModeString` | transactional + Confirm | **adapt** |
 | Display Mode | `Windowed` → `_setrenderer … windowed\|fullscreen` | `fullscreen` **0/1/2** (Windowed/FS/Borderless) | transactional + Confirm | **adapt+extend** |
@@ -127,7 +127,7 @@ Mode-Safety primär nativ; Gamescope optional zusätzlich.
 | Wanduhr-10s + Visuell Confirm | **PASS** (delta_ms≈10072; Shots unter `build/options-video-mode-safety-shots/`) |
 | Gamescope WSI Zenity | getrennt; nativ `DISABLE_GAMESCOPE_WSI=1` |
 | Alignment Resolution/Renderer/Aspect/Display Mode | **OPEN** — Visual/Layout; Backend geschlossen. Global Visual Polish + Adaptive Layout |
-| Brightness / Gamma sichtbare Wirkung | **OPEN** — Inhaber: keine sichtbare Auswirkung, Funktion fehlt. Slider (`OptionsSubVideo`) schreiben `brightness`/`gamma` beim Apply (`CCvarSlider` → `MenuEngine::CvarSet`). Xash `gamma.c` / `V_CheckGamma` → `R_GammaChanged` (Lightmap-Rebuild). Ursache nicht eingegrenzt. Kein Fix in diesem Stand. |
+| Brightness / Gamma sichtbare Wirkung | **AUTOMATED PASS / MANUAL RECHECK OPEN** — Code-Slider melden Änderungen jetzt an ihre Parent-Page. `OptionsSubVideo` schreibt `brightness`/`gamma` beim Ziehen live; Xash `gamma.c` / `V_CheckGamma` → `R_GammaChanged` baut die Lightmaps neu. Cancel/X/ESC rollen auf die Öffnungswerte zurück, Apply/OK committen. Identische Scoreboard-Szene: Bildmittel 0.361586 → 0.451516 bei 0/2.5 → 2/3; 85,448.3 AE (0.178017). Das Score-Gate wartet vor `quit`, sodass der Screenshot wirklich geschrieben wird. Wallpaper/VGUI sind kein globaler Postprocess und bleiben unverändert. |
 
 ## Mode-Safety-Matrix (Stand Overall PASS)
 

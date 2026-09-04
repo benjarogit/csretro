@@ -225,6 +225,8 @@ void COptionsDialog::OnClose()
 {
 	SaveGeometryNow();
 	m_geometryTracking = false;
+	if (auto *video = dynamic_cast<COptionsSubVideo *>(FindPage("Video")))
+		video->CancelGammaBrightnessPreview();
 	// X/ESC/Cancel discard staged page values. OK already applied them, so the
 	// same reset is harmless there and gives the next open a fresh snapshot.
 	ResetAllData();

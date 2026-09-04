@@ -31,6 +31,7 @@ public:
 	float Gate_GetBrightnessPending() const;
 	void Gate_SetGammaPending(float value);
 	float Gate_GetGammaPending() const;
+	void Gate_PreviewGammaBrightness();
 	void Gate_SetVSyncPending(bool on);
 	bool Gate_GetVSyncPending() const;
 	int Gate_GetDisplayModePending() const;
@@ -59,7 +60,7 @@ public:
 	static AspectFilter ClassifyAspect(int w, int h);
 
 protected:
-	MESSAGE_FUNC(OnControlModified, "ControlModified");
+	MESSAGE_FUNC_PTR(OnControlModified, "ControlModified", panel);
 	MESSAGE_FUNC_PTR(OnTextChanged, "TextChanged", panel);
 	MESSAGE_FUNC(OnKeepVideoSettings, "KeepVideoSettings");
 	MESSAGE_FUNC(OnRevertVideoSettings, "RevertVideoSettings");
@@ -80,6 +81,8 @@ private:
 	void ReadAppliedFromEngine(VidSnapshot &out) const;
 	void SyncUiFromApplied();
 	void ApplyLiveCvars();
+	void PreviewGammaBrightness();
+	void CancelGammaBrightnessPreview();
 	bool ApplyModeChangesTransactional();
 	void BeginConfirm(const VidSnapshot &previous);
 	void RollbackTo(const VidSnapshot &snap);
@@ -104,4 +107,9 @@ private:
 	double m_confirmDeadline = 0.0;
 	int64_t m_confirmShownMs = 0;
 	bool m_bIgnoreTextChanged = false;
+	bool m_bGammaBrightnessPreview = false;
+	float m_previewOriginalBrightness = 0.0f;
+	float m_previewOriginalGamma = 2.5f;
+
+	friend class COptionsDialog;
 };

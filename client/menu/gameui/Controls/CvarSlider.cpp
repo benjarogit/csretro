@@ -24,6 +24,8 @@ CCvarSlider::CCvarSlider(Panel *parent, const char *panelName, const char *capti
 {
 	(void)caption;
 	AddActionSignalTarget(this);
+	if (parent)
+		AddActionSignalTarget(parent);
 	SetupSlider(minValue, maxValue, cvarname, bAllowOutOfRange);
 	m_bCreatedInCode = true;
 }

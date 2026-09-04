@@ -102,7 +102,7 @@ Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextC
 
 ## Rekonstruktionsplan (Reihenfolge)
 
-1. **Options-Fundament:** Mouse + Audio + Video **PASS / Regression**. Keyboard **AUTOMATED PASS / MANUAL RECHECK OPEN** nach Persistenz-/Config-Isolation-Fix. Provenance PASS. Adaptive Layout / Resize **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN** (`docs/PHASE3M-LAYOUT.md`). Optik **VISUAL ACCEPTED 2026-09-04**. `docs/PHASE3M-KEYBOARD.md`.
+1. **Options-Fundament:** Mouse + Audio + Video **PASS / Regression**; Brightness/Gamma mit Live-Vorschau, Cancel-Rollback und sichtbarer Spielweltwirkung automatisiert belegt, manueller Recheck offen. Keyboard **AUTOMATED PASS / MANUAL RECHECK OPEN** nach Persistenz-/Config-Isolation-Fix. Provenance PASS. Adaptive Layout / Resize **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN** (`docs/PHASE3M-LAYOUT.md`). Optik **VISUAL ACCEPTED 2026-09-04**. `docs/PHASE3M-KEYBOARD.md`.
 2. **Main Menu: AUTOMATED PASS / VISUAL ACCEPTED 2026-09-04.** `GameMenu.res` als echte VGUI2-Controls (`client/menu/vgui/main_menu.cpp`, Muster NextClient `CBasePanel`/`CGameMenu`/`CGameMenuItem`); Localization über `Label::SetText`-`#`-Pfad statt Interim-`Menu_L`; Interim-Textliste entfernt. Gate: `./scripts/vgui-mainmenu-gate.sh`.
 3. **Create Game: Server / Game / Fairness AUTOMATED PASS / VISUAL ACCEPTED 2026-09-04.** Tabs Server/Game/Fairness; CS:Source-Hierarchie (eine Hülle, innen eckig), Combo ohne Dauer-Markierung und konsistente Listen-Achse/Padding. Gate: `./scripts/vgui-creategame-gate.sh` (inkl. Label-Audit `CSRETRO_CREATE_LABELS`).
    - **Server-Seite** (Layout `data/ui-overrides/cstrike/resource/CreateGameServerPage.res`): Map, Identity-Liste (`hostname` / `maxplayers` / `sv_password`) und Bots. Maps über `FindFirst("maps/*.bsp")`. Bots nur wählbar, wenn die Map ein `.nav` hat — sonst gesperrt mit Hinweis. `EnableSteamNetworkingCheck` und CZ-Tutor bewusst nicht übernommen (kein Backend).
@@ -127,16 +127,16 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 | NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | **portiert** → `client/menu/gameui/Controls/` + Xash `MenuEngine` |
 | `COptionsSubMouse` | Gate grün (funktional + Preferred 512×406 @640–1366) |
 | `COptionsSubAudio` | Gate grün; `MP3 volume *` original; Miles hidden (kein Backend) |
-| `COptionsSubVideo` | Overall **PASS** (Automated + Mode-Safety + Wanduhr≈10.07s + Visual); `docs/PHASE3M-VIDEO.md`. **Brightness/Gamma:** CVars beim Apply ja, **sichtbare Wirkung fehlt** (offen) |
+| `COptionsSubVideo` | Overall **PASS** (Automated + Mode-Safety + Wanduhr≈10.07s + Visual); `docs/PHASE3M-VIDEO.md`. **Brightness/Gamma:** Live-Vorschau, Rollback und sichtbare Spielweltwirkung automatisiert belegt; manueller Recheck offen |
 | Effektives Scheme (Runtime-Winner) | `gamedata/valve/resource/TrackerScheme.res` (= Current Steam `valve/…`); `platform/…/TrackerScheme.res` nur Fallback; `ClientScheme` parallel (HUD) |
 | Effektive `.res` | Mouse/Audio unter `data/ui-overrides/cstrike/resource/` |
 | CVar-Mapping Mouse | `m_filter` → `look_filter` |
 | CVar-Mapping Audio | `hisound` → `room_hires` (Semantik 0/1 → 1/2); `mp3volume` → `MP3Volume` |
 | Apply/Cancel/Reset/OK/Persistenz | `./scripts/vgui-options-mouse-gate.sh`, `./scripts/vgui-options-audio-gate.sh` |
 | Localization | UTF-16→wchar_t; gameui/vgui/cstrike/platform |
-| Video → … | Overall **PASS** (`docs/PHASE3M-VIDEO.md`); nur Regression. Brightness/Gamma sichtbare Wirkung **offen** |
+| Video → … | Overall **PASS** (`docs/PHASE3M-VIDEO.md`); Brightness/Gamma-Spielweltwirkung **AUTOMATED PASS / MANUAL RECHECK OPEN** |
 | Keyboard | **AUTOMATED PASS / MANUAL RECHECK OPEN** — staged Bindings überleben Page-Wechsel; Apply schreibt Engine/Config; `docs/PHASE3M-KEYBOARD.md` |
-| Video | Xash-Optionen — **PASS**. Brightness/Gamma sichtbare Wirkung **offen** (`docs/PHASE3M-VIDEO.md`) |
+| Video | Xash-Optionen — **PASS**. Brightness/Gamma: Live-Vorschau, Cancel-Rollback und Spielweltwirkung belegt (`docs/PHASE3M-VIDEO.md`) |
 | CS-Retro-Advanced-Tab | leer bis Features existieren (kein FOV-UI vor FOV) |
 | Create MP | nach stabiler Options-Grundlage |
 
@@ -261,7 +261,7 @@ Gemeinsames Profil für Listen + Dedicated. Modules = `none` bis Module existier
 | Options Audio | **PASS / Regression**; Miles absichtlich hidden |
 | VGUI2 Symbol-Controls | **Gate grün** — `vgui_symbols.cpp` |
 | VGUI2 Metrics Preferred Size | **512×406** (`OptionsClassicMetrics.h`) — Classic Preferred, nicht Max |
-| Video | **PASS / Regression** — Xash-Backends; Confirm für Mode; FOV ausgeklammert. **Brightness/Gamma sichtbare Wirkung offen** |
+| Video | **PASS / Regression** — Xash-Backends; Confirm für Mode; FOV ausgeklammert. Brightness/Gamma-Spielweltwirkung automatisiert belegt; manueller Recheck offen |
 | Keyboard | **AUTOMATED PASS / MANUAL RECHECK OPEN** — Persistenz- und Config-Isolation-Fix automatisiert grün; `docs/PHASE3M-KEYBOARD.md` |
 | Adaptive Layout / Resize | **AUTOMATED PASS / MANUAL OPEN** — acht Grips, Min 512×406, Live-Save ohne Apply, Persist/Clamp/Restart grün; `docs/PHASE3M-LAYOUT.md` |
 | Global VGUI2 Visual Polish | **VISUAL ACCEPTED 2026-09-04** für Hauptmenü, Options, Create Game und LAN-Browser; neue Konsole manuell offen |

@@ -450,13 +450,25 @@ void ScoreboardHud_GateTick()
 				s.playerCount, g_panel->TCount(), g_panel->CTCount(),
 				s.tScore, s.ctScore, g_panel->TitleLooksLocalized() ? 0 : 1);
 			MenuEngine::ClientCmd("screenshot\n");
-			if (getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
-				MenuEngine::ClientCmd("quit\n");
-			Menu_Con("CSRETRO_SCORE_GATE_DONE");
-			step = 99;
+			Menu_Con("CSRETRO_SCORE_GATE_SHOT_QUEUED");
+			step = 4;
+			hold = 0;
 			return;
 		}
 		if (hold > 480)
 			failDone("scoreboard fehlt");
+	}
+
+	if (step == 4)
+	{
+		// Let the engine execute and flush the queued screenshot before quit.
+		// Sending both commands in one frame produced a green gate without an
+		// image, making visual regressions and gamma comparisons unverifiable.
+		if (++hold < 20)
+			return;
+		if (getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
+			MenuEngine::ClientCmd("quit\n");
+		Menu_Con("CSRETRO_SCORE_GATE_DONE");
+		step = 99;
 	}
 }

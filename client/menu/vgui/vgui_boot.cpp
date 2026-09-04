@@ -456,8 +456,18 @@ void VGuiXash_RunFrame()
 					: getenv("CSRETRO_OPTIONS_KEYBOARD_GATE") ? "CSRETRO_KEYBOARD_GATE_SHOT_TAKEN"
 					: getenv("CSRETRO_OPTIONS_LAYOUT_GATE") ? "CSRETRO_LAYOUT_GATE_SHOT_TAKEN"
 									     : "CSRETRO_MOUSE_GATE_SHOT_TAKEN");
-				g_optionsGateFrame = -1;
+				// A screenshot command is consumed on a later engine frame. Keep
+				// ticking before graceful quit; otherwise a green gate can exit
+				// without ever writing its visual proof.
+				if (!getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
+					g_optionsGateFrame = -1;
 			}
+		}
+		else if (g_optionsGateFrame == 75 && getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
+		{
+			Menu_Con("CSRETRO_OPTIONS_GATE_QUIT");
+			MenuEngine::ClientCmd("quit\n");
+			g_optionsGateFrame = -1;
 		}
 		else if (g_optionsGateFrame > 60 && getenv("CSRETRO_OPTIONS_KEYBOARD_CAPTURE_PHYS"))
 		{

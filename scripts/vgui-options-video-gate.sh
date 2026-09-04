@@ -66,6 +66,7 @@ export XASH3D_BASEDIR="${RUN}"
 export CSRETRO_UI_OVERRIDE="${ROOT}/data/ui-overrides/cstrike"
 export CSRETRO_OPTIONS_VIDEO_GATE=1
 export CSRETRO_VGUI_METRICS_DUMP=1
+export CSRETRO_GATE_GRACEFUL_QUIT=1
 unset CSRETRO_V1POC CSRETRO_OPTIONS_AUTO CSRETRO_OPTIONS_GATE CSRETRO_OPTIONS_AUDIO_GATE 2>/dev/null || true
 export CSRETRO_RUN_DIR="${RUN}"
 
@@ -129,8 +130,10 @@ run_one() {
 
 	wait_log 'CSRETRO_OPTIONS_VISIBLE' 40 || { stop_engine "${XASH_PID}"; fail "VISIBLE ${W}x${H}"; }
 	wait_log 'CSRETRO_VIDEO_GATE_DONE' 60 || { stop_engine "${XASH_PID}"; fail "GATE_DONE ${W}x${H}"; }
-	wait_log 'CSRETRO_VIDEO_GATE_SHOT_TAKEN|CSRETRO_VIDEO_GATE_SHOT_READY' 30 || true
-	sleep 1.5
+	wait_log 'CSRETRO_VIDEO_GATE_SHOT_TAKEN' 30 || { stop_engine "${XASH_PID}"; fail "Screenshot nicht ausgelöst ${W}x${H}"; }
+	csretro_gate_wait_quit "${XASH_PID}" 30 "${LOG}" "${CSRETRO_GAMESCOPE_LOG}" \
+		|| { stop_engine "${XASH_PID}"; fail "Engine-Shutdown nach quit nicht sauber ${W}x${H}"; }
+	csretro_headless_x11_stop
 
 	if rg -q 'CSRETRO_VIDEO_GATE_FAIL|CSRETRO_COMBO_GATE_FAIL' "${LOG}" 2>/dev/null || rg -q 'CSRETRO_VIDEO_GATE_FAIL|CSRETRO_COMBO_GATE_FAIL' "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null; then
 		rg 'CSRETRO_VIDEO_GATE_FAIL|CSRETRO_COMBO_GATE_FAIL|CSRETRO_LOC_|CSRETRO_METRICS_BTN' "${LOG}" "${CSRETRO_GAMESCOPE_LOG}" 2>/dev/null | head -60 >&2 || true
@@ -179,7 +182,6 @@ run_one() {
 		echo "WARN: kein Engine-Screenshot ${W}x${H}" >&2
 	fi
 
-	stop_engine "${XASH_PID}"
 	echo "OPTIONS_VIDEO_GATE PASS ${W}x${H} shot=${shot}"
 }
 

@@ -95,7 +95,7 @@ Erhalten (Verhalten): BasePanel, Server Browser, Options, Create Multiplayer (Se
 | Ziel | Quelle / Korrektur |
 |------|---------------------|
 | **Crosshair-Fine** | Sehr individuell über die Optionen. Funktionale Quelle NextClient: `client/nextclient/client_mini/src/hud/HudCrosshair.{h,cpp}` (Typen Cross/T/Kreis/Punkt, `cl_crosshair_*`, Dynamic) und GameUI `OptionsSubMultiplayer.cpp` (Farbe/Größe/Typ/Translucent/Vorschau). Produktziel feiner als die NextClient-Presets. |
-| **Radar-Minimap** | Karte im Radar (CS:GO/CS2-artig), nicht nur Punkte auf leerem Kreis. NextClient hat **kein** Map-Radar: `HudRadar` (`HudRadar.cpp:13–14`) ruft nur Steam-`CHudHealth__DrawRadar`. Body-Ist ist das klassische Sprite-Radar (`client/body/cl_dll/hud/radar.cpp`). Abguck — nicht Vendor — MetaHook / GameBanana Dynamic Radar: `docs/UPSTREAM.md`. |
+| **Radar-Minimap** | Karte im Radar (CS:GO/CS2-artig), nicht nur Punkte auf leerem Kreis. NextClient hat **kein** Map-Radar: `HudRadar` (`HudRadar.cpp:13–14`) ruft nur Steam-`CHudHealth__DrawRadar`. Body-Ist ist das klassische Sprite-Radar (`client/body/cl_dll/hud/radar.cpp`). Abguck — nicht Vendor — MetaHook / GameBanana Dynamic Radar **und** lokale `TEMP_EXTRA/`-Bäume (Source SDK 2013 CS:S-`hud_radar`, CS:GO Scaleform-`sfhudradar`): `docs/UPSTREAM.md`. Nach 3M. |
 
 Ersetzen (Anbindung): Steam-/GoldSrc-GameUI, `HWND`/`SetWindowLongPtr`, `next_engine_mini.dll`, NitroApi-/Steam-Bind, `-m32`, Win32-only-Libs, CEF außer später bewusstem Cross-Platform-Bedarf.
 
@@ -194,9 +194,10 @@ braucht die Slots als Zahl. `Bots` und `Modules` folgen den geplanten Phasen (`d
 2. Lokale Steam-CS-1.6-Resources — Optik
 3. Ref B — Menü-/VGUI-Referenz bereits in Phase 3M (In-Game-Verhalten / `.res`-Mapping); gezielte zusätzliche Feature-Ports später
 4. [DeadZoneLuna/css-community](https://github.com/DeadZoneLuna/css-community) — CS:Source In-Game-VGUI-Vergleich (Class/Buy; Team bei uns schon `CTeamSelectPanel`). Beobachten, nicht importieren; nicht Engine-Ziel. `docs/UPSTREAM.md`
-5. Xash MenuAPI / MenuFactory
-6. `kungfulon/fwgs-vgui2-support` — nur Forschung (`docs/UPSTREAM.md`)
-7. Ghidra auf lokalen Original-Binaries — nur wenn 1–6 nicht reicht
+5. `TEMP_EXTRA/` (lokal, nicht im Git) — Source SDK 2013 (`hl2_src`, CS:Source VGUI/HUD-Radar) und CS:GO cstrike15 (`cstrike15_src`, Scaleform-Radar/Team). Abgucken für Menüs und Features nach 3M; andere Engines, kein Vendor. `docs/UPSTREAM.md`
+6. Xash MenuAPI / MenuFactory
+7. `kungfulon/fwgs-vgui2-support` — nur Forschung (`docs/UPSTREAM.md`)
+8. Ghidra auf lokalen Original-Binaries — nur wenn 1–7 nicht reicht
 
 ## Nicht
 

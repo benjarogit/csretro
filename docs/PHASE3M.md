@@ -84,7 +84,7 @@ Nur bedarfsgesteuert (`PlaySound`, Texturen, `DrawTexturedPolygon`, Combo, Query
 
 ## Referenzmatrix (Rekonstruktion)
 
-Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextClient GameUI · Ref B / FuryBaM · css-community nur In-Game Class/Buy-Vergleich (beobachten, nicht Engine) · fwgs-vgui2-support · Ref A nur Desktop-Erkenntnisse · Xash MenuAPI. Ghidra nur bei unklaren ABI-/Abläufen (keine Projektdateien committen).
+Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextClient GameUI · Ref B / FuryBaM · css-community nur In-Game Class/Buy-Vergleich (beobachten, nicht Engine) · `TEMP_EXTRA/` lokal (Source SDK 2013 / CS:GO cstrike15; beobachten, nicht Engine, nicht 3M-Merge) · fwgs-vgui2-support · Ref A nur Desktop-Erkenntnisse · Xash MenuAPI. Ghidra nur bei unklaren ABI-/Abläufen (keine Projektdateien committen).
 
 | Bereich | Original CS 1.6 | NextClient | Ref B | weitere Referenz | Ghidra? | CS-Retro-Ziel |
 |---------|-----------------|------------|-------|------------------|---------|---------------|
@@ -214,7 +214,7 @@ FOV/3D/In-Game bleiben gesperrt bis nach 3M. Danach, nur mit Backend:
 | Feature | Ziel | Quelle | Nicht |
 |---------|------|--------|-------|
 | **Crosshair** | Sehr individuell über die Optionen (feiner als Presets) | NextClient `HudCrosshair` + `OptionsSubMultiplayer` (`cl_crosshair_type/color/size/translucent`, `cl_dynamiccrosshair`; Typen Cross/T/Kreis/Punkt) | tote Options vor Backend |
-| **Radar** | Minimap: **Karte im Radar** (CS:GO/CS2-artig), nicht nur Punkte auf leerem Kreis | NextClient hat **kein** Map-Radar (`HudRadar.cpp:13–14` → Steam-`CHudHealth__DrawRadar`). Body = klassisches Sprite-Radar. Abguck: MetaHook / GameBanana Dynamic Radar (`docs/UPSTREAM.md`) | MetaHook vendorn oder als Hook-Runtime |
+| **Radar** | Minimap: **Karte im Radar** (CS:GO/CS2-artig), nicht nur Punkte auf leerem Kreis | NextClient hat **kein** Map-Radar (`HudRadar.cpp:13–14` → Steam-`CHudHealth__DrawRadar`). Body = klassisches Sprite-Radar. Abguck: MetaHook / GameBanana Dynamic Radar; lokal `TEMP_EXTRA/hl2_src` (CS:Source `hud_radar.cpp`) und `TEMP_EXTRA/cstrike15_src` (CS:GO Scaleform `sfhudradar`) — `docs/UPSTREAM.md` | MetaHook/Source/CSGO vendorn oder als Hook-Runtime |
 
 ## NextClient-GameUI — Inventar
 
@@ -310,4 +310,4 @@ Späterer transparenterer Steam-Stil = optionale Scheme-Variante **nach** korrek
 
 ## Nicht in 3M
 
-FOV, Crosshair, HUD-/Radar-/Camera-/Inspect-Schalter ohne Backend. 3D. CEF-Hauptmenü. Ref-A-mainui. Steam-vgui2. Phase-3-Abschluss-Tag erst bei echter VGUI2-Optik + Funktion. Crosshair-Fine und Radar-Minimap sind **Zielbild nach 3M** (Tabelle oben), kein 3M-Bau.
+FOV, Crosshair, HUD-/Radar-/Camera-/Inspect-Schalter ohne Backend. 3D. CEF-Hauptmenü. Ref-A-mainui. Steam-vgui2. `TEMP_EXTRA/` (Source SDK 2013 / CS:GO cstrike15) nicht mergen und nicht vendorn. Phase-3-Abschluss-Tag erst bei echter VGUI2-Optik + Funktion. Crosshair-Fine und Radar-Minimap sind **Zielbild nach 3M** (Tabelle oben), kein 3M-Bau.

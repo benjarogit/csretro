@@ -70,10 +70,19 @@ Engine-3rdparty (mitimportiert, kein Submodule): MultiEmulator, bzip2, xash-extr
 | https://github.com/nagist/metahook | Original-MetaHook (GoldSrc-Plugin-Framework). **Nur Abschauen:** Radar-/Client-Features. Kein Vendor, keine Hook-Runtime, kein Import |
 | https://github.com/hzqst/MetaHookSv | SvEngine-Port von nagist/metahook. Bereits VGUI2/HiDPI-Research (Tabelle unten). Zusätzlich **nur Abschauen:** Radar/HUD-Minimap und Client-Features. Kein Vendor, keine Hook-Runtime |
 | https://github.com/DeadZoneLuna/css-community | CS:Source: Community Edition — Port des 2007er Source-Leaks nach Source 2013. **Nur Abschauen:** In-Game-Menüs / GameUI (Team/Class/Buy). Nicht Engine-Ziel, kein Vendor, kein Leak-Engine-Import. CS Retro bleibt GoldSrc/Xash |
+| `TEMP_EXTRA/hl2_src/` (lokal, **nicht im Git**) | Source SDK 2013 / Half-Life-2-Enginebaum (inkl. Counter-Strike: Source unter `game/client/cstrike/`). **Nur Abschauen:** In-Game-VGUI (Team/Buy), GameUI, HUD-Radar. Andere Engine, kein Vendor, kein Merge. |
+| `TEMP_EXTRA/cstrike15_src/` (lokal, **nicht im Git**) | Counter-Strike: Global Offensive (intern **cstrike15**, Source-1-CSGO; Dump vor Hydra/Mai 2017). **Nur Abschauen:** Scaleform-HUD/Radar, Team/Buy. Andere Engine, kein Vendor, kein Merge. |
 
 Radar-Look-at (öffentlich gemeint, nichts vendorn): [Dynamic Radar (Metahook)](https://gamebanana.com/mods/39419), [Dynamic Radar (Metadrawer)](https://gamebanana.com/mods/39420) — Karte im Radar (CSO/CS:GO-artig, Overview-TGA). NextClient hat dieses Radar **nicht** (`docs/PHASE3M.md`, `docs/MENUS.md`). Selektiver Port: Bestes auswählen, in CS Retro nativ umsetzen — MetaHook bleibt Referenz.
 
 css-community Look-at (öffentlich, nichts vendorn; README + Remote-Pfade 2026-09-04, HEAD `b877078`, kein Clone): In-Game-VGUI `mp/src/game/client/game_controls/` (`teammenu`, `classmenu`, `buymenu`) und `mp/src/game/client/cstrike/VGUI/` (`cstriketeammenu`, `cstrikeclassmenu`, `cstrikebuymenu`); Layouts `mp/game/community/resource/ui/` (`teammenu.res`, `classmenu_*.res`, `buy*.res`). `mp/src/game/gameui2/` ist NicolasDe GameUI2 (Hauptmenü; Credits des Repos) — nicht unser In-Game-Pfad. Team-, Class- und Buy-Wahl bei uns VGUI2 (`CTeamSelectPanel`, `CClassSelectPanel`, `CBuySelectPanel`). Herkunft: 2007er Source-Leak-Port; Lizenzen sind kein Gate (`docs/LIZENZEN.md`) — trotzdem **kein** Vendoring der Source-Engine.
+
+`TEMP_EXTRA/` Look-at (dieser Rechner, **nicht im Git**, `.gitignore`; Stand 2026-09-04, kein Vendor-Pin): zwei weitere Source-Bäume **wie** NextClient / Ref B (`cs16-goldsrc`) / css-community — abgucken für Menüs und spätere Features, **kein Merge jetzt**. Engine-Zuordnung:
+
+- **`hl2_src`** — Source SDK 2013 (Half-Life-2-Engine). CS:Source-Client `game/client/cstrike/` (`cstrikebuymenu`, `cstriketeammenu`, `hud_radar.cpp`); generisches GameUI unter `gameui/`. Nicht dasselbe wie css-community (Community-Port des 2007er Leaks).
+- **`cstrike15_src`** — Counter-Strike: Global Offensive (`cstrike15`). Radar/Team über Scaleform (`game/client/cstrike15/Scaleform/HUD/sfhudradar.*`, `teammenu_scaleform.*`); Reste von VGUI-`game_controls/buymenu`. Hinweisdatei: Depot 730 vor Hydra (18. Mai 2017). Kein CS2/Source-2.
+
+Radar-Minimap und verwandte HUD-Ideen hängen **nach 3M** (`docs/PHASE3M.md`, `docs/PHASEN.md` 3D). Selektiver Port später: Bestes auswählen, nativ in CS Retro — Source-/CSGO-Engine nicht importieren.
 
 ### VGUI2 Research References (Phase 3M)
 

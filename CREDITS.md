@@ -118,6 +118,7 @@ Technische Pins, Commits und Erkenntnisse: `docs/UPSTREAM.md` (Abschnitt „VGUI
 - [Counter-Strike-16/OpenGoldSrc](https://github.com/Counter-Strike-16/OpenGoldSrc) und Contributors — GoldSrc-/GameUI-/VGUI2-Rekonstruktion
 - [hzqst/MetaHookSv](https://github.com/hzqst/MetaHookSv) und Contributors — VGUI2Extension, Scheme/Resource-Hooks, HiDPI-Vergleich (nicht Classic-Baseline); Radar/HUD beobachtet, nicht vendort. Original: [nagist/metahook](https://github.com/nagist/metahook)
 - [DeadZoneLuna/css-community](https://github.com/DeadZoneLuna/css-community) — CS:Source Community Edition (2007-Leak-Port nach Source 2013); In-Game-Menü-Vergleich (Team/Class/Buy), nicht Engine. Credits dort u. a. NicolasDe GameUI2. Nicht vendort.
+- Lokale Abguck-Dumps `TEMP_EXTRA/` (nicht im Git): **Source SDK 2013** (`hl2_src`, inkl. Counter-Strike: Source) und **Counter-Strike: Global Offensive** (`cstrike15_src`). Menüs/Radar später; andere Engines, nicht vendort. `docs/UPSTREAM.md`
 - [kungfulon/fwgs-vgui2-support](https://github.com/kungfulon/fwgs-vgui2-support) — historische Xash-VGUI2-Forschung
 
 Jedes weitere Projekt, aus dem wir später Code oder Verhalten übernehmen, hier und in `docs/UPSTREAM.md` nachtragen.

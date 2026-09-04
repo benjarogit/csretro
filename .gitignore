@@ -44,3 +44,10 @@ __pycache__/
 *.tar.gz
 *.tgz
 *.zip
+
+# Lokale Abguck-Dumps (nicht Runtime, nicht Vendor — docs/UPSTREAM.md)
+/TEMP_EXTRA/
+
+# Runtime-/Backup-Junk
+gamescope.log
+*.sdkorig

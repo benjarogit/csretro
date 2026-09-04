@@ -124,7 +124,10 @@ void PlaceDirectory::Load(SteamFile *file)
 char *GetBspFilename()
 {
 	static char bspFilename[256];
-	Q_snprintf(bspFilename, sizeof(bspFilename), "maps\\%s.bsp", STRING(gpGlobals->mapname));
+	// Engine filesystem paths are portable virtual paths. A Windows separator
+	// makes GET_FILE_SIZE miss the BSP on Linux and falsely reject a matching
+	// navigation file as belonging to another map version.
+	Q_snprintf(bspFilename, sizeof(bspFilename), "maps/%s.bsp", STRING(gpGlobals->mapname));
 	return bspFilename;
 }
 

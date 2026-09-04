@@ -62,6 +62,8 @@ Windows zusätzlich: Registry `SteamPath`. Linux: inkl. Flatpak-Pfad. macOS: `~/
 
 **OVERRIDE** — `data/ui-overrides/` (Git) wird nach der Steam-Kopie über `gamedata/` gelegt (Branding, zusätzliche Menüeinträge, **`platform/resource/csretro_fonts/`** mit Noto Sans, **Hauptmenü-Hintergrund** `cstrike/resource/background/csretro.png`, **`cstrike/autobuy.txt`** / **`rebuy.txt`**). Originalressourcen bleiben unangetastet.
 
+**VALIDIERTE REPARATUR** — Steam liefert `cstrike/sprites/hud.txt` mit dem alten Kopfzähler `215`, aber 190 vollständigen Sprite-Datensätzen. Der Bootstrap validiert jeden Datensatz auf sieben Felder und korrigiert ausschließlich diesen bekannten Zustand im privaten CS-Retro-Datenbaum auf `190`. Bei jeder anderen Abweichung bricht er ab. Der Engine-Parser bleibt streng; die Steam-Installation bleibt unangetastet.
+
 Steam-Schriften (`platform/resource/linux_fonts`) werden nicht importiert; bestehende Bäume räumt die `prune`-Regel im Manifest auf. Dasselbe gilt für die Steam-Menükacheln (`cstrike`/`valve` `resource/background/`, `BackgroundLayout.txt`): CS Retro liefert ein eigenes Motiv unter `data/ui-overrides/cstrike/resource/background/csretro.png`.
 
 ## Aufräumen: `ignore` gegen `prune`

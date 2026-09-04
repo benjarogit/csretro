@@ -85,6 +85,9 @@ GNU General Public License for more details.
 
 #define SOCKET int
 
-typedef int WSAsize_t;
+// POSIX socket APIs use socklen_t for address-buffer sizes. Keeping the
+// Winsock-compatible alias as int caused signedness mismatches at every
+// recvfrom/getsockname call on platforms where socklen_t is unsigned.
+typedef socklen_t WSAsize_t;
 
 #endif // NET_H

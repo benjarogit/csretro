@@ -512,6 +512,51 @@ def apply_ui_overrides(dest_root: Path) -> list[str]:
     return copied
 
 
+def repair_cs_hud_sprite_count(dest_root: Path) -> list[str]:
+    """Repair Steam's stale cstrike/sprites/hud.txt entry count.
+
+    The shipped file declares 215 rows but contains 190 complete, one-line
+    sprite records. Keep the engine parser strict: validate the imported file
+    here and correct only its header in CS Retro's private GameData copy.
+    """
+    rel = "cstrike/sprites/hud.txt"
+    path = dest_root / rel
+    if not path.is_file():
+        return []
+
+    lines = path.read_text(encoding="utf-8", errors="strict").splitlines()
+    if not lines:
+        raise RuntimeError(f"Leeres Sprite-Manifest: {rel}")
+
+    try:
+        declared = int(lines[0].strip())
+    except ValueError as exc:
+        raise RuntimeError(f"Ungültiger Sprite-Zähler in {rel}: {lines[0]!r}") from exc
+
+    records: list[str] = []
+    for line_number, line in enumerate(lines[1:], start=2):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("//"):
+            continue
+        if len(stripped.split()) != 7:
+            raise RuntimeError(
+                f"Unvollständiger Sprite-Datensatz in {rel}:{line_number}: {stripped!r}"
+            )
+        records.append(line)
+
+    actual = len(records)
+    if declared == actual:
+        return []
+    if declared != 215 or actual != 190:
+        raise RuntimeError(
+            f"Unerwartete Sprite-Anzahl in {rel}: deklariert {declared}, vorhanden {actual}"
+        )
+
+    lines[0] = str(actual)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return [rel]
+
+
 def ensure_platform_resource(source: Path, dest_root: Path, manifest: dict) -> list[str]:
     if (dest_root / "platform" / "resource" / "TrackerScheme.res").is_file():
         return []
@@ -631,6 +676,7 @@ def do_import(args: argparse.Namespace) -> int:
             prune_stale(dest_root, manifest)
             apply_ui_overrides(dest_root)
             patch_tracker_scheme_menu_item_height(dest_root)
+            repair_cs_hud_sprite_count(dest_root)
             print(f"XASH3D_RODIR={dest_root}")
             return 0
         if not same:
@@ -666,6 +712,7 @@ def do_import(args: argparse.Namespace) -> int:
     pruned = prune_stale(dest_root, manifest)
     copied.extend(apply_ui_overrides(dest_root))
     copied.extend(patch_tracker_scheme_menu_item_height(dest_root))
+    repaired = repair_cs_hud_sprite_count(dest_root)
 
     write_origin(
         dest_root,
@@ -683,6 +730,7 @@ def do_import(args: argparse.Namespace) -> int:
             "copied": len(copied),
             "ignored_skipped": skipped_ignore,
             "pruned": pruned,
+            "repaired": repaired,
             "steam_sourced": copied,
             "csretro_owned": extras + deployed,
         },

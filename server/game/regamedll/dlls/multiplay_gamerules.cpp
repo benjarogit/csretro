@@ -538,7 +538,9 @@ CHalfLifeMultiplay::CHalfLifeMultiplay()
 		CVAR_SET_FLOAT("mp_windifference", 1);
 	}
 
-	InstallTutor(CVAR_GET_FLOAT("tutor_enable") != 0.0f);
+	// tutor_enable is registered by Condition Zero only. Keep the CS ruleset
+	// out of the CZ-only cvar path instead of manufacturing a fallback cvar.
+	InstallTutor(AreRunningCZero() && CVAR_GET_FLOAT("tutor_enable") != 0.0f);
 
 	m_bSkipShowMenu = false;
 	m_bNeededPlayers = false;

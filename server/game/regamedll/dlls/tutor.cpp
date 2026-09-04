@@ -55,6 +55,11 @@ void MonitorTutorStatus()
 	static cvar_t *tutor_enable = nullptr;
 	static bool tutor_enableCvarExists = true;
 
+	// The tutor and its cvars belong to Condition Zero. Counter-Strike does
+	// not register tutor_enable, so do not probe a cvar that cannot exist.
+	if (!AreRunningCZero())
+		return;
+
 	bool shouldTutorBeOn = false;
 	int numHumans = 0;
 

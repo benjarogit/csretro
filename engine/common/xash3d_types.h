@@ -135,8 +135,10 @@ typedef int qboolean;
 	#define NONNULL            __attribute__(( nonnull ))
 	#if defined( __MINGW32__ )
 		#define FORMAT_CHECK( x )  __attribute__(( format( gnu_printf, x, x + 1 )))
+		#define FORMAT_CHECK_VA( x ) __attribute__(( format( gnu_printf, x, 0 )))
 	#else
 		#define FORMAT_CHECK( x )  __attribute__(( format( printf, x, x + 1 )))
+		#define FORMAT_CHECK_VA( x ) __attribute__(( format( printf, x, 0 )))
 	#endif
 	#define ALLOC_CHECK( x )   __attribute__(( alloc_size( x )))
 	#define WARN_UNUSED_RESULT __attribute__(( warn_unused_result ))
@@ -216,6 +218,10 @@ typedef int qboolean;
 #if !defined( FORMAT_CHECK )
 	#define FORMAT_CHECK( x )
 #endif // !defined( FORMAT_CHECK )
+
+#if !defined( FORMAT_CHECK_VA )
+	#define FORMAT_CHECK_VA( x )
+#endif // !defined( FORMAT_CHECK_VA )
 
 #if !defined( ALLOC_CHECK )
 	#define ALLOC_CHECK( x )

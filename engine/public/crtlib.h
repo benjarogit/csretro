@@ -107,7 +107,7 @@ qboolean Q_strnicmpext( const char *pattern, const char *text, size_t minimumlen
 const byte *Q_memmem( const byte *haystack, size_t haystacklen, const byte *needle, size_t needlelen );
 void Q_memor( byte *XASH_RESTRICT dst, const byte *XASH_RESTRICT src, size_t len );
 const char *Q_timestamp( int format ) RETURNS_NONNULL;
-int Q_vsnprintf( char *buffer, size_t buffersize, const char *format, va_list args );
+int Q_vsnprintf( char *buffer, size_t buffersize, const char *format, va_list args ) FORMAT_CHECK_VA( 3 );
 int Q_snprintf( char *buffer, size_t buffersize, const char *format, ... ) FORMAT_CHECK( 3 );
 #define Q_strpbrk strpbrk
 void COM_StripColors( const char *in, char *out );

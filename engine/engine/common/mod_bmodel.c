@@ -3111,8 +3111,15 @@ static void Mod_LoadTextures( model_t *mod, dbspmodel_t *bmod )
 	// release old sky layers first
 	if( !Host_IsDedicated() && bmod->isworld )
 	{
-		ref.dllFuncs.GL_FreeTexture( R_GetBuiltinTexture( "alpha_sky" ));
-		ref.dllFuncs.GL_FreeTexture( R_GetBuiltinTexture( "solid_sky" ));
+		int alphaSkyTexture = ref.dllFuncs.GL_FindTexture( "alpha_sky" );
+		int solidSkyTexture = ref.dllFuncs.GL_FindTexture( "solid_sky" );
+
+		// R_GetBuiltinTexture loads a missing texture. Cleanup must only release
+		// sky layers that were actually created by the previous world.
+		if( alphaSkyTexture )
+			ref.dllFuncs.GL_FreeTexture( alphaSkyTexture );
+		if( solidSkyTexture )
+			ref.dllFuncs.GL_FreeTexture( solidSkyTexture );
 	}
 #endif
 

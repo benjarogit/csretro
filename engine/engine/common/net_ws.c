@@ -906,6 +906,10 @@ int NET_CompareAdrSort( const void *_a, const void *_b )
 		// fallthrough
 	case NA_BROADCAST_IPX:
 		return portdiff;
+
+	case NA_UNDEFINED:
+	case NA_LOOPBACK:
+		return portdiff;
 	}
 
 	return 0;
@@ -1819,25 +1823,33 @@ static void NET_DetermineLocalAddress( void )
 
 	if( net.allow_ip6 )
 	{
-		// If we have changed the ip var from the command line, use that instead.
-		if( Q_stricmp( net_ip6name.string, "localhost" ))
+		qboolean explicitAddress = Q_stricmp( net_ip6name.string, "localhost" ) != 0;
+
+		// The default ip6=localhost means "bind all IPv6 interfaces" in
+		// NET_IPSocket. Do not replace it with the OS hostname: a machine may
+		// have working IPv6 sockets without publishing an AAAA hostname.
+		if( explicitAddress )
 			Q_strncpy( buff, net_ip6name.string, sizeof( buff ));
-		else Q_strncpy( buff, hostname, sizeof( buff ));
 
-		if( NET_StringToAdrEx( buff, &net6_local, AF_INET6 ))
+		namelen = sizeof( struct sockaddr_in6 );
+		if( !NET_IsSocketError( getsockname( net.ip6_sockets[NS_SERVER], (struct sockaddr *)&address, &namelen )))
 		{
-			namelen = sizeof( struct sockaddr_in6 );
-
-			if( !NET_IsSocketError( getsockname( net.ip6_sockets[NS_SERVER], (struct sockaddr *)&address, &namelen )))
+			if( explicitAddress && !NET_StringToAdrEx( buff, &net6_local, AF_INET6 ))
 			{
+				Con_DPrintf( S_ERROR "Could not get TCP/IPv6 address, Invalid hostname: '%s'\n", buff );
+			}
+			else
+			{
+				if( !explicitAddress )
+					NET_SockadrToNetadr( &address, &net6_local );
+
 				net6_local.port = ((struct sockaddr_in6 *)&address)->sin6_port;
 				const char *net_addr_string = NET_AdrToString( net6_local );
 				Con_Printf( "Server IPv6 address %s\n", net_addr_string );
 				Cvar_FullSet( "net6_address", net_addr_string, net6_address.flags );
 			}
-			else Con_DPrintf( S_ERROR "Could not get TCP/IPv6 address. Reason: %s\n", NET_ErrorString( ));
 		}
-		else Con_DPrintf( S_ERROR "Could not get TCP/IPv6 address, Invalid hostname: '%s'\n", buff );
+		else Con_DPrintf( S_ERROR "Could not get TCP/IPv6 address. Reason: %s\n", NET_ErrorString( ));
 	}
 }
 
@@ -2073,5 +2085,3 @@ void NET_Shutdown( void )
 #endif
 	net.initialized = false;
 }
-
-

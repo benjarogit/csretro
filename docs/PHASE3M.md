@@ -16,6 +16,8 @@ Eine CS-Retro-Menü-Library (`client/menu/` → `menu_amd64.so` / `.dll` / `.dyl
 
 Linux x86_64 zuerst.
 
+**Verbindliche Reihenfolge, bestätigt 2026-09-05:** GameUI und In-Game-UI werden innerhalb von 3M funktional vervollständigt und anschließend visuell fertig ausgearbeitet. Die akzeptierten ersten Look-Scheiben von Team/Class/Buy/Radio/Spectator/Scoreboard sind Zwischenstände, keine finale Design-Abnahme. PlayerList gehört noch zur funktionalen Menüarbeit; danach folgen Aufteilung, Spalten, Schrift, Abstände, Icons und Zustände der In-Game-Flächen. Erst nach dieser gemeinsamen Menü-Abnahme beginnen die weiteren Feature-Phasen; deren Optionen werden in die fertige Menüstruktur integriert.
+
 **Visuelles Ziel:** Feeling CS-1.6/VGUI2, Dialog-Chrome wie CS:Source (`docs/MENUS.md`). Standard: **eine** gerundete Hülle, innen 90°. Combo ohne Dauer-Fill, Listen-Padding, LAN-Empty-Text einmal bleiben. **Abnahme 2026-09-04:** Der Inhaber ist mit der aktuellen Optik von Hauptmenü, Options, Create Game und LAN-Server-Browser vollständig zufrieden; dieser Stand ist die aktuelle visuelle Produktbaseline. Team-Wahl ist echte VGUI2 (`ClientScheme`, Overlay, kein Frame-Chrome) — **Inhaber visuell bestätigt** (Namen/Auswahl). Class-Wahl **AUTOMATED + Inhaber-Check Namen ok**; `#Cstrike_Class_Info` nicht mehr roh. Buy **AUTOMATED PASS** (Hauptseite + Pistolen/`glock`); restliche Waffen-/Equipment-Seiten gleicher Codepfad, manueller Check offen.
 
 ## V1 — verbindliche UI-Basis (Runtime-PoC bestanden)

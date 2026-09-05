@@ -201,7 +201,7 @@ typedef struct
 	void	(*pfnFinalCredits)( void );	// show credits + game end
 } UI_FUNCTIONS;
 
-#define MENU_EXTENDED_API_VERSION 1
+#define MENU_EXTENDED_API_VERSION 2
 
 typedef struct ui_extendedfuncs_s {
 	// text functions, frozen
@@ -260,6 +260,9 @@ typedef struct
 	void (*pfnConsoleClear)( void );
 	int (*pfnConsoleToggle)( void );
 	int (*pfnConsoleIsVisible)( void );
+
+	// Video calibration needs a freshly rendered scene behind the dialog.
+	int (*pfnNeedsWorldRender)( void );
 } UI_EXTENDED_FUNCTIONS;
 
 typedef int (*MENUAPI)( UI_FUNCTIONS *pFunctionTable, ui_enginefuncs_t* engfuncs, ui_globalvars_t *pGlobals );

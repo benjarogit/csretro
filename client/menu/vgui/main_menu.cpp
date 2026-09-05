@@ -24,6 +24,7 @@
 #include "../gameui/BuySelectPanel.h"
 #include "../gameui/ClassSelectPanel.h"
 #include "../gameui/Controls/MenuEngine.h"
+#include "../gameui/OptionsDialog.h"
 #include "../gameui/RadioSelectPanel.h"
 #include "../gameui/TeamSelectPanel.h"
 #include "../src/menu_priv.h"
@@ -646,9 +647,94 @@ void MainMenu_PauseGateTick()
 		++hold;
 		if (hold < 20)
 			return;
+		GameUI_RunMenuCommand("OpenOptionsDialog");
+		auto *options = VGuiXash_GateGetOptionsDialog();
+		if (!options)
+		{
+			failDone("video calibration options missing");
+			return;
+		}
+		options->OpenTab("Video");
+		step = 6;
+		hold = 0;
+		return;
+	}
+
+	if (step == 6)
+	{
+		if (++hold < 20)
+			return;
+		if (!VGuiXash_IsVideoCalibrationActive() || PauseBackdrop_IsBlurred())
+		{
+			failDone("video calibration still covered by pause image");
+			return;
+		}
+		Menu_Con("CSRETRO_PAUSE_GATE_CALIBRATION live_world=1 cached_blur=0");
+		MenuEngine::ClientCmd("screenshot scrshots/video-live-world.png\n");
+		step = 7;
+		hold = 0;
+		return;
+	}
+
+	if (step == 7)
+	{
+		if (++hold < 20)
+			return;
+		auto *options = VGuiXash_GateGetOptionsDialog();
+		for (const char *name : {"Gamma", "Brightness"})
+		{
+			Panel *slider = options->FindChildByName(name, true);
+			if (!slider)
+			{
+				failDone("calibration slider missing");
+				return;
+			}
+			ivgui()->PostMessage(slider->GetVPanel(), new KeyValues("KeyCodeTyped", "code", KEY_END), 0);
+		}
+		step = 9;
+		hold = 0;
+		return;
+	}
+
+	if (step == 9)
+	{
+		if (++hold < 20)
+			return;
+		if (MenuEngine::GetCvarFloat("gamma") != 3.0f || MenuEngine::GetCvarFloat("brightness") != 2.0f)
+		{
+			failDone("calibration input did not reach engine");
+			return;
+		}
+		MenuEngine::ClientCmd("screenshot scrshots/video-live-bright.png\n");
+		Menu_Con("CSRETRO_PAUSE_GATE_CALIBRATION_INPUT gamma=3 brightness=2");
+		step = 10;
+		hold = 0;
+		return;
+	}
+
+	if (step == 10)
+	{
+		if (++hold < 20)
+			return;
+		VGuiXash_HideOptionsDialog();
+		step = 8;
+		hold = 0;
+		return;
+	}
+
+	if (step == 8)
+	{
+		if (++hold < 20)
+			return;
+		if (VGuiXash_IsVideoCalibrationActive() || !PauseBackdrop_IsBlurred())
+		{
+			failDone("pause blur not restored after video");
+			return;
+		}
+		Menu_Con("CSRETRO_PAUSE_GATE_CALIBRATION_CLOSE blur_restored=1");
 		UI_KeyEvent(K_ESCAPE, 1);
 		UI_KeyEvent(K_ESCAPE, 0);
-		++step;
+		step = 5;
 		hold = 0;
 		return;
 	}

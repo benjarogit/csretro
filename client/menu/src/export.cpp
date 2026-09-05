@@ -29,6 +29,7 @@ static void UI_ConsolePrint(const char *text) { VGuiXash_ConsolePrint(text); }
 static void UI_ConsoleClear(void) { VGuiXash_ConsoleClear(); }
 static int UI_ConsoleToggle(void) { return VGuiXash_ToggleConsole() ? 1 : 0; }
 static int UI_ConsoleIsVisible(void) { return VGuiXash_IsConsoleActive() ? 1 : 0; }
+static int UI_NeedsWorldRender(void) { return VGuiXash_IsVideoCalibrationActive() ? 1 : 0; }
 
 static UI_FUNCTIONS gFunctionTable = {
 	UI_VidInit,
@@ -80,6 +81,7 @@ extern "C" CSRETRO_MENU_EXPORT int GetExtAPI(int version, UI_EXTENDED_FUNCTIONS 
 		pFunctionTable->pfnConsoleClear = UI_ConsoleClear;
 		pFunctionTable->pfnConsoleToggle = UI_ConsoleToggle;
 		pFunctionTable->pfnConsoleIsVisible = UI_ConsoleIsVisible;
+		pFunctionTable->pfnNeedsWorldRender = UI_NeedsWorldRender;
 	}
 	return 1;
 }

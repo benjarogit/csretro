@@ -31,7 +31,6 @@ public:
 	float Gate_GetBrightnessPending() const;
 	void Gate_SetGammaPending(float value);
 	float Gate_GetGammaPending() const;
-	void Gate_PreviewGammaBrightness();
 	void Gate_SetVSyncPending(bool on);
 	bool Gate_GetVSyncPending() const;
 	int Gate_GetDisplayModePending() const;

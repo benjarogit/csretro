@@ -40,6 +40,8 @@
 #include "vgui/MouseCode.h"
 #include "vgui_controls/Controls.h"
 #include "vgui_controls/Panel.h"
+#include "vgui_controls/PropertySheet.h"
+#include "vgui_controls/PropertyPage.h"
 #include "vgui_internal.h"
 #include "vgui_key_translation.h"
 #include "vstdlib/IKeyValuesSystem.h"
@@ -359,6 +361,8 @@ void VGuiXash_RunFrame()
 			MainMenu_InvalidateLayout();
 	}
 	g_pVGui->RunFrame();
+	if (getenv("CSRETRO_OPTIONS_VIDEO_GATE") && g_options)
+		OptionsVideo_RunInputGate(g_options);
 	BuySelect_AfterFrame();
 	MainMenu_GateTick();
 	MainMenu_PauseGateTick();
@@ -599,6 +603,14 @@ bool VGuiXash_IsOptionsActive()
 {
 	return g_options && g_options->IsVisible();
 }
+
+bool VGuiXash_IsVideoCalibrationActive()
+{
+	return VGuiXash_IsOptionsActive() && g_options->GetPropertySheet()->GetActivePage() ==
+		g_options->FindPage("Video");
+}
+
+COptionsDialog *VGuiXash_GateGetOptionsDialog() { return g_options; }
 
 bool VGuiXash_ShowCreateGameDialog()
 {

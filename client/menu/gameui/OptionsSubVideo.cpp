@@ -54,7 +54,8 @@ COptionsSubVideo::AspectFilter COptionsSubVideo::ClassifyAspect(int w, int h)
 COptionsSubVideo::COptionsSubVideo(Panel *parent) : PropertyPage(parent, "OptionsSubVideo")
 {
 	m_pBrightness = new CCvarSlider(this, "Brightness", "#GameUI_Brightness", 0.0f, 2.0f, "brightness");
-	m_pGamma = new CCvarSlider(this, "Gamma", "#GameUI_Gamma", 1.0f, 3.0f, "gamma");
+	// Match V_ValidateGammaCvars: values below 1.8 are clamped by Xash.
+	m_pGamma = new CCvarSlider(this, "Gamma", "#GameUI_Gamma", 1.8f, 3.0f, "gamma");
 	m_pVSync = new CCvarToggleCheckButton(this, "VSync", "#GameUI_VSync", "gl_vsync");
 	m_pDetailTextures = new CCvarToggleCheckButton(this, "DetailTextures", "#GameUI_DetailTextures", "r_detailtextures");
 
@@ -508,11 +509,6 @@ void COptionsSubVideo::Gate_SetGammaPending(float value)
 float COptionsSubVideo::Gate_GetGammaPending() const
 {
 	return m_pGamma->GetSliderValue();
-}
-
-void COptionsSubVideo::Gate_PreviewGammaBrightness()
-{
-	PreviewGammaBrightness();
 }
 
 void COptionsSubVideo::Gate_SetVSyncPending(bool on)

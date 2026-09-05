@@ -12,6 +12,7 @@ bool VGuiXash_IsPocActive();
 bool VGuiXash_ShowOptionsDialog();
 void VGuiXash_HideOptionsDialog();
 bool VGuiXash_IsOptionsActive();
+bool VGuiXash_IsVideoCalibrationActive();
 bool VGuiXash_ShowMainMenu();
 void VGuiXash_HideMainMenu();
 bool VGuiXash_IsMainMenuActive();
@@ -28,6 +29,8 @@ void VGuiXash_ConsolePrint(const char *text);
 void VGuiXash_ConsoleClear();
 
 class CCreateGameDialog;
+class COptionsDialog;
+COptionsDialog *VGuiXash_GateGetOptionsDialog();
 CCreateGameDialog *VGuiXash_GateGetCreateGameDialog();
 bool VGuiXash_IsKeyboardCapturing();
 bool VGuiXash_ShowTeamSelect(int validSlots);

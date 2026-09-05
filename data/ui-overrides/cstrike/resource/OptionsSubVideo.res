@@ -188,6 +188,19 @@
 		"labelText"		"#GameUI_Brightness"
 		"textAlignment"		"west"
 	}
+	"GammaPreviewNote"
+	{
+		"ControlName" "Label"
+		"fieldName" "GammaPreviewNote"
+		"xpos" "248"
+		"ypos" "205"
+		"wide" "220"
+		"tall" "64"
+		"labelText" "#CsretroGameUI_GammaPreview"
+		"textAlignment" "north-west"
+		"dulltext" "1"
+		"wrap" "1"
+	}
 	"VideoNote"
 	{
 		"ControlName"		"Label"

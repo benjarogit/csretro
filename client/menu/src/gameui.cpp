@@ -597,7 +597,14 @@ void UI_Redraw(float)
 			!VGuiXash_IsSpectatorActive() && !VGuiXash_IsScoreboardActive())
 		{
 			if (InGame())
-				PauseBackdrop_Paint();
+			{
+				// Calibrate against the current rendered world. A cached, darkened
+				// pause image hides lightmap changes and misrepresents brightness.
+				if (VGuiXash_IsVideoCalibrationActive())
+					PauseBackdrop_Invalidate();
+				else
+					PauseBackdrop_Paint();
+			}
 			else
 				Menu_DrawBackground();
 		}

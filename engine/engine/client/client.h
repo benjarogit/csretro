@@ -1185,6 +1185,7 @@ qboolean UI_CreditsActive( void );
 void UI_CharEvent( int key );
 qboolean UI_MouseInRect( void );
 qboolean UI_IsVisible( void );
+qboolean UI_NeedsWorldRender( void );
 void UI_ConsolePrint( const char *text );
 void UI_ConsoleClear( void );
 qboolean UI_ConsoleToggle( void );

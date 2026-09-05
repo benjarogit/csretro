@@ -130,6 +130,7 @@ run_one() {
 
 	wait_log 'CSRETRO_OPTIONS_VISIBLE' 40 || { stop_engine "${XASH_PID}"; fail "VISIBLE ${W}x${H}"; }
 	wait_log 'CSRETRO_VIDEO_GATE_DONE' 60 || { stop_engine "${XASH_PID}"; fail "GATE_DONE ${W}x${H}"; }
+	wait_log 'CSRETRO_VIDEO_INPUT_GATE_DONE' 10 || { stop_engine "${XASH_PID}"; fail "Input-Gate fehlt ${W}x${H}"; }
 	wait_log 'CSRETRO_VIDEO_GATE_SHOT_TAKEN' 30 || { stop_engine "${XASH_PID}"; fail "Screenshot nicht ausgelöst ${W}x${H}"; }
 	csretro_gate_wait_quit "${XASH_PID}" 30 "${LOG}" "${CSRETRO_GAMESCOPE_LOG}" \
 		|| { stop_engine "${XASH_PID}"; fail "Engine-Shutdown nach quit nicht sauber ${W}x${H}"; }

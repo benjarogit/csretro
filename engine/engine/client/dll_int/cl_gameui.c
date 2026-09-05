@@ -170,6 +170,12 @@ qboolean UI_ConsoleIsVisible( void )
 	return gameui.dllFuncs2.pfnConsoleIsVisible() ? true : false;
 }
 
+qboolean UI_NeedsWorldRender( void )
+{
+	return gameui.hInstance && gameui.dllFuncs2.pfnNeedsWorldRender &&
+		gameui.dllFuncs2.pfnNeedsWorldRender();
+}
+
 /*
 =======================
 UI_AddTouchButtonToList

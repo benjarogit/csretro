@@ -34,7 +34,13 @@ Preferred Size 512×406 + Mouse/Audio/Video grün. **Kein Phase-3-Tag/Release. F
 
 Layout · CVars · ComboBox/Menu-Hover · Mouse/Keyboard · Resolution-/Aspect-/DisplayMode-Control · Renderer-Anzeige · Brightness/Gamma/VSync · Apply/OK/Cancel/Reset · 640/800/1024/1366
 
-Brightness/Gamma sind jetzt bis zur sichtbaren Spielwelt belegt: Ziehen schreibt beide CVars sofort, Xash baut die Lightmaps neu auf, Cancel/X/ESC stellen die Ausgangswerte wieder her und Apply/OK übernehmen sie. Ein deterministischer Scoreboard-Szenenvergleich belegt die Bildwirkung; Hauptmenü-Wallpaper und VGUI werden dabei bewusst nicht global nachbearbeitet.
+**Nachkontrolle 2026-09-05:** Der frühere Scoreboard-Bildvergleich belegte nur die Engine-Wirkung außerhalb der Options. Er belegte keine sichtbare Vorschau bei geöffnetem Menü. Das Play-Log 07:32 zeigt einen Test auf der Titelseite; deren Wallpaper ist keine Spielwelt. Im Spiel blockierten zusätzlich `ui_renderworld=0` und das zwischengespeicherte Pause-Blur-Bild eine echte Vorschau.
+
+Korrektur: Extended Menu API **2** meldet über `pfnNeedsWorldRender`, wann die Video-Seite die frische Szene benötigt. Die Engine rendert dann trotz offenem Menü; die Seite lässt das dunkle Blur-Bild während der Kalibrierung weg. `ui_renderworld` und Benutzerkonfiguration werden dafür nicht umgeschrieben. Beim Verlassen gilt wieder der normale Pause-Hintergrund. Gamma-Regler **1.8…3.0** entsprechend der Engine-Untergrenze. Die Titelseite erklärt die Vorschau auf einer Map. **Engine und Menü müssen gemeinsam neu gebaut werden.**
+
+Der Video-Test sendet echte `KeyCodeTyped`-Nachrichten an die Slider und prüft die gesamte VGUI-Signalkette, Apply-Aktivierung, Cancel-Rollback und Übernahme. Das Pause-Gate öffnet Video im Spiel, verändert die Regler und schreibt `scrshots/video-live-world.png` sowie `scrshots/video-live-bright.png`; anschließend prüft es die Wiederherstellung des Blur-Hintergrunds. **Manueller Recheck offen.**
+
+Build-Nachweis 2026-09-05: Engine und Menü erfolgreich neu gebaut; Video- und Pause-Gate @800×600 inklusive regulärem Exit 0 bestanden. Menü-Build ohne Diagnosen. Der Engine-Neubau meldet weiterhin 40 historische Compilerwarnungen (vollständiges Log dieses Laufs: `/tmp/csretro-video-engine-build.log`); diese werden nicht als behoben oder unterdrückt ausgegeben. Sichtbare Pause-Menütexte hinter den durchscheinenden Options gehören noch zum In-Game-Feinschliff.
 
 Behoben (nicht mehr Blocker): VPANEL-Crash, Footer-Labels, AnimationDictionary-Shutdown-SIGABRT, Confirm-`Close()` (statt nur `MarkForDeletion`).
 
@@ -71,7 +77,7 @@ Overall / Wanduhr + Visual:
 | Control | NextClient / Original | Xash / CS-Retro Backend | Apply | Entscheidung |
 |---------|----------------------|-------------------------|-------|--------------|
 | Brightness | `brightness` 0…2 | `brightness` (`gamma.c`, ARCHIVE) | Live-Vorschau; Apply/OK committen | **keep** — Spielweltwirkung und Cancel-Rollback belegt |
-| Gamma | `gamma` 1…3 | `gamma` ARCHIVE | Live-Vorschau; Apply/OK committen | **keep** — dito |
+| Gamma | `gamma` 1…3 | `gamma` ARCHIVE, Engine-Untergrenze **1.8** | Live-Vorschau; Apply/OK committen | **adapt** — UI **1.8…3.0**, keine tote Strecke unter dem Engine-Minimum |
 | VSync | `gl_vsync` | `gl_vsync` ARCHIVE (kein VIDRESTART) | live CVar | **keep** — Control vorhanden + sichtbar (ypos 145); bei offenem Display-Mode-Dropdown vom Menu-Popup verdeckt (normal) |
 | Resolution | `_setvideomode` + Modes via `IGameUIFuncs` | `width`/`height`/`vid_mode` + `vid_setmode` (FCVAR_VIDRESTART) · Modes: `pfnGetModeString` | transactional + Confirm | **adapt** |
 | Display Mode | `Windowed` → `_setrenderer … windowed\|fullscreen` | `fullscreen` **0/1/2** (Windowed/FS/Borderless) | transactional + Confirm | **adapt+extend** |
@@ -127,7 +133,7 @@ Mode-Safety primär nativ; Gamescope optional zusätzlich.
 | Wanduhr-10s + Visuell Confirm | **PASS** (delta_ms≈10072; Shots unter `build/options-video-mode-safety-shots/`) |
 | Gamescope WSI Zenity | getrennt; nativ `DISABLE_GAMESCOPE_WSI=1` |
 | Alignment Resolution/Renderer/Aspect/Display Mode | **OPEN** — Visual/Layout; Backend geschlossen. Global Visual Polish + Adaptive Layout |
-| Brightness / Gamma sichtbare Wirkung | **AUTOMATED PASS / MANUAL RECHECK OPEN** — Code-Slider melden Änderungen jetzt an ihre Parent-Page. `OptionsSubVideo` schreibt `brightness`/`gamma` beim Ziehen live; Xash `gamma.c` / `V_CheckGamma` → `R_GammaChanged` baut die Lightmaps neu. Cancel/X/ESC rollen auf die Öffnungswerte zurück, Apply/OK committen. Identische Scoreboard-Szene: Bildmittel 0.361586 → 0.451516 bei 0/2.5 → 2/3; 85,448.3 AE (0.178017). Das Score-Gate wartet vor `quit`, sodass der Screenshot wirklich geschrieben wird. Wallpaper/VGUI sind kein globaler Postprocess und bleiben unverändert. |
+| Brightness / Gamma sichtbare Wirkung | **AUTOMATED PASS / MANUAL RECHECK OPEN (2026-09-05)** — Echte Slider-Tastennachrichten erreichen die Engine; Apply wird aktiv, Cancel stellt zurück, Apply übernimmt. Pause-Gate zeigt die Welt bei offenen Options vor/nach Regleränderung (`video-live-world.png`, `video-live-bright.png`), visuell kontrolliert. Engine rendert per Menu-API-Anforderung trotz `ui_renderworld=0`; gespeicherter Blur verdeckt die Kalibrierung nicht mehr. Der frühere Scoreboard-Vergleich allein war kein Nachweis für diesen Options-Pfad. |
 
 ## Mode-Safety-Matrix (Stand Overall PASS)
 

@@ -117,6 +117,8 @@ std::vector<ResField> Menu_LoadRes(const char *path)
 			cur.w = atoi(val.c_str());
 		else if (!strcasecmp(key.c_str(), "tall"))
 			cur.h = atoi(val.c_str());
+		else if (!strcasecmp(key.c_str(), "cost"))
+			cur.cost = atoi(val.c_str());
 		else if (!strcasecmp(key.c_str(), "visible"))
 			cur.visible = atoi(val.c_str()) != 0;
 		else if (!strcasecmp(key.c_str(), "enabled"))

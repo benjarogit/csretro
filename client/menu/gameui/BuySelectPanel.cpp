@@ -206,6 +206,36 @@ public:
 
 	void SetHost(CBuySelectPanel *host) { m_host = host; }
 	void SetPreviewName(const char *name) { m_preview = name ? name : ""; }
+	void ConfigureWeapon(const char *command, const char *label, int cost)
+	{
+		if (!command || !command[0] || cost <= 0)
+			return;
+		SetCommand(command);
+		if (label && label[0])
+			SetText(label);
+		m_isWeaponCard = true;
+		const char *image = command;
+		if (!strcasecmp(command, "glock")) image = "glock18";
+		else if (!strcasecmp(command, "usp")) image = "usp45";
+		else if (!strcasecmp(command, "deagle")) image = "deserteagle";
+		else if (!strcasecmp(command, "fn57")) image = "fiveseven";
+		else if (!strcasecmp(command, "flash")) image = "flashbang";
+		else if (!strcasecmp(command, "hegren")) image = "hegrenade";
+		else if (!strcasecmp(command, "sgren")) image = "smokegrenade";
+		else if (!strcasecmp(command, "vest")) image = "kevlar";
+		else if (!strcasecmp(command, "vesthelm")) image = "kevlar_helmet";
+		else if (!strcasecmp(command, "nvgs") || !strcasecmp(command, "nvg")) image = "nightvision";
+		char path[96];
+		std::snprintf(path, sizeof(path), "gfx/vgui/%s", image);
+		m_weaponImage->SetImage(path);
+		m_weaponImage->SetVisible(true);
+		char price[24];
+		std::snprintf(price, sizeof(price), "$%d", cost);
+		m_price->SetText(price);
+		m_price->SetVisible(true);
+		m_preview = image;
+		ApplyLook();
+	}
 	void SetAccent(Color accent)
 	{
 		m_accent = accent;
@@ -226,10 +256,13 @@ public:
 		GetSize(w, h);
 		if (m_isWeaponCard)
 		{
-			const int imageTop = 24;
-			const int imageH = std::max(1, h - imageTop - 23);
-			m_weaponImage->SetBounds(12, imageTop, std::max(1, w - 24), imageH);
-			m_price->SetBounds(std::max(8, w - 78), h - 23, 66, 20);
+			const bool compact = h < 70;
+			const int imageTop = compact ? 14 : 24;
+			const int imageBottom = compact ? 8 : 23;
+			const int imageH = std::max(1, h - imageTop - imageBottom);
+			m_weaponImage->SetBounds(compact ? 5 : 12, imageTop,
+				std::max(1, w - (compact ? 10 : 24)), imageH);
+			m_price->SetBounds(std::max(4, w - 66), h - (compact ? 15 : 23), 60, compact ? 13 : 20);
 		}
 	}
 
@@ -253,27 +286,7 @@ public:
 		const int cost = inResourceData->GetInt("cost", 0);
 		m_isWeaponCard = cost > 0 && cmd[0] && !IsResCommand(cmd);
 		if (m_isWeaponCard)
-		{
-			const char *image = cmd;
-			if (!strcasecmp(cmd, "glock")) image = "glock18";
-			else if (!strcasecmp(cmd, "usp")) image = "usp45";
-			else if (!strcasecmp(cmd, "deagle")) image = "deserteagle";
-			else if (!strcasecmp(cmd, "fn57")) image = "fiveseven";
-			else if (!strcasecmp(cmd, "flash")) image = "flashbang";
-			else if (!strcasecmp(cmd, "hegren")) image = "hegrenade";
-			else if (!strcasecmp(cmd, "sgren")) image = "smokegrenade";
-			else if (!strcasecmp(cmd, "vest")) image = "kevlar";
-			else if (!strcasecmp(cmd, "vesthelm")) image = "kevlar_helmet";
-			else if (!strcasecmp(cmd, "nvgs") || !strcasecmp(cmd, "nvg")) image = "nightvision";
-			char path[96];
-			std::snprintf(path, sizeof(path), "gfx/vgui/%s", image);
-			m_weaponImage->SetImage(path);
-			m_weaponImage->SetVisible(true);
-			char price[24];
-			std::snprintf(price, sizeof(price), "$%d", cost);
-			m_price->SetText(price);
-			m_price->SetVisible(true);
-		}
+			ConfigureWeapon(cmd, nullptr, cost);
 	}
 
 	void OnCursorEntered() override;
@@ -290,7 +303,7 @@ private:
 	{
 		InGameViewportLook::StyleCardButton(this, m_accent);
 		SetContentAlignment(m_isWeaponCard ? Label::a_northwest : Label::a_west);
-		SetTextInset(12, m_isWeaponCard ? 7 : 0);
+		SetTextInset(m_isWeaponCard ? 6 : 12, m_isWeaponCard ? 3 : 0);
 		SetFgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::Text() : m_accent);
 		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::CardArmed() : InGameViewportLook::Card());
 		if (m_price)
@@ -322,6 +335,9 @@ public:
 
 	bool LoadPage(int menuType, const char *resOverride, int validSlots)
 	{
+		m_overview.clear();
+		std::fill(std::begin(m_overviewTitles), std::end(m_overviewTitles), nullptr);
+		m_character = nullptr;
 		while (GetChildCount() > 0)
 			delete GetChild(0);
 		m_preview = nullptr;
@@ -339,6 +355,8 @@ public:
 		snprintf(m_res, sizeof(m_res), "%s", res);
 		LoadControlSettings(res);
 		ApplySteamCommands();
+		if (m_pageIsMain)
+			BuildUnifiedOverview();
 		ApplyBuyLabels();
 		BlankRawTokens();
 		StyleButtons();
@@ -444,6 +462,11 @@ public:
 				autoBuy->SetVisible(true);
 			if (Panel *rebuy = FindChildByName("RebuyButton"))
 				rebuy->SetVisible(true);
+			if (!m_overview.empty())
+				for (const SlotBind &bind : kMainSlots)
+					if (bind.slot != 10)
+						if (Panel *old = FindChildByName(bind.name))
+							old->SetVisible(false);
 			return;
 		}
 
@@ -480,7 +503,7 @@ public:
 	bool ActivateSlot(int slot)
 	{
 		Button *btn = ButtonForSlot(slot);
-		if (!btn || !btn->IsVisible() || !btn->IsEnabled())
+		if (!btn || (!m_pageIsMain && !btn->IsVisible()) || !btn->IsEnabled())
 			return false;
 		const char *cmd = "";
 		if (KeyValues *kv = btn->GetCommand())
@@ -693,6 +716,10 @@ private:
 	int m_pendingSlots = 0;
 	bool m_pending = false;
 	ImagePanel *m_preview = nullptr;
+	ImagePanel *m_character = nullptr;
+	struct OverviewCard { CBuyHoverButton *button; int column; int row; };
+	std::vector<OverviewCard> m_overview;
+	Label *m_overviewTitles[5] = {};
 
 	void QueuePage(int menuType, const char *res, int validSlots)
 	{
@@ -718,6 +745,58 @@ private:
 			if (btn)
 				btn->SetCommand(field.command.c_str());
 		}
+	}
+
+	void BuildUnifiedOverview()
+	{
+		const char *titles[5] = {"1  Equipment", "2  Pistols", "3  Mid-Tier", "4  Rifles", "5  Grenades"};
+		for (int col = 0; col < 5; ++col)
+		{
+			char name[32];
+			snprintf(name, sizeof(name), "OverviewTitle%d", col);
+			m_overviewTitles[col] = new Label(this, name, titles[col]);
+			m_overviewTitles[col]->SetContentAlignment(Label::a_center);
+		}
+
+		int nextRow[5] = {};
+		auto append = [&](const char *path, int column, int filter) {
+			for (const ResField &field : Menu_LoadRes(path))
+			{
+				if (field.command.empty() || field.cost <= 0 || IsResCommand(field.command.c_str()))
+					continue;
+				const bool grenade = !strcasecmp(field.command.c_str(), "flash") ||
+					!strcasecmp(field.command.c_str(), "hegren") || !strcasecmp(field.command.c_str(), "sgren");
+				if ((filter == 1 && !grenade) || (filter == 2 && grenade) || nextRow[column] >= 6)
+					continue;
+				char name[64];
+				snprintf(name, sizeof(name), "Overview%d_%d", column, nextRow[column]);
+				auto *button = new CBuyHoverButton(this, name);
+				button->SetHost(this);
+				button->SetPreviewName(field.command.c_str());
+				button->ConfigureWeapon(field.command.c_str(), field.label.c_str(), field.cost);
+				m_overview.push_back({button, column, nextRow[column]++});
+			}
+		};
+
+		const bool ct = m_team == TEAM_CT;
+		const char *equipment = ct ? "resource/UI/BuyEquipment_CT.res" : "resource/UI/BuyEquipment_TER.res";
+		append(equipment, 0, 2);
+		append(ct ? "resource/UI/BuyPistols_CT.res" : "resource/UI/BuyPistols_TER.res", 1, 0);
+		append(ct ? "resource/UI/BuyShotguns_CT.res" : "resource/UI/BuyShotguns_TER.res", 2, 0);
+		append(ct ? "resource/UI/BuySubMachineguns_CT.res" : "resource/UI/BuySubMachineguns_TER.res", 2, 0);
+		append(ct ? "resource/UI/BuyMachineguns_CT.res" : "resource/UI/BuyMachineguns_TER.res", 2, 0);
+		append(ct ? "resource/UI/BuyRifles_CT.res" : "resource/UI/BuyRifles_TER.res", 3, 0);
+		append(equipment, 4, 1);
+
+		for (const SlotBind &bind : kMainSlots)
+			if (bind.slot != 10)
+				if (Panel *old = FindChildByName(bind.name))
+					old->SetVisible(false);
+		m_character = new ImagePanel(this, "BuyCharacter");
+		m_character->SetImage(m_team == TEAM_CT ? "gfx/vgui/urban" : "gfx/vgui/terror");
+		m_character->SetShouldScaleImage(true);
+		m_character->SetMouseInputEnabled(false);
+		m_character->SetKeyBoardInputEnabled(false);
 	}
 
 	Button *ButtonForSlot(int slot)
@@ -833,6 +912,14 @@ private:
 			cat->SetTextColorState(Label::CS_NORMAL);
 			cat->SetFgColor(InGameViewportLook::TextDim());
 		}
+		for (Label *title : m_overviewTitles)
+		{
+			if (!title)
+				continue;
+			title->SetFgColor(InGameViewportLook::Text());
+			title->SetBgColor(Color(12, 12, 14, 210));
+			title->SetPaintBackgroundEnabled(true);
+		}
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
 			info->SetPaintBackgroundEnabled(true);
@@ -848,30 +935,33 @@ private:
 		GetSize(w, h);
 		if (w < 400 || h < 300)
 			return;
-		const int pad = w / 16;
-		const int gap = w / 50;
+		const int pad = w / 28;
+		const int gap = std::max(3, w / 220);
 		if (auto *title = FindChildByName("Title"))
 			title->SetBounds(pad, h / 24, w - pad * 2, h / 12);
 		if (auto *cat = FindChildByName("selectCategory"))
 			cat->SetBounds(pad, h / 24 + h / 14, w - pad * 2, h / 20);
 
-		const char *cells[] = {
-			"pistols", "shotguns", "submachineguns", "rifles",
-			"machineguns", "equipment", "primaryammo", "secammo"};
-		const int cols = 4;
-		const int rows = 2;
-		const int gridY = h * 24 / 100;
-		const int gridH = h * 43 / 100;
-		const int cellW = (w - pad * 2 - gap) / cols;
-		const int cellH = (gridH - gap * (rows - 1)) / rows;
-		for (int i = 0; i < 8; ++i)
+		const int gridW = w * 62 / 100;
+		const int headerY = h * 22 / 100;
+		const int headerH = h * 6 / 100;
+		const int gridY = headerY + headerH + gap;
+		const int gridBottom = h * 82 / 100;
+		const int cellW = (gridW - gap * 4) / 5;
+		const int cellH = (gridBottom - gridY - gap * 5) / 6;
+		for (int col = 0; col < 5; ++col)
 		{
-			Panel *p = FindChildByName(cells[i]);
-			if (!p || !p->IsVisible())
-				continue;
-			const int col = i % cols;
-			const int row = i / cols;
-			p->SetBounds(pad + col * (cellW + gap), gridY + row * (cellH + gap), cellW, cellH);
+			if (m_overviewTitles[col])
+				m_overviewTitles[col]->SetBounds(pad + col * (cellW + gap), headerY, cellW, headerH);
+		}
+		for (const OverviewCard &card : m_overview)
+			card.button->SetBounds(pad + card.column * (cellW + gap),
+				gridY + card.row * (cellH + gap), cellW, cellH);
+		if (m_character)
+		{
+			const int x = pad + gridW + w / 30;
+			const int cw = w - x - pad;
+			m_character->SetBounds(x, h * 20 / 100, cw, h * 58 / 100);
 		}
 
 		std::vector<Panel *> bottom;
@@ -1052,7 +1142,7 @@ public:
 		SetPaintBackgroundEnabled(true);
 		SetPaintBorderEnabled(false);
 		SetBorder(nullptr);
-		SetBgColor(InGameViewportLook::OverlayBg());
+		SetBgColor(Color(0, 0, 0, 155));
 	}
 
 	void PerformLayout() override

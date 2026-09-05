@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 #include <strings.h>
 
 using namespace vgui2;
@@ -136,6 +137,19 @@ public:
 			m_items[i]->SetVisible(false);
 		}
 		m_cancel = new Button(this, "CancelButton", "");
+		for (int group = 0; group < 3; ++group)
+		{
+			char name[32];
+			snprintf(name, sizeof(name), "GroupTitle%d", group);
+			m_groupTitle[group] = new Label(this, name, "");
+			for (int i = 0; i < kMaxItems; ++i)
+			{
+				snprintf(name, sizeof(name), "Group%dItem%d", group, i);
+				m_groupItems[group][i] = new Label(this, name, "");
+			}
+			snprintf(name, sizeof(name), "GroupCancel%d", group);
+			m_groupCancel[group] = new Label(this, name, "0. Exit");
+		}
 		StyleButtons();
 	}
 
@@ -283,6 +297,9 @@ private:
 	Label *m_title = nullptr;
 	Button *m_items[kMaxItems] = {};
 	Button *m_cancel = nullptr;
+	Label *m_groupTitle[3] = {};
+	Label *m_groupItems[3][kMaxItems] = {};
+	Label *m_groupCancel[3] = {};
 
 	void FireAlias(const char *alias)
 	{
@@ -351,6 +368,25 @@ private:
 			m_cancel->SetCommand("vguicancel");
 			m_cancel->SetVisible((m_slots & MENU_KEY_0) != 0);
 		}
+
+		const int types[3] = {MENU_RADIOA, MENU_RADIOB, MENU_RADIOC};
+		for (int group = 0; group < 3; ++group)
+		{
+			const bool active = types[group] == m_type;
+			m_groupTitle[group]->SetText(TitleForType(types[group]));
+			m_groupTitle[group]->SetVisible(!active);
+			int groupCount = 0;
+			const RadioItem *groupItems = ItemsForType(types[group], &groupCount);
+			for (int i = 0; i < kMaxItems; ++i)
+			{
+				const bool visible = !active && i < groupCount;
+				m_groupItems[group][i]->SetVisible(visible);
+				if (visible)
+					SetSlotText(m_groupItems[group][i], groupItems[i].slot,
+						groupItems[i].token, groupItems[i].fallback);
+			}
+			m_groupCancel[group]->SetVisible(!active);
+		}
 		InvalidateLayout();
 	}
 
@@ -386,64 +422,85 @@ private:
 			m_title->SetFgColor(title);
 			m_title->SetPaintBackgroundEnabled(false);
 		}
+		for (int group = 0; group < 3; ++group)
+		{
+			m_groupTitle[group]->SetFgColor(title);
+			m_groupTitle[group]->SetPaintBackgroundEnabled(false);
+			for (int i = 0; i < kMaxItems; ++i)
+			{
+				m_groupItems[group][i]->SetFgColor(fg);
+				m_groupItems[group][i]->SetPaintBackgroundEnabled(false);
+				m_groupItems[group][i]->SetContentAlignment(Label::a_west);
+			}
+			m_groupCancel[group]->SetFgColor(fg);
+			m_groupCancel[group]->SetPaintBackgroundEnabled(false);
+		}
 	}
 
 	void LayoutCard()
 	{
 		int pad = 10;
-		int rowH = 22;
+		int rowH = 16;
 		int gap = 2;
-		int innerW = 300;
 		int marginX = 20;
 		if (IsProportional() && scheme())
 		{
 			pad = scheme()->GetProportionalScaledValue(10);
-			rowH = scheme()->GetProportionalScaledValue(22);
+			rowH = scheme()->GetProportionalScaledValue(16);
 			gap = scheme()->GetProportionalScaledValue(2);
-			innerW = scheme()->GetProportionalScaledValue(300);
 			marginX = scheme()->GetProportionalScaledValue(20);
 		}
-
-		int rows = 0;
-		if (m_title)
-			++rows;
-		for (int i = 0; i < kMaxItems; ++i)
-		{
-			if (m_items[i] && m_items[i]->IsVisible())
-				++rows;
-		}
-		if (m_cancel && m_cancel->IsVisible())
-			++rows;
-		if (rows == 0)
-			rows = 1;
-
-		const int cardW = innerW + pad * 2;
-		const int cardH = pad * 2 + rows * rowH + (rows - 1) * gap;
 		int parentW = 640;
 		int parentH = 480;
 		if (Panel *host = GetParent())
 			host->GetSize(parentW, parentH);
-		int cardY = (parentH / 2) - (cardH / 2) - (rowH * 2);
+		const int rows = 11; // title + max. 9 commands + exit
+		const int cardW = std::max(480, parentW - marginX * 2);
+		const int cardH = pad * 2 + rows * rowH + (rows - 1) * gap;
+		// Radio is a transient quick-command HUD, anchored near the lower-left
+		// like the classic layout, not a dialog floating around screen centre.
+		int cardY = parentH - cardH - marginX;
 		if (cardY < pad)
 			cardY = pad;
 		SetBounds(marginX, cardY, cardW, cardH);
 
-		int x = pad;
+		const int colGap = pad;
+		const int colW = (cardW - pad * 2 - colGap * 2) / 3;
+		const int activeGroup = m_type == MENU_RADIOB ? 1 : m_type == MENU_RADIOC ? 2 : 0;
+		int x = pad + activeGroup * (colW + colGap);
 		int y = pad;
 		if (m_title)
 		{
-			m_title->SetBounds(x, y, innerW, rowH);
+			m_title->SetBounds(x, y, colW, rowH);
 			y += rowH + gap;
 		}
 		for (int i = 0; i < kMaxItems; ++i)
 		{
 			if (!m_items[i] || !m_items[i]->IsVisible())
 				continue;
-			m_items[i]->SetBounds(x, y, innerW, rowH);
+			m_items[i]->SetBounds(x, y, colW, rowH);
 			y += rowH + gap;
 		}
 		if (m_cancel && m_cancel->IsVisible())
-			m_cancel->SetBounds(x, y, innerW, rowH);
+			m_cancel->SetBounds(x, y, colW, rowH);
+
+		for (int group = 0; group < 3; ++group)
+		{
+			if (group == activeGroup)
+				continue;
+			x = pad + group * (colW + colGap);
+			y = pad;
+			m_groupTitle[group]->SetBounds(x, y, colW, rowH);
+			y += rowH + gap;
+			for (int i = 0; i < kMaxItems; ++i)
+			{
+				if (!m_groupItems[group][i]->IsVisible())
+					continue;
+				m_groupItems[group][i]->SetBounds(x, y, colW, rowH);
+				y += rowH + gap;
+			}
+			m_groupCancel[group]->SetBounds(x, y, colW, rowH);
+		}
 	}
 
 	void LogOpen()

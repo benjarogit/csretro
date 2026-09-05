@@ -101,10 +101,13 @@ Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextC
 | Radio | `ShowMenu` / `titles.txt` | — | — | CS:GO Scaleform `RadioPanel` (`TEMP_EXTRA/cstrike15_src`) | nein | **eigene HUD-Karte** (`CRadioSelectPanel`) — nicht Team-Viewport |
 | Spectator | `UI/Spectator.res` | — | Ref B `vgui_SpectatorPanel` | Broadcast-Anreiz (Idee) | nein | **eigene Fläche da** (`CSpectatorHudPanel`) — Rahmen, nicht Team-Viewport |
 | Scoreboard | `UI/ScoreBoard.res` | — | Ref B `vgui_ScorePanel` | Broadcast-Mid-Tafel (Idee) | nein | **eigene Fläche da** (`CScoreboardHudPanel`) — nicht Team-Viewport |
+| Command-Menü | klassisches `+commandmenu` | Binding vorhanden | Ref B / GoldSrc | moderne hierarchische Schnellaktion | bei unklarem Engine-Ablauf | **UI fehlt**; Binding allein ist kein Feature |
+| AMX-/Plugin-Menüs | serverseitiges `ShowMenu` | — | AMXX/Metamod | dynamische Plugin-Einträge | nur bei Protokollunklarheit | **Legacy-Transport erhalten, moderne dynamische Hülle offen** |
+| Bot-Menü | abhängig vom Bot-Backend | — | YaPB nur Referenz | administrative Bot-Aktionen | nein | **Backend und UI fehlen**; keine wirkungslosen Knöpfe bauen |
 
 ## Rekonstruktionsplan (Reihenfolge)
 
-1. **Options-Fundament:** Mouse + Audio + Video **PASS / Regression**; Brightness/Gamma mit Live-Vorschau, Cancel-Rollback und sichtbarer Spielweltwirkung automatisiert belegt, manueller Recheck offen. Keyboard **AUTOMATED PASS / MANUAL RECHECK OPEN** nach Persistenz-/Config-Isolation-Fix. Provenance PASS. Adaptive Layout / Resize **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN** (`docs/PHASE3M-LAYOUT.md`). Optik **VISUAL ACCEPTED 2026-09-04**. `docs/PHASE3M-KEYBOARD.md`.
+1. **Options-Fundament:** Mouse + Audio + Video-Basis **PASS / Regression**. **Brightness/Gamma bleibt FUNKTIONAL OPEN und ist auf einen späteren Featureblock verschoben; die bisherigen automatischen Nachweise ersetzen den fehlgeschlagenen Inhaber-Test nicht.** Keyboard **AUTOMATED PASS / MANUAL RECHECK OPEN** nach Persistenz-/Config-Isolation-Fix. Provenance PASS. Adaptive Layout / Resize **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN** (`docs/PHASE3M-LAYOUT.md`). Optik **VISUAL ACCEPTED 2026-09-04**. `docs/PHASE3M-KEYBOARD.md`.
 2. **Main Menu: AUTOMATED PASS / VISUAL ACCEPTED 2026-09-04.** `GameMenu.res` als echte VGUI2-Controls (`client/menu/vgui/main_menu.cpp`, Muster NextClient `CBasePanel`/`CGameMenu`/`CGameMenuItem`); Localization über `Label::SetText`-`#`-Pfad statt Interim-`Menu_L`; Interim-Textliste entfernt. Gate: `./scripts/vgui-mainmenu-gate.sh`.
 3. **Create Game: Server / Game / Fairness AUTOMATED PASS / VISUAL ACCEPTED 2026-09-04.** Tabs Server/Game/Fairness; CS:Source-Hierarchie (eine Hülle, innen eckig), Combo ohne Dauer-Markierung und konsistente Listen-Achse/Padding. Gate: `./scripts/vgui-creategame-gate.sh` (inkl. Label-Audit `CSRETRO_CREATE_LABELS`).
    - **Server-Seite** (Layout `data/ui-overrides/cstrike/resource/CreateGameServerPage.res`): Map, Identity-Liste (`hostname` / `maxplayers` / `sv_password`) und Bots. Maps über `FindFirst("maps/*.bsp")`. Bots nur wählbar, wenn die Map ein `.nav` hat — sonst gesperrt mit Hinweis. `EnableSteamNetworkingCheck` und CZ-Tutor bewusst nicht übernommen (kein Backend).
@@ -117,7 +120,7 @@ Quellen: Steam-CS-1.6 lokal · `cstrike/resource` + `platform/resource` · NextC
 7. **Spectator Grundfläche AUTOMATED PASS + Inhaber Grundfunktion und erste Look-Scheibe abgenommen** — `CSpectatorHudPanel`: dunkle Balken oben/unten, Scores/Timer/Map/Modus/Ziel. Client `CHudSpectatorGui` liefert den State über `SetSpectatorHud`, zeichnet die orangen Balken nicht mehr. Kein `KEY_DEST_MENU`, kein Team-`.res`. Gate: `./scripts/vgui-spec-gate.sh`. Radar nach 3M.
 8. **Scoreboard Grundfläche AUTOMATED PASS + Inhaber Grundfunktion und erste Look-Scheibe abgenommen** — `CScoreboardHudPanel`: mittige Tafel, T/CT-Spalten, Name/K/D/Ping. Client `CHudScoreboard` liefert den State über `SetScoreboardHud` bei `+showscores`. Kein `KEY_DEST_MENU`, kein Team-`.res`. Gate: `./scripts/vgui-score-gate.sh`.
 9. **Team/Class/Buy-Look (erste Scheibe) AUTOMATED PASS + Inhaber 2026-09-04 Funktion abgenommen** — Optik grob da, Feinschliff später. `InGameViewportLook`: Karten, Split-T/CT, Buy-Raster. Commands unverändert. Gates team/class/buy **PASS** @800×600.
-10. **Spectator/Scoreboard-Look (erste Scheibe) ABGENOMMEN 2026-09-04** — `HudFrameLook`, nicht Team-Karten. Spectator = Rahmen + T/CT-Akzent. Scoreboard = Tafel mit Gold/Blau-Kopf. Gates spec/score. Spalten, Schrift, leere Teamseite und weiterer visueller Feinschliff kommen später wie bei Team/Class/Buy.
+10. **Kompletter In-Game-Feinschliff AKTIV** — nicht nur Spectator/Scoreboard. Team, Class, Buy, Radio, Pause, Spectator und Scoreboard behalten ihre unterschiedlichen Bedienformen, teilen aber Typografie, Abstände, Zustände und Farblogik. Command-, AMX-/Plugin- und Bot-Menü werden als eigene Funktionsblöcke ergänzt, sobald ihr jeweiliger Backend-Vertrag geklärt ist. Eine erste Look-Scheibe oder ein grüner Funktions-Gate ist noch keine visuelle Fertigstellung.
 
 Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×600, 1024×768, einer 16:9.
 
@@ -129,16 +132,16 @@ Pro fertiger Dialoggruppe visueller Vergleich Steam-CS 1.6 bei 640×480, 800×60
 | NextClient Controls (`CvarToggle`/`Negate`/`Slider`/`TextEntry`/`KeyToggle`) | **portiert** → `client/menu/gameui/Controls/` + Xash `MenuEngine` |
 | `COptionsSubMouse` | Gate grün (funktional + Preferred 512×406 @640–1366) |
 | `COptionsSubAudio` | Gate grün; `MP3 volume *` original; Miles hidden (kein Backend) |
-| `COptionsSubVideo` | Overall **PASS** (Automated + Mode-Safety + Wanduhr≈10.07s + Visual); `docs/PHASE3M-VIDEO.md`. **Brightness/Gamma:** Live-Vorschau, Rollback und sichtbare Spielweltwirkung automatisiert belegt; manueller Recheck offen |
+| `COptionsSubVideo` | Video-Modi-Basis automatisiert geprüft; `docs/PHASE3M-VIDEO.md`. **Brightness/Gamma: FUNKTIONAL OPEN, späterer Featureblock; Inhaber-Test fehlgeschlagen.** |
 | Effektives Scheme (Runtime-Winner) | `gamedata/valve/resource/TrackerScheme.res` (= Current Steam `valve/…`); `platform/…/TrackerScheme.res` nur Fallback; `ClientScheme` parallel (HUD) |
 | Effektive `.res` | Mouse/Audio unter `data/ui-overrides/cstrike/resource/` |
 | CVar-Mapping Mouse | `m_filter` → `look_filter` |
 | CVar-Mapping Audio | `hisound` → `room_hires` (Semantik 0/1 → 1/2); `mp3volume` → `MP3Volume` |
 | Apply/Cancel/Reset/OK/Persistenz | `./scripts/vgui-options-mouse-gate.sh`, `./scripts/vgui-options-audio-gate.sh` |
 | Localization | UTF-16→wchar_t; gameui/vgui/cstrike/platform |
-| Video → … | Overall **PASS** (`docs/PHASE3M-VIDEO.md`); Brightness/Gamma-Spielweltwirkung **AUTOMATED PASS / MANUAL RECHECK OPEN** |
+| Video → … | Modus-/Safety-Pfade automatisiert geprüft; Brightness/Gamma **OPEN / SPÄTER** |
 | Keyboard | **AUTOMATED PASS / MANUAL RECHECK OPEN** — staged Bindings überleben Page-Wechsel; Apply schreibt Engine/Config; `docs/PHASE3M-KEYBOARD.md` |
-| Video | Xash-Optionen — **PASS**. Brightness/Gamma: Live-Vorschau, Cancel-Rollback und Spielweltwirkung belegt (`docs/PHASE3M-VIDEO.md`) |
+| Video | Xash-Modusoptionen vorhanden. Brightness/Gamma nicht abgenommen und auf später verschoben (`docs/PHASE3M-VIDEO.md`) |
 | CS-Retro-Advanced-Tab | leer bis Features existieren (kein FOV-UI vor FOV) |
 | Create MP | nach stabiler Options-Grundlage |
 

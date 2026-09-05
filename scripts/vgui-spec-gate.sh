@@ -174,11 +174,13 @@ run_one() {
 		|| fail "Spectator-Titel roh ${W}x${H}"
 
 	mkdir -p "${SHOT_DIR}"
-	find "${RUN}/cstrike" -maxdepth 2 \( -name '*.tga' -o -name '*.bmp' -o -name '*.png' \) \
-		-printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | while read -r _ shot; do
-		[[ -n "${shot}" ]] || continue
-		cp -a "${shot}" "${SHOT_DIR}/spec-${W}x${H}.${shot##*.}" 2>/dev/null || true
-	done
+	local shot
+	shot="$(find "${RUN}/cstrike/scrshots" -maxdepth 1 -type f \
+		\( -name '*.tga' -o -name '*.bmp' -o -name '*.png' \) \
+		-printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)"
+	[[ -n "${shot}" && -f "${shot}" ]] || fail "Spectator-Screenshot fehlt ${W}x${H}"
+	cp -a "${shot}" "${SHOT_DIR}/spec-${W}x${H}.${shot##*.}" \
+		|| fail "Spectator-Screenshot konnte nicht kopiert werden ${W}x${H}"
 
 	echo "SPEC_GATE PASS ${W}x${H}"
 }

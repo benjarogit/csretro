@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 
 using namespace vgui2;
 
@@ -23,6 +24,16 @@ void UI_KeyEvent(int key, int down);
 
 namespace
 {
+int TopBarHeight(int viewportHeight)
+{
+	return std::clamp(viewportHeight * 10 / 100, 56, 84);
+}
+
+int BottomBarHeight(int viewportHeight)
+{
+	return std::clamp(viewportHeight * 8 / 100, 42, 64);
+}
+
 const char *ModeLabel(int mode)
 {
 	switch (mode)
@@ -133,8 +144,8 @@ public:
 	{
 		int w = 0, h = 0;
 		GetSize(w, h);
-		const int topH = h * 10 / 100;
-		const int botH = h * 8 / 100;
+		const int topH = TopBarHeight(h);
+		const int botH = BottomBarHeight(h);
 		HudFrameLook::PaintBroadcastFrame(w, h, topH, botH, w / 90);
 	}
 
@@ -143,24 +154,28 @@ public:
 		int w = 0, h = 0;
 		HudFrameLook::ViewportSize(w, h, GetParent());
 		SetBounds(0, 0, w, h);
-		const int topH = h * 10 / 100;
-		const int botH = h * 8 / 100;
+		const int topH = TopBarHeight(h);
+		const int botH = BottomBarHeight(h);
 		m_top->SetBounds(0, 0, w, topH);
 		m_bottom->SetBounds(0, h - botH, w, botH);
 
-		const int pad = w / 40;
-		const int scoreW = w / 12;
-		const int timerW = w / 8;
-		const int nameW = w / 5;
-		const int cy = topH / 6;
-		const int ch = topH * 2 / 3;
+		const int pad = std::clamp(w / 40, 12, 32);
+		const int scoreW = std::clamp(w / 14, 48, 82);
+		const int timerW = std::clamp(w / 9, 84, 132);
+		const int nameW = std::clamp(w / 5, 132, 260);
+		const int metaH = 17;
+		const int cy = metaH;
+		const int ch = topH - metaH - 3;
 		const int mid = w / 2;
 		m_timer->SetBounds(mid - timerW / 2, cy, timerW, ch);
 		m_tScore->SetBounds(mid - timerW / 2 - scoreW - 8, cy, scoreW, ch);
 		m_ctScore->SetBounds(mid + timerW / 2 + 8, cy, scoreW, ch);
 		m_tName->SetBounds(mid - timerW / 2 - scoreW - 8 - nameW - 8, cy, nameW, ch);
 		m_ctName->SetBounds(mid + timerW / 2 + 8 + scoreW + 8, cy, nameW, ch);
-		m_map->SetBounds(w - pad - w / 6, cy, w / 6, ch);
+		// Map information has its own metadata row. It must never overlap the
+		// Counter-Terrorist name, even on the classic 800x600 viewport.
+		m_map->SetBounds(w - pad - std::clamp(w / 4, 150, 280), 1,
+			std::clamp(w / 4, 150, 280), metaH - 2);
 
 		const int bcy = botH / 6;
 		const int bch = botH * 2 / 3;
@@ -361,14 +376,38 @@ void SpectatorHud_GateTick()
 			Menu_Con("CSRETRO_SPEC_GATE_OPEN visible=1 map=%s t=%d ct=%d mode=%d raw=%d",
 				s.map, s.tScore, s.ctScore, s.observerMode,
 				g_panel->TitleLooksLocalized() ? 0 : 1);
-			MenuEngine::ClientCmd("screenshot\n");
-			if (getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
-				MenuEngine::ClientCmd("quit\n");
-			Menu_Con("CSRETRO_SPEC_GATE_DONE");
-			step = 99;
+			// Keep the diagnostic log, but remove developer notify lines from the
+			// image so the complete top bar is actually reviewable.
+			MenuEngine::ClientCmdNow("developer 0; clear\n");
+			step = 2;
+			hold = 0;
 			return;
 		}
 		if (hold > 480)
 			failDone("spectator fehlt");
+	}
+
+	if (step == 2)
+	{
+		// Let the startup console finish retracting before capturing the HUD.
+		if (++hold < 120)
+			return;
+		MenuEngine::ClientCmd("screenshot\n");
+		step = 3;
+		hold = 0;
+		return;
+	}
+
+	if (step == 3)
+	{
+		// The screenshot command is queued by the engine. Give it enough frames
+		// to render and flush before shutdown, otherwise a visual gate can pass
+		// without producing an image.
+		if (++hold < 20)
+			return;
+		if (getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
+			MenuEngine::ClientCmd("quit\n");
+		Menu_Con("CSRETRO_SPEC_GATE_DONE");
+		step = 99;
 	}
 }

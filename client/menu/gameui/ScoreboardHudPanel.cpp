@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 
 using namespace vgui2;
 
@@ -28,6 +29,66 @@ void UI_KeyEvent(int key, int down);
 namespace
 {
 enum { kRows = 16 };
+
+// Text is laid out in actual cells, not padded with spaces in a proportional font.
+class CScoreRow : public Panel
+{
+	DECLARE_CLASS_SIMPLE_OVERRIDE(CScoreRow, Panel);
+public:
+	CScoreRow(Panel *parent, const char *name, bool header = false) : BaseClass(parent, name)
+	{
+		SetMouseInputEnabled(false);
+		SetKeyBoardInputEnabled(false);
+		SetPaintBackgroundEnabled(false);
+		const char *titles[] = {"#GameUI_PlayerName", "K", "D", "PING"};
+		for (int i = 0; i < 4; ++i)
+		{
+			m_cells[i] = new Label(this, titles[i], header ? titles[i] : "");
+			m_cells[i]->SetMouseInputEnabled(false);
+			m_cells[i]->SetContentAlignment(i ? Label::a_east : Label::a_west);
+			m_cells[i]->SetTextInset(4, 0);
+		}
+	}
+	void PerformLayout() override
+	{
+		const int w = GetWide(), h = GetTall();
+		const int numeric = 32, ping = 48;
+		const int name = std::max(0, w - 2 * numeric - ping);
+		m_cells[0]->SetBounds(0, 0, name, h);
+		m_cells[1]->SetBounds(name, 0, numeric, h);
+		m_cells[2]->SetBounds(name + numeric, 0, numeric, h);
+		m_cells[3]->SetBounds(name + 2 * numeric, 0, ping, h);
+	}
+	void SetFont(vgui2::HFont font)
+	{
+		for (auto *cell : m_cells) cell->SetFont(font);
+	}
+	void SetColor(Color color)
+	{
+		for (auto *cell : m_cells) HudFrameLook::StyleHudLabel(cell, color);
+	}
+	void Clear()
+	{
+		for (auto *cell : m_cells) cell->SetText("");
+		SetPaintBackgroundEnabled(false);
+	}
+	void SetPlayer(const ScoreboardPlayerRow &player, Color team)
+	{
+		m_cells[0]->SetText(player.name);
+		char text[24];
+		std::snprintf(text, sizeof(text), "%d", player.frags);
+		m_cells[1]->SetText(text);
+		std::snprintf(text, sizeof(text), "%d", player.deaths);
+		m_cells[2]->SetText(text);
+		std::snprintf(text, sizeof(text), "%d", player.ping);
+		m_cells[3]->SetText(player.bot ? "BOT" : text);
+		SetColor(player.dead ? HudFrameLook::Dead() : player.thisPlayer ? HudFrameLook::Text() : team);
+		SetBgColor(Color(team.r(), team.g(), team.b(), 36));
+		SetPaintBackgroundEnabled(player.thisPlayer != 0);
+	}
+private:
+	Label *m_cells[4]{};
+};
 
 class CCard : public Panel
 {
@@ -81,20 +142,22 @@ public:
 		m_server = new Label(m_card, "Server", "");
 		m_tHead = new Label(m_card, "THead", "Terrorists");
 		m_ctHead = new Label(m_card, "CTHead", "Counter-Terrorists");
-		m_tCols = new Label(m_card, "TCols", "K    D    PING");
-		m_ctCols = new Label(m_card, "CTCols", "K    D    PING");
+		m_tCols = new CScoreRow(m_card, "TCols", true);
+		m_ctCols = new CScoreRow(m_card, "CTCols", true);
+		m_tEmpty = new Label(m_card, "TEmpty", "—");
+		m_ctEmpty = new Label(m_card, "CTEmpty", "—");
 		m_spec = new Label(m_card, "Spec", "");
 
 		for (int i = 0; i < kRows; ++i)
 		{
 			char name[16];
 			std::snprintf(name, sizeof(name), "TRow%d", i);
-			m_tRow[i] = new Label(m_card, name, "");
+			m_tRow[i] = new CScoreRow(m_card, name);
 			std::snprintf(name, sizeof(name), "CTRow%d", i);
-			m_ctRow[i] = new Label(m_card, name, "");
+			m_ctRow[i] = new CScoreRow(m_card, name);
 		}
 
-		Label *all[] = {m_server, m_tHead, m_ctHead, m_tCols, m_ctCols, m_spec};
+		Label *all[] = {m_server, m_tHead, m_ctHead, m_tEmpty, m_ctEmpty, m_spec};
 		for (Label *lab : all)
 		{
 			lab->SetPaintBackgroundEnabled(false);
@@ -110,8 +173,8 @@ public:
 		m_server->SetContentAlignment(Label::a_center);
 		m_tHead->SetContentAlignment(Label::a_west);
 		m_ctHead->SetContentAlignment(Label::a_west);
-		m_tCols->SetContentAlignment(Label::a_east);
-		m_ctCols->SetContentAlignment(Label::a_east);
+		m_tEmpty->SetContentAlignment(Label::a_center);
+		m_ctEmpty->SetContentAlignment(Label::a_center);
 		m_spec->SetContentAlignment(Label::a_west);
 	}
 
@@ -133,25 +196,30 @@ public:
 			showRows = 4;
 		if (showRows > kRows)
 			showRows = kRows;
-		const int cardW = w * 56 / 100;
-		const int pad = cardW / 36;
+		const int cardW = std::min(w - 32, std::clamp(w * 76 / 100, 608, 1000));
+		const int pad = 16;
 		const int headH = 28;
 		const int colH = 20;
 		const int rowH = 20;
-		const int specH = 22;
-		const int cardH = pad + headH + colH + showRows * rowH + specH + pad;
+		const int teamH = 28;
+		const int specH = m_hasSpectators ? 24 : 0;
+		const int cardH = 2 * pad + headH + teamH + colH + showRows * rowH + specH;
 		const int cx = (w - cardW) / 2;
 		const int cy = (h - cardH) / 2;
 		m_card->SetBounds(cx, cy, cardW, cardH);
 
 		const int mid = cardW / 2;
-		m_server->SetBounds(pad, pad / 2, cardW - pad * 2, headH);
-		m_tHead->SetBounds(pad, pad / 2 + headH, mid - pad * 2, colH);
-		m_ctHead->SetBounds(mid + pad, pad / 2 + headH, mid - pad * 2, colH);
-		m_tCols->SetBounds(pad, pad / 2 + headH, mid - pad * 2, colH);
-		m_ctCols->SetBounds(mid + pad, pad / 2 + headH, mid - pad * 2, colH);
+		m_server->SetBounds(pad, pad, cardW - pad * 2, headH);
+		m_tHead->SetBounds(pad, pad + headH, mid - pad * 2, teamH);
+		m_ctHead->SetBounds(mid + pad, pad + headH, mid - pad * 2, teamH);
+		m_tCols->SetBounds(pad, pad + headH + teamH, mid - pad * 2, colH);
+		m_ctCols->SetBounds(mid + pad, pad + headH + teamH, mid - pad * 2, colH);
 
-		const int rowTop = pad / 2 + headH + colH + 4;
+		const int rowTop = pad + headH + teamH + colH;
+		m_tEmpty->SetBounds(pad, rowTop, mid - 2 * pad, showRows * rowH);
+		m_ctEmpty->SetBounds(mid + pad, rowTop, mid - 2 * pad, showRows * rowH);
+		m_tEmpty->SetVisible(m_tCount == 0);
+		m_ctEmpty->SetVisible(m_ctCount == 0);
 		for (int i = 0; i < kRows; ++i)
 		{
 			if (i < showRows)
@@ -168,7 +236,7 @@ public:
 				m_ctRow[i]->SetVisible(false);
 			}
 		}
-		m_spec->SetBounds(pad, cardH - specH - pad / 2, cardW - pad * 2, specH);
+		m_spec->SetBounds(pad, cardH - specH - pad, cardW - pad * 2, specH);
 		StyleLabels(GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr);
 	}
 
@@ -189,12 +257,12 @@ public:
 			const ScoreboardPlayerRow &p = s.players[i];
 			if (p.team == 1 && tN < kRows)
 			{
-				FillRow(m_tRow[tN], p, HudFrameLook::Terror());
+				m_tRow[tN]->SetPlayer(p, HudFrameLook::Terror());
 				++tN;
 			}
 			else if (p.team == 2 && ctN < kRows)
 			{
-				FillRow(m_ctRow[ctN], p, HudFrameLook::CT());
+				m_ctRow[ctN]->SetPlayer(p, HudFrameLook::CT());
 				++ctN;
 			}
 			else if (p.team == 3 && specN < 6)
@@ -206,10 +274,11 @@ public:
 			}
 		}
 		for (int i = tN; i < kRows; ++i)
-			m_tRow[i]->SetText("");
+			m_tRow[i]->Clear();
 		for (int i = ctN; i < kRows; ++i)
-			m_ctRow[i]->SetText("");
+			m_ctRow[i]->Clear();
 		m_spec->SetText(specN ? specLine : "");
+		m_hasSpectators = specN != 0;
 		m_tCount = tN;
 		m_ctCount = ctN;
 		m_state = s;
@@ -228,25 +297,6 @@ public:
 	}
 
 private:
-	static void FillRow(Label *lab, const ScoreboardPlayerRow &p, Color teamCol)
-	{
-		char ping[16];
-		if (p.bot)
-			std::snprintf(ping, sizeof(ping), "BOT");
-		else
-			std::snprintf(ping, sizeof(ping), "%d", p.ping);
-		char line[96];
-		std::snprintf(line, sizeof(line), "%-16.16s%s  %3d  %3d  %4s",
-			p.name, p.dead ? "*" : " ", p.frags, p.deaths, ping);
-		lab->SetText(line);
-		if (p.dead)
-			HudFrameLook::StyleHudLabel(lab, HudFrameLook::Dead());
-		else if (p.thisPlayer)
-			HudFrameLook::StyleHudLabel(lab, HudFrameLook::Text());
-		else
-			HudFrameLook::StyleHudLabel(lab, teamCol);
-	}
-
 	void StyleLabels(IScheme *scheme)
 	{
 		vgui2::HFont body = INVALID_FONT;
@@ -266,11 +316,15 @@ private:
 		set(m_server, title != INVALID_FONT ? title : body, HudFrameLook::Text());
 		set(m_tHead, title != INVALID_FONT ? title : body, HudFrameLook::Terror());
 		set(m_ctHead, title != INVALID_FONT ? title : body, HudFrameLook::CT());
-		set(m_tCols, body, HudFrameLook::TextDim());
-		set(m_ctCols, body, HudFrameLook::TextDim());
+		set(m_tEmpty, body, HudFrameLook::TextDim());
+		set(m_ctEmpty, body, HudFrameLook::TextDim());
+		m_tCols->SetColor(HudFrameLook::TextDim());
+		m_ctCols->SetColor(HudFrameLook::TextDim());
 		set(m_spec, body, HudFrameLook::TextDim());
 		if (body != INVALID_FONT)
 		{
+			m_tCols->SetFont(body);
+			m_ctCols->SetFont(body);
 			for (int i = 0; i < kRows; ++i)
 			{
 				m_tRow[i]->SetFont(body);
@@ -283,11 +337,14 @@ private:
 	Label *m_server = nullptr;
 	Label *m_tHead = nullptr;
 	Label *m_ctHead = nullptr;
-	Label *m_tCols = nullptr;
-	Label *m_ctCols = nullptr;
+	CScoreRow *m_tCols = nullptr;
+	CScoreRow *m_ctCols = nullptr;
+	Label *m_tEmpty = nullptr;
+	Label *m_ctEmpty = nullptr;
 	Label *m_spec = nullptr;
-	Label *m_tRow[kRows]{};
-	Label *m_ctRow[kRows]{};
+	CScoreRow *m_tRow[kRows]{};
+	CScoreRow *m_ctRow[kRows]{};
+	bool m_hasSpectators = false;
 	ScoreboardHudState m_state{};
 	int m_tCount = 0;
 	int m_ctCount = 0;

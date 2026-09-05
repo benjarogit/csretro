@@ -361,6 +361,7 @@ void VGuiXash_RunFrame()
 			MainMenu_InvalidateLayout();
 	}
 	g_pVGui->RunFrame();
+	MainMenu_SyncDialogVisibility();
 	if (getenv("CSRETRO_OPTIONS_VIDEO_GATE") && g_options)
 		OptionsVideo_RunInputGate(g_options);
 	BuySelect_AfterFrame();

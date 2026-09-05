@@ -222,8 +222,14 @@ public:
 		m_menu->GetSize(menuWide, menuTall);
 
 		const bool pause = GameUI_IsClientInGame();
+		const bool childDialog = VGuiXash_IsPocActive() || VGuiXash_IsOptionsActive() ||
+			VGuiXash_IsCreateGameActive() || VGuiXash_IsServerBrowserActive() ||
+			VGuiXash_IsConsoleActive();
+		// The world/blur remains the backdrop, but the pause navigation is not a
+		// second layer of content underneath Options or another child dialog.
+		m_menu->SetVisibleExplicit(!childDialog);
 		if (m_pausedTitle)
-			m_pausedTitle->SetVisible(pause);
+			m_pausedTitle->SetVisible(pause && !childDialog);
 
 		int x = m_inset;
 		int y = screenTall - menuTall - m_inset;
@@ -252,6 +258,17 @@ public:
 
 		if (getenv("CSRETRO_MAINMENU_GATE"))
 			ReportLayout(screenWide, screenTall, x, y, menuWide, menuTall);
+	}
+
+	void SyncDialogVisibility()
+	{
+		const bool childDialog = VGuiXash_IsPocActive() || VGuiXash_IsOptionsActive() ||
+			VGuiXash_IsCreateGameActive() || VGuiXash_IsServerBrowserActive() ||
+			VGuiXash_IsConsoleActive();
+		if (m_menu)
+			m_menu->SetVisibleExplicit(!childDialog);
+		if (m_pausedTitle)
+			m_pausedTitle->SetVisible(GameUI_IsClientInGame() && !childDialog);
 	}
 
 	void OnCommand(const char *command) override
@@ -492,6 +509,12 @@ void MainMenu_UpdateItemState()
 {
 	if (g_mainMenu)
 		g_mainMenu->UpdateItemState();
+}
+
+void MainMenu_SyncDialogVisibility()
+{
+	if (g_mainMenu && g_mainMenu->IsVisible())
+		g_mainMenu->SyncDialogVisibility();
 }
 
 void MainMenu_InvalidateLayout()

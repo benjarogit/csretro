@@ -13,6 +13,7 @@ bool MainMenu_IsActive();
 
 // Re-evaluates OnlyInGame / notsingle visibility after a level change.
 void MainMenu_UpdateItemState();
+void MainMenu_SyncDialogVisibility();
 
 // Screen size changed — re-anchor the menu.
 void MainMenu_InvalidateLayout();

@@ -14,6 +14,7 @@
 #include <vgui_controls/Button.h>
 #include <vgui_controls/Controls.h>
 #include <vgui_controls/EditablePanel.h>
+#include <vgui_controls/ImagePanel.h>
 #include <vgui_controls/Label.h>
 #include <vgui_controls/RichText.h>
 
@@ -24,6 +25,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 #include <strings.h>
 #include <vector>
 
@@ -153,6 +155,7 @@ public:
 		}
 		LoadControlSettings(kResource);
 		StyleButtons();
+		CreateTeamPreviews();
 	}
 
 	bool HasTeamButtons()
@@ -297,6 +300,37 @@ public:
 
 private:
 	int m_slots = 0;
+	ImagePanel *m_tPreview = nullptr;
+	ImagePanel *m_ctPreview = nullptr;
+
+	void CreateTeamPreviews()
+	{
+		auto create = [&](const char *buttonName, const char *panelName, const char *image) {
+			auto *button = dynamic_cast<Button *>(FindChildByName(buttonName));
+			if (!button)
+				return static_cast<ImagePanel *>(nullptr);
+			button->SetContentAlignment(Label::a_south);
+			button->SetTextInset(0, 12);
+			auto *preview = new ImagePanel(button, panelName);
+			preview->SetImage(image);
+			preview->SetShouldScaleImage(true);
+			preview->SetMouseInputEnabled(false);
+			preview->SetKeyBoardInputEnabled(false);
+			return preview;
+		};
+		m_tPreview = create("terbutton", "TerrorPreview", "gfx/vgui/terror");
+		m_ctPreview = create("ctbutton", "CTPreview", "gfx/vgui/urban");
+	}
+
+	void LayoutPreview(ImagePanel *preview, int cardW, int cardH)
+	{
+		if (!preview)
+			return;
+		const int maxH = std::max(1, cardH - 44);
+		const int iw = std::min(cardW - 24, maxH * 256 / 196);
+		const int ih = iw * 196 / 256;
+		preview->SetBounds((cardW - iw) / 2, 8, iw, ih);
+	}
 
 	Button *ButtonForSlot(int slot)
 	{
@@ -326,7 +360,9 @@ private:
 				look->SetAccent(accent);
 			else
 				InGameViewportLook::StyleCardButton(btn, accent);
-			btn->SetContentAlignment(Label::a_center);
+			const bool teamCard = name && (!strcasecmp(name, "terbutton") || !strcasecmp(name, "ctbutton"));
+			btn->SetContentAlignment(teamCard ? Label::a_south : Label::a_center);
+			btn->SetTextInset(0, teamCard ? 12 : 0);
 		}
 		InGameViewportLook::StyleTitle(dynamic_cast<Label *>(FindChildByName("joinTeam")));
 		if (auto *map = dynamic_cast<Label *>(FindChildByName("mapname")))
@@ -366,6 +402,8 @@ private:
 		if (Panel *ct = FindChildByName("ctbutton"))
 			if (ct->IsVisible())
 				ct->SetBounds(pad + cardW + gap, cardY, cardW, cardH);
+		LayoutPreview(m_tPreview, cardW, cardH);
+		LayoutPreview(m_ctPreview, cardW, cardH);
 
 		std::vector<Panel *> row;
 		for (const char *name : {"vipbutton", "autobutton", "specbutton", "CancelButton"})

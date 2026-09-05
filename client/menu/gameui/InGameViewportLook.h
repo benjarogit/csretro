@@ -42,6 +42,20 @@ inline void StyleTitle(vgui2::Label *lab)
 	lab->SetPaintBackgroundEnabled(false);
 }
 
+inline void PaintCardBackground(int w, int h, Color accent, bool armed)
+{
+	if (!vgui2::surface() || w < 2 || h < 2)
+		return;
+	const Color fill = armed ? CardArmed() : Card();
+	vgui2::surface()->DrawSetColor(fill);
+	vgui2::surface()->DrawFilledRect(0, 0, w, h);
+	vgui2::surface()->DrawSetColor(accent.r(), accent.g(), accent.b(), armed ? 230 : 150);
+	vgui2::surface()->DrawFilledRect(0, 0, 3, h);
+	vgui2::surface()->DrawSetColor(255, 255, 255, armed ? 36 : 18);
+	vgui2::surface()->DrawFilledRect(3, 0, w, 1);
+	vgui2::surface()->DrawFilledRect(3, h - 1, w, h);
+}
+
 inline void PaintSplitBackdrop(int w, int h)
 {
 	if (!vgui2::surface() || w < 1 || h < 1)

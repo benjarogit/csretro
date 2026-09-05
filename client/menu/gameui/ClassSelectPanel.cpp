@@ -130,6 +130,13 @@ public:
 		ApplyLook();
 	}
 
+	void PaintBackground() override
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		InGameViewportLook::PaintCardBackground(w, h, m_accent, IsArmed() || IsDepressed());
+	}
+
 	void OnCursorEntered() override;
 
 private:
@@ -818,7 +825,9 @@ void ClassSelect_GateTick()
 		if (!ClassSelect_IsActive() || !g_panel || g_panel->MenuType() != MENU_CLASS_T)
 			return;
 		++hold;
-		if (hold < 45)
+		if (hold == 20)
+			MenuEngine::ClientCmdNow("developer 0; clear\n");
+		if (hold < 140)
 			return;
 		const int title = g_panel->LabelLooksLocalized("joinClass") ? 1 : 0;
 		const int terror = g_panel->LabelLooksLocalized("terror") ? 1 : 0;

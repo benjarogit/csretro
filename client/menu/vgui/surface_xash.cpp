@@ -636,6 +636,12 @@ bool CSurfaceXash::IsTextureIDValid(int id)
 
 int CSurfaceXash::CreateNewTextureID(bool)
 {
+	// Valve's Bitmap uses texture id 0 as the "not allocated yet" sentinel.
+	// Returning vector index 0 made the constructor upload successfully, then
+	// Paint() allocate a second id without uploading into it: previews existed
+	// as VGUI objects but remained visually empty.
+	if (g_textures.empty())
+		g_textures.emplace_back();
 	g_textures.emplace_back();
 	g_textures.back().valid = true;
 	return static_cast<int>(g_textures.size() - 1);

@@ -72,6 +72,13 @@ public:
 		ApplyLook();
 	}
 
+	void PaintBackground() override
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		InGameViewportLook::PaintCardBackground(w, h, m_accent, IsArmed() || IsDepressed());
+	}
+
 private:
 	Color m_accent = InGameViewportLook::Text();
 
@@ -626,7 +633,9 @@ void TeamSelect_GateTick()
 		if (!TeamSelect_IsActive())
 			return;
 		++hold;
-		if (hold < 45)
+		if (hold == 20)
+			MenuEngine::ClientCmdNow("developer 0; clear\n");
+		if (hold < 140)
 			return;
 		Menu_Con("CSRETRO_TEAM_GATE_OPEN visible=1 buttons=%d slots=%d mapinfo=%d title=%d t=%d ct=%d",
 			g_panel->VisibleButtonCount(), g_panel->SlotMask(),

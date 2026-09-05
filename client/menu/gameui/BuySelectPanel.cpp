@@ -215,6 +215,13 @@ public:
 		ApplyLook();
 	}
 
+	void PaintBackground() override
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		InGameViewportLook::PaintCardBackground(w, h, m_accent, IsArmed() || IsDepressed());
+	}
+
 	void ApplySettings(KeyValues *inResourceData) override
 	{
 		BaseClass::ApplySettings(inResourceData);
@@ -751,15 +758,17 @@ private:
 
 	void StyleButtons()
 	{
+		const Color teamAccent = (m_team == TEAM_CT)
+			? InGameViewportLook::CT() : InGameViewportLook::Terror();
 		for (int i = 0; i < GetChildCount(); ++i)
 		{
 			auto *btn = dynamic_cast<Button *>(GetChild(i));
 			if (!btn)
 				continue;
 			if (auto *look = dynamic_cast<CBuyHoverButton *>(btn))
-				look->SetAccent(InGameViewportLook::Text());
+				look->SetAccent(teamAccent);
 			else
-				InGameViewportLook::StyleCardButton(btn, InGameViewportLook::Text());
+				InGameViewportLook::StyleCardButton(btn, teamAccent);
 			btn->SetContentAlignment(Label::a_west);
 			btn->SetTextInset(12, 0);
 		}
@@ -794,10 +803,10 @@ private:
 		const char *cells[] = {
 			"pistols", "shotguns", "submachineguns", "rifles",
 			"machineguns", "equipment", "primaryammo", "secammo"};
-		const int cols = 2;
-		const int rows = 4;
-		const int gridY = h * 22 / 100;
-		const int gridH = h * 58 / 100;
+		const int cols = 4;
+		const int rows = 2;
+		const int gridY = h * 24 / 100;
+		const int gridH = h * 43 / 100;
 		const int cellW = (w - pad * 2 - gap) / cols;
 		const int cellH = (gridH - gap * (rows - 1)) / rows;
 		for (int i = 0; i < 8; ++i)

@@ -19,19 +19,6 @@
 // Purpose: Exports a set of functions for the game client to interact with the GameUI
 //-----------------------------------------------------------------------------
 
-struct SpectatorHudState
-{
-	int observerMode; // 0 = aus, sonst OBS_*
-	int targetIndex;
-	int tScore;
-	int ctScore;
-	int health;
-	int playerTeam; // 1 T, 2 CT
-	char timer[16];
-	char map[64];
-	char player[80];
-};
-
 enum { CSRETRO_SCOREBOARD_PLAYERS = 32 };
 
 struct ScoreboardPlayerRow
@@ -44,6 +31,21 @@ struct ScoreboardPlayerRow
 	int dead;
 	int bot;
 	char name[32];
+};
+
+struct SpectatorHudState
+{
+	int observerMode; // 0 = aus, sonst OBS_*
+	int targetIndex;
+	int tScore;
+	int ctScore;
+	int health;
+	int playerTeam; // 1 T, 2 CT
+	int playerCount;
+	char timer[16];
+	char map[64];
+	char player[80];
+	ScoreboardPlayerRow players[CSRETRO_SCOREBOARD_PLAYERS];
 };
 
 struct ScoreboardHudState

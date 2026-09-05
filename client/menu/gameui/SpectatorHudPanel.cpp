@@ -24,6 +24,7 @@ void UI_KeyEvent(int key, int down);
 
 namespace
 {
+enum { kRosterRows = 10 };
 int TopBarHeight(int viewportHeight)
 {
 	return std::clamp(viewportHeight * 10 / 100, 56, 84);
@@ -107,6 +108,8 @@ public:
 
 		m_top = new CBar(this, "TopBar", true);
 		m_bottom = new CBar(this, "BottomBar", false);
+		m_tRoster = new CBar(this, "TRoster", false);
+		m_ctRoster = new CBar(this, "CTRoster", false);
 		m_tName = new Label(m_top, "TName", "Terrorists");
 		m_tScore = new Label(m_top, "TScore", "0");
 		m_timer = new Label(m_top, "Timer", "0:00");
@@ -115,6 +118,18 @@ public:
 		m_map = new Label(m_top, "Map", "");
 		m_mode = new Label(m_bottom, "Mode", "");
 		m_player = new Label(m_bottom, "Player", "");
+		for (int i = 0; i < kRosterRows; ++i)
+		{
+			char name[24];
+			std::snprintf(name, sizeof(name), "TPlayer%d", i);
+			m_tPlayers[i] = new Label(m_tRoster, name, "");
+			std::snprintf(name, sizeof(name), "CTPlayer%d", i);
+			m_ctPlayers[i] = new Label(m_ctRoster, name, "");
+			m_tPlayers[i]->SetContentAlignment(Label::a_west);
+			m_ctPlayers[i]->SetContentAlignment(Label::a_west);
+			m_tPlayers[i]->SetTextInset(8, 0);
+			m_ctPlayers[i]->SetTextInset(8, 0);
+		}
 
 		Label *labels[] = {m_tName, m_tScore, m_timer, m_ctScore, m_ctName, m_map, m_mode, m_player};
 		for (Label *lab : labels)
@@ -158,6 +173,19 @@ public:
 		const int botH = BottomBarHeight(h);
 		m_top->SetBounds(0, 0, w, topH);
 		m_bottom->SetBounds(0, h - botH, w, botH);
+		const int rosterW = std::clamp(w * 19 / 100, 140, 250);
+		const int rosterY = topH + h / 18;
+		const int rosterRowH = std::clamp(h / 24, 20, 32);
+		const int rosterH = std::max(m_tCount, m_ctCount) * rosterRowH;
+		m_tRoster->SetBounds(12, rosterY, rosterW, rosterH);
+		m_ctRoster->SetBounds(w - rosterW - 12, rosterY, rosterW, rosterH);
+		m_tRoster->SetVisible(m_tCount > 0);
+		m_ctRoster->SetVisible(m_ctCount > 0);
+		for (int i = 0; i < kRosterRows; ++i)
+		{
+			m_tPlayers[i]->SetBounds(0, i * rosterRowH, rosterW, rosterRowH);
+			m_ctPlayers[i]->SetBounds(0, i * rosterRowH, rosterW, rosterRowH);
+		}
 
 		const int pad = std::clamp(w / 40, 12, 32);
 		const int scoreW = std::clamp(w / 14, 48, 82);
@@ -202,6 +230,36 @@ public:
 		}
 		else
 			m_player->SetText("");
+		m_tCount = 0;
+		m_ctCount = 0;
+		for (int i = 0; i < kRosterRows; ++i)
+		{
+			m_tPlayers[i]->SetVisible(false);
+			m_ctPlayers[i]->SetVisible(false);
+		}
+		for (int i = 0; i < s.playerCount && i < CSRETRO_SCOREBOARD_PLAYERS; ++i)
+		{
+			const ScoreboardPlayerRow &row = s.players[i];
+			Label **target = nullptr;
+			int *count = nullptr;
+			if (row.team == 1 && m_tCount < kRosterRows)
+			{
+				target = m_tPlayers;
+				count = &m_tCount;
+			}
+			else if (row.team == 2 && m_ctCount < kRosterRows)
+			{
+				target = m_ctPlayers;
+				count = &m_ctCount;
+			}
+			if (!target || !count)
+				continue;
+			char line[96];
+			std::snprintf(line, sizeof(line), "%s   %d / %d", row.name, row.frags, row.deaths);
+			target[*count]->SetText(line);
+			target[*count]->SetVisible(true);
+			++*count;
+		}
 		m_state = s;
 		InvalidateLayout();
 	}
@@ -247,11 +305,23 @@ public:
 		HudFrameLook::StyleHudLabel(m_ctScore, HudFrameLook::CT());
 		HudFrameLook::StyleHudLabel(m_map, HudFrameLook::TextDim());
 		HudFrameLook::StyleHudLabel(m_mode, HudFrameLook::TextDim());
+		for (int i = 0; i < kRosterRows; ++i)
+		{
+			if (body != INVALID_FONT)
+			{
+				m_tPlayers[i]->SetFont(body);
+				m_ctPlayers[i]->SetFont(body);
+			}
+			HudFrameLook::StyleHudLabel(m_tPlayers[i], HudFrameLook::Terror());
+			HudFrameLook::StyleHudLabel(m_ctPlayers[i], HudFrameLook::CT());
+		}
 	}
 
 private:
 	CBar *m_top = nullptr;
 	CBar *m_bottom = nullptr;
+	CBar *m_tRoster = nullptr;
+	CBar *m_ctRoster = nullptr;
 	Label *m_tName = nullptr;
 	Label *m_tScore = nullptr;
 	Label *m_timer = nullptr;
@@ -260,6 +330,10 @@ private:
 	Label *m_map = nullptr;
 	Label *m_mode = nullptr;
 	Label *m_player = nullptr;
+	Label *m_tPlayers[kRosterRows]{};
+	Label *m_ctPlayers[kRosterRows]{};
+	int m_tCount = 0;
+	int m_ctCount = 0;
 	SpectatorHudState m_state{};
 };
 

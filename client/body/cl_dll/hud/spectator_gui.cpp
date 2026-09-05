@@ -121,6 +121,22 @@ int CHudSpectatorGui::Draw( float flTime )
 		if( !strncmp( map, "Map: ", 5 ) )
 			map += 5;
 		strncpy( s.map, map, sizeof( s.map ) - 1 );
+		gHUD.m_Scoreboard.GetAllPlayersInfo();
+		for( int i = 1; i < MAX_PLAYERS && s.playerCount < CSRETRO_SCOREBOARD_PLAYERS; ++i )
+		{
+			if( !g_PlayerInfoList[i].name || !g_PlayerInfoList[i].name[0] )
+				continue;
+			ScoreboardPlayerRow &row = s.players[s.playerCount++];
+			strncpy( row.name, g_PlayerInfoList[i].name, sizeof( row.name ) - 1 );
+			row.frags = g_PlayerExtraInfo[i].frags;
+			row.deaths = g_PlayerExtraInfo[i].deaths;
+			row.ping = g_PlayerInfoList[i].ping;
+			row.thisPlayer = g_PlayerInfoList[i].thisplayer ? 1 : 0;
+			row.dead = g_PlayerExtraInfo[i].dead ? 1 : 0;
+			row.team = g_PlayerExtraInfo[i].teamnumber;
+			const char *bot = gEngfuncs.PlayerInfo_ValueForKey( i, "*bot" );
+			row.bot = ( bot && atoi( bot ) > 0 ) ? 1 : 0;
+		}
 		g_pMenu->SetSpectatorHud( &s );
 		if( gHUD.m_Spectator.m_pip )
 			gHUD.m_Spectator.m_pip->value = INSET_OFF;

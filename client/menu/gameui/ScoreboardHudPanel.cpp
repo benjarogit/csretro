@@ -121,8 +121,6 @@ public:
 		vgui2::surface()->DrawFilledRect(0, 0, w / 2, 3);
 		vgui2::surface()->DrawSetColor(HudFrameLook::CT());
 		vgui2::surface()->DrawFilledRect(w / 2, 0, w, 3);
-		vgui2::surface()->DrawSetColor(40, 40, 44, 220);
-		vgui2::surface()->DrawFilledRect(w / 2 - 1, 8, w / 2 + 1, h - 8);
 	}
 };
 
@@ -191,50 +189,46 @@ public:
 		int w = 0, h = 0;
 		HudFrameLook::ViewportSize(w, h, GetParent());
 		SetBounds(0, 0, w, h);
-		int showRows = m_tCount > m_ctCount ? m_tCount : m_ctCount;
-		if (showRows < 4)
-			showRows = 4;
-		if (showRows > kRows)
-			showRows = kRows;
-		const int cardW = std::min(w - 32, std::clamp(w * 76 / 100, 608, 1000));
+		const int cardW = std::min(w - 32, std::clamp(w * 86 / 100, 608, 1100));
 		const int pad = 16;
 		const int headH = 28;
-		const int colH = 20;
+		const int colH = 18;
 		const int rowH = 20;
-		const int teamH = 28;
+		const int teamH = 26;
 		const int specH = m_hasSpectators ? 24 : 0;
-		const int cardH = 2 * pad + headH + teamH + colH + showRows * rowH + specH;
+		const int teamGap = 10;
+		const int fixedH = 2 * pad + headH + 2 * (teamH + colH) + teamGap + specH;
+		const int maxRowsPerTeam = std::clamp((h - 32 - fixedH) / (2 * rowH), 2, 10);
+		const int tRows = std::clamp(m_tCount, 2, maxRowsPerTeam);
+		const int ctRows = std::clamp(m_ctCount, 2, maxRowsPerTeam);
+		const int cardH = 2 * pad + headH +
+			2 * (teamH + colH) + (tRows + ctRows) * rowH + teamGap + specH;
 		const int cx = (w - cardW) / 2;
 		const int cy = (h - cardH) / 2;
 		m_card->SetBounds(cx, cy, cardW, cardH);
 
-		const int mid = cardW / 2;
 		m_server->SetBounds(pad, pad, cardW - pad * 2, headH);
-		m_tHead->SetBounds(pad, pad + headH, mid - pad * 2, teamH);
-		m_ctHead->SetBounds(mid + pad, pad + headH, mid - pad * 2, teamH);
-		m_tCols->SetBounds(pad, pad + headH + teamH, mid - pad * 2, colH);
-		m_ctCols->SetBounds(mid + pad, pad + headH + teamH, mid - pad * 2, colH);
-
-		const int rowTop = pad + headH + teamH + colH;
-		m_tEmpty->SetBounds(pad, rowTop, mid - 2 * pad, showRows * rowH);
-		m_ctEmpty->SetBounds(mid + pad, rowTop, mid - 2 * pad, showRows * rowH);
+		const int contentW = cardW - pad * 2;
+		const int tHeadY = pad + headH;
+		const int tRowTop = tHeadY + teamH + colH;
+		const int ctHeadY = tRowTop + tRows * rowH + teamGap;
+		const int ctRowTop = ctHeadY + teamH + colH;
+		m_tHead->SetBounds(pad, tHeadY, contentW, teamH);
+		m_tCols->SetBounds(pad, tHeadY + teamH, contentW, colH);
+		m_ctHead->SetBounds(pad, ctHeadY, contentW, teamH);
+		m_ctCols->SetBounds(pad, ctHeadY + teamH, contentW, colH);
+		m_tEmpty->SetBounds(pad, tRowTop, contentW, tRows * rowH);
+		m_ctEmpty->SetBounds(pad, ctRowTop, contentW, ctRows * rowH);
 		m_tEmpty->SetVisible(m_tCount == 0);
 		m_ctEmpty->SetVisible(m_ctCount == 0);
 		for (int i = 0; i < kRows; ++i)
 		{
-			if (i < showRows)
-			{
-				const int y = rowTop + i * rowH;
-				m_tRow[i]->SetBounds(pad, y, mid - pad * 2, rowH);
-				m_ctRow[i]->SetBounds(mid + pad, y, mid - pad * 2, rowH);
-				m_tRow[i]->SetVisible(true);
-				m_ctRow[i]->SetVisible(true);
-			}
-			else
-			{
-				m_tRow[i]->SetVisible(false);
-				m_ctRow[i]->SetVisible(false);
-			}
+			m_tRow[i]->SetVisible(i < tRows);
+			m_ctRow[i]->SetVisible(i < ctRows);
+			if (i < tRows)
+				m_tRow[i]->SetBounds(pad, tRowTop + i * rowH, contentW, rowH);
+			if (i < ctRows)
+				m_ctRow[i]->SetBounds(pad, ctRowTop + i * rowH, contentW, rowH);
 		}
 		m_spec->SetBounds(pad, cardH - specH - pad, cardW - pad * 2, specH);
 		StyleLabels(GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr);

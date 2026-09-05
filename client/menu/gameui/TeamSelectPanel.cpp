@@ -62,6 +62,8 @@ public:
 		ApplyLook();
 	}
 
+	void SetTeamChoice(bool teamChoice) { m_teamChoice = teamChoice; }
+
 	void ApplySchemeSettings(IScheme *pScheme) override
 	{
 		BaseClass::ApplySchemeSettings(pScheme);
@@ -78,11 +80,21 @@ public:
 	{
 		int w = 0, h = 0;
 		GetSize(w, h);
-		InGameViewportLook::PaintCardBackground(w, h, m_accent, IsArmed() || IsDepressed());
+		if (!m_teamChoice)
+		{
+			InGameViewportLook::PaintCardBackground(w, h, m_accent, IsArmed() || IsDepressed());
+			return;
+		}
+		const bool active = IsArmed() || IsDepressed();
+		vgui2::surface()->DrawSetColor(m_accent.r(), m_accent.g(), m_accent.b(), active ? 42 : 12);
+		vgui2::surface()->DrawFilledRect(0, 0, w, h);
+		vgui2::surface()->DrawSetColor(m_accent.r(), m_accent.g(), m_accent.b(), active ? 255 : 130);
+		vgui2::surface()->DrawFilledRect(0, h - (active ? 3 : 2), w, h);
 	}
 
 private:
 	Color m_accent = InGameViewportLook::Text();
+	bool m_teamChoice = false;
 
 	void ApplyLook()
 	{
@@ -356,11 +368,14 @@ private:
 				accent = InGameViewportLook::Terror();
 			else if (name && !strcasecmp(name, "ctbutton"))
 				accent = InGameViewportLook::CT();
+			const bool teamCard = name && (!strcasecmp(name, "terbutton") || !strcasecmp(name, "ctbutton"));
 			if (auto *look = dynamic_cast<CTeamLookButton *>(btn))
+			{
 				look->SetAccent(accent);
+				look->SetTeamChoice(teamCard);
+			}
 			else
 				InGameViewportLook::StyleCardButton(btn, accent);
-			const bool teamCard = name && (!strcasecmp(name, "terbutton") || !strcasecmp(name, "ctbutton"));
 			btn->SetContentAlignment(teamCard ? Label::a_south : Label::a_center);
 			btn->SetTextInset(0, teamCard ? 12 : 0);
 		}
@@ -381,9 +396,9 @@ private:
 		GetSize(w, h);
 		if (w < 200 || h < 160)
 			return;
-		const int pad = w / 16;
+		const int pad = w / 11;
 		const int gap = w / 40;
-		const int titleH = h / 10;
+		const int titleH = h / 12;
 		if (auto *title = FindChildByName("joinTeam"))
 		{
 			title->SetBounds(pad, h / 20, w - pad * 2, titleH);
@@ -393,8 +408,8 @@ private:
 		if (auto *map = FindChildByName("mapname"))
 			map->SetBounds(pad, h / 20 + titleH, w - pad * 2, titleH / 2);
 
-		const int cardY = h * 22 / 100;
-		const int cardH = h * 38 / 100;
+		const int cardY = h * 16 / 100;
+		const int cardH = h * 62 / 100;
 		const int cardW = (w - pad * 2 - gap) / 2;
 		if (Panel *t = FindChildByName("terbutton"))
 			if (t->IsVisible())
@@ -412,7 +427,7 @@ private:
 				if (p->IsVisible())
 					row.push_back(p);
 		}
-		const int rowY = cardY + cardH + gap;
+		const int rowY = h * 82 / 100;
 		const int rowH = h * 8 / 100;
 		if (!row.empty())
 		{
@@ -424,9 +439,7 @@ private:
 
 		if (Panel *info = FindChildByName("MapInfo"))
 		{
-			const int iy = rowY + rowH + gap;
-			info->SetBounds(pad, iy, w - pad * 2, h - iy - h / 30);
-			info->SetVisible(true);
+			info->SetVisible(false);
 		}
 	}
 

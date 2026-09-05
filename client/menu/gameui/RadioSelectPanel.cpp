@@ -7,6 +7,7 @@
 
 #include <vgui/ILocalize.h>
 #include <vgui/ISchemeNext.h>
+#include <vgui/ISurfaceNext.h>
 #include <vgui/KeyCode.h>
 #include <vgui_controls/Button.h>
 #include <vgui_controls/Controls.h>
@@ -256,6 +257,18 @@ public:
 		StyleButtons();
 	}
 
+	void PaintBackground() override
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		if (!surface() || w < 1 || h < 1)
+			return;
+		surface()->DrawSetColor(8, 8, 10, 218);
+		surface()->DrawFilledRect(0, 0, w, h);
+		surface()->DrawSetColor(218, 174, 54, 230);
+		surface()->DrawFilledRect(0, 0, w, 2);
+	}
+
 	void PerformLayout() override
 	{
 		LayoutCard();
@@ -347,18 +360,21 @@ private:
 		const Color fg(255, 255, 255, 255);
 		const Color armed(255, 210, 64, 255);
 		const Color bg(0, 0, 0, 0);
+		const Color hover(218, 174, 54, 52);
 
 		auto style = [&](Button *btn) {
 			if (!btn)
 				return;
-			btn->SetPaintBackgroundEnabled(false);
+			btn->SetPaintBackgroundEnabled(true);
+			btn->SetPaintBorderEnabled(false);
 			btn->SetDefaultColor(fg, bg);
-			btn->SetArmedColor(armed, bg);
-			btn->SetDepressedColor(armed, bg);
+			btn->SetArmedColor(armed, hover);
+			btn->SetDepressedColor(armed, hover);
 			btn->SetDefaultBorder(nullptr);
 			btn->SetDepressedBorder(nullptr);
 			btn->SetKeyFocusBorder(nullptr);
 			btn->SetContentAlignment(Label::a_west);
+			btn->SetTextInset(8, 0);
 			btn->SetButtonActivationType(Button::ACTIVATE_ONPRESSED);
 		};
 
@@ -375,16 +391,16 @@ private:
 	void LayoutCard()
 	{
 		int pad = 10;
-		int rowH = 16;
+		int rowH = 22;
 		int gap = 2;
-		int innerW = 260;
+		int innerW = 300;
 		int marginX = 20;
 		if (IsProportional() && scheme())
 		{
 			pad = scheme()->GetProportionalScaledValue(10);
-			rowH = scheme()->GetProportionalScaledValue(16);
+			rowH = scheme()->GetProportionalScaledValue(22);
 			gap = scheme()->GetProportionalScaledValue(2);
-			innerW = scheme()->GetProportionalScaledValue(260);
+			innerW = scheme()->GetProportionalScaledValue(300);
 			marginX = scheme()->GetProportionalScaledValue(20);
 		}
 

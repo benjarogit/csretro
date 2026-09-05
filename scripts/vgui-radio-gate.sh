@@ -168,15 +168,15 @@ run_one() {
 	}
 
 	rg -q 'CSRETRO_RADIO_VGUI open type=35' "${ALL}" || fail "Radio-A-VGUI nicht geöffnet ${W}x${H}"
-	rg -q 'CSRETRO_RADIO_GATE_OPEN .*visible=1 .*raw=0' "${ALL}" \
+	rg -q 'CSRETRO_RADIO_GATE_OPEN .*visible=1 groups=1 .*raw=0' "${ALL}" \
 		|| fail "Radio-A-Audit fehlt oder Roh-Token ${W}x${H}"
 	rg -q 'CSRETRO_RADIO_GATE_ESC visible=0' "${ALL}" \
 		|| fail "ESC schließt das Radio-Menü nicht ${W}x${H}"
 	rg -q 'CSRETRO_RADIO_CMD coverme' "${ALL}" \
 		|| fail "Taste 1 sendet coverme nicht ${W}x${H}"
-	rg -q 'CSRETRO_RADIO_GATE_B type=36 visible=1' "${ALL}" \
+	rg -q 'CSRETRO_RADIO_GATE_B type=36 visible=1 groups=1' "${ALL}" \
 		|| fail "Radio B fehlt ${W}x${H}"
-	rg -q 'CSRETRO_RADIO_GATE_C type=37 visible=1' "${ALL}" \
+	rg -q 'CSRETRO_RADIO_GATE_C type=37 visible=1 groups=1' "${ALL}" \
 		|| fail "Radio C fehlt ${W}x${H}"
 	rg -q 'CSRETRO_RADIO_CMD roger' "${ALL}" \
 		|| fail "Taste 1 sendet roger nicht ${W}x${H}"

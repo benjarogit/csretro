@@ -137,19 +137,6 @@ public:
 			m_items[i]->SetVisible(false);
 		}
 		m_cancel = new Button(this, "CancelButton", "");
-		for (int group = 0; group < 3; ++group)
-		{
-			char name[32];
-			snprintf(name, sizeof(name), "GroupTitle%d", group);
-			m_groupTitle[group] = new Label(this, name, "");
-			for (int i = 0; i < kMaxItems; ++i)
-			{
-				snprintf(name, sizeof(name), "Group%dItem%d", group, i);
-				m_groupItems[group][i] = new Label(this, name, "");
-			}
-			snprintf(name, sizeof(name), "GroupCancel%d", group);
-			m_groupCancel[group] = new Label(this, name, "0. Exit");
-		}
 		StyleButtons();
 	}
 
@@ -297,9 +284,6 @@ private:
 	Label *m_title = nullptr;
 	Button *m_items[kMaxItems] = {};
 	Button *m_cancel = nullptr;
-	Label *m_groupTitle[3] = {};
-	Label *m_groupItems[3][kMaxItems] = {};
-	Label *m_groupCancel[3] = {};
 
 	void FireAlias(const char *alias)
 	{
@@ -364,29 +348,11 @@ private:
 		}
 		if (m_cancel)
 		{
-			SetSlotText(m_cancel, 10, "Cstrike_Cancel", "Exit");
+			m_cancel->SetText("0. Exit");
 			m_cancel->SetCommand("vguicancel");
 			m_cancel->SetVisible((m_slots & MENU_KEY_0) != 0);
 		}
 
-		const int types[3] = {MENU_RADIOA, MENU_RADIOB, MENU_RADIOC};
-		for (int group = 0; group < 3; ++group)
-		{
-			const bool active = types[group] == m_type;
-			m_groupTitle[group]->SetText(TitleForType(types[group]));
-			m_groupTitle[group]->SetVisible(!active);
-			int groupCount = 0;
-			const RadioItem *groupItems = ItemsForType(types[group], &groupCount);
-			for (int i = 0; i < kMaxItems; ++i)
-			{
-				const bool visible = !active && i < groupCount;
-				m_groupItems[group][i]->SetVisible(visible);
-				if (visible)
-					SetSlotText(m_groupItems[group][i], groupItems[i].slot,
-						groupItems[i].token, groupItems[i].fallback);
-			}
-			m_groupCancel[group]->SetVisible(!active);
-		}
 		InvalidateLayout();
 	}
 
@@ -422,19 +388,6 @@ private:
 			m_title->SetFgColor(title);
 			m_title->SetPaintBackgroundEnabled(false);
 		}
-		for (int group = 0; group < 3; ++group)
-		{
-			m_groupTitle[group]->SetFgColor(title);
-			m_groupTitle[group]->SetPaintBackgroundEnabled(false);
-			for (int i = 0; i < kMaxItems; ++i)
-			{
-				m_groupItems[group][i]->SetFgColor(fg);
-				m_groupItems[group][i]->SetPaintBackgroundEnabled(false);
-				m_groupItems[group][i]->SetContentAlignment(Label::a_west);
-			}
-			m_groupCancel[group]->SetFgColor(fg);
-			m_groupCancel[group]->SetPaintBackgroundEnabled(false);
-		}
 	}
 
 	void LayoutCard()
@@ -454,8 +407,10 @@ private:
 		int parentH = 480;
 		if (Panel *host = GetParent())
 			host->GetSize(parentW, parentH);
-		const int rows = 11; // title + max. 9 commands + exit
-		const int cardW = std::max(480, parentW - marginX * 2);
+		int itemCount = 0;
+		ItemsForType(m_type, &itemCount);
+		const int rows = 1 + itemCount + ((m_slots & MENU_KEY_0) ? 1 : 0);
+		const int cardW = std::clamp(parentW * 31 / 100, 210, 340);
 		const int cardH = pad * 2 + rows * rowH + (rows - 1) * gap;
 		// Radio is a transient quick-command HUD, anchored near the lower-left
 		// like the classic layout, not a dialog floating around screen centre.
@@ -464,48 +419,28 @@ private:
 			cardY = pad;
 		SetBounds(marginX, cardY, cardW, cardH);
 
-		const int colGap = pad;
-		const int colW = (cardW - pad * 2 - colGap * 2) / 3;
-		const int activeGroup = m_type == MENU_RADIOB ? 1 : m_type == MENU_RADIOC ? 2 : 0;
-		int x = pad + activeGroup * (colW + colGap);
+		const int contentW = cardW - pad * 2;
+		int x = pad;
 		int y = pad;
 		if (m_title)
 		{
-			m_title->SetBounds(x, y, colW, rowH);
+			m_title->SetBounds(x, y, contentW, rowH);
 			y += rowH + gap;
 		}
 		for (int i = 0; i < kMaxItems; ++i)
 		{
 			if (!m_items[i] || !m_items[i]->IsVisible())
 				continue;
-			m_items[i]->SetBounds(x, y, colW, rowH);
+			m_items[i]->SetBounds(x, y, contentW, rowH);
 			y += rowH + gap;
 		}
 		if (m_cancel && m_cancel->IsVisible())
-			m_cancel->SetBounds(x, y, colW, rowH);
-
-		for (int group = 0; group < 3; ++group)
-		{
-			if (group == activeGroup)
-				continue;
-			x = pad + group * (colW + colGap);
-			y = pad;
-			m_groupTitle[group]->SetBounds(x, y, colW, rowH);
-			y += rowH + gap;
-			for (int i = 0; i < kMaxItems; ++i)
-			{
-				if (!m_groupItems[group][i]->IsVisible())
-					continue;
-				m_groupItems[group][i]->SetBounds(x, y, colW, rowH);
-				y += rowH + gap;
-			}
-			m_groupCancel[group]->SetBounds(x, y, colW, rowH);
-		}
+			m_cancel->SetBounds(x, y, contentW, rowH);
 	}
 
 	void LogOpen()
 	{
-		Menu_Con("CSRETRO_RADIO_VGUI open type=%d slots=%d buttons=%d",
+		Menu_Con("CSRETRO_RADIO_VGUI open type=%d groups=1 slots=%d buttons=%d",
 			m_type, m_slots, VisibleButtonCount());
 	}
 };
@@ -690,7 +625,7 @@ void RadioSelect_GateTick()
 		{
 			if (hold < 30)
 				return;
-			Menu_Con("CSRETRO_RADIO_GATE_OPEN type=%d visible=1 buttons=%d title=%d first=%d raw=%d",
+			Menu_Con("CSRETRO_RADIO_GATE_OPEN type=%d visible=1 groups=1 buttons=%d title=%d first=%d raw=%d",
 				g_panel->MenuType(), g_panel->VisibleButtonCount(),
 				g_panel->TitleLooksLocalized() ? 1 : 0,
 				g_panel->FirstItemLooksLocalized() ? 1 : 0,
@@ -780,7 +715,7 @@ void RadioSelect_GateTick()
 		{
 			if (hold < 20)
 				return;
-			Menu_Con("CSRETRO_RADIO_GATE_B type=%d visible=1 buttons=%d",
+			Menu_Con("CSRETRO_RADIO_GATE_B type=%d visible=1 groups=1 buttons=%d",
 				g_panel->MenuType(), g_panel->VisibleButtonCount());
 			UI_KeyEvent(K_ESCAPE, 1);
 			UI_KeyEvent(K_ESCAPE, 0);
@@ -815,7 +750,7 @@ void RadioSelect_GateTick()
 		{
 			if (hold < 20)
 				return;
-			Menu_Con("CSRETRO_RADIO_GATE_C type=%d visible=1 buttons=%d",
+			Menu_Con("CSRETRO_RADIO_GATE_C type=%d visible=1 groups=1 buttons=%d",
 				g_panel->MenuType(), g_panel->VisibleButtonCount());
 			UI_KeyEvent('1', 1);
 			UI_KeyEvent('1', 0);

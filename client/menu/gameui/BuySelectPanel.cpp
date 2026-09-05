@@ -193,6 +193,15 @@ public:
 	CBuyHoverButton(Panel *parent, const char *name)
 		: BaseClass(parent, name, "")
 	{
+		m_weaponImage = new ImagePanel(this, "WeaponImage");
+		m_weaponImage->SetShouldScaleImage(true);
+		m_weaponImage->SetMouseInputEnabled(false);
+		m_weaponImage->SetKeyBoardInputEnabled(false);
+		m_weaponImage->SetVisible(false);
+		m_price = new Label(this, "Price", "");
+		m_price->SetContentAlignment(Label::a_east);
+		m_price->SetMouseInputEnabled(false);
+		m_price->SetVisible(false);
 	}
 
 	void SetHost(CBuySelectPanel *host) { m_host = host; }
@@ -213,6 +222,15 @@ public:
 	{
 		BaseClass::PerformLayout();
 		ApplyLook();
+		int w = 0, h = 0;
+		GetSize(w, h);
+		if (m_isWeaponCard)
+		{
+			const int imageTop = 24;
+			const int imageH = std::max(1, h - imageTop - 23);
+			m_weaponImage->SetBounds(12, imageTop, std::max(1, w - 24), imageH);
+			m_price->SetBounds(std::max(8, w - 78), h - 23, 66, 20);
+		}
 	}
 
 	void PaintBackground() override
@@ -232,6 +250,30 @@ public:
 			cmd = inResourceData->GetString("Command", "");
 		if (cmd[0])
 			SetCommand(cmd);
+		const int cost = inResourceData->GetInt("cost", 0);
+		m_isWeaponCard = cost > 0 && cmd[0] && !IsResCommand(cmd);
+		if (m_isWeaponCard)
+		{
+			const char *image = cmd;
+			if (!strcasecmp(cmd, "glock")) image = "glock18";
+			else if (!strcasecmp(cmd, "usp")) image = "usp45";
+			else if (!strcasecmp(cmd, "deagle")) image = "deserteagle";
+			else if (!strcasecmp(cmd, "fn57")) image = "fiveseven";
+			else if (!strcasecmp(cmd, "flash")) image = "flashbang";
+			else if (!strcasecmp(cmd, "hegren")) image = "hegrenade";
+			else if (!strcasecmp(cmd, "sgren")) image = "smokegrenade";
+			else if (!strcasecmp(cmd, "vest")) image = "kevlar";
+			else if (!strcasecmp(cmd, "vesthelm")) image = "kevlar_helmet";
+			else if (!strcasecmp(cmd, "nvgs") || !strcasecmp(cmd, "nvg")) image = "nightvision";
+			char path[96];
+			std::snprintf(path, sizeof(path), "gfx/vgui/%s", image);
+			m_weaponImage->SetImage(path);
+			m_weaponImage->SetVisible(true);
+			char price[24];
+			std::snprintf(price, sizeof(price), "$%d", cost);
+			m_price->SetText(price);
+			m_price->SetVisible(true);
+		}
 	}
 
 	void OnCursorEntered() override;
@@ -240,14 +282,19 @@ private:
 	CBuySelectPanel *m_host = nullptr;
 	std::string m_preview;
 	Color m_accent = InGameViewportLook::Text();
+	ImagePanel *m_weaponImage = nullptr;
+	Label *m_price = nullptr;
+	bool m_isWeaponCard = false;
 
 	void ApplyLook()
 	{
 		InGameViewportLook::StyleCardButton(this, m_accent);
-		SetContentAlignment(Label::a_west);
-		SetTextInset(12, 0);
+		SetContentAlignment(m_isWeaponCard ? Label::a_northwest : Label::a_west);
+		SetTextInset(12, m_isWeaponCard ? 7 : 0);
 		SetFgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::Text() : m_accent);
 		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::CardArmed() : InGameViewportLook::Card());
+		if (m_price)
+			m_price->SetFgColor(m_accent);
 	}
 };
 
@@ -511,8 +558,16 @@ public:
 	{
 		if (!imageName || !imageName[0] || !m_preview)
 			return;
+		std::string image = imageName;
+		std::transform(image.begin(), image.end(), image.begin(), [](unsigned char ch) {
+			return static_cast<char>(std::tolower(ch));
+		});
+		if (image == "kevlarhelmet") image = "kevlar_helmet";
+		else if (image == "hegrenade") image = "hegrenade";
+		else if (image == "smokegrenade") image = "smokegrenade";
+		else if (image == "nightvision") image = "nightvision";
 		char path[96];
-		snprintf(path, sizeof(path), "gfx/vgui/%s", imageName);
+		snprintf(path, sizeof(path), "gfx/vgui/%s", image.c_str());
 		m_preview->SetImage(path);
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
@@ -870,22 +925,38 @@ private:
 			b->GetPos(bx, by);
 			return ay < by;
 		});
-		const int listW = w * 42 / 100;
+		const int listW = w * 60 / 100;
 		const int listY = h * 20 / 100;
 		const int listH = h * 66 / 100;
-		const int rowH = weapons.empty() ? 28
-						: (listH - gap * static_cast<int>(weapons.size())) /
-							static_cast<int>(weapons.size());
+		const int cols = weapons.size() > 1 ? 2 : 1;
+		const int rows = weapons.empty() ? 1 :
+			(static_cast<int>(weapons.size()) + cols - 1) / cols;
+		const int cardW = (listW - gap * (cols - 1)) / cols;
+		const int rowH = (listH - gap * (rows - 1)) / rows;
 		for (size_t i = 0; i < weapons.size(); ++i)
-			weapons[i]->SetBounds(pad, listY + static_cast<int>(i) * (rowH + gap), listW, rowH);
+		{
+			const int col = static_cast<int>(i) % cols;
+			const int row = static_cast<int>(i) / cols;
+			weapons[i]->SetBounds(pad + col * (cardW + gap), listY + row * (rowH + gap), cardW, rowH);
+		}
 		if (cancel)
 			cancel->SetBounds(pad, h - pad - h / 14, listW, h / 14);
 		if (Panel *info = FindChildByName("ItemInfo"))
-			info->SetBounds(pad + listW + pad, listY, w - pad * 3 - listW, listH);
+		{
+			const int infoW = w - pad * 3 - listW;
+			info->SetBounds(pad + listW + pad, listY, infoW, listH);
+			if (m_preview)
+			{
+				const int iw = std::max(1, infoW - 16);
+				const int ih = iw * 196 / 256;
+				m_preview->SetBounds(8, std::max(8, (listH - ih) / 2), iw, ih);
+			}
+		}
 	}
 
 	void BindHover()
 	{
+		std::string firstPreview;
 		Panel *info = FindChildByName("ItemInfo");
 		if (info)
 		{
@@ -922,8 +993,14 @@ private:
 			const char *name = btn->GetName();
 			if (name && name[0] && strcasecmp(name, "CancelButton") &&
 			    strcasecmp(name, "AutobuyButton") && strcasecmp(name, "RebuyButton"))
+			{
 				btn->SetPreviewName(name);
+				if (firstPreview.empty() && !m_pageIsMain)
+					firstPreview = name;
+			}
 		}
+		if (!firstPreview.empty())
+			ShowItemPreview(firstPreview.c_str());
 	}
 
 	void LogOpen()
@@ -1313,9 +1390,8 @@ void BuySelect_GateTick()
 			const int raw = g_panel->AnyRawToken() ? 1 : 0;
 			Menu_Con("CSRETRO_BUY_GATE_PISTOL type=%d visible=1 title=%d glock=%d raw=%d",
 				g_panel->MenuType(), title, glock, raw);
-			UI_KeyEvent('1', 1);
-			UI_KeyEvent('1', 0);
-			++step;
+			MenuEngine::ClientCmd("screenshot scrshots/buy-pistols.png\n");
+			step = 9;
 			hold = 0;
 			return;
 		}
@@ -1324,6 +1400,17 @@ void BuySelect_GateTick()
 			failDone("pistols fehlt");
 			return;
 		}
+		return;
+	}
+
+	if (step == 9)
+	{
+		if (++hold < 20)
+			return;
+		UI_KeyEvent('1', 1);
+		UI_KeyEvent('1', 0);
+		step = 8;
+		hold = 0;
 		return;
 	}
 

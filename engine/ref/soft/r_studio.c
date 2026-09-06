@@ -2121,8 +2121,16 @@ static model_t *R_StudioSetupPlayerModel( int index )
 
 	state = &g_studio.player_models[index];
 
-	// g-cont: force for "dev-mode", non-local games and menu preview
-	if(( gpGlobals->developer || !ENGINE_GET_PARM( PARM_SINGLEPLAYER_GAME ) || !FBitSet( RI.rvp.flags, RF_DRAW_WORLD )) && info->model[0] )
+	// A menu preview has already selected an explicit model on its entity. Do
+	// not replace it with the live player-info skin from the reused client slot.
+	if( !FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
+	{
+		if( state->model != RI.currententity->model )
+			state->model = RI.currententity->model;
+		state->name[0] = 0;
+	}
+	// In the world, retain the regular multiplayer/developer skin selection.
+	else if(( gpGlobals->developer || !ENGINE_GET_PARM( PARM_SINGLEPLAYER_GAME )) && info->model[0] )
 	{
 		if( Q_strcmp( state->name, info->model ))
 		{

@@ -238,6 +238,7 @@ public:
 
 	void Open(int validSlots)
 	{
+		RandomizeTeamPreviews();
 		m_slots = validSlots;
 		if (m_slots == 0)
 			m_slots = MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_5 | MENU_KEY_6;
@@ -415,13 +416,43 @@ private:
 	Label *m_ctCount = nullptr;
 	Label *m_tPlayers[kRosterRows]{};
 	Label *m_ctPlayers[kRosterRows]{};
+	int m_tPreviewIndex = -1;
+	int m_ctPreviewIndex = -1;
 
 	void CreateTeamPreviews()
 	{
 		m_tModel = new CTeamModelPreview(this, "TerrorModel");
-		m_tModel->SetPreview("models/player/leet/leet.mdl", "models/p_ak47.mdl", 154.0f, 80);
 		m_ctModel = new CTeamModelPreview(this, "CTModel");
-		m_ctModel->SetPreview("models/player/sas/sas.mdl", "models/p_m4a1.mdl", 206.0f, 33);
+	}
+
+	void RandomizeTeamPreviews()
+	{
+		static const char *const terrorModels[] = {
+			"models/player/terror/terror.mdl",
+			"models/player/leet/leet.mdl",
+			"models/player/arctic/arctic.mdl",
+			"models/player/guerilla/guerilla.mdl",
+		};
+		static const char *const ctModels[] = {
+			"models/player/urban/urban.mdl",
+			"models/player/gsg9/gsg9.mdl",
+			"models/player/sas/sas.mdl",
+			"models/player/gign/gign.mdl",
+		};
+		const int oldT = m_tPreviewIndex;
+		const int oldCT = m_ctPreviewIndex;
+		if (m_tPreviewIndex < 0)
+			m_tPreviewIndex = gEng.pfnRandomLong(0, 3);
+		else
+			m_tPreviewIndex = (m_tPreviewIndex + gEng.pfnRandomLong(1, 3)) % 4;
+		if (m_ctPreviewIndex < 0)
+			m_ctPreviewIndex = gEng.pfnRandomLong(0, 3);
+		else
+			m_ctPreviewIndex = (m_ctPreviewIndex + gEng.pfnRandomLong(1, 3)) % 4;
+		m_tModel->SetPreview(terrorModels[m_tPreviewIndex], "models/p_ak47.mdl", 154.0f, 80);
+		m_ctModel->SetPreview(ctModels[m_ctPreviewIndex], "models/p_m4a1.mdl", 206.0f, 33);
+		Menu_Con("CSRETRO_TEAM_RANDOM t=%d ct=%d changed=%d", m_tPreviewIndex,
+			m_ctPreviewIndex, oldT >= 0 && oldCT >= 0 && oldT != m_tPreviewIndex && oldCT != m_ctPreviewIndex ? 1 : 0);
 	}
 
 	void MuteLabel(Label *lab)

@@ -167,6 +167,8 @@ run_one() {
 	}
 
 	rg -q 'CSRETRO_CLASS_VGUI open type=26' "${ALL}" || fail "TER-Class-VGUI nicht geöffnet ${W}x${H}"
+	rg -q 'CSRETRO_CLASS_VGUI open type=26 .*lineup=4 static=0' "${ALL}" \
+		|| fail "TER-Studioaufstellung fehlt ${W}x${H}"
 	rg -q 'CSRETRO_CLASS_GATE_OPEN .*visible=1' "${ALL}" || fail "TER-Gate-Audit fehlt ${W}x${H}"
 	rg -q 'CSRETRO_CLASS_GATE_OPEN .*title=1 terror=1 leet=1 arctic=1 guerilla=1 auto=1 cancel=1' "${ALL}" \
 		|| fail "Localization der TER-Labels fehlt ${W}x${H}"
@@ -182,8 +184,16 @@ run_one() {
 	rg -q 'CSRETRO_CLASS_VGUI open type=27' "${ALL}" || fail "CT-Class-VGUI nicht geöffnet ${W}x${H}"
 	rg -q 'CSRETRO_CLASS_GATE_CT .*title=1 urban=1 gsg9=1 sas=1 gign=1 auto=1' "${ALL}" \
 		|| fail "Localization der CT-Labels fehlt ${W}x${H}"
-	rg -q 'CSRETRO_CLASS_GATE_CT .*spetsnaz=0' "${ALL}" \
+	rg -q 'CSRETRO_CLASS_GATE_CT .*spetsnaz=0 preview=1' "${ALL}" \
 		|| fail "Spetsnaz auf CS-1.6 ${MAP} darf nicht sichtbar sein ${W}x${H}"
+	for model in terror leet arctic guerilla; do
+		rg -q "CSRETRO_TEAM_MODEL path=models/player/${model}/${model}\\.mdl weapon=models/p_ak47\\.mdl player=1 weapon_index=[1-9][0-9]* .*scene=4" "${ALL}" \
+			|| fail "TER-Klassenmodell ${model} fehlt ${W}x${H}"
+	done
+	for model in urban gsg9 sas gign; do
+		rg -q "CSRETRO_TEAM_MODEL path=models/player/${model}/${model}\\.mdl weapon=models/p_m4a1\\.mdl player=1 weapon_index=[1-9][0-9]* .*scene=4" "${ALL}" \
+			|| fail "CT-Klassenmodell ${model} fehlt ${W}x${H}"
+	done
 	rg -q 'CSRETRO_LOC_MISSING' "${ALL}" && {
 		rg 'CSRETRO_LOC_MISSING' "${ALL}" | head >&2
 		fail "fehlende Localization-Tokens ${W}x${H}"

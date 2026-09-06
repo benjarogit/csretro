@@ -4,6 +4,7 @@
 #include "Controls/MenuEngine.h"
 #include "InGameViewportLook.h"
 #include "RadioSelectPanel.h"
+#include "TeamModelPreview.h"
 #include "TeamSelectPanel.h"
 
 #include <tier1/KeyValues.h>
@@ -14,20 +15,18 @@
 #include <vgui_controls/Button.h>
 #include <vgui_controls/Controls.h>
 #include <vgui_controls/EditablePanel.h>
-#include <vgui_controls/ImagePanel.h>
 #include <vgui_controls/Label.h>
 
 #include "../src/menu_priv.h"
 #include "cdll_dll.h"
 #include "keydefs.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cwchar>
-#include <string>
 #include <strings.h>
-#include <vector>
 
 using namespace vgui2;
 
@@ -85,18 +84,28 @@ int SlotBit(int slot)
 	return 1 << (slot - 1);
 }
 
-const char *PreviewImageName(const char *fieldName)
+struct ClassPreview
 {
-	if (!fieldName || !fieldName[0])
-		return nullptr;
-	if (!strcasecmp(fieldName, "CancelButton") || !strcasecmp(fieldName, "cancelbutton"))
-		return nullptr;
-	if (!strcasecmp(fieldName, "autoselect_t") || !strcasecmp(fieldName, "militia"))
-		return "t_random";
-	if (!strcasecmp(fieldName, "autoselect_ct") || !strcasecmp(fieldName, "spetsnaz"))
-		return "ct_random";
-	return fieldName;
-}
+	const char *button;
+	const char *model;
+	float yaw;
+	float lateral;
+	int sequence;
+};
+
+const ClassPreview kTerPreviews[] = {
+	{"terror", "models/player/terror/terror.mdl", 158.0f, -78.0f, 80},
+	{"leet", "models/player/leet/leet.mdl", 169.0f, -26.0f, 80},
+	{"arctic", "models/player/arctic/arctic.mdl", 191.0f, 26.0f, 80},
+	{"guerilla", "models/player/guerilla/guerilla.mdl", 202.0f, 78.0f, 80},
+};
+
+const ClassPreview kCtPreviews[] = {
+	{"urban", "models/player/urban/urban.mdl", 158.0f, -78.0f, 33},
+	{"gsg9", "models/player/gsg9/gsg9.mdl", 169.0f, -26.0f, 33},
+	{"sas", "models/player/sas/sas.mdl", 191.0f, 26.0f, 33},
+	{"gign", "models/player/gign/gign.mdl", 202.0f, 78.0f, 33},
+};
 
 class CClassSelectPanel;
 
@@ -110,8 +119,7 @@ public:
 	{
 	}
 
-	void SetHost(CClassSelectPanel *host) { m_host = host; }
-	void SetPreviewName(const char *name) { m_preview = name ? name : ""; }
+	void SetLineupCard(bool lineup) { m_lineupCard = lineup; ApplyLook(); }
 	void SetAccent(Color accent)
 	{
 		m_accent = accent;
@@ -134,23 +142,39 @@ public:
 	{
 		int w = 0, h = 0;
 		GetSize(w, h);
+		if (m_lineupCard)
+		{
+			if (!surface())
+				return;
+			const bool active = IsArmed() || IsDepressed();
+			if (active)
+			{
+				surface()->DrawSetColor(m_accent.r(), m_accent.g(), m_accent.b(), 28);
+				surface()->DrawFilledRect(0, 0, w, h);
+			}
+			surface()->DrawSetColor(m_accent.r(), m_accent.g(), m_accent.b(), active ? 230 : 70);
+			surface()->DrawFilledRect(0, 0, w, active ? 3 : 1);
+			surface()->DrawFilledRect(0, h - (active ? 3 : 1), w, h);
+			return;
+		}
 		InGameViewportLook::PaintCardBackground(w, h, m_accent, IsArmed() || IsDepressed());
 	}
 
-	void OnCursorEntered() override;
-
 private:
-	CClassSelectPanel *m_host = nullptr;
-	std::string m_preview;
 	Color m_accent = InGameViewportLook::Text();
+	bool m_lineupCard = false;
 
 	void ApplyLook()
 	{
 		InGameViewportLook::StyleCardButton(this, m_accent);
-		SetContentAlignment(Label::a_west);
-		SetTextInset(16, 0);
+		SetPaintBackgroundEnabled(true);
+		SetPaintBorderEnabled(false);
+		SetBorder(nullptr);
+		SetContentAlignment(m_lineupCard ? Label::a_north : Label::a_west);
+		SetTextInset(m_lineupCard ? 0 : 16, m_lineupCard ? 12 : 0);
 		SetFgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::Text() : m_accent);
-		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::CardArmed() : InGameViewportLook::Card());
+		SetBgColor(m_lineupCard ? Color(0, 0, 0, 0)
+			: ((IsArmed() || IsDepressed()) ? InGameViewportLook::CardArmed() : InGameViewportLook::Card()));
 	}
 };
 
@@ -174,9 +198,10 @@ public:
 				SetScheme(client);
 		}
 		LoadControlSettings(ResForType(menuType));
+		SetProportional(false);
 		ApplyClassLabels();
+		CreateLineup();
 		StyleButtons();
-		BindHover();
 	}
 
 	bool HasClassButtons()
@@ -195,7 +220,6 @@ public:
 		SetVisible(true);
 		MoveToFront();
 		RequestFocus();
-		ShowDefaultPreview();
 		LayoutFamily();
 		LogOpen();
 	}
@@ -243,6 +267,7 @@ public:
 			}
 			child->SetVisible((m_slots & SlotBit(slot)) != 0);
 		}
+		SyncLineupVisibility();
 		RelayoutVisibleButtons();
 	}
 
@@ -298,29 +323,7 @@ public:
 		return text[0] == L'#' || wcsstr(text, L"Cstrike_") != nullptr;
 	}
 
-	bool HasPreview() const { return m_preview && m_preview->IsVisible() && m_preview->GetImage(); }
-
-	void ShowClassPreview(const char *imageName)
-	{
-		if (!imageName || !imageName[0] || !m_preview)
-			return;
-		char path[96];
-		snprintf(path, sizeof(path), "gfx/vgui/%s", imageName);
-		m_preview->SetImage(path);
-		if (Panel *info = FindChildByName("ClassInfo"))
-		{
-			info->SetVisible(true);
-			info->SetEnabled(true);
-		}
-		if (auto *caption = dynamic_cast<Label *>(FindChildByName("classInfoLabel")))
-		{
-			wchar_t text[128] = {};
-			caption->GetText(text, sizeof(text));
-			const bool raw = text[0] == L'#' || wcsstr(text, L"Cstrike_") != nullptr;
-			caption->SetVisible(text[0] != L'\0' && !raw);
-		}
-		m_preview->SetVisible(true);
-	}
+	bool HasPreview() const { return m_lineup && m_lineup->IsVisible() && m_lineup->PreviewCount() == 4; }
 
 	Panel *CreateControlByName(const char *controlName) override
 	{
@@ -376,7 +379,7 @@ public:
 private:
 	int m_type = MENU_CLASS_T;
 	int m_slots = 0;
-	ImagePanel *m_preview = nullptr;
+	CTeamModelPreview *m_lineup = nullptr;
 
 	const SlotBind *Binds() const
 	{
@@ -482,75 +485,63 @@ private:
 			if (!btn)
 				continue;
 			if (auto *look = dynamic_cast<CClassHoverButton *>(btn))
+			{
+				look->SetLineupCard(StandardClassIndex(btn->GetName()) >= 0);
 				look->SetAccent(accent);
+			}
 			else
 				InGameViewportLook::StyleCardButton(btn, accent);
-			btn->SetContentAlignment(Label::a_west);
-			btn->SetTextInset(16, 0);
 		}
 		InGameViewportLook::StyleTitle(dynamic_cast<Label *>(FindChildByName("joinClass")));
 		if (auto *info = dynamic_cast<Label *>(FindChildByName("classInfoLabel")))
-			info->SetFgColor(InGameViewportLook::TextDim());
+			info->SetVisible(false);
 		if (Panel *box = FindChildByName("ClassInfo"))
-		{
-			box->SetPaintBackgroundEnabled(true);
-			box->SetBgColor(InGameViewportLook::Card());
-		}
+			box->SetVisible(false);
 	}
 
-	void BindHover()
+	const ClassPreview *Previews() const
 	{
-		Panel *info = FindChildByName("ClassInfo");
-		if (info)
-		{
-			info->SetPaintBackgroundEnabled(true);
-			info->SetMouseInputEnabled(false);
-			IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
-			info->SetBgColor(InGameViewportLook::Card());
-			int w = 0, h = 0;
-			info->GetSize(w, h);
-			m_preview = new ImagePanel(info, "ClassPreview");
-			int pad = 8;
-			if (IsProportional() && scheme())
-				pad = scheme()->GetProportionalScaledValue(8);
-			int iw = w > pad * 2 ? w - pad * 2 : w;
-			int maxSide = 256;
-			if (IsProportional() && scheme())
-				maxSide = scheme()->GetProportionalScaledValue(256);
-			if (iw > maxSide)
-				iw = maxSide;
-			m_preview->SetBounds(pad, pad, iw, iw);
-			m_preview->SetShouldScaleImage(true);
-			m_preview->SetVisible(false);
-		}
-
-		const SlotBind *binds = Binds();
-		const int n = BindCount();
-		for (int i = 0; i < n; ++i)
-		{
-			auto *btn = dynamic_cast<CClassHoverButton *>(FindChildByName(binds[i].name));
-			if (!btn)
-				continue;
-			btn->SetHost(this);
-			if (const char *preview = PreviewImageName(binds[i].name))
-				btn->SetPreviewName(preview);
-		}
+		return m_type == MENU_CLASS_CT ? kCtPreviews : kTerPreviews;
 	}
 
-	void ShowDefaultPreview()
+	int StandardClassIndex(const char *name) const
 	{
-		const SlotBind *binds = Binds();
-		const int n = BindCount();
-		for (int i = 0; i < n; ++i)
+		if (!name)
+			return -1;
+		const ClassPreview *previews = Previews();
+		for (int i = 0; i < 4; ++i)
 		{
-			Panel *child = FindChildByName(binds[i].name);
-			if (!child || !child->IsVisible() || binds[i].slot == 10)
-				continue;
-			if (const char *preview = PreviewImageName(binds[i].name))
-			{
-				ShowClassPreview(preview);
-				return;
-			}
+			if (!strcasecmp(name, previews[i].button))
+				return i;
+		}
+		return -1;
+	}
+
+	void CreateLineup()
+	{
+		m_lineup = new CTeamModelPreview(this, "ClassLineup");
+		m_lineup->ClearPreviews(220.0f);
+		const ClassPreview *previews = Previews();
+		const char *weapon = m_type == MENU_CLASS_CT ? "models/p_m4a1.mdl" : "models/p_ak47.mdl";
+		for (int i = 0; i < 4; ++i)
+		{
+			m_lineup->AddPreview(previews[i].model, weapon, previews[i].yaw,
+				previews[i].sequence, previews[i].lateral);
+		}
+		m_lineup->SetMouseInputEnabled(false);
+		m_lineup->SetKeyBoardInputEnabled(false);
+		m_lineup->SetZPos(-1);
+	}
+
+	void SyncLineupVisibility()
+	{
+		if (!m_lineup)
+			return;
+		const ClassPreview *previews = Previews();
+		for (int i = 0; i < 4; ++i)
+		{
+			Panel *button = FindChildByName(previews[i].button);
+			m_lineup->SetPreviewVisible(i, button && button->IsVisible());
 		}
 	}
 
@@ -560,48 +551,42 @@ private:
 		GetSize(w, h);
 		if (w < 200 || h < 160)
 			return;
-		const int pad = w / 18;
-		const int gap = h / 50;
-		const int titleH = h / 12;
+		const int pad = w * 5 / 100;
+		const int gap = std::max(4, w / 160);
+		const int titleH = std::max(28, h * 8 / 100);
 		if (auto *title = FindChildByName("joinClass"))
 		{
-			title->SetBounds(pad, h / 24, w - pad * 2, titleH);
+			title->SetBounds(pad, h * 4 / 100, w - pad * 2, titleH);
 			if (auto *lab = dynamic_cast<Label *>(title))
-				lab->SetContentAlignment(Label::a_west);
+				lab->SetContentAlignment(Label::a_center);
 		}
 
-		std::vector<Panel *> list;
-		Panel *cancel = nullptr;
-		const SlotBind *binds = Binds();
-		const int n = BindCount();
-		for (int i = 0; i < n; ++i)
+		const int stageY = h * 13 / 100;
+		const int footerY = h * 85 / 100;
+		const int stageW = w - pad * 2;
+		const int stageH = footerY - stageY;
+		if (m_lineup)
 		{
-			Panel *child = FindChildByName(binds[i].name);
-			if (!child || !child->IsVisible())
-				continue;
-			if (binds[i].slot == 10)
-			{
-				cancel = child;
-				continue;
-			}
-			list.push_back(child);
+			m_lineup->SetBounds(pad, stageY, stageW, stageH);
+			m_lineup->SetZPos(-1);
 		}
-		const int listW = w * 38 / 100;
-		const int listY = h / 24 + titleH + gap;
-		const int listH = h - listY - pad;
-		const int rowH = list.empty() ? 32 : (listH - gap * static_cast<int>(list.size())) /
-			static_cast<int>(list.size());
-		for (size_t i = 0; i < list.size(); ++i)
-			list[i]->SetBounds(pad, listY + static_cast<int>(i) * (rowH + gap), listW, rowH);
-		if (cancel)
-			cancel->SetBounds(pad, h - pad - h / 14, listW, h / 14);
-
-		const int infoX = pad + listW + pad;
-		const int infoW = w - infoX - pad;
+		const ClassPreview *previews = Previews();
+		const int cardW = (stageW - gap * 3) / 4;
+		for (int i = 0; i < 4; ++i)
+		{
+			if (Panel *button = FindChildByName(previews[i].button))
+				button->SetBounds(pad + i * (cardW + gap), stageY, cardW, stageH);
+		}
+		const int footerH = std::max(30, h * 7 / 100);
+		const int footerW = std::max(150, w * 18 / 100);
+		if (Panel *autoSelect = FindChildByName(m_type == MENU_CLASS_CT ? "autoselect_ct" : "autoselect_t"))
+			autoSelect->SetBounds(w - pad - footerW * 2 - gap, footerY + gap, footerW, footerH);
+		if (Panel *cancel = FindChildByName("CancelButton"))
+			cancel->SetBounds(w - pad - footerW, footerY + gap, footerW, footerH);
 		if (Panel *info = FindChildByName("ClassInfo"))
-			info->SetBounds(infoX, listY, infoW, listH);
+			info->SetVisible(false);
 		if (Panel *lab = FindChildByName("classInfoLabel"))
-			lab->SetBounds(infoX, listY, infoW, titleH / 2);
+			lab->SetVisible(false);
 	}
 
 	void LogOpen()
@@ -614,17 +599,11 @@ private:
 		if (Panel *p = FindChildByName("CancelButton"))
 			cancel = p->IsVisible() ? 1 : 0;
 		Menu_Con("CSRetro-VGUI: %s (%d)", ResForType(m_type), m_type);
-		Menu_Con("CSRETRO_CLASS_VGUI open type=%d slots=%d buttons=%d skin5=%d auto=%d cancel=%d",
-			m_type, m_slots, VisibleButtonCount(), skin5, autoselect, cancel);
+		Menu_Con("CSRETRO_CLASS_VGUI open type=%d slots=%d buttons=%d skin5=%d auto=%d cancel=%d lineup=%d static=0",
+			m_type, m_slots, VisibleButtonCount(), skin5, autoselect, cancel,
+			m_lineup ? m_lineup->PreviewCount() : 0);
 	}
 };
-
-void CClassHoverButton::OnCursorEntered()
-{
-	BaseClass::OnCursorEntered();
-	if (m_host && !m_preview.empty())
-		m_host->ShowClassPreview(m_preview.c_str());
-}
 
 class CClassSelectOverlay : public Panel
 {
@@ -946,18 +925,25 @@ void ClassSelect_GateTick()
 		{
 			if (hold < 30)
 				return;
-			const int title = g_panel->LabelLooksLocalized("joinClass") ? 1 : 0;
-			const int urban = g_panel->LabelLooksLocalized("urban") ? 1 : 0;
-			const int gsg9 = g_panel->LabelLooksLocalized("gsg9") ? 1 : 0;
-			const int sas = g_panel->LabelLooksLocalized("sas") ? 1 : 0;
-			const int gign = g_panel->LabelLooksLocalized("gign") ? 1 : 0;
-			const int autoselect = g_panel->LabelLooksLocalized("autoselect_ct") ? 1 : 0;
-			int spetsnaz = 0;
-			if (Panel *p = g_panel->FindChildByName("spetsnaz"))
-				spetsnaz = p->IsVisible() ? 1 : 0;
-			Menu_Con("CSRETRO_CLASS_GATE_CT type=%d visible=1 title=%d urban=%d gsg9=%d sas=%d "
-				 "gign=%d auto=%d spetsnaz=%d",
-				g_panel->MenuType(), title, urban, gsg9, sas, gign, autoselect, spetsnaz);
+			if (hold == 30)
+			{
+				const int title = g_panel->LabelLooksLocalized("joinClass") ? 1 : 0;
+				const int urban = g_panel->LabelLooksLocalized("urban") ? 1 : 0;
+				const int gsg9 = g_panel->LabelLooksLocalized("gsg9") ? 1 : 0;
+				const int sas = g_panel->LabelLooksLocalized("sas") ? 1 : 0;
+				const int gign = g_panel->LabelLooksLocalized("gign") ? 1 : 0;
+				const int autoselect = g_panel->LabelLooksLocalized("autoselect_ct") ? 1 : 0;
+				int spetsnaz = 0;
+				if (Panel *p = g_panel->FindChildByName("spetsnaz"))
+					spetsnaz = p->IsVisible() ? 1 : 0;
+				Menu_Con("CSRETRO_CLASS_GATE_CT type=%d visible=1 title=%d urban=%d gsg9=%d sas=%d "
+					 "gign=%d auto=%d spetsnaz=%d preview=%d",
+					g_panel->MenuType(), title, urban, gsg9, sas, gign, autoselect, spetsnaz,
+					g_panel->HasPreview() ? 1 : 0);
+				MenuEngine::ClientCmd("screenshot\n");
+			}
+			if (hold < 80)
+				return;
 			UI_KeyEvent('1', 1);
 			UI_KeyEvent('1', 0);
 			++step;

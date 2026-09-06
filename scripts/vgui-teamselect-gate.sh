@@ -169,10 +169,12 @@ run_one() {
 	rg -q 'CSRETRO_TEAM_VGUI open' "${ALL}" || fail "Team-VGUI nicht geöffnet ${W}x${H}"
 	rg -q 'CSRETRO_TEAM_LOOK split=1 roster=1 emblem=1 footer=1 stage=1 models=1' "${ALL}" \
 		|| fail "Team-Bühne oder Studio-Preview fehlt ${W}x${H}"
-	rg -q 'CSRETRO_TEAM_MODEL path=models/player/leet/leet.mdl weapon=models/p_ak47.mdl player=1 weapon_index=[1-9][0-9]*' "${ALL}" \
-		|| fail "T-Modell leet.mdl nicht geladen ${W}x${H}"
-	rg -q 'CSRETRO_TEAM_MODEL path=models/player/sas/sas.mdl weapon=models/p_m4a1.mdl player=1 weapon_index=[1-9][0-9]*' "${ALL}" \
-		|| fail "CT-Modell sas.mdl nicht geladen ${W}x${H}"
+	rg -q 'CSRETRO_TEAM_MODEL path=models/player/(terror|leet|arctic|guerilla)/[^ ]+\.mdl weapon=models/p_ak47.mdl player=1 weapon_index=[1-9][0-9]*' "${ALL}" \
+		|| fail "zufälliges T-Modell mit AK-47 nicht geladen ${W}x${H}"
+	rg -q 'CSRETRO_TEAM_MODEL path=models/player/(urban|gsg9|sas|gign)/[^ ]+\.mdl weapon=models/p_m4a1.mdl player=1 weapon_index=[1-9][0-9]*' "${ALL}" \
+		|| fail "zufälliges CT-Modell mit M4A1 nicht geladen ${W}x${H}"
+	rg -q 'CSRETRO_TEAM_RANDOM t=[0-3] ct=[0-3] changed=1' "${ALL}" \
+		|| fail "Teammodelle wechseln beim erneuten Öffnen nicht ${W}x${H}"
 	rg -q 'CSRETRO_TEAM_GATE_OPEN visible=1' "${ALL}" || fail "Gate-Audit fehlt ${W}x${H}"
 	rg -q 'CSRETRO_TEAM_GATE_OPEN .*title=1 t=1 ct=1' "${ALL}" \
 		|| fail "Localization der Team-Labels fehlt ${W}x${H}"

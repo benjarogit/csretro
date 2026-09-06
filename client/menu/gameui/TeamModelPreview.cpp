@@ -90,16 +90,40 @@ CTeamModelPreview::CTeamModelPreview(Panel *parent, const char *name)
 
 void CTeamModelPreview::SetPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence)
 {
-	m_path[0] = '\0';
-	m_weapon[0] = '\0';
-	if (modelPath)
-		snprintf(m_path, sizeof(m_path), "%s", modelPath);
-	if (weaponPath)
-		snprintf(m_weapon, sizeof(m_weapon), "%s", weaponPath);
-	m_yaw = yaw;
-	m_sequence = sequence;
+	ClearPreviews(50.0f);
+	AddPreview(modelPath, weaponPath, yaw, sequence, 0.0f);
+}
+
+void CTeamModelPreview::ClearPreviews(float worldWidth)
+{
+	m_count = 0;
+	m_worldWidth = std::max(worldWidth, 1.0f);
 	m_animStart = 0.0f;
 	m_logged = false;
+}
+
+bool CTeamModelPreview::AddPreview(const char *modelPath, const char *weaponPath, float yaw,
+	int sequence, float lateralOffset)
+{
+	if (!modelPath || !modelPath[0] || m_count >= kMaxPreviews)
+		return false;
+	Preview &preview = m_previews[m_count++];
+	preview = Preview{};
+	snprintf(preview.path, sizeof(preview.path), "%s", modelPath);
+	if (weaponPath)
+		snprintf(preview.weapon, sizeof(preview.weapon), "%s", weaponPath);
+	preview.yaw = yaw;
+	preview.sequence = sequence;
+	preview.lateralOffset = lateralOffset;
+	preview.visible = true;
+	m_logged = false;
+	return true;
+}
+
+void CTeamModelPreview::SetPreviewVisible(int index, bool visible)
+{
+	if (index >= 0 && index < m_count)
+		m_previews[index].visible = visible;
 }
 
 void CTeamModelPreview::Paint()
@@ -128,38 +152,54 @@ void CTeamModelPreview::Paint()
 		m_animStart = gGlobals->time;
 
 	const float distH = DistanceForHeight(82.0f, rvp.fov_y);
-	const float distW = DistanceForHeight(50.0f, rvp.fov_x);
+	const float distW = DistanceForHeight(m_worldWidth, rvp.fov_x);
 	const float dist = std::max(distH, distW) * 1.04f;
 	const float now = gGlobals ? gGlobals->time : 0.0f;
 	// Rifle aim references are intentionally almost static.  Keep the authored
 	// pose and add only a restrained showroom idle, applied once to player and
 	// bone-merged weapon so it costs no additional model or texture.
-	const float idleYaw = std::sin(now * 0.85f) * 1.25f;
-	const float idleLift = std::sin(now * 1.35f) * 0.22f;
-
-	cl_entity_t *ent = gEng.pfnGetPlayerModel();
 	gEng.pfnClearScene();
-	SetupStudio(ent, m_path, m_sequence, m_yaw + idleYaw, dist, m_animStart, 1);
-	ent->player = true;
-	ent->origin[2] = ent->curstate.origin[2] = idleLift;
-
-	cl_entity_t weapon;
-	int weaponIndex = 0;
-	if (m_weapon[0])
+	cl_entity_t players[kMaxPreviews];
+	cl_entity_t weapons[kMaxPreviews];
+	int playerAdded[kMaxPreviews] = {};
+	int weaponIndex[kMaxPreviews] = {};
+	for (int i = 0; i < m_count; ++i)
 	{
-		SetupStudio(&weapon, m_weapon, 0, m_yaw + idleYaw, dist, m_animStart, 2);
-		if (weapon.curstate.modelindex > 0)
-			weaponIndex = weapon.curstate.modelindex;
+		const Preview &preview = m_previews[i];
+		if (!preview.visible)
+			continue;
+		const float phase = static_cast<float>(i) * 0.73f;
+		const float idleYaw = std::sin(now * 0.85f + phase) * 1.25f;
+		const float idleLift = std::sin(now * 1.35f + phase) * 0.22f;
+		SetupStudio(&players[i], preview.path, preview.sequence, preview.yaw + idleYaw,
+			dist, m_animStart, i + 1);
+		players[i].player = true;
+		players[i].origin[1] = players[i].curstate.origin[1] = preview.lateralOffset;
+		players[i].origin[2] = players[i].curstate.origin[2] = idleLift;
+		if (preview.weapon[0])
+		{
+			SetupStudio(&weapons[i], preview.weapon, 0, preview.yaw + idleYaw,
+				dist, m_animStart, i + 1 + kMaxPreviews);
+			if (weapons[i].curstate.modelindex > 0)
+				weaponIndex[i] = weapons[i].curstate.modelindex;
+		}
+		players[i].curstate.weaponmodel = weaponIndex[i];
+		playerAdded[i] = gEng.CL_CreateVisibleEntity(ET_NORMAL, &players[i]);
 	}
-	ent->curstate.weaponmodel = weaponIndex;
-	const int playerAdded = gEng.CL_CreateVisibleEntity(ET_NORMAL, ent);
 
 	gEng.pfnRenderScene(&rvp);
 
 	if (!m_logged)
 	{
-		Menu_Con("CSRETRO_TEAM_MODEL path=%s weapon=%s player=%d weapon_index=%d seq=%d yaw=%.0f", m_path,
-			m_weapon[0] ? m_weapon : "-", playerAdded, weaponIndex, m_sequence, m_yaw);
+		for (int i = 0; i < m_count; ++i)
+		{
+			const Preview &preview = m_previews[i];
+			if (!preview.visible)
+				continue;
+			Menu_Con("CSRETRO_TEAM_MODEL path=%s weapon=%s player=%d weapon_index=%d seq=%d yaw=%.0f scene=%d",
+				preview.path, preview.weapon[0] ? preview.weapon : "-", playerAdded[i],
+				weaponIndex[i], preview.sequence, preview.yaw, m_count);
+		}
 		m_logged = true;
 	}
 }

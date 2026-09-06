@@ -167,9 +167,17 @@ run_one() {
 	}
 
 	rg -q 'CSRETRO_TEAM_VGUI open' "${ALL}" || fail "Team-VGUI nicht geöffnet ${W}x${H}"
+	rg -q 'CSRETRO_TEAM_LOOK split=1 roster=1 emblem=1 footer=1 stage=1 models=1' "${ALL}" \
+		|| fail "Team-Bühne oder Studio-Preview fehlt ${W}x${H}"
+	rg -q 'CSRETRO_TEAM_MODEL path=models/player/leet/leet.mdl weapon=models/p_glock18.mdl ok=1' "${ALL}" \
+		|| fail "T-Modell leet.mdl nicht geladen ${W}x${H}"
+	rg -q 'CSRETRO_TEAM_MODEL path=models/player/sas/sas.mdl weapon=models/p_usp.mdl ok=1' "${ALL}" \
+		|| fail "CT-Modell sas.mdl nicht geladen ${W}x${H}"
 	rg -q 'CSRETRO_TEAM_GATE_OPEN visible=1' "${ALL}" || fail "Gate-Audit fehlt ${W}x${H}"
 	rg -q 'CSRETRO_TEAM_GATE_OPEN .*title=1 t=1 ct=1' "${ALL}" \
 		|| fail "Localization der Team-Labels fehlt ${W}x${H}"
+	rg -q 'CSRETRO_TEAM_GATE_ROSTER t=3 ct=3' "${ALL}" \
+		|| fail "mittige Teamlisten fehlen ${W}x${H}"
 	rg -q 'CSRETRO_TEAM_GATE_OPEN .*mapinfo=1' "${ALL}" \
 		|| fail "Kartenbeschreibung leer ${W}x${H}"
 	rg -q 'CSRETRO_TEAM_VGUI open .*vip=0' "${ALL}" \

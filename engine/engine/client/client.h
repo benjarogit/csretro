@@ -518,6 +518,9 @@ typedef struct
 	poolhandle_t      mempool;			// client edicts pool
 
 	cl_entity_t	playermodel;		// uiPlayerSetup drawing model
+	cl_entity_t	preview_parent_backup;	// temporarily occupied slot for menu bone merge
+	int		preview_parent_index;
+	qboolean	preview_parent_saved;
 	player_info_t	playerinfo;		// local playerinfo
 
 	gameui_draw_t	ds;			// draw2d stuff (menu images)

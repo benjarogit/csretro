@@ -2,6 +2,7 @@
 
 #include "Controls/MenuEngine.h"
 #include "HudFrameLook.h"
+#include "InGameRoster.h"
 #include "TeamSelectPanel.h"
 
 #include <vgui/ISchemeNext.h>
@@ -343,6 +344,8 @@ Panel *g_host = nullptr;
 
 void SpectatorHud_Set(const SpectatorHudState *state)
 {
+	if (state)
+		InGameRoster_StoreSpectator(*state);
 	if (!state || state->observerMode <= 0)
 	{
 		SpectatorHud_Hide();

@@ -184,6 +184,11 @@ void PauseBackdrop_Paint()
 {
 	const int sw = gGlobals ? gGlobals->scrWidth : 640;
 	const int sh = gGlobals ? gGlobals->scrHeight : 480;
+	// This full-screen pass runs before VGUI starts its next clip stack. A
+	// previous child panel (notably a 3D model preview) may have left the menu
+	// image scissor at its own bounds, which otherwise exposes a world strip.
+	if (gEng.pfnPIC_DisableScissor)
+		gEng.pfnPIC_DisableScissor();
 	if (!g_blurPic)
 		Capture(sw, sh);
 

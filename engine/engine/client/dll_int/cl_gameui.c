@@ -830,6 +830,20 @@ static void GAME_EXPORT pfnSetPlayerModel( cl_entity_t *ent, const char *path )
 	ent->curstate.modelindex = MAX_MODELS; // unreachable index
 }
 
+static void pfnRestorePreviewParent( void )
+{
+	cl_entity_t *slot;
+
+	if( !gameui.preview_parent_saved )
+		return;
+
+	slot = CL_GetEntityByIndex( gameui.preview_parent_index );
+	if( slot )
+		*slot = gameui.preview_parent_backup;
+	gameui.preview_parent_saved = false;
+	gameui.preview_parent_index = 0;
+}
+
 /*
 ====================
 pfnClearScene
@@ -839,6 +853,9 @@ for drawing playermodel previews
 */
 static void GAME_EXPORT pfnClearScene( void )
 {
+	// A menu aborted between AddEntity and RenderScene must never leave a
+	// synthetic preview parent in the live client entity array.
+	pfnRestorePreviewParent();
 	ref.dllFuncs.R_PushScene();
 	ref.dllFuncs.R_ClearScene();
 }
@@ -856,7 +873,11 @@ static void GAME_EXPORT pfnRenderScene( const ref_viewpass_t *rvp )
 
 	// to avoid division by zero
 	if( !rvp || rvp->fov_x <= 0.0f || rvp->fov_y <= 0.0f )
+	{
+		pfnRestorePreviewParent();
+		ref.dllFuncs.R_PopScene();
 		return;
+	}
 
 	copy = *rvp;
 
@@ -865,7 +886,12 @@ static void GAME_EXPORT pfnRenderScene( const ref_viewpass_t *rvp )
 
 	ref.dllFuncs.R_Set2DMode( false );
 	GL_RenderFrame( &copy );
+	// GL_RenderFrame may finish in 2D mode while the preview-sized viewport is
+	// still current. A plain Set2DMode(true) then short-circuits and clips the
+	// next menu frame to the model panel (visible as an unblurred top strip).
+	ref.dllFuncs.R_Set2DMode( false );
 	ref.dllFuncs.R_Set2DMode( true );
+	pfnRestorePreviewParent();
 	ref.dllFuncs.R_PopScene();
 }
 
@@ -878,8 +904,24 @@ adding player model into visible list
 */
 static int GAME_EXPORT pfnAddEntity( int entityType, cl_entity_t *ent )
 {
+	if( ent == &gameui.playermodel && ent->index > 0 )
+	{
+		cl_entity_t *slot = CL_GetEntityByIndex( ent->index );
+		pfnRestorePreviewParent();
+		if( slot )
+		{
+			gameui.preview_parent_backup = *slot;
+			gameui.preview_parent_index = ent->index;
+			gameui.preview_parent_saved = true;
+			*slot = *ent;
+		}
+	}
 	if( !ref.dllFuncs.R_AddEntity( ent, entityType ))
+	{
+		if( ent == &gameui.playermodel )
+			pfnRestorePreviewParent();
 		return false;
+	}
 	return true;
 }
 

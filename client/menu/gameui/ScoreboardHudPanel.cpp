@@ -4,6 +4,7 @@
 #include "ClassSelectPanel.h"
 #include "Controls/MenuEngine.h"
 #include "HudFrameLook.h"
+#include "InGameRoster.h"
 #include "RadioSelectPanel.h"
 #include "TeamSelectPanel.h"
 
@@ -356,6 +357,8 @@ bool OverlayBlocks()
 
 void ScoreboardHud_Set(const ScoreboardHudState *state)
 {
+	if (state)
+		InGameRoster_StoreScoreboard(*state);
 	if (!state || !state->visible)
 	{
 		ScoreboardHud_Hide();

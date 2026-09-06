@@ -831,6 +831,52 @@ static void R_StudioMergeBones( cl_entity_t *e, model_t *m_pSubModel )
 	}
 }
 
+static void R_StudioCalcNineWayBlend( cl_entity_t *e, mstudioseqdesc_t *seq, mstudioanim_t *anim,
+	float frame, byte blend0, byte blend1, vec3_t *pos, vec4_t *q )
+{
+	static vec3_t pos2[MAXSTUDIOBONES], pos3[MAXSTUDIOBONES], pos4[MAXSTUDIOBONES];
+	static vec4_t q2[MAXSTUDIOBONES], q3[MAXSTUDIOBONES], q4[MAXSTUDIOBONES];
+	int indices[4];
+	float s, t;
+
+	if( blend0 <= 127 )
+	{
+		s = blend0 * 2.0f;
+		if( blend1 <= 127 )
+		{
+			t = blend1 * 2.0f;
+			indices[0] = 0; indices[1] = 1; indices[2] = 3; indices[3] = 4;
+		}
+		else
+		{
+			t = ( blend1 - 127 ) * 2.0f;
+			indices[0] = 3; indices[1] = 4; indices[2] = 6; indices[3] = 7;
+		}
+	}
+	else
+	{
+		s = ( blend0 - 127 ) * 2.0f;
+		if( blend1 <= 127 )
+		{
+			t = blend1 * 2.0f;
+			indices[0] = 1; indices[1] = 2; indices[2] = 4; indices[3] = 5;
+		}
+		else
+		{
+			t = ( blend1 - 127 ) * 2.0f;
+			indices[0] = 4; indices[1] = 5; indices[2] = 7; indices[3] = 8;
+		}
+	}
+
+	R_StudioCalcRotations( e, pos, q, seq, anim + indices[0] * m_pStudioHeader->numbones, frame );
+	R_StudioCalcRotations( e, pos2, q2, seq, anim + indices[1] * m_pStudioHeader->numbones, frame );
+	R_StudioCalcRotations( e, pos3, q3, seq, anim + indices[2] * m_pStudioHeader->numbones, frame );
+	R_StudioCalcRotations( e, pos4, q4, seq, anim + indices[3] * m_pStudioHeader->numbones, frame );
+	R_StudioSlerpBones( m_pStudioHeader->numbones, q, pos, q2, pos2, s / 255.0f );
+	R_StudioSlerpBones( m_pStudioHeader->numbones, q3, pos3, q4, pos4, s / 255.0f );
+	R_StudioSlerpBones( m_pStudioHeader->numbones, q, pos, q3, pos3, t / 255.0f );
+}
+
 /*
 ====================
 StudioSetupBones
@@ -862,9 +908,11 @@ static void R_StudioSetupBones( cl_entity_t *e )
 	f = R_StudioEstimateFrame( e, pseqdesc, g_studio.time );
 
 	panim = gEngfuncs.R_StudioGetAnim( m_pStudioHeader, RI.currentmodel, pseqdesc );
-	R_StudioCalcRotations( e, pos, q, pseqdesc, panim, f );
+	if( pseqdesc->numblends == 9 )
+		R_StudioCalcNineWayBlend( e, pseqdesc, panim, f, e->curstate.blending[0], e->curstate.blending[1], pos, q );
+	else R_StudioCalcRotations( e, pos, q, pseqdesc, panim, f );
 
-	if( pseqdesc->numblends > 1 )
+	if( pseqdesc->numblends > 1 && pseqdesc->numblends != 9 )
 	{
 		float s;
 		float dadt;
@@ -904,9 +952,12 @@ static void R_StudioSetupBones( cl_entity_t *e )
 		panim = gEngfuncs.R_StudioGetAnim( m_pStudioHeader, RI.currentmodel, pseqdesc );
 
 		// clip prevframe
-		R_StudioCalcRotations( e, pos1b, q1b, pseqdesc, panim, e->latched.prevframe );
+		if( pseqdesc->numblends == 9 )
+			R_StudioCalcNineWayBlend( e, pseqdesc, panim, e->latched.prevframe,
+				e->latched.prevseqblending[0], e->latched.prevseqblending[1], pos1b, q1b );
+		else R_StudioCalcRotations( e, pos1b, q1b, pseqdesc, panim, e->latched.prevframe );
 
-		if( pseqdesc->numblends > 1 )
+		if( pseqdesc->numblends > 1 && pseqdesc->numblends != 9 )
 		{
 			panim += m_pStudioHeader->numbones;
 			R_StudioCalcRotations( e, pos2, q2, pseqdesc, panim, e->latched.prevframe );

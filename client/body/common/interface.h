@@ -30,8 +30,12 @@
 
 #if !defined( _WIN32 )
 #define HMODULE        void *
+#ifndef GetProcAddress
 #define GetProcAddress dlsym
+#endif
+#ifndef _snprintf
 #define _snprintf snprintf
+#endif
 #endif
 
 void *Sys_GetProcAddress( void *pModuleHandle, const char *pName );

@@ -149,7 +149,6 @@ private:
 
 	int x, y, wide, tall;
 	char m_buf[512];
-	int iconwidth;
 };
 
 //-----------------------------------------------------------------------------
@@ -160,29 +159,30 @@ class CVoiceStatusHud : public IVoiceHud, public CHudBase
 public:
 	CVoiceStatusHud();
 	virtual ~CVoiceStatusHud();
+	using CHudBase::Init;
 
 	// CHudBase overrides.
 	// Initialize the cl_dll's voice manager.
-	virtual int Init( IVoiceStatusHelper *pHelper, IVoiceStatus *pStatus );
+	int Init( IVoiceStatusHelper *pHelper, IVoiceStatus *pStatus ) override;
 
 	// ackPosition is the bottom position of where CVoiceStatus will draw the voice acknowledgement labels.
-	virtual int VidInit();
+	int VidInit() override;
 
 	// Call from the HUD_CreateEntities function so it can add sprites above player heads.
-	void CreateEntities();
+	void CreateEntities() override;
 
-	void UpdateLocation( int entindex, const char *location );
+	void UpdateLocation( int entindex, const char *location ) override;
 
-	void UpdateSpeakerStatus( int entindex, bool bTalking );
+	void UpdateSpeakerStatus( int entindex, bool bTalking ) override;
 
 	CVoiceLabel *FindVoiceLabel( int clientindex ); // Find a CVoiceLabel representing the specified speaker.
 	                                                // Returns NULL if none.
 	                                                // entindex can be -1 if you want a currently-unused voice label.
 	CVoiceLabel *GetFreeVoiceLabel();               // Get an unused voice label. Returns NULL if none.
-	void RepositionLabels();
+	void RepositionLabels() override;
 
-	void Shutdown( void );
-	int Draw( float flTime );
+	void Shutdown( void ) override;
+	int Draw( float flTime ) override;
 
 private:
 	cl_entity_s m_VoiceHeadModels[VOICE_MAX_PLAYERS]; // These aren't necessarily in the order of players. They are just

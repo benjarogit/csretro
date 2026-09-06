@@ -1060,7 +1060,7 @@ void GL_InitExtensions( void )
 
 			for( int i = 0; i < n; i++ )
 			{
-				int l = Q_strncpy( str, pglGetStringi( GL_EXTENSIONS, i ), len );
+				int l = Q_strncpy( str, (const char *)pglGetStringi( GL_EXTENSIONS, i ), len );
 				str += l;
 				*str++ = ' ';
 				len -= l + 1;

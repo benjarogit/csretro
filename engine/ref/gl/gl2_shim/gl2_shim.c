@@ -192,10 +192,15 @@ static void APIENTRY GL2_BindTexture( GLenum tex, GLuint obj )
 static char *GL_PrintInfoLog( GLhandleARB object, qboolean program )
 {
 	static char	msg[8192];
-	GLuint maxLength = 0;
+	GLint maxLength = 0;
+	GLsizei written = 0;
 
 	if( program && pglGetProgramiv )
-		pglGetProgramiv( object, GL_OBJECT_INFO_LOG_LENGTH_ARB, &maxLength );
+	{
+		GLuint coreLength = 0;
+		pglGetProgramiv( object, GL_OBJECT_INFO_LOG_LENGTH_ARB, &coreLength );
+		maxLength = (GLint)coreLength;
+	}
 	else
 		pglGetObjectParameterivARB( object, GL_OBJECT_INFO_LOG_LENGTH_ARB, &maxLength );
 
@@ -206,9 +211,9 @@ static char *GL_PrintInfoLog( GLhandleARB object, qboolean program )
 	}
 
 	if( program && pglGetProgramInfoLog )
-		pglGetProgramInfoLog( object, maxLength, &maxLength, msg );
+		pglGetProgramInfoLog( object, maxLength, &written, msg );
 	else
-		pglGetInfoLogARB( object, maxLength, &maxLength, msg );
+		pglGetInfoLogARB( object, maxLength, &written, msg );
 
 	return msg;
 }
@@ -281,7 +286,7 @@ static GLuint GL2_GenerateShader( gl2wrap_prog_t *prog, GLenum type )
 static gl2wrap_prog_t *GL2_GetProg( const GLuint flags )
 {
 	int i;
-	GLuint status = 0;
+	GLint status = 0;
 
 	// try to find existing prog matching this feature set
 
@@ -346,7 +351,11 @@ static gl2wrap_prog_t *GL2_GetProg( const GLuint flags )
 /// TODO: detect arb/core shaders in engine
 
 	if( pglGetProgramiv )
-		pglGetProgramiv( glprog, GL_OBJECT_LINK_STATUS_ARB, &status );
+	{
+		GLuint coreStatus = 0;
+		pglGetProgramiv( glprog, GL_OBJECT_LINK_STATUS_ARB, &coreStatus );
+		status = (GLint)coreStatus;
+	}
 	else
 		pglGetObjectParameterivARB( glprog, GL_OBJECT_LINK_STATUS_ARB, &status );
 

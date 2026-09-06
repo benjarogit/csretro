@@ -544,6 +544,12 @@ void V_PostRender( void )
 	case scrshot_snapshot:
 		draw_2d = true;
 		break;
+	case scrshot_plaque:
+	case scrshot_savegame:
+	case scrshot_envshot:
+	case scrshot_skyshot:
+	case scrshot_mapshot:
+		break;
 	}
 
 	if( draw_2d )

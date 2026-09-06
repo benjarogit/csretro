@@ -600,6 +600,10 @@ static void GL_SetTextureFormat( gl_texture_t *tex, pixformat_t format, int chan
 		case PF_BC7_SRGB:
 		case PF_BC7_UNORM: tex->format = GL_COMPRESSED_RGBA_BPTC_UNORM_ARB; break;
 		case PF_ATI2: tex->format = GL_COMPRESSED_RED_GREEN_RGTC2_EXT; break;
+		default:
+			// Unsupported compressed payloads must not inherit a stale format.
+			tex->format = GL_NONE;
+			break;
 		}
 		return;
 	}
@@ -681,7 +685,7 @@ box filter 3x3
 */
 static void GL_BoxFilter3x3( byte *out, const byte *in, int w, int h, int x, int y )
 {
-	int r = 0, g = 0, b = 0, a = 0;
+	int r = 0, g = 0, b = 0;
 	int acount = 0;
 
 	for( int i = 0; i < 3; i++ )
@@ -701,7 +705,6 @@ static void GL_BoxFilter3x3( byte *out, const byte *in, int w, int h, int x, int
 					r += pixel[0];
 					g += pixel[1];
 					b += pixel[2];
-					a += pixel[3];
 					acount++;
 				}
 			}

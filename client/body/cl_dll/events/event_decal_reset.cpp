@@ -42,15 +42,12 @@ void EV_DecalReset(event_args_s *args)
 	
 	g_flRoundTime = gEngfuncs.GetClientTime();
 	
-	if ( g_DeadPlayerModels )
+	for ( int i = 0; i < 64; i++ )
 	{
-		for ( int i = 0; i < 64; i++ )
+		if ( g_DeadPlayerModels[i] )
 		{
-			if ( g_DeadPlayerModels[i] )
-			{
-				g_DeadPlayerModels[i]->die = 0.0f;
-				g_DeadPlayerModels[i] = NULL;
-			}
+			g_DeadPlayerModels[i]->die = 0.0f;
+			g_DeadPlayerModels[i] = NULL;
 		}
 	}
 }

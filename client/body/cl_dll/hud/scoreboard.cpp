@@ -185,7 +185,7 @@ static void FillScoreboardHudState( ScoreboardHudState *s, int visible, int numT
 		}
 	}
 	int n = 0;
-	for( int i = 1; i < MAX_PLAYERS && n < CSRETRO_SCOREBOARD_PLAYERS; i++ )
+	for( int i = 1; i <= MAX_PLAYERS && n < CSRETRO_SCOREBOARD_PLAYERS; i++ )
 	{
 		if( !g_PlayerInfoList[i].name || !g_PlayerInfoList[i].name[0] )
 			continue;
@@ -334,7 +334,7 @@ int CHudScoreboard :: DrawTeams( float list_slot )
 	}
 
 	// recalc the team scores, then draw them
-	for ( int i = 1; i < MAX_PLAYERS; i++ )
+	for ( int i = 1; i <= MAX_PLAYERS; i++ )
 	{
 		if ( !g_PlayerInfoList[i].name || !g_PlayerInfoList[i].name[0] )
 			continue; // empty player slot, skip
@@ -492,7 +492,7 @@ int CHudScoreboard :: DrawPlayers( float list_slot, int nameoffset, const char *
 		int highest_frags = -99999;	int lowest_deaths = 99999;
 		int best_player = 0;
 
-		for ( int i = 1; i < MAX_PLAYERS; i++ )
+		for ( int i = 1; i <= MAX_PLAYERS; i++ )
 		{
 			if ( g_PlayerInfoList[i].name && g_PlayerExtraInfo[i].frags >= highest_frags )
 			{
@@ -612,7 +612,7 @@ void CHudScoreboard :: GetAllPlayersInfo( void )
 {
 	memset( &g_PlayerInfoList[0], 0, sizeof( g_PlayerInfoList[0] ));
 
-	for( int i = 1; i < MAX_PLAYERS; i++ )
+	for( int i = 1; i <= MAX_PLAYERS; i++ )
 		GetPlayerInfo( i, &g_PlayerInfoList[i] );
 }
 
@@ -688,7 +688,7 @@ int CHudScoreboard :: MsgFunc_TeamInfo( const char *pszName, int iSize, void *pb
 	GetAllPlayersInfo();
 	m_iNumTeams = 0;
 
-	for ( int i = 1; i < MAX_PLAYERS; i++ )
+	for ( int i = 1; i <= MAX_PLAYERS; i++ )
 	{
 		int j;
 		//if ( g_PlayerInfoList[i].name == NULL )

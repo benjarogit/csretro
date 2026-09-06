@@ -1718,7 +1718,7 @@ void CL_RegisterResources( sizebuf_t *msg, connprotocol_t proto )
 
 			Mod_FreeUnused ();
 
-			if( host_developer.value <= DEV_NONE )
+			if( host_developer.value <= (float)DEV_NONE )
 				Con_ClearNotify(); // clear any lines of console text
 
 			// done with all resources, issue prespawn command.

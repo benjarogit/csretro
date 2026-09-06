@@ -79,7 +79,6 @@ private:
 	mstudioanim_t* LookupAnimation(mstudioseqdesc_t *pseqdesc, int index);
 
 private:
-	int m_nPlayerGaitSequences[MAX_CLIENTS];
 	bool m_bLocal;
 };
 

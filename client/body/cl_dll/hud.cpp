@@ -59,7 +59,7 @@ int iTeamColors[3][3] =
 class CCStrikeVoiceStatusHelper : public IVoiceStatusHelper
 {
 public:
-	virtual void GetPlayerTextColor( int entindex, int color[3] )
+	void GetPlayerTextColor( int entindex, int color[3] ) override
 	{
 		color[0] = color[1] = color[2] = 255;
 
@@ -85,12 +85,12 @@ public:
 		// gViewPort->UpdateCursorState();
 	}
 
-	virtual int GetAckIconHeight()
+	int GetAckIconHeight() override
 	{
 		return gHUD.m_iFontHeight * 3 + 6;
 	}
 
-	virtual bool CanShowSpeakerLabels()
+	bool CanShowSpeakerLabels() override
 	{
 		return !gHUD.m_Scoreboard.m_bForceDraw && !gHUD.m_Scoreboard.m_bShowscoresHeld;
 	}

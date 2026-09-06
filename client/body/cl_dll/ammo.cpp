@@ -658,7 +658,7 @@ int CHudAmmo::MsgFunc_WeaponList(const char *pszName, int iSize, void *pbuf )
 {
 	BufferReader reader( pszName, pbuf, iSize );
 
-	WEAPON Weapon = { 0 };
+	WEAPON Weapon = {};
 
 	strncpy( Weapon.szName, reader.ReadString(), MAX_WEAPON_NAME );
 	Weapon.szName[MAX_WEAPON_NAME-1] = 0;
@@ -2134,4 +2134,3 @@ void CHudAmmo::HideCrosshair()
 {
 	m_hStaticSpr = 0;
 }
-

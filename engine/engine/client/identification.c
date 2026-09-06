@@ -523,7 +523,6 @@ int PSVita_GetPSID( char *buf, const size_t buflen );
 static bloomfilter_t ID_GenerateRawId( void )
 {
 	bloomfilter_t value = 0;
-	int count = 0;
 
 #if XASH_LINUX
 #if XASH_ANDROID
@@ -532,16 +531,15 @@ static bloomfilter_t ID_GenerateRawId( void )
 		if( androidid && ID_VerifyHEX( androidid ) )
 		{
 			value |= BloomFilter_ProcessStr( androidid );
-			count ++;
 		}
 	}
 #else // !XASH_ANDROID
 	// most systemd/Linux distros expose this file
-	count += ID_ProcessFile( &value, "/etc/machine-id" );
+	(void)ID_ProcessFile( &value, "/etc/machine-id" );
 #endif // !XASH_ANDROID
 
-	count += ID_ProcessCPUInfo( &value );
-	count += ID_ProcessFiles( &value, "/sys/block", "device/cid" );
+	(void)ID_ProcessCPUInfo( &value );
+	(void)ID_ProcessFiles( &value, "/sys/block", "device/cid" );
 #endif
 #if XASH_OSX
 	char buf[64];
@@ -549,20 +547,18 @@ static bloomfilter_t ID_GenerateRawId( void )
 	if( Apple_GetSerialNumber( buf, sizeof( buf )))
 	{
 		value |= BloomFilter_ProcessStr( buf );
-		count++;
 	}
 #endif
 #if XASH_POSIX
-	count += ID_ProcessNetDevices( &value );
+	(void)ID_ProcessNetDevices( &value );
 #endif
 #if XASH_WIN32
-	count += ID_ProcessWMIC( &value, L"wmic path win32_physicalmedia get SerialNumber " );
-	count += ID_ProcessWMIC( &value, L"wmic bios get serialnumber " );
+	(void)ID_ProcessWMIC( &value, L"wmic path win32_physicalmedia get SerialNumber " );
+	(void)ID_ProcessWMIC( &value, L"wmic bios get serialnumber " );
 #endif
 #if XASH_IOS
 	{
 		value |= BloomFilter_ProcessStr(IOS_GetUDID());
-		count ++;
 	}
 #endif
 #if XASH_PSVITA
@@ -570,7 +566,6 @@ static bloomfilter_t ID_GenerateRawId( void )
 		char data[16];
 		PSVita_GetPSID( data, sizeof( data ));
 		value |= BloomFilter_Process( data, sizeof( data ));
-		count ++;
 	}
 #endif
 	return value;

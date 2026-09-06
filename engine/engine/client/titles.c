@@ -92,7 +92,7 @@ static int TitleCountMessages( char *pfile, int fileSize )
 	int filepos = 0, count = 0;
 	qboolean in_text = false;
 
-	while( Q_memfgets( pfile, fileSize, &filepos, line, sizeof( line )) != NULL )
+	while( Q_memfgets((byte *)pfile, fileSize, &filepos, line, sizeof( line )) != NULL )
 	{
 		char trim[512];
 		COM_TrimSpace( trim, line, sizeof( trim ));
@@ -132,7 +132,7 @@ client_textmessage_t *CL_TextMessageParse( poolhandle_t mempool, char *pfile, in
 	{
 		int curlinestart = filepos;
 
-		if( Q_memfgets( pfile, fileSize, &filepos, line, sizeof( line )) == NULL )
+		if( Q_memfgets((byte *)pfile, fileSize, &filepos, line, sizeof( line )) == NULL )
 			break;
 
 		linenum++;

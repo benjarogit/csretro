@@ -851,6 +851,9 @@ static void R_DrawEntitiesOnList( void )
 		case mod_sprite:
 			R_DrawSpriteModel( RI.currententity );
 			break;
+		default:
+			// This pass intentionally draws only solid sprites.
+			break;
 		}
 	}
 

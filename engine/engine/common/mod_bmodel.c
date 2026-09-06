@@ -2304,7 +2304,7 @@ static void Mod_LoadEntities( model_t *mod, const dbspmodel_t *bmod )
 	byte   *entpatch = NULL;
 	char   token[MAX_TOKEN];
 	string keyname;
-	char   *entdata = bmod->entdata;
+	const byte *entdata = bmod->entdata;
 	size_t entdatasize = bmod->entdatasize;
 
 	if( bmod->isworld )
@@ -3661,7 +3661,7 @@ To be called while loading world for multiplayer game server
 */
 static void Mod_CalcPHS( model_t *mod )
 {
-	const qboolean vis_stats = host_developer.value >= DEV_EXTENDED;
+	const qboolean vis_stats = host_developer.value >= (float)DEV_EXTENDED;
 	const size_t rowbytes = ALIGN( world.visbytes, 4 ); // force align rows by 32-bit boundary
 	const size_t count = mod->numleafs + 1; // same as mod->submodels[0].visleafs + 1
 	size_t total_compressed_size = 0;
@@ -3979,10 +3979,10 @@ Mod_LumpLooksLikeEntities
 
 =================
 */
-static int Mod_LumpLooksLikeEntities( const char *lump, const size_t lumplen )
+static int Mod_LumpLooksLikeEntities( const byte *lump, const size_t lumplen )
 {
 	// look for "classname" string
-	return Q_memmem( lump, lumplen, "\"classname\"", sizeof( "\"classname\"" ) - 1 ) != NULL ? 1 : 0;
+	return Q_memmem( lump, lumplen, (const byte *)"\"classname\"", sizeof( "\"classname\"" ) - 1 ) != NULL ? 1 : 0;
 }
 
 static void Mod_SwapBSPLumps( byte *mod_base, size_t bufferlen )
@@ -4306,7 +4306,7 @@ static int Mod_LumpLooksLikeEntitiesFile( file_t *f, const dlump_t *l, int flags
 		return -1;
 	}
 
-	char *buf = Z_Malloc( l->filelen + 1 );
+	byte *buf = Z_Malloc( l->filelen + 1 );
 	if( FS_Read( f, buf, l->filelen ) != l->filelen )
 	{
 		if( !FBitSet( flags, LUMP_SILENT ))

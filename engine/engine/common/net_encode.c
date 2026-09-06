@@ -1332,7 +1332,7 @@ static void Delta_CopyField( delta_t *pField, const void *from, void *to, double
 	}
 	else if( FBitSet( pField->flags, DT_STRING ))
 	{
-		Q_strncpy( to_field, from_field, pField->size );
+		Q_strncpy((char *)to_field, (const char *)from_field, pField->size );
 	}
 	else
 	{

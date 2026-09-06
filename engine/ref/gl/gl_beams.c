@@ -618,9 +618,6 @@ static void R_DrawBeamFollow( BEAM *pbeam, float frametime )
 	div = 1.0f / pbeam->amplitude;
 	float fraction = ( pbeam->die - gp_cl->time ) * div;
 
-	float vLast = 0.0f;
-	float vStep = 1.0f;
-
 	while( particles )
 	{
 		TriBrightness( fraction );
@@ -644,8 +641,6 @@ static void R_DrawBeamFollow( BEAM *pbeam, float frametime )
 		// Make a wide line
 		VectorMA( particles->org, pbeam->width, normal, last1 );
 		VectorMA( particles->org, -pbeam->width, normal, last2 );
-
-		vLast += vStep;	// Advance texture scroll (v axis only)
 
 		if( particles->next != NULL )
 		{

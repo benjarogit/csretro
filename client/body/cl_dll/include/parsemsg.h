@@ -24,13 +24,9 @@
 class BufferReader
 {
 public:
-	BufferReader( const char *name, void *buf, int size ) :
-		m_szMsgName( name ), m_pBuf( (uint8_t*)buf ), m_iSize( size ), m_iRead( 0 ), m_bBad( false ) {}
+	BufferReader( const char *, void *buf, int size ) :
+		m_pBuf( (uint8_t*)buf ), m_iSize( size ), m_iRead( 0 ), m_bBad( false ) {}
 	BufferReader( void *buf, int size ) : BufferReader( "not set", buf, size ) {}
-
-#ifdef _DEBUG
-	inline ~BufferReader( void );
-#endif
 
 	void Flush( void );
 	bool Bad( void ) { return m_bBad; }
@@ -53,7 +49,6 @@ public:
 	Vector ReadCoordVector( void );
 
 private:
-	const char *m_szMsgName;
 	uint8_t *m_pBuf;
 	size_t   m_iSize;
 	size_t   m_iRead;
@@ -203,11 +198,3 @@ inline float BufferReader::ReadHiResAngle( void )
 {
 	return ReadShort() * 360.0f / 65536.0f;
 }
-
-#ifdef _DEBUG
-BufferReader::~BufferReader()
-{
-	//if( m_iRead < m_iSize - 1 )
-	//	gEngfuncs.Con_DPrintf( "BufferReader(%s): destroyed before reaching end. Expected %i, read %i\n", m_szMsgName, m_iSize, m_iRead );
-}
-#endif

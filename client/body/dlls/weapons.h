@@ -404,6 +404,7 @@ extern MULTIDAMAGE gMultiDamage;
 class CWeaponBox : public CBaseEntity
 {
 public:
+	using CBaseEntity::GiveAmmo;
 	void Spawn(void);
 	void Precache(void);
 	void KeyValue(KeyValueData *pkvd);

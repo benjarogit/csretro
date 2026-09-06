@@ -412,7 +412,7 @@ void CL_SignonReply( connprotocol_t proto )
 	{
 	case 1:
 		CL_ServerCommand( true, proto == PROTO_GOLDSRC ? "sendents" : "begin" );
-		if( host_developer.value >= DEV_EXTENDED )
+		if( host_developer.value >= (float)DEV_EXTENDED )
 			Mem_PrintStats();
 		break;
 	case 2:
@@ -882,7 +882,7 @@ static void CL_WritePacket( void )
 
 	if( cls.state < min_state )
 	{
-		Netchan_TransmitBits( &cls.netchan, 0, "" );
+		Netchan_TransmitBits( &cls.netchan, 0, (const byte *)"" );
 		return;
 	}
 	// cls.state can only be ca_validate or ca_active from here
@@ -1147,7 +1147,7 @@ static void CL_GetCDKey( char *protinfo, size_t protinfosize )
 	int keylength = Q_snprintf( key, sizeof( key ), "%u", COM_RandomLong( 0, 0x7ffffffe ));
 
 	MD5Init( &ctx );
-	MD5Update( &ctx, key, keylength );
+	MD5Update( &ctx, (const byte *)key, keylength );
 	MD5Final( hash, &ctx );
 
 	Q_strnlwr( MD5_Print( hash ), key, sizeof( key ));

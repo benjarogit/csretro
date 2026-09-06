@@ -537,13 +537,13 @@ class CClientExports : public IGameClientExports
 {
 public:
 	// returns the name of the server the user is connected to, if any
-	virtual const char *GetServerHostName()
+	const char *GetServerHostName() override
 	{
 		return gHUD.m_szServerName;
 	}
 
 	// ingame voice manipulation
-	virtual bool IsPlayerGameVoiceMuted( int playerIndex )
+	bool IsPlayerGameVoiceMuted( int playerIndex ) override
 	{
 		if ( GetClientVoice() )
 			return GetClientVoice()->IsPlayerBlocked( playerIndex );
@@ -551,7 +551,7 @@ public:
 		return false;
 	}
 
-	virtual void MutePlayerGameVoice( int playerIndex )
+	void MutePlayerGameVoice( int playerIndex ) override
 	{
 		if ( GetClientVoice() )
 		{
@@ -559,7 +559,7 @@ public:
 		}
 	}
 
-	virtual void UnmutePlayerGameVoice( int playerIndex )
+	void UnmutePlayerGameVoice( int playerIndex ) override
 	{
 		if ( GetClientVoice() )
 		{

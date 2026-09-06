@@ -993,6 +993,7 @@ Con_NXPrintfv
 Draw a single debug line with specified height, color and time to live
 ================
 */
+static void Con_NXPrintfv( keydest_t key_dest, const con_nprint_t *info, const char *fmt, va_list va ) FORMAT_CHECK_VA( 3 );
 static void Con_NXPrintfv( keydest_t key_dest, const con_nprint_t *info, const char *fmt, va_list va )
 {
 	if( info->index < 0 || info->index >= ARRAYSIZE( con.notify ))
@@ -2028,7 +2029,7 @@ void Con_DrawConsole( void )
 		{
 			con.showlines = 0;
 
-			if( host_developer.value >= DEV_EXTENDED && !cls.timedemo )
+			if( host_developer.value >= (float)DEV_EXTENDED && !cls.timedemo )
 				Con_DrawNotify(); // draw notify lines
 		}
 	}

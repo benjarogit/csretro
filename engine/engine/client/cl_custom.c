@@ -29,6 +29,12 @@ qboolean CL_CheckFile( sizebuf_t *msg, resource_t *pResource )
 		if( pResource->szFileName[0] == '*' )
 			return true;
 		break;
+	case t_skin:
+	case t_decal:
+	case t_generic:
+	case t_eventscript:
+	case t_world:
+		break;
 	}
 
 	// resource was missed on server

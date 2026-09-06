@@ -126,7 +126,7 @@ static void GAME_EXPORT VGUI_UploadTexture( int id, const char *buffer, int widt
 	byte hash[16];
 
 	MD5Init( &ctx );
-	MD5Update( &ctx, buffer, width * height * 4 );
+	MD5Update( &ctx, (const byte *)buffer, width * height * 4 );
 	MD5Final( hash, &ctx );
 
 	// it's a new texture, try to find a copy
@@ -620,4 +620,3 @@ void VGui_ReportTextInput( const char *text )
 	if( vgui.dllFuncs.TextInput )
 		vgui.dllFuncs.TextInput( text );
 }
-

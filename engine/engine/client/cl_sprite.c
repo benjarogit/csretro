@@ -74,7 +74,7 @@ mspriteframe_t *R_GetSpriteFrame( const model_t *pModel, int frame, float yaw )
 		}
 		pspriteframe = pspritegroup->frames[i];
 	}
-	else if( psprite->frames[frame].type == FRAME_ANGLED )
+	else if( psprite->frames[frame].type == SPR_ANGLED )
 	{
 		int angleframe = (int)( Q_rint(( refState.viewangles[1] - yaw + 45.0f ) / 360 * 8 ) - 4 ) & 7;
 
@@ -124,6 +124,7 @@ static void Mod_SpriteTextureReplacementReport( const char *modelname, int gl_te
 		Con_Printf( "Looking for %s tex replacement..." S_RED "FAIL (%s)\n", modelname, foundpath );
 }
 
+static qboolean Mod_SpriteSearchForTextureReplacement( char *out, size_t size, const char *modelname, const char *fmt, ... ) FORMAT_CHECK( 4 );
 static qboolean Mod_SpriteSearchForTextureReplacement( char *out, size_t size, const char *modelname, const char *fmt, ... )
 {
 	va_list ap;
@@ -255,8 +256,9 @@ void Mod_SpriteLoadTextures( model_t *mod, const void *buffer )
 	if( numi == NULL )
 	{
 		rgbdata_t *pal;
+		static const byte fakebuffer[768] = { 0 };
 
-		pal = FS_LoadImage( "#id.pal", (byte *)&i, 768 );
+		pal = FS_LoadImage( "#id.pal", fakebuffer, sizeof( fakebuffer ));
 		pframetype = (const byte *)buffer + sizeof( dsprite_q1_t );
 		FS_FreeImage( pal );
 	}

@@ -1240,10 +1240,10 @@ static void Cmd_ExecScript( const char *filename )
 
 	if( f[len - 1] != '\n' )
 	{
-		Cbuf_InsertTextLen( f, len, len + 1 );
+		Cbuf_InsertTextLen((const char *)f, len, len + 1 );
 		Cbuf_InsertTextLen( "\n", 1, 1 );
 	}
-	else Cbuf_InsertTextLen( f, len, len );
+	else Cbuf_InsertTextLen((const char *)f, len, len );
 
 	Mem_Free( f );
 }

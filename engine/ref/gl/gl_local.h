@@ -247,7 +247,7 @@ typedef struct
 	uint		c_view_beams_count;
 	uint		c_active_tents_count;
 	uint		c_alias_models_drawn;
-	uint		c_studio_models_drawn;
+	int		c_studio_models_drawn;
 	uint		c_sprite_models_drawn;
 	uint		c_particle_count;
 

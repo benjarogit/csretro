@@ -843,7 +843,7 @@ static void CL_SetupPMove( playermove_t *pmove, const local_state_t *from, const
 	Q_strncpy( pmove->physinfo, cls.physinfo, sizeof( pmove->physinfo ));
 }
 
-static const void CL_FinishPMove( const playermove_t *pmove, local_state_t *to )
+static void CL_FinishPMove( const playermove_t *pmove, local_state_t *to )
 {
 	entity_state_t	*ps;
 	clientdata_t	*cd;

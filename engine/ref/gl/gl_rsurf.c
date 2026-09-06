@@ -3912,8 +3912,6 @@ with all the surfaces from all brush models
 */
 void GL_BuildLightmaps( void )
 {
-	int	nColinElim = 0;
-
 	// release old lightmaps
 	for( int i = 0; i < MAX_LIGHTMAPS; i++ )
 	{
@@ -3967,7 +3965,7 @@ void GL_BuildLightmaps( void )
 				continue;
 			}
 
-			nColinElim += GL_BuildPolygonFromSurface( m, m->surfaces + j );
+			GL_BuildPolygonFromSurface( m, m->surfaces + j );
 		}
 
 		// clearing visframe
@@ -3985,4 +3983,3 @@ void GL_BuildLightmaps( void )
 		gEngfuncs.drawFuncs->GL_BuildLightmaps( );
 	}
 }
-

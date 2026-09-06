@@ -51,9 +51,6 @@ static qboolean CL_CmpStudioTextures( int numtexs, mstudiotexture_t *p1, remap_i
 	if( !remap ) // current model has no remap
 		return false;
 
-	if( !remap->textures ) // shouldn't happen, just in case
-		return false;
-
 	if( numtexs != remap->numtextures ) // amount of textures differs, it's a different model
 		return false;
 

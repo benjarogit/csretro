@@ -826,22 +826,13 @@ for drawing playermodel previews
 */
 static void GAME_EXPORT pfnSetPlayerModel( cl_entity_t *ent, const char *path )
 {
-	ent->model = Mod_ForName( path, false, false );
-	ent->curstate.modelindex = MAX_MODELS; // unreachable index
-}
-
-static void pfnRestorePreviewParent( void )
-{
-	cl_entity_t *slot;
-
-	if( !gameui.preview_parent_saved )
-		return;
-
-	slot = CL_GetEntityByIndex( gameui.preview_parent_index );
-	if( slot )
-		*slot = gameui.preview_parent_backup;
-	gameui.preview_parent_saved = false;
-	gameui.preview_parent_index = 0;
+	int modelindex = -1;
+	ent->model = CL_LoadModel( path, &modelindex );
+	if( !ent->model )
+		ent->model = Mod_ForName( path, false, false );
+	// Keep the actual precache index when available. Player previews use it to
+	// select a p_ weapon through the studio renderer's native weaponmodel path.
+	ent->curstate.modelindex = modelindex > 0 ? modelindex : 0;
 }
 
 /*
@@ -853,9 +844,6 @@ for drawing playermodel previews
 */
 static void GAME_EXPORT pfnClearScene( void )
 {
-	// A menu aborted between AddEntity and RenderScene must never leave a
-	// synthetic preview parent in the live client entity array.
-	pfnRestorePreviewParent();
 	ref.dllFuncs.R_PushScene();
 	ref.dllFuncs.R_ClearScene();
 }
@@ -874,7 +862,6 @@ static void GAME_EXPORT pfnRenderScene( const ref_viewpass_t *rvp )
 	// to avoid division by zero
 	if( !rvp || rvp->fov_x <= 0.0f || rvp->fov_y <= 0.0f )
 	{
-		pfnRestorePreviewParent();
 		ref.dllFuncs.R_PopScene();
 		return;
 	}
@@ -891,7 +878,6 @@ static void GAME_EXPORT pfnRenderScene( const ref_viewpass_t *rvp )
 	// next menu frame to the model panel (visible as an unblurred top strip).
 	ref.dllFuncs.R_Set2DMode( false );
 	ref.dllFuncs.R_Set2DMode( true );
-	pfnRestorePreviewParent();
 	ref.dllFuncs.R_PopScene();
 }
 
@@ -904,24 +890,8 @@ adding player model into visible list
 */
 static int GAME_EXPORT pfnAddEntity( int entityType, cl_entity_t *ent )
 {
-	if( ent == &gameui.playermodel && ent->index > 0 )
-	{
-		cl_entity_t *slot = CL_GetEntityByIndex( ent->index );
-		pfnRestorePreviewParent();
-		if( slot )
-		{
-			gameui.preview_parent_backup = *slot;
-			gameui.preview_parent_index = ent->index;
-			gameui.preview_parent_saved = true;
-			*slot = *ent;
-		}
-	}
 	if( !ref.dllFuncs.R_AddEntity( ent, entityType ))
-	{
-		if( ent == &gameui.playermodel )
-			pfnRestorePreviewParent();
 		return false;
-	}
 	return true;
 }
 

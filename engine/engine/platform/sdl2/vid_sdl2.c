@@ -619,6 +619,8 @@ static rserr_t VID_SetScreenResolution( int width, int height, window_mode_t win
 		}
 
 		break;
+	case WINDOW_MODE_COUNT:
+		return rserr_invalid_mode;
 	}
 
 	SDL_GetWindowSize( host.hWnd, &out_width, &out_height );
@@ -648,6 +650,10 @@ void VID_RestoreScreenResolution( window_mode_t window_mode )
 		// and window mode are the same
 		SDL_MinimizeWindow( host.hWnd );
 		SDL_SetWindowFullscreen( host.hWnd, 0 );
+		break;
+	case WINDOW_MODE_WINDOWED:
+	case WINDOW_MODE_BORDERLESS:
+	case WINDOW_MODE_COUNT:
 		break;
 	}
 #endif // !XASH_MOBILE_PLATFORM
@@ -1141,6 +1147,8 @@ ref_window_type_t R_GetWindowHandle( void **handle, ref_window_type_t type )
 			return REF_WINDOW_TYPE_WAYLAND;
 #endif // SDL_VIDEO_DRIVER_WAYLAND
 		}
+		break;
+	default:
 		break;
 	}
 

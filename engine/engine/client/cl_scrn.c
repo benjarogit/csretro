@@ -448,6 +448,8 @@ void SCR_MakeScreenShot( void )
 		if( iRet )
 			VID_WriteOverviewScript(); // store overview script too
 		break;
+	case scrshot_inactive:
+		break;
 	}
 
 	// report
@@ -760,13 +762,14 @@ static void SCR_InstallParticlePalette( void )
 {
 	rgbdata_t	*pic;
 	int	i;
+	static const byte fakebuffer[768] = { 0 };
 
 	// first check 'palette.lmp' then 'palette.pal'
 	pic = FS_LoadImage( DEFAULT_INTERNAL_PALETTE, NULL, 0 );
 	if( !pic ) pic = FS_LoadImage( DEFAULT_EXTERNAL_PALETTE, NULL, 0 );
 
 	// NOTE: imagelib required this fakebuffer for loading internal palette
-	if( !pic ) pic = FS_LoadImage( "#valve.pal", (byte *)&i, 768 );
+	if( !pic ) pic = FS_LoadImage( "#valve.pal", fakebuffer, sizeof( fakebuffer ));
 
 	if( pic )
 	{

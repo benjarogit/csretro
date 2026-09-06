@@ -715,14 +715,9 @@ static uint Voice_CreateGSVoicePacket( byte *out, const byte *voice_data, uint v
 		return 0;
 	}
 
-	if( cls.steamid )
-	{
-		memcpy( out + offset, cls.steamid, 8 );
-	}
-	else
-	{
-		memset( out + offset, 0, 8 ); // fallback: 0
-	}
+	// steamid is an inline, zero-initialized eight-byte field, never a nullable
+	// pointer. Copying it also preserves the all-zero value before assignment.
+	memcpy( out + offset, cls.steamid, sizeof( cls.steamid ));
 
 	offset += sizeof( uint64_t );
 

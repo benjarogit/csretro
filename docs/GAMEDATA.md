@@ -79,6 +79,8 @@ Neue Regel = Manifest-Eintrag, kein Codeanbau. Was `prune` entfernt hat, steht i
 
 **Nicht ins Blaue löschen.** `gamedata/valve` ist mit rund 200 MB der größte Block, aber CS-Maps greifen darauf zurück: `halflife.wad` wird von 22 der 25 Maps referenziert, und selbst `xeno.wad` von zweien. Welche `valve`-Assets wirklich entbehrlich sind, braucht eine Auswertung der tatsächlichen Referenzen (BSP-`wad`-Keys, Modelle, Sounds) — bis dahin bleibt der Baum vollständig.
 
+Dasselbe gilt für alte Team-/Class-/Buy-Grafiken: Sobald die jeweilige Fläche vollständig auf reale `.mdl`-Vorschauen oder eigene Controls umgestellt ist, werden ihre Verweise zuerst baumweit geprüft und nur nachweislich unbenutzte Dateien per Manifest-`prune` entfernt. Die bereits genutzten Player- und `p_*.mdl` bleiben die gemeinsame, animierte Laufzeitquelle; parallele Standbilder werden nicht als Fallback konserviert.
+
 Nicht als Runtime übernehmen: Valve-Engine, `client.dll`/`client.so`, Steam-`cs_amd64.so`, `hw.dll`, SteamAPI.
 
 ## Updates

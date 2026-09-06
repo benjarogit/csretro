@@ -241,7 +241,7 @@ static void SDLash_ActiveEvent( int gain )
 			IN_ActivateMouse( );
 
 		host.force_draw_version_time = host.realtime + FORCE_DRAW_VERSION_TIME;
-		if( vid_fullscreen.value == WINDOW_MODE_FULLSCREEN )
+		if( vid_fullscreen.value == (float)WINDOW_MODE_FULLSCREEN )
 			VID_SetMode();
 	}
 	else
@@ -325,7 +325,7 @@ static void SDLash_EventHandler( SDL_Event *event )
 		switch( event->window.event )
 		{
 		case SDL_WINDOWEVENT_MOVED:
-			if( vid_fullscreen.value == WINDOW_MODE_WINDOWED )
+			if( vid_fullscreen.value == (float)WINDOW_MODE_WINDOWED )
 				Cvar_DirectSet( &vid_maximized, "0" );
 			break;
 		case SDL_WINDOWEVENT_MINIMIZED:
@@ -337,7 +337,7 @@ static void SDLash_EventHandler( SDL_Event *event )
 			host.status = HOST_FRAME;
 			host.force_draw_version_time = host.realtime + FORCE_DRAW_VERSION_TIME;
 			Cvar_DirectSet( &vid_maximized, "0" );
-			if( vid_fullscreen.value == WINDOW_MODE_FULLSCREEN )
+			if( vid_fullscreen.value == (float)WINDOW_MODE_FULLSCREEN )
 				VID_SetMode();
 			break;
 		case SDL_WINDOWEVENT_FOCUS_GAINED:

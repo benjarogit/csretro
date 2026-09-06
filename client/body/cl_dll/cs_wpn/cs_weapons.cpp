@@ -200,7 +200,7 @@ CBaseEntity *EHANDLE::operator ->(void)
 
 void HUD_PrepEntity( CBaseEntity *pEntity )
 {
-	memset( &ev[ num_ents ], 0, sizeof( entvars_t ) );
+	ev[ num_ents ] = entvars_t{};
 	pEntity->pev = &ev[ num_ents++ ];
 
 	pEntity->Precache();
@@ -212,7 +212,7 @@ void HUD_PrepEntity( CBasePlayerWeapon *pEntity, CBasePlayer *pWeaponOwner )
 {
 	ItemInfo info = {};
 
-	memset( &ev[ num_ents ], 0, sizeof( entvars_t ) );
+	ev[ num_ents ] = entvars_t{};
 	pEntity->pev = &ev[ num_ents++ ];
 
 	pEntity->Precache();
@@ -756,7 +756,7 @@ Don't actually trace, but act like the trace didn't hit anything.
 */
 void UTIL_TraceLine( const Vector &vecStart, const Vector &vecEnd, IGNORE_MONSTERS igmon, edict_t *pentIgnore, TraceResult *ptr )
 {
-	memset( ptr, 0, sizeof( *ptr ) );
+	*ptr = TraceResult{};
 #if 0
 	static float flLastFraction = 1.0f;
 

@@ -299,6 +299,28 @@ public:
 	int SlotMask() const { return m_slots; }
 	int TerrorRosterCount() const { return m_rosterT; }
 	int CTRosterCount() const { return m_rosterCT; }
+	bool RosterHasName(const char *name) const
+	{
+		if (!name || !name[0])
+			return false;
+		for (int i = 0; i < kRosterRows; ++i)
+		{
+			char text[80] = {};
+			if (m_tPlayers[i])
+			{
+				m_tPlayers[i]->GetText(text, sizeof(text));
+				if (!strcmp(text, name))
+					return true;
+			}
+			if (m_ctPlayers[i])
+			{
+				m_ctPlayers[i]->GetText(text, sizeof(text));
+				if (!strcmp(text, name))
+					return true;
+			}
+		}
+		return false;
+	}
 
 	bool LabelLooksLocalized(const char *name)
 	{
@@ -376,7 +398,10 @@ public:
 	}
 
 private:
-	enum { kRosterRows = 12 };
+	// A regular 32-slot match can expose sixteen names per side without
+	// truncating a balanced server.  Team totals below still count every row,
+	// including deliberately unbalanced teams larger than this visual column.
+	enum { kRosterRows = 16 };
 
 	int m_slots = 0;
 	int m_rosterT = 0;
@@ -394,9 +419,9 @@ private:
 	void CreateTeamPreviews()
 	{
 		m_tModel = new CTeamModelPreview(this, "TerrorModel");
-		m_tModel->SetPreview("models/player/leet/leet.mdl", "models/p_glock18.mdl", 168.0f, 1);
+		m_tModel->SetPreview("models/player/leet/leet.mdl", "models/p_ak47.mdl", 154.0f, 80);
 		m_ctModel = new CTeamModelPreview(this, "CTModel");
-		m_ctModel->SetPreview("models/player/sas/sas.mdl", "models/p_usp.mdl", 192.0f, 1);
+		m_ctModel->SetPreview("models/player/sas/sas.mdl", "models/p_m4a1.mdl", 206.0f, 33);
 	}
 
 	void MuteLabel(Label *lab)
@@ -501,25 +526,31 @@ private:
 			Label **target = nullptr;
 			int *count = nullptr;
 			Color accent = InGameViewportLook::Text();
-			if (row.team == 1 && m_rosterT < kRosterRows)
+			if (row.team == 1)
 			{
-				target = m_tPlayers;
-				count = &m_rosterT;
-				accent = InGameViewportLook::Terror();
 				if (row.bot)
 					++tBots;
 				else
 					++tHumans;
+				if (m_rosterT < kRosterRows)
+				{
+					target = m_tPlayers;
+					count = &m_rosterT;
+					accent = InGameViewportLook::Terror();
+				}
 			}
-			else if (row.team == 2 && m_rosterCT < kRosterRows)
+			else if (row.team == 2)
 			{
-				target = m_ctPlayers;
-				count = &m_rosterCT;
-				accent = InGameViewportLook::CT();
 				if (row.bot)
 					++ctBots;
 				else
 					++ctHumans;
+				if (m_rosterCT < kRosterRows)
+				{
+					target = m_ctPlayers;
+					count = &m_rosterCT;
+					accent = InGameViewportLook::CT();
+				}
 			}
 			if (!target || !count || !target[*count])
 				continue;
@@ -1016,6 +1047,21 @@ void TeamSelect_GateTick()
 			g_panel->LabelLooksLocalized("ctbutton") ? 1 : 0);
 		Menu_Con("CSRETRO_TEAM_GATE_ROSTER t=%d ct=%d", g_panel->TerrorRosterCount(),
 			g_panel->CTRosterCount());
+		ScoreboardHudState moved = InGameRoster_Get();
+		if (moved.playerCount >= 2)
+		{
+			moved.players[1].team = 2;
+			snprintf(moved.players[1].name, sizeof(moved.players[1].name), "%s", "BravoMoved");
+			InGameRoster_StoreScoreboard(moved);
+			g_panel->LayoutFamily();
+			Menu_Con("CSRETRO_TEAM_GATE_ROSTER_UPDATE t=%d ct=%d moved=%d",
+				g_panel->TerrorRosterCount(), g_panel->CTRosterCount(),
+				g_panel->RosterHasName("BravoMoved") ? 1 : 0);
+			moved.players[1].team = 1;
+			snprintf(moved.players[1].name, sizeof(moved.players[1].name), "%s", "Bravo");
+			InGameRoster_StoreScoreboard(moved);
+			g_panel->LayoutFamily();
+		}
 		if (g_pVGuiLocalize)
 		{
 			const char *probes[] = {

@@ -357,6 +357,12 @@ static int Host_CalcSleep( void )
 		// fallthrough
 	case HOST_SLEEP:
 		return 20;
+	case HOST_INIT:
+	case HOST_FRAME:
+	case HOST_SHUTDOWN:
+	case HOST_ERR_FATAL:
+	case HOST_CRASHED:
+		break;
 	}
 
 	return host_sleeptime.value;
@@ -1176,7 +1182,7 @@ int EXPORT Host_Main( int argc, char **argv, const char *progname, int bChangeGa
 	Host_InitCommon( argc, argv, progname, bChangeGame, exename, sizeof( exename ));
 
 	// init commands and vars
-	if( host_developer.value >= DEV_EXTENDED )
+	if( host_developer.value >= (float)DEV_EXTENDED )
 	{
 		Cmd_AddRestrictedCommand ( "sys_error", Sys_Error_f, "just throw a fatal error to test shutdown procedures");
 		Cmd_AddRestrictedCommand ( "host_error", Host_Error_f, "just throw a host error to test shutdown procedures");

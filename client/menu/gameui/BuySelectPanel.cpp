@@ -5,10 +5,10 @@
 #include "InGameViewportLook.h"
 #include "RadioSelectPanel.h"
 #include "TeamSelectPanel.h"
+#include "TeamModelPreview.h"
 
 #include <tier1/KeyValues.h>
 #include <vgui/ILocalize.h>
-#include <vgui/IImage.h>
 #include <vgui/ISchemeNext.h>
 #include <vgui/ISurfaceNext.h>
 #include <vgui/KeyCode.h>
@@ -16,10 +16,10 @@
 #include <vgui_controls/Controls.h>
 #include <vgui_controls/Divider.h>
 #include <vgui_controls/EditablePanel.h>
-#include <vgui_controls/ImagePanel.h>
 #include <vgui_controls/Label.h>
 
 #include "../src/menu_priv.h"
+#include "../vgui/main_menu.h"
 #include "cdll_dll.h"
 #include "keydefs.h"
 
@@ -186,6 +186,54 @@ bool IsResCommand(const char *cmd)
 
 class CBuySelectPanel;
 
+const char *BuyModel(const char *name)
+{
+	struct Entry { const char *alias; const char *model; };
+	static const Entry aliases[] = {
+		{"glock", "glock18"}, {"usp45", "usp"}, {"deserteagle", "deagle"},
+		{"fn57", "fiveseven"}, {"flash", "flashbang"}, {"hegren", "hegrenade"},
+		{"sgren", "smokegrenade"}, {"vest", "kevlar"}, {"vesthelm", "assault"},
+		{"kevlarhelmet", "assault"}, {"kevlar_helmet", "assault"}, {"mp5navy", "mp5"},
+		{"elites", "elite"}, {"defuser", "thighpack"}, {"usp", "usp"},
+		{"deagle", "deagle"}
+	};
+	for (const Entry &entry : aliases)
+		if (!strcasecmp(name, entry.alias)) return entry.model;
+	// CS has no standalone night-vision model. Its named purchase card remains.
+	if (!strcasecmp(name, "nvgs") || !strcasecmp(name, "nvg") || !strcasecmp(name, "nightvision"))
+		return nullptr;
+	return name;
+}
+
+float BuyWorldWidth(const char *model)
+{
+	if (!model || !model[0])
+		return 24.0f;
+	if (!strcasecmp(model, "kevlar") || !strcasecmp(model, "assault") || !strcasecmp(model, "thighpack"))
+		return 34.0f;
+	if (!strcasecmp(model, "flashbang") || !strcasecmp(model, "hegrenade") || !strcasecmp(model, "smokegrenade"))
+		return 16.0f;
+	if (!strcasecmp(model, "glock18") || !strcasecmp(model, "usp") || !strcasecmp(model, "deagle") ||
+		!strcasecmp(model, "p228") || !strcasecmp(model, "fiveseven") || !strcasecmp(model, "elite"))
+		return 12.0f;
+	if (!strcasecmp(model, "awp") || !strcasecmp(model, "scout") || !strcasecmp(model, "g3sg1") ||
+		!strcasecmp(model, "galil") || !strcasecmp(model, "ak47") || !strcasecmp(model, "m4a1") ||
+		!strcasecmp(model, "aug") || !strcasecmp(model, "sg552") || !strcasecmp(model, "sg550") ||
+		!strcasecmp(model, "famas") || !strcasecmp(model, "m249"))
+		return 28.0f;
+	return 22.0f;
+}
+
+void SetBuyModel(CTeamModelPreview *preview, const char *name)
+{
+	const char *model = BuyModel(name);
+	preview->SetVisible(model != nullptr);
+	if (!model) return;
+	char path[96];
+	snprintf(path, sizeof(path), "models/w_%s.mdl", model);
+	preview->SetItemPreview(path, BuyWorldWidth(model));
+}
+
 class CBuyHoverButton : public Button
 {
 	DECLARE_CLASS_SIMPLE_OVERRIDE(CBuyHoverButton, Button);
@@ -194,8 +242,7 @@ public:
 	CBuyHoverButton(Panel *parent, const char *name)
 		: BaseClass(parent, name, "")
 	{
-		m_weaponImage = new ImagePanel(this, "WeaponImage");
-		m_weaponImage->SetShouldScaleImage(true);
+		m_weaponImage = new CTeamModelPreview(this, "WeaponModel");
 		m_weaponImage->SetMouseInputEnabled(false);
 		m_weaponImage->SetKeyBoardInputEnabled(false);
 		m_weaponImage->SetVisible(false);
@@ -207,6 +254,7 @@ public:
 
 	void SetHost(CBuySelectPanel *host) { m_host = host; }
 	void SetPreviewName(const char *name) { m_preview = name ? name : ""; }
+	const std::string &PreviewName() const { return m_preview; }
 	void SetFooter(bool footer) { m_isFooter = footer; ApplyLook(); }
 	void ConfigureWeapon(const char *command, const char *label, int cost)
 	{
@@ -216,26 +264,12 @@ public:
 		if (label && label[0])
 			SetText(label);
 		m_isWeaponCard = true;
-		const char *image = command;
-		if (!strcasecmp(command, "glock")) image = "glock18";
-		else if (!strcasecmp(command, "usp")) image = "usp45";
-		else if (!strcasecmp(command, "deagle")) image = "deserteagle";
-		else if (!strcasecmp(command, "fn57")) image = "fiveseven";
-		else if (!strcasecmp(command, "flash")) image = "flashbang";
-		else if (!strcasecmp(command, "hegren")) image = "hegrenade";
-		else if (!strcasecmp(command, "sgren")) image = "smokegrenade";
-		else if (!strcasecmp(command, "vest")) image = "kevlar";
-		else if (!strcasecmp(command, "vesthelm")) image = "kevlar_helmet";
-		else if (!strcasecmp(command, "nvgs") || !strcasecmp(command, "nvg")) image = "nightvision";
-		char path[96];
-		std::snprintf(path, sizeof(path), "gfx/vgui/%s", image);
-		m_weaponImage->SetImage(path);
-		m_weaponImage->SetVisible(true);
+		SetBuyModel(m_weaponImage, command);
 		char price[24];
 		std::snprintf(price, sizeof(price), "$%d", cost);
 		m_price->SetText(price);
 		m_price->SetVisible(true);
-		m_preview = image;
+		m_preview = command;
 		ApplyLook();
 	}
 	void SetAccent(Color accent)
@@ -259,29 +293,14 @@ public:
 		if (m_isWeaponCard)
 		{
 			const bool compact = h < 70;
-			const int imageTop = compact ? 14 : 24;
-			const int imageBottom = compact ? 8 : 23;
-			const int sidePad = compact ? 5 : 12;
+			const int imageTop = compact ? 12 : 16;
+			const int imageBottom = compact ? 8 : 18;
+			const int sidePad = compact ? 4 : 8;
 			const int maxImageW = std::max(1, w - sidePad * 2);
 			const int maxImageH = std::max(1, h - imageTop - imageBottom);
-			// Steam weapon art varies from 4:1 rifles to 2:1 pistols/equipment.
-			// ImagePanel stretches to its bounds, so retain each loaded image's
-			// actual dimensions instead of applying one guessed ratio to all.
-			int sourceW = 256, sourceH = 128;
-			if (IImage *image = m_weaponImage->GetImage())
-				image->GetContentSize(sourceW, sourceH);
-			sourceW = std::max(1, sourceW);
-			sourceH = std::max(1, sourceH);
-			int imageW = maxImageW;
-			int imageH = imageW * sourceH / sourceW;
-			if (imageH > maxImageH)
-			{
-				imageH = maxImageH;
-				imageW = imageH * sourceW / sourceH;
-			}
-			m_weaponImage->SetBounds((w - imageW) / 2, imageTop + (maxImageH - imageH) / 2,
-				std::max(1, imageW), std::max(1, imageH));
-			m_price->SetBounds(std::max(4, w - 66), h - (compact ? 15 : 23), 60, compact ? 13 : 20);
+			m_weaponImage->SetBounds(sidePad, imageTop, maxImageW, maxImageH);
+			m_price->SetBounds(std::max(4, w - 70), h - (compact ? 15 : 22), 64, compact ? 13 : 18);
+			m_price->SetFgColor(InGameViewportLook::BuyGold());
 		}
 	}
 
@@ -291,7 +310,7 @@ public:
 			return;
 		int w = 0, h = 0;
 		GetSize(w, h);
-		InGameViewportLook::PaintCardBackground(w, h, m_accent, IsArmed() || IsDepressed());
+		InGameViewportLook::PaintBuyCell(w, h, IsArmed() || IsDepressed());
 	}
 
 	void ApplySettings(KeyValues *inResourceData) override
@@ -316,7 +335,7 @@ private:
 	CBuySelectPanel *m_host = nullptr;
 	std::string m_preview;
 	Color m_accent = InGameViewportLook::Text();
-	ImagePanel *m_weaponImage = nullptr;
+	CTeamModelPreview *m_weaponImage = nullptr;
 	Label *m_price = nullptr;
 	bool m_isWeaponCard = false;
 	bool m_isFooter = false;
@@ -330,13 +349,13 @@ private:
 			SetTextInset(0, 0);
 			return;
 		}
-		InGameViewportLook::StyleCardButton(this, m_accent);
+		InGameViewportLook::StyleCardButton(this, InGameViewportLook::BuyGold());
 		SetContentAlignment(m_isWeaponCard ? Label::a_northwest : Label::a_west);
-		SetTextInset(m_isWeaponCard ? 6 : 12, m_isWeaponCard ? 3 : 0);
-		SetFgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::Text() : m_accent);
-		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::CardArmed() : InGameViewportLook::Card());
+		SetTextInset(m_isWeaponCard ? 8 : 12, m_isWeaponCard ? 4 : 0);
+		SetFgColor(InGameViewportLook::Text());
+		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::BuyCellArmed() : InGameViewportLook::BuyCell());
 		if (m_price)
-			m_price->SetFgColor(m_accent);
+			m_price->SetFgColor(InGameViewportLook::BuyGold());
 	}
 };
 
@@ -367,6 +386,7 @@ public:
 		m_overview.clear();
 		std::fill(std::begin(m_overviewTitles), std::end(m_overviewTitles), nullptr);
 		m_character = nullptr;
+		m_plate = nullptr;
 		while (GetChildCount() > 0)
 			delete GetChild(0);
 		m_preview = nullptr;
@@ -479,10 +499,43 @@ public:
 		return checked >= 2;
 	}
 
+	void HideSteamCategoryChrome()
+	{
+		if (m_overview.empty())
+			return;
+		for (const SlotBind &bind : kMainSlots)
+		{
+			if (bind.slot == 10)
+				continue;
+			if (Panel *old = FindChildByName(bind.name))
+			{
+				old->SetVisible(false);
+				old->SetAutoResize(Panel::PIN_TOPLEFT, Panel::AUTORESIZE_NO, 0, 0, 0, 0);
+				old->SetBounds(-2000, -2000, 1, 1);
+			}
+		}
+		if (Panel *cat = FindChildByName("selectCategory"))
+		{
+			cat->SetVisible(false);
+			cat->SetBounds(-2000, -2000, 1, 1);
+		}
+	}
+
 	void ApplySlots()
 	{
 		if (m_pageIsMain)
 		{
+			if (!m_overview.empty())
+			{
+				HideSteamCategoryChrome();
+				if (Panel *autoBuy = FindChildByName("AutobuyButton"))
+					autoBuy->SetVisible(true);
+				if (Panel *rebuy = FindChildByName("RebuyButton"))
+					rebuy->SetVisible(true);
+				if (Panel *cancel = FindChildByName("CancelButton"))
+					cancel->SetVisible(true);
+				return;
+			}
 			for (const SlotBind &bind : kMainSlots)
 			{
 				if (Panel *child = FindChildByName(bind.name))
@@ -492,11 +545,6 @@ public:
 				autoBuy->SetVisible(true);
 			if (Panel *rebuy = FindChildByName("RebuyButton"))
 				rebuy->SetVisible(true);
-			if (!m_overview.empty())
-				for (const SlotBind &bind : kMainSlots)
-					if (bind.slot != 10)
-						if (Panel *old = FindChildByName(bind.name))
-							old->SetVisible(false);
 			return;
 		}
 
@@ -615,19 +663,17 @@ public:
 		std::transform(image.begin(), image.end(), image.begin(), [](unsigned char ch) {
 			return static_cast<char>(std::tolower(ch));
 		});
-		if (image == "kevlarhelmet") image = "kevlar_helmet";
-		else if (image == "hegrenade") image = "hegrenade";
-		else if (image == "smokegrenade") image = "smokegrenade";
-		else if (image == "nightvision") image = "nightvision";
-		char path[96];
-		snprintf(path, sizeof(path), "gfx/vgui/%s", image.c_str());
-		m_preview->SetImage(path);
+		if (image == "kevlarhelmet" || image == "kevlar_helmet") image = "vesthelm";
+		else if (image == "hegrenade") image = "hegren";
+		else if (image == "smokegrenade") image = "sgren";
+		else if (image == "nightvision" || image == "nvg") image = "nvgs";
+		else if (image == "glock18") image = "glock";
+		SetBuyModel(m_preview, image.c_str());
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
-			info->SetVisible(true);
+			info->SetVisible(GetWide() >= 960);
 			info->SetEnabled(true);
 		}
-		m_preview->SetVisible(true);
 	}
 
 	Panel *CreateControlByName(const char *controlName) override
@@ -733,6 +779,9 @@ public:
 	{
 		FitToParent();
 		BaseClass::PerformLayout();
+		// Steam-.res keeps 640-era child positions. Relayout after every
+		// host resize; Open() is not enough if the overlay stays visible.
+		LayoutFamily();
 	}
 
 private:
@@ -745,8 +794,9 @@ private:
 	int m_pendingType = MENU_BUY;
 	int m_pendingSlots = 0;
 	bool m_pending = false;
-	ImagePanel *m_preview = nullptr;
-	ImagePanel *m_character = nullptr;
+	CTeamModelPreview *m_preview = nullptr;
+	CTeamModelPreview *m_character = nullptr;
+	Panel *m_plate = nullptr;
 	struct OverviewCard { CBuyHoverButton *button; int column; int row; };
 	std::vector<OverviewCard> m_overview;
 	Label *m_overviewTitles[5] = {};
@@ -779,7 +829,7 @@ private:
 
 	void BuildUnifiedOverview()
 	{
-		const char *titles[5] = {"1  Equipment", "2  Pistols", "3  Mid-Tier", "4  Rifles", "5  Grenades"};
+		const char *titles[5] = {"Equipment", "Pistols", "Mid-Tier", "Rifles", "Grenades"};
 		for (int col = 0; col < 5; ++col)
 		{
 			char name[32];
@@ -818,15 +868,32 @@ private:
 		append(ct ? "resource/UI/BuyRifles_CT.res" : "resource/UI/BuyRifles_TER.res", 3, 0);
 		append(equipment, 4, 1);
 
-		for (const SlotBind &bind : kMainSlots)
-			if (bind.slot != 10)
-				if (Panel *old = FindChildByName(bind.name))
-					old->SetVisible(false);
-		m_character = new ImagePanel(this, "BuyCharacter");
-		m_character->SetImage(m_team == TEAM_CT ? "gfx/vgui/urban" : "gfx/vgui/terror");
-		m_character->SetShouldScaleImage(true);
+		HideSteamCategoryChrome();
+		m_plate = new Panel(this, "BuyPlate");
+		m_plate->SetPaintBackgroundEnabled(true);
+		m_plate->SetPaintBorderEnabled(false);
+		m_plate->SetBgColor(InGameViewportLook::BuyPlate());
+		m_plate->SetMouseInputEnabled(false);
+		m_plate->SetKeyBoardInputEnabled(false);
+		m_plate->SetZPos(-2);
+		m_character = new CTeamModelPreview(this, "BuyCharacter");
+		static int previous[2] = {-1, -1};
+		const int side = ct ? 1 : 0;
+		const int pick = previous[side] < 0 ? gEng.pfnRandomLong(0, 3) :
+			(previous[side] + gEng.pfnRandomLong(1, 3)) % 4;
+		previous[side] = pick;
+		const char *terror[] = {"terror", "leet", "arctic", "guerilla"};
+		const char *counter[] = {"urban", "gsg9", "sas", "gign"};
+		const char *model = ct ? counter[pick] : terror[pick];
+		char path[96];
+		snprintf(path, sizeof(path), "models/player/%s/%s.mdl", model, model);
+		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl",
+			ct ? 206.0f : 154.0f, ct ? 33 : 80);
+		m_character->SetWorldWidth(72.0f);
 		m_character->SetMouseInputEnabled(false);
 		m_character->SetKeyBoardInputEnabled(false);
+		m_character->SetZPos(1);
+		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s", m_team, model);
 	}
 
 	Button *ButtonForSlot(int slot)
@@ -922,8 +989,7 @@ private:
 
 	void StyleButtons()
 	{
-		const Color teamAccent = (m_team == TEAM_CT)
-			? InGameViewportLook::CT() : InGameViewportLook::Terror();
+		const Color gold = InGameViewportLook::BuyGold();
 		for (int i = 0; i < GetChildCount(); ++i)
 		{
 			auto *btn = dynamic_cast<Button *>(GetChild(i));
@@ -936,36 +1002,38 @@ private:
 			if (auto *look = dynamic_cast<CBuyHoverButton *>(btn))
 			{
 				look->SetFooter(footer);
-				look->SetAccent(teamAccent);
+				look->SetAccent(gold);
+				continue;
 			}
-			else if (footer)
-				InGameViewportLook::StyleFooterButton(btn, teamAccent);
+			if (footer)
+				InGameViewportLook::StyleFooterButton(btn, gold);
 			else
-				InGameViewportLook::StyleCardButton(btn, teamAccent);
+				InGameViewportLook::StyleCardButton(btn, gold);
 			btn->SetContentAlignment(footer ? Label::a_center : Label::a_west);
 			btn->SetTextInset(footer ? 0 : 12, 0);
 		}
 		InGameViewportLook::StyleTitle(dynamic_cast<Label *>(FindChildByName("Title")));
 		if (auto *cat = dynamic_cast<Label *>(FindChildByName("selectCategory")))
 		{
-			cat->SetTextColorState(Label::CS_NORMAL);
-			cat->SetFgColor(InGameViewportLook::TextDim());
+			cat->SetVisible(false);
 		}
 		for (Label *title : m_overviewTitles)
 		{
 			if (!title)
 				continue;
-			title->SetFgColor(InGameViewportLook::Text());
-			title->SetBgColor(Color(12, 12, 14, 210));
-			title->SetPaintBackgroundEnabled(true);
+			title->SetFgColor(InGameViewportLook::TextDim());
+			title->SetPaintBackgroundEnabled(false);
+			title->SetContentAlignment(Label::a_west);
 		}
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
 			info->SetPaintBackgroundEnabled(true);
-			info->SetBgColor(InGameViewportLook::Card());
+			info->SetBgColor(InGameViewportLook::BuyPlate());
 		}
 		if (Panel *div = FindChildByName("Divider1"))
 			div->SetVisible(false);
+		if (m_plate)
+			m_plate->SetBgColor(InGameViewportLook::BuyPlate());
 	}
 
 	void RelayoutMainGrid()
@@ -976,23 +1044,28 @@ private:
 			return;
 		int canvasX = 0, canvasY = 0, canvasW = 0, canvasH = 0;
 		InGameViewportLook::ContentCanvas(w, h, canvasX, canvasY, canvasW, canvasH);
-		const bool compact = canvasW < 900;
-		const int pad = std::max(8, canvasW * 2 / 100);
-		const int gap = std::max(3, canvasW / 280);
+		const bool compact = canvasW < 800;
+		const int pad = std::max(10, canvasW * 2 / 100);
+		const int gap = std::max(4, canvasW / 240);
 		if (auto *title = FindChildByName("Title"))
-			title->SetBounds(canvasX + pad, canvasY, canvasW - pad * 2, std::max(26, canvasH * 7 / 100));
-		if (auto *cat = FindChildByName("selectCategory"))
-			cat->SetBounds(canvasX + pad, canvasY + canvasH * 7 / 100,
-				canvasW - pad * 2, std::max(18, canvasH * 4 / 100));
+			title->SetBounds(canvasX + pad, canvasY + canvasH * 2 / 100,
+				canvasW * 58 / 100, std::max(24, canvasH * 6 / 100));
+		HideSteamCategoryChrome();
 
 		const int gridX = canvasX + pad;
-		const int gridW = compact ? canvasW - pad * 2 : canvasW * 52 / 100;
-		const int headerY = canvasY + canvasH * 14 / 100;
-		const int headerH = std::max(26, canvasH * 6 / 100);
+		const int gridW = compact ? canvasW - pad * 2 : canvasW * 56 / 100;
+		const int headerY = canvasY + canvasH * 9 / 100;
+		const int headerH = std::max(20, canvasH * 4 / 100);
 		const int gridY = headerY + headerH + gap;
-		const int gridBottom = canvasY + canvasH * 78 / 100;
+		const int gridBottom = canvasY + canvasH * 86 / 100;
 		const int cellW = (gridW - gap * 4) / 5;
 		const int cellH = (gridBottom - gridY - gap * 5) / 6;
+		if (m_plate)
+		{
+			m_plate->SetVisible(true);
+			m_plate->SetBounds(gridX - gap, headerY - gap,
+				gridW + gap * 2, gridBottom - headerY + gap * 2);
+		}
 		for (int col = 0; col < 5; ++col)
 		{
 			if (m_overviewTitles[col])
@@ -1004,12 +1077,11 @@ private:
 		if (m_character)
 		{
 			m_character->SetVisible(!compact);
-			const int x = gridX + gridW + canvasW * 4 / 100;
+			const int x = gridX + gridW + std::max(8, canvasW * 2 / 100);
 			const int cw = canvasX + canvasW - pad - x;
-			const int charTop = canvasY + canvasH * 11 / 100;
-			const int charH = canvasH * 69 / 100;
-			const int side = std::max(1, std::min(cw, charH));
-			m_character->SetBounds(x + (cw - side) / 2, charTop + (charH - side) / 2, side, side);
+			const int charTop = canvasY + canvasH * 6 / 100;
+			const int charH = canvasH * 82 / 100;
+			m_character->SetBounds(x, charTop, std::max(1, cw), charH);
 		}
 
 		std::vector<Panel *> bottom;
@@ -1091,11 +1163,13 @@ private:
 			const int infoX = canvasX + pad + listW + canvasW * 4 / 100;
 			const int infoW = canvasX + canvasW - pad - infoX;
 			info->SetBounds(infoX, listY, infoW, listH);
+			if (!m_preview)
+				m_preview = new CTeamModelPreview(info, "ItemPreview");
 			if (m_preview)
 			{
 				const int iw = std::max(1, infoW - 16);
-				const int ih = iw * 196 / 256;
-				m_preview->SetBounds(8, std::max(8, (listH - ih) / 2), iw, ih);
+				const int ih = std::max(1, listH - 16);
+				m_preview->SetBounds(8, 8, iw, ih);
 			}
 		}
 	}
@@ -1104,30 +1178,13 @@ private:
 	{
 		std::string firstPreview;
 		Panel *info = FindChildByName("ItemInfo");
-		if (info)
+		if (info && !m_preview)
 		{
-			int x = 0, y = 0, w = 0, h = 0;
-			info->GetBounds(x, y, w, h);
-			if (x < 640 && w > 0 && w < 800)
-			{
-				info->SetPaintBackgroundEnabled(true);
-				info->SetMouseInputEnabled(false);
-				IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
-				info->SetBgColor(InGameViewportLook::Card());
-				int pad = 8;
-				if (IsProportional() && scheme())
-					pad = scheme()->GetProportionalScaledValue(8);
-				int iw = w > pad * 2 ? w - pad * 2 : w;
-				int maxSide = 256;
-				if (IsProportional() && scheme())
-					maxSide = scheme()->GetProportionalScaledValue(256);
-				if (iw > maxSide)
-					iw = maxSide;
-				m_preview = new ImagePanel(info, "ItemPreview");
-				m_preview->SetBounds(pad, pad, iw, iw);
-				m_preview->SetShouldScaleImage(true);
-				m_preview->SetVisible(false);
-			}
+			info->SetPaintBackgroundEnabled(true);
+			info->SetMouseInputEnabled(false);
+			info->SetBgColor(InGameViewportLook::Card());
+			m_preview = new CTeamModelPreview(info, "ItemPreview");
+			m_preview->SetVisible(false);
 		}
 
 		for (int i = 0; i < GetChildCount(); ++i)
@@ -1140,9 +1197,10 @@ private:
 			if (name && name[0] && strcasecmp(name, "CancelButton") &&
 			    strcasecmp(name, "AutobuyButton") && strcasecmp(name, "RebuyButton"))
 			{
-				btn->SetPreviewName(name);
+				if (btn->PreviewName().empty())
+					btn->SetPreviewName(name);
 				if (firstPreview.empty() && !m_pageIsMain)
-					firstPreview = name;
+					firstPreview = btn->PreviewName();
 			}
 		}
 		if (!firstPreview.empty())
@@ -1168,7 +1226,7 @@ private:
 		Menu_Con("CSRETRO_BUY_CANVAS view=%dx%d canvas=%d,%d %dx%d capped=%d compact=%d model=%d",
 			pw, ph, canvasX, canvasY, canvasW, canvasH,
 			(canvasW < pw * 9 / 10 || canvasH < ph * 9 / 10) ? 1 : 0,
-			canvasW < 900 ? 1 : 0, m_character && m_character->IsVisible() ? 1 : 0);
+			canvasW < 800 ? 1 : 0, m_character && m_character->IsVisible() ? 1 : 0);
 	}
 };
 
@@ -1204,7 +1262,19 @@ public:
 		SetPaintBackgroundEnabled(true);
 		SetPaintBorderEnabled(false);
 		SetBorder(nullptr);
-		SetBgColor(Color(0, 0, 0, 155));
+		SetBgColor(Color(0, 0, 0, 0));
+	}
+
+	void PaintBackground() override
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		InGameViewportLook::PaintTeamBackdrop(w, h, PauseBackdrop_IsBlurred());
+		if (surface())
+		{
+			surface()->DrawSetColor(0, 0, 0, 90);
+			surface()->DrawFilledRect(0, 0, w, h);
+		}
 	}
 
 	void PerformLayout() override
@@ -1317,6 +1387,7 @@ bool BuySelect_Show(Panel *root, int menuType, int validSlots)
 		gEng.pfnSetKeyDest(KEY_DEST_MENU);
 		g_keyDestPushed = true;
 	}
+	MainMenu_SyncDialogVisibility();
 	return true;
 }
 
@@ -1328,6 +1399,7 @@ void BuySelect_Hide()
 		g_panel->SetVisible(false);
 	if (g_overlay)
 		g_overlay->SetVisible(false);
+	MainMenu_SyncDialogVisibility();
 	if (g_keyDestPushed && !gMenuVisible && !TeamSelect_IsActive() && !ClassSelect_IsActive() &&
 		!RadioSelect_IsActive())
 	{

@@ -19,7 +19,7 @@ Bis dahin gilt: ZBot bleibt wie er ist. Kein Teilumbau „nebenbei“.
 | Rolle | Projekt |
 |---|---|
 | Funktionale Ausgangsbasis, heute produktiv | ReGameDLL ZBot (`server/game/regamedll/dlls/bot/`) |
-| Zweite Hauptquelle | `yapb/yapb` |
+| Zweite Hauptquelle | [yapb/yapb](https://github.com/yapb/yapb) |
 
 ## Quellen für Mechaniken und Features
 
@@ -34,20 +34,20 @@ was passiert mit dem, was wir schon haben? Kein stilles Mergen „weil es im Que
 
 **Gleiche Engine-Linie (GoldSrc) — Code grundsätzlich portierbar:**
 
-- `Bots-United/HPB-bot`
-- `Bots-United/joebot`
-- `CCNHsK-Dev/SyPB`
-- `EfeDursun125/CS-EBOT-LEGACY`
-- `Fundynamic/RealBot`
-- `MuxaJlbl4/Condition-Zero-Coop`
-- `rcbotCheeseh/RCBotSven5` (Sven Co-op, GoldSrc-Linie)
-- ImpactBots (CS 1.6 Metamod; Thread https://cs-bg.info/forum/viewtopic.php?t=179393) — Rollen, Team-Taktik, JSON-Profile, Graph-Dateien. Öffentlicher Quellcode im Thread nicht genannt; Zuordnung vor erstem Port bestätigen. Später, vor/beim Port: ohne veröffentlichten Code ist Ghidra auf die lokalen ImpactBots-Binaries der Weg, um Mechaniken zu verstehen — analog zur Projektlinie in `docs/MENUS.md` (Ghidra auf Original-Binaries nur wenn 1–5 nicht reicht); Lizenz bleibt kein Gate, Zuordnung vor dem ersten Port bestätigen.
+- [Bots-United/HPB-bot](https://github.com/Bots-United/HPB-bot)
+- [Bots-United/joebot](https://github.com/Bots-United/joebot)
+- [CCNHsK-Dev/SyPB](https://github.com/CCNHsK-Dev/SyPB)
+- [EfeDursun125/CS-EBOT-LEGACY](https://github.com/EfeDursun125/CS-EBOT-LEGACY)
+- [Fundynamic/RealBot](https://github.com/fundynamic/realbot)
+- [MuxaJlbl4/Condition-Zero-Coop](https://github.com/MuxaJlbl4/Condition-Zero-Coop)
+- [rcbotCheeseh/RCBotSven5](https://github.com/rcbotCheeseh/RCBotSven5) (Sven Co-op, GoldSrc-Linie)
+- ImpactBots (CS 1.6 Metamod; [Thread](https://cs-bg.info/forum/viewtopic.php?t=179393)) — Rollen, Team-Taktik, JSON-Profile, Graph-Dateien. Öffentlicher Quellcode im Thread nicht genannt; Zuordnung vor erstem Port bestätigen. Später, vor/beim Port: ohne veröffentlichten Code ist Ghidra auf die lokalen ImpactBots-Binaries der Weg, um Mechaniken zu verstehen — analog zur Projektlinie in `docs/MENUS.md` (Ghidra auf Original-Binaries nur wenn 1–5 nicht reicht); Lizenz bleibt kein Gate, Zuordnung vor dem ersten Port bestätigen.
 
 **Andere Engine — nur Konzepte und Verhalten, kein Codeport:**
 
-- `APGRoboCop/rcbot2` (Source 1)
-- `manicogaming/CSGOBetterBots` (CS:GO)
-- `ed0ard/CS2-Bot-Improver`, `XBribo/CS2-Bot-Hider` (Source 2)
+- [APGRoboCop/rcbot2](https://github.com/APGRoboCop/rcbot2) (Source 1)
+- [manicogaming/CSGOBetterBots](https://github.com/manicogaming/CSGOBetterBots) (CS:GO)
+- [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver), [XBribo/CS2-Bot-Hider](https://github.com/XBribo/CS2-Bot-Hider) (Source 2)
 
 Die Engine-Zuordnung ist nach bestem Wissen notiert und **vor** dem ersten Port je Projekt zu
 bestätigen — zusammen mit der Lizenz (siehe unten).

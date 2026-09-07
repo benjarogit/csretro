@@ -513,7 +513,18 @@ void MainMenu_UpdateItemState()
 
 void MainMenu_SyncDialogVisibility()
 {
-	if (g_mainMenu && g_mainMenu->IsVisible())
+	if (!g_mainMenu)
+		return;
+	// In-game overlays sit on the same root as the desktop menu. If the
+	// pause/main host is still visible, its items paint through Buy/Team.
+	if (BuySelect_IsActive() || TeamSelect_IsActive() || ClassSelect_IsActive() ||
+		RadioSelect_IsActive())
+	{
+		if (g_mainMenu->GetMenu())
+			g_mainMenu->GetMenu()->SetVisibleExplicit(false);
+		return;
+	}
+	if (g_mainMenu->IsVisible())
 		g_mainMenu->SyncDialogVisibility();
 }
 

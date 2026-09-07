@@ -19,6 +19,10 @@ inline Color Text() { return Color(240, 240, 240, 255); }
 inline Color TextDim() { return Color(190, 190, 190, 255); }
 inline Color Terror() { return Color(210, 170, 70, 255); }
 inline Color CT() { return Color(90, 170, 230, 255); }
+inline Color BuyGold() { return Color(232, 196, 52, 255); }
+inline Color BuyCell() { return Color(14, 14, 16, 185); }
+inline Color BuyCellArmed() { return Color(36, 32, 18, 220); }
+inline Color BuyPlate() { return Color(8, 8, 10, 205); }
 
 // In-game UI grows up to a comfortable 1440x810 workspace, then stays centered.
 // This is deliberately not a fixed 16:9 letterbox: 4:3 and ultrawide keep all
@@ -75,6 +79,24 @@ inline void StyleTitle(vgui2::Label *lab)
 	lab->SetTextColorState(vgui2::Label::CS_NORMAL);
 	lab->SetFgColor(Text());
 	lab->SetPaintBackgroundEnabled(false);
+}
+
+inline void PaintBuyCell(int w, int h, bool armed)
+{
+	if (!vgui2::surface() || w < 2 || h < 2)
+		return;
+	vgui2::surface()->DrawSetColor(armed ? BuyCellArmed() : BuyCell());
+	vgui2::surface()->DrawFilledRect(0, 0, w, h);
+	if (armed)
+	{
+		vgui2::surface()->DrawSetColor(BuyGold().r(), BuyGold().g(), BuyGold().b(), 220);
+		vgui2::surface()->DrawOutlinedRect(0, 0, w, h);
+	}
+	else
+	{
+		vgui2::surface()->DrawSetColor(255, 255, 255, 16);
+		vgui2::surface()->DrawFilledRect(0, 0, w, 1);
+	}
 }
 
 inline void PaintCardBackground(int w, int h, Color accent, bool armed)

@@ -11,6 +11,8 @@ public:
 	CTeamModelPreview(vgui2::Panel *parent, const char *name);
 
 	void SetPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence);
+	void SetItemPreview(const char *modelPath, float worldWidth = 24.0f);
+	void SetStageBackdrop(bool enabled);
 	void ClearPreviews(float worldWidth);
 	void SetWorldWidth(float worldWidth) { m_worldWidth = worldWidth > 1.0f ? worldWidth : 1.0f; }
 	bool AddPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence, float lateralOffset);
@@ -18,7 +20,7 @@ public:
 	int PreviewCount() const { return m_count; }
 
 	void Paint() override;
-	void PaintBackground() override {}
+	void PaintBackground() override;
 
 private:
 	enum { kMaxPreviews = 6 };
@@ -36,4 +38,6 @@ private:
 	float m_worldWidth = 50.0f;
 	float m_animStart = 0.0f;
 	bool m_logged = false;
+	bool m_item = false;
+	bool m_stageBackdrop = false;
 };

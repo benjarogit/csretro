@@ -358,7 +358,13 @@ void VGuiXash_RunFrame()
 		g_root->GetSize(prevW, prevH);
 		g_root->SetBounds(0, 0, gGlobals->scrWidth, gGlobals->scrHeight);
 		if (prevW != gGlobals->scrWidth || prevH != gGlobals->scrHeight)
+		{
 			MainMenu_InvalidateLayout();
+			// Root children include all in-game overlay hosts. Their layouts
+			// explicitly fit to the parent and then lay out their own controls.
+			for (int i = 0; i < g_root->GetChildCount(); ++i)
+				g_root->GetChild(i)->InvalidateLayout(true);
+		}
 	}
 	g_pVGui->RunFrame();
 	MainMenu_SyncDialogVisibility();

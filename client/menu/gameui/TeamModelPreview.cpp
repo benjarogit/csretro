@@ -3,8 +3,11 @@
 #include "../src/menu_priv.h"
 
 #include "cl_entity.h"
+#include "const.h"
 #include "entity_types.h"
 #include "ref_params.h"
+
+#include <vgui/ISurfaceNext.h>
 
 #include <algorithm>
 #include <cmath>
@@ -90,8 +93,38 @@ CTeamModelPreview::CTeamModelPreview(Panel *parent, const char *name)
 
 void CTeamModelPreview::SetPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence)
 {
+	m_item = false;
+	m_stageBackdrop = false;
+	SetPaintBackgroundEnabled(false);
 	ClearPreviews(50.0f);
 	AddPreview(modelPath, weaponPath, yaw, sequence, 0.0f);
+}
+
+void CTeamModelPreview::SetItemPreview(const char *modelPath, float worldWidth)
+{
+	ClearPreviews(worldWidth > 1.0f ? worldWidth : 24.0f);
+	m_item = true;
+	m_stageBackdrop = false;
+	SetPaintBackgroundEnabled(false);
+	AddPreview(modelPath, nullptr, 18.0f, 0, 0.0f);
+}
+
+void CTeamModelPreview::SetStageBackdrop(bool enabled)
+{
+	m_stageBackdrop = enabled;
+	SetPaintBackgroundEnabled(enabled);
+}
+
+void CTeamModelPreview::PaintBackground()
+{
+	if (!m_stageBackdrop)
+		return;
+	int w = 0, h = 0;
+	GetSize(w, h);
+	if (!surface() || w < 1 || h < 1)
+		return;
+	surface()->DrawSetColor(6, 8, 10, 220);
+	surface()->DrawFilledRect(0, 0, w, h);
 }
 
 void CTeamModelPreview::ClearPreviews(float worldWidth)
@@ -130,7 +163,7 @@ void CTeamModelPreview::Paint()
 {
 	int w = 0, h = 0;
 	GetSize(w, h);
-	if (w < 16 || h < 16)
+	if (w < 8 || h < 8)
 		return;
 
 	int ax = 0, ay = 0;
@@ -143,18 +176,26 @@ void CTeamModelPreview::Paint()
 	rvp.viewport[1] = ay;
 	rvp.viewport[2] = w;
 	rvp.viewport[3] = h;
-	rvp.fov_x = 26.0f;
+	rvp.fov_x = m_item ? 32.0f : 26.0f;
 	rvp.fov_y = FovYFromX(w, h, rvp.fov_x);
 	if (rvp.fov_y <= 0.0f)
 		return;
-	rvp.vieworigin[2] = -5.0f;
+	if (!m_item)
+		rvp.vieworigin[2] = -5.0f;
 
 	if (m_animStart <= 0.0f && gGlobals)
 		m_animStart = gGlobals->time;
 
-	const float distH = DistanceForHeight(82.0f, rvp.fov_y);
+	const float distH = DistanceForHeight(m_item ? 14.0f : 82.0f, rvp.fov_y);
 	const float distW = DistanceForHeight(m_worldWidth, rvp.fov_x);
 	const float dist = std::max(distH, distW) * 1.04f;
+	if (m_item)
+	{
+		const float pitch = 50.0f;
+		rvp.viewangles[0] = pitch;
+		rvp.vieworigin[0] = -dist * std::cos(Deg2Rad(pitch));
+		rvp.vieworigin[2] = dist * std::sin(Deg2Rad(pitch));
+	}
 	const float now = gGlobals ? gGlobals->time : 0.0f;
 	// Rifle aim references are intentionally almost static.  Keep the authored
 	// pose and add only a restrained showroom idle, applied once to player and
@@ -170,11 +211,20 @@ void CTeamModelPreview::Paint()
 		if (!preview.visible)
 			continue;
 		const float phase = static_cast<float>(i) * 0.73f;
-		const float idleYaw = std::sin(now * 0.85f + phase) * 1.25f;
-		const float idleLift = std::sin(now * 1.35f + phase) * 0.22f;
+		const float idleYaw = m_item ? 0.0f : std::sin(now * 0.85f + phase) * 1.25f;
+		const float idleLift = m_item ? 0.0f : std::sin(now * 1.35f + phase) * 0.22f;
+		const float place = m_item ? 0.0f : dist;
 		SetupStudio(&players[i], preview.path, preview.sequence, preview.yaw + idleYaw,
-			dist, m_animStart, i + 1);
-		players[i].player = true;
+			place, m_animStart, i + 1);
+		if (m_item && !players[i].model)
+		{
+			if (!m_logged)
+				Menu_Con("CSRETRO_BUY_MODEL_MISSING path=%s", preview.path);
+			continue;
+		}
+		// Items stay non-player. Characters keep player=true so p_* weapons
+		// bone-merge. Buy's dark stage must not disable that.
+		players[i].player = !m_item;
 		players[i].origin[1] = players[i].curstate.origin[1] = preview.lateralOffset;
 		players[i].origin[2] = players[i].curstate.origin[2] = idleLift;
 		if (preview.weapon[0])

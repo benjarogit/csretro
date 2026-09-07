@@ -252,9 +252,6 @@ public:
 		m_price->SetVisible(false);
 	}
 
-	void SetHost(CBuySelectPanel *host) { m_host = host; }
-	void SetPreviewName(const char *name) { m_preview = name ? name : ""; }
-	const std::string &PreviewName() const { return m_preview; }
 	void SetFooter(bool footer) { m_isFooter = footer; ApplyLook(); }
 	void ConfigureWeapon(const char *command, const char *label, int cost)
 	{
@@ -269,7 +266,6 @@ public:
 		std::snprintf(price, sizeof(price), "$%d", cost);
 		m_price->SetText(price);
 		m_price->SetVisible(true);
-		m_preview = command;
 		ApplyLook();
 	}
 	void SetAccent(Color accent)
@@ -329,11 +325,7 @@ public:
 			ConfigureWeapon(cmd, nullptr, cost);
 	}
 
-	void OnCursorEntered() override;
-
 private:
-	CBuySelectPanel *m_host = nullptr;
-	std::string m_preview;
 	Color m_accent = InGameViewportLook::Text();
 	CTeamModelPreview *m_weaponImage = nullptr;
 	Label *m_price = nullptr;
@@ -383,15 +375,15 @@ public:
 
 	bool LoadPage(int menuType, const char *resOverride, int validSlots)
 	{
+		const bool enteringMain = menuType == MENU_BUY && (!resOverride || !resOverride[0]);
 		m_overview.clear();
 		std::fill(std::begin(m_overviewTitles), std::end(m_overviewTitles), nullptr);
 		m_character = nullptr;
 		m_plate = nullptr;
 		while (GetChildCount() > 0)
 			delete GetChild(0);
-		m_preview = nullptr;
 		m_type = menuType;
-		m_pageIsMain = (menuType == MENU_BUY && (!resOverride || !resOverride[0]));
+		m_pageIsMain = enteringMain;
 
 		const char *res = resOverride;
 		char resolved[280] = {};
@@ -407,10 +399,10 @@ public:
 		ApplySteamCommands();
 		if (m_pageIsMain)
 			BuildUnifiedOverview();
+		BuildCharacterStage(enteringMain);
 		ApplyBuyLabels();
 		BlankRawTokens();
 		StyleButtons();
-		BindHover();
 		m_pageIsMain = FindChildByName("pistols") != nullptr;
 		// Steam-MainBuyMenu.res hat kein BuyMenu/Frame mit wide/tall (anders
 		// als TeamMenu/ClassMenu). Default-Panel ist 64×24 — Kinder bei ypos
@@ -655,27 +647,6 @@ public:
 		return false;
 	}
 
-	void ShowItemPreview(const char *imageName)
-	{
-		if (!imageName || !imageName[0] || !m_preview)
-			return;
-		std::string image = imageName;
-		std::transform(image.begin(), image.end(), image.begin(), [](unsigned char ch) {
-			return static_cast<char>(std::tolower(ch));
-		});
-		if (image == "kevlarhelmet" || image == "kevlar_helmet") image = "vesthelm";
-		else if (image == "hegrenade") image = "hegren";
-		else if (image == "smokegrenade") image = "sgren";
-		else if (image == "nightvision" || image == "nvg") image = "nvgs";
-		else if (image == "glock18") image = "glock";
-		SetBuyModel(m_preview, image.c_str());
-		if (Panel *info = FindChildByName("ItemInfo"))
-		{
-			info->SetVisible(GetWide() >= 960);
-			info->SetEnabled(true);
-		}
-	}
-
 	Panel *CreateControlByName(const char *controlName) override
 	{
 		if (controlName && !strcasecmp(controlName, "MouseOverPanelButton"))
@@ -794,9 +765,9 @@ private:
 	int m_pendingType = MENU_BUY;
 	int m_pendingSlots = 0;
 	bool m_pending = false;
-	CTeamModelPreview *m_preview = nullptr;
 	CTeamModelPreview *m_character = nullptr;
 	Panel *m_plate = nullptr;
+	std::string m_characterModel;
 	struct OverviewCard { CBuyHoverButton *button; int column; int row; };
 	std::vector<OverviewCard> m_overview;
 	Label *m_overviewTitles[5] = {};
@@ -851,8 +822,6 @@ private:
 				char name[64];
 				snprintf(name, sizeof(name), "Overview%d_%d", column, nextRow[column]);
 				auto *button = new CBuyHoverButton(this, name);
-				button->SetHost(this);
-				button->SetPreviewName(field.command.c_str());
 				button->ConfigureWeapon(field.command.c_str(), field.label.c_str(), field.cost);
 				m_overview.push_back({button, column, nextRow[column]++});
 			}
@@ -876,24 +845,33 @@ private:
 		m_plate->SetMouseInputEnabled(false);
 		m_plate->SetKeyBoardInputEnabled(false);
 		m_plate->SetZPos(-2);
+	}
+
+	void BuildCharacterStage(bool randomize)
+	{
+		const bool ct = m_team == TEAM_CT;
 		m_character = new CTeamModelPreview(this, "BuyCharacter");
 		static int previous[2] = {-1, -1};
 		const int side = ct ? 1 : 0;
-		const int pick = previous[side] < 0 ? gEng.pfnRandomLong(0, 3) :
-			(previous[side] + gEng.pfnRandomLong(1, 3)) % 4;
-		previous[side] = pick;
 		const char *terror[] = {"terror", "leet", "arctic", "guerilla"};
 		const char *counter[] = {"urban", "gsg9", "sas", "gign"};
-		const char *model = ct ? counter[pick] : terror[pick];
+		if (randomize || m_characterModel.empty())
+		{
+			const int pick = previous[side] < 0 ? gEng.pfnRandomLong(0, 3) :
+				(previous[side] + gEng.pfnRandomLong(1, 3)) % 4;
+			previous[side] = pick;
+			m_characterModel = ct ? counter[pick] : terror[pick];
+		}
 		char path[96];
-		snprintf(path, sizeof(path), "models/player/%s/%s.mdl", model, model);
+		snprintf(path, sizeof(path), "models/player/%s/%s.mdl",
+			m_characterModel.c_str(), m_characterModel.c_str());
 		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl",
 			ct ? 206.0f : 154.0f, ct ? 33 : 80);
 		m_character->SetWorldWidth(72.0f);
 		m_character->SetMouseInputEnabled(false);
 		m_character->SetKeyBoardInputEnabled(false);
 		m_character->SetZPos(1);
-		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s", m_team, model);
+		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s", m_team, m_characterModel.c_str());
 	}
 
 	Button *ButtonForSlot(int slot)
@@ -1163,48 +1141,12 @@ private:
 			const int infoX = canvasX + pad + listW + canvasW * 4 / 100;
 			const int infoW = canvasX + canvasW - pad - infoX;
 			info->SetBounds(infoX, listY, infoW, listH);
-			if (!m_preview)
-				m_preview = new CTeamModelPreview(info, "ItemPreview");
-			if (m_preview)
+			if (m_character)
 			{
-				const int iw = std::max(1, infoW - 16);
-				const int ih = std::max(1, listH - 16);
-				m_preview->SetBounds(8, 8, iw, ih);
+				m_character->SetVisible(!compact);
+				m_character->SetBounds(infoX, listY, infoW, listH);
 			}
 		}
-	}
-
-	void BindHover()
-	{
-		std::string firstPreview;
-		Panel *info = FindChildByName("ItemInfo");
-		if (info && !m_preview)
-		{
-			info->SetPaintBackgroundEnabled(true);
-			info->SetMouseInputEnabled(false);
-			info->SetBgColor(InGameViewportLook::Card());
-			m_preview = new CTeamModelPreview(info, "ItemPreview");
-			m_preview->SetVisible(false);
-		}
-
-		for (int i = 0; i < GetChildCount(); ++i)
-		{
-			auto *btn = dynamic_cast<CBuyHoverButton *>(GetChild(i));
-			if (!btn)
-				continue;
-			btn->SetHost(this);
-			const char *name = btn->GetName();
-			if (name && name[0] && strcasecmp(name, "CancelButton") &&
-			    strcasecmp(name, "AutobuyButton") && strcasecmp(name, "RebuyButton"))
-			{
-				if (btn->PreviewName().empty())
-					btn->SetPreviewName(name);
-				if (firstPreview.empty() && !m_pageIsMain)
-					firstPreview = btn->PreviewName();
-			}
-		}
-		if (!firstPreview.empty())
-			ShowItemPreview(firstPreview.c_str());
 	}
 
 	void LogOpen()
@@ -1229,13 +1171,6 @@ private:
 			canvasW < 800 ? 1 : 0, m_character && m_character->IsVisible() ? 1 : 0);
 	}
 };
-
-void CBuyHoverButton::OnCursorEntered()
-{
-	BaseClass::OnCursorEntered();
-	if (m_host && !m_preview.empty())
-		m_host->ShowItemPreview(m_preview.c_str());
-}
 
 class CBuySelectOverlay : public Panel
 {
@@ -1445,6 +1380,11 @@ void BuySelect_GateTick()
 
 	static int step = 0;
 	static int hold = 0;
+	static bool resizeRequested = false;
+	static int resizeBeforeW = 0;
+	static int resizeBeforeH = 0;
+	static int resizeTargetW = 0;
+	static int resizeTargetH = 0;
 	if (step >= 99)
 		return;
 
@@ -1505,6 +1445,38 @@ void BuySelect_GateTick()
 		{
 			if (hold < 30)
 				return;
+			if (getenv("CSRETRO_BUY_RESIZE_GATE"))
+			{
+				if (!resizeRequested)
+				{
+					resizeBeforeW = g_panel->GetWide();
+					resizeBeforeH = g_panel->GetTall();
+					resizeTargetW = resizeBeforeW == 1024 ? 1280 : 1024;
+					resizeTargetH = resizeTargetW == 1024 ? 768 : 720;
+					char cmd[80];
+					std::snprintf(cmd, sizeof(cmd), "vid_setmode %d %d\n", resizeTargetW, resizeTargetH);
+					Menu_Con("CSRETRO_BUY_GATE_RESIZE_REQUEST before=%dx%d target=%dx%d",
+						resizeBeforeW, resizeBeforeH, resizeTargetW, resizeTargetH);
+					MenuEngine::ClientCmdNow(cmd);
+					resizeRequested = true;
+					hold = 0;
+					return;
+				}
+				if (g_panel->GetWide() != resizeTargetW || g_panel->GetTall() != resizeTargetH)
+				{
+					if (hold > 180)
+						failDone("live resize dimensions");
+					return;
+				}
+				const int resizeFit = g_panel->ButtonsOnPanel() ? 1 : 0;
+				Menu_Con("CSRETRO_BUY_GATE_RESIZE before=%dx%d after=%dx%d fit=%d",
+					resizeBeforeW, resizeBeforeH, g_panel->GetWide(), g_panel->GetTall(), resizeFit);
+				if (!resizeFit)
+				{
+					failDone("live resize layout clip");
+					return;
+				}
+			}
 			if (!g_panel->ButtonsOnPanel())
 			{
 				failDone("layout clip");

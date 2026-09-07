@@ -359,11 +359,26 @@ void VGuiXash_RunFrame()
 		g_root->SetBounds(0, 0, gGlobals->scrWidth, gGlobals->scrHeight);
 		if (prevW != gGlobals->scrWidth || prevH != gGlobals->scrHeight)
 		{
+			Menu_Con("CSRETRO_VGUI_ROOT_RESIZE before=%dx%d after=%dx%d children=%d",
+				prevW, prevH, gGlobals->scrWidth, gGlobals->scrHeight,
+				g_root->GetChildCount());
 			MainMenu_InvalidateLayout();
-			// Root children include all in-game overlay hosts. Their layouts
-			// explicitly fit to the parent and then lay out their own controls.
+			// Full-screen in-game surfaces must follow the new root immediately.
+			// Merely invalidating them left their old top-left viewport alive until
+			// the next explicit Show() on some VGUI2 implementations.
 			for (int i = 0; i < g_root->GetChildCount(); ++i)
-				g_root->GetChild(i)->InvalidateLayout(true);
+			{
+				vgui2::Panel *child = g_root->GetChild(i);
+				const char *name = child ? child->GetName() : nullptr;
+				const bool fullScreen = name &&
+					(!strcmp(name, "TeamSelectOverlay") || !strcmp(name, "ClassSelectOverlay") ||
+					 !strcmp(name, "BuySelectOverlay") || !strcmp(name, "RadioSelectOverlay") ||
+					 !strcmp(name, "ScoreboardHud") || !strcmp(name, "SpectatorHud"));
+				if (fullScreen)
+					child->SetBounds(0, 0, gGlobals->scrWidth, gGlobals->scrHeight);
+				if (child)
+					child->InvalidateLayout(true);
+			}
 		}
 	}
 	g_pVGui->RunFrame();

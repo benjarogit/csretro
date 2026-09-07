@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 #include <cstring>
 
 #ifndef M_PI
@@ -22,6 +23,21 @@ using namespace vgui2;
 
 namespace
 {
+// Stable leading part of Xash model_t through radius. Keeping this local
+// avoids importing the engine math headers into the Source-style VGUI build.
+struct PreviewModelBounds
+{
+	char name[64];
+	int needload;
+	int type;
+	int numframes;
+	std::uint32_t mempool;
+	int flags;
+	float mins[3];
+	float maxs[3];
+	float radius;
+};
+
 float Deg2Rad(float deg)
 {
 	return deg * static_cast<float>(M_PI) / 180.0f;
@@ -186,16 +202,9 @@ void CTeamModelPreview::Paint()
 	if (m_animStart <= 0.0f && gGlobals)
 		m_animStart = gGlobals->time;
 
-	const float distH = DistanceForHeight(m_item ? 14.0f : 82.0f, rvp.fov_y);
+	const float distH = DistanceForHeight(82.0f, rvp.fov_y);
 	const float distW = DistanceForHeight(m_worldWidth, rvp.fov_x);
 	const float dist = std::max(distH, distW) * 1.04f;
-	if (m_item)
-	{
-		const float pitch = 50.0f;
-		rvp.viewangles[0] = pitch;
-		rvp.vieworigin[0] = -dist * std::cos(Deg2Rad(pitch));
-		rvp.vieworigin[2] = dist * std::sin(Deg2Rad(pitch));
-	}
 	const float now = gGlobals ? gGlobals->time : 0.0f;
 	// Rifle aim references are intentionally almost static.  Keep the authored
 	// pose and add only a restrained showroom idle, applied once to player and
@@ -221,6 +230,28 @@ void CTeamModelPreview::Paint()
 			if (!m_logged)
 				Menu_Con("CSRETRO_BUY_MODEL_MISSING path=%s", preview.path);
 			continue;
+		}
+		if (m_item)
+		{
+			// World items use the familiar elevated GoldSrc inventory view. Frame
+			// that view from the engine-computed model bounds: the old fixed camera
+			// made long rifles overflow, while a level camera showed pistols end-on.
+			const PreviewModelBounds *model =
+				reinterpret_cast<const PreviewModelBounds *>(players[i].model);
+			const float spanX = std::max(1.0f, model->maxs[0] - model->mins[0]);
+			const float spanY = std::max(1.0f, model->maxs[1] - model->mins[1]);
+			const float spanZ = std::max(1.0f, model->maxs[2] - model->mins[2]);
+			const float centerX = (model->mins[0] + model->maxs[0]) * 0.5f;
+			const float centerY = (model->mins[1] + model->maxs[1]) * 0.5f;
+			const float centerZ = (model->mins[2] + model->maxs[2]) * 0.5f;
+			const float itemSize = std::max(spanX, std::max(spanY, spanZ)) * 1.28f;
+			const float itemDist = std::max(DistanceForHeight(itemSize, rvp.fov_y),
+				DistanceForHeight(itemSize, rvp.fov_x));
+			const float pitch = 50.0f;
+			rvp.viewangles[0] = pitch;
+			rvp.vieworigin[0] = centerX - itemDist * std::cos(Deg2Rad(pitch));
+			rvp.vieworigin[1] = centerY;
+			rvp.vieworigin[2] = centerZ + itemDist * std::sin(Deg2Rad(pitch));
 		}
 		// Items stay non-player. Characters keep player=true so p_* weapons
 		// bone-merge. Buy's dark stage must not disable that.

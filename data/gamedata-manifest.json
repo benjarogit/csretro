@@ -161,14 +161,7 @@
     {"glob": "valve/resource/HD_BackgroundLayout.txt", "why": "HL-HD-Kachellayout, ungenutzt."},
     {"glob": "valve/resource/BackgroundLoadingLayout.txt", "why": "HL-Lade-Kachellayout, ungenutzt."},
     {"glob": "valve/resource/HD_BackgroundLoadingLayout.txt", "why": "HL-HD-Lade-Kachellayout, ungenutzt."},
-    {"glob": "cstrike/gfx/vgui/leet.tga", "why": "Statisches Class-Portrait; Klassenwahl rendert leet.mdl direkt."},
-    {"glob": "cstrike/gfx/vgui/arctic.tga", "why": "Statisches Class-Portrait; Klassenwahl rendert arctic.mdl direkt."},
-    {"glob": "cstrike/gfx/vgui/guerilla.tga", "why": "Statisches Class-Portrait; Klassenwahl rendert guerilla.mdl direkt."},
-    {"glob": "cstrike/gfx/vgui/gsg9.tga", "why": "Statisches Class-Portrait; Klassenwahl rendert gsg9.mdl direkt."},
-    {"glob": "cstrike/gfx/vgui/sas.tga", "why": "Statisches Class-Portrait; Klassenwahl rendert sas.mdl direkt."},
-    {"glob": "cstrike/gfx/vgui/gign.tga", "why": "Statisches Class-Portrait; Klassenwahl rendert gign.mdl direkt."},
-    {"glob": "cstrike/gfx/vgui/t_random.tga", "why": "Statisches Zufallsportrait; Auto-Select braucht nur joinclass 5."},
-    {"glob": "cstrike/gfx/vgui/ct_random.tga", "why": "Statisches Zufallsportrait; Auto-Select braucht nur joinclass 5."}
+    {"glob": "cstrike/gfx/vgui/**", "why": "Alter statischer VGUI1-Bildbestand; Team, Class und Buy rendern Player-, p_- und w_-MDL direkt."}
   ],
   "prune": [
     {"path": "platform/resource/linux_fonts", "why": "Steam-Linux-Fonts; CS Retro liefert csretro_fonts (Noto Sans, OFL-1.1). ignore verhindert Neuimport, prune raeumt aeltere Baeume auf."},
@@ -182,14 +175,7 @@
     {"path": "valve/resource/HD_BackgroundLayout.txt", "why": "HL-HD-Kachellayout."},
     {"path": "valve/resource/BackgroundLoadingLayout.txt", "why": "HL-Lade-Kachellayout."},
     {"path": "valve/resource/HD_BackgroundLoadingLayout.txt", "why": "HL-HD-Lade-Kachellayout."},
-    {"path": "cstrike/gfx/vgui/leet.tga", "why": "Altes Class-Portrait; ersetzt durch das animierte Player-Modell."},
-    {"path": "cstrike/gfx/vgui/arctic.tga", "why": "Altes Class-Portrait; ersetzt durch das animierte Player-Modell."},
-    {"path": "cstrike/gfx/vgui/guerilla.tga", "why": "Altes Class-Portrait; ersetzt durch das animierte Player-Modell."},
-    {"path": "cstrike/gfx/vgui/gsg9.tga", "why": "Altes Class-Portrait; ersetzt durch das animierte Player-Modell."},
-    {"path": "cstrike/gfx/vgui/sas.tga", "why": "Altes Class-Portrait; ersetzt durch das animierte Player-Modell."},
-    {"path": "cstrike/gfx/vgui/gign.tga", "why": "Altes Class-Portrait; ersetzt durch das animierte Player-Modell."},
-    {"path": "cstrike/gfx/vgui/t_random.tga", "why": "Altes Auto-Select-Portrait ohne Runtime-Nutzer."},
-    {"path": "cstrike/gfx/vgui/ct_random.tga", "why": "Altes Auto-Select-Portrait ohne Runtime-Nutzer."}
+    {"path": "cstrike/gfx/vgui", "why": "Alter statischer VGUI1-Menübildbaum; ersetzt durch direkte MDL-Vorschauen und native VGUI2-Flächen."}
   ],
   "user_protect": [
     "config.cfg",

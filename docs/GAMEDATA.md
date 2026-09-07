@@ -81,7 +81,7 @@ Neue Regel = Manifest-Eintrag, kein Codeanbau. Was `prune` entfernt hat, steht i
 
 Dasselbe gilt für alte Team-/Class-/Buy-Grafiken: Sobald die jeweilige Fläche vollständig auf reale `.mdl`-Vorschauen oder eigene Controls umgestellt ist, werden ihre Verweise zuerst baumweit geprüft und nur nachweislich unbenutzte Dateien per Manifest-`prune` entfernt. Die bereits genutzten Player- und `p_*.mdl` bleiben die gemeinsame, animierte Laufzeitquelle; parallele Standbilder werden nicht als Fallback konserviert.
 
-Seit der Studioaufstellung der Class-Wahl werden `leet`/`arctic`/`guerilla`, `gsg9`/`sas`/`gign` sowie `t_random`/`ct_random` unter `cstrike/gfx/vgui` nicht mehr importiert und aus bestehenden Bäumen entfernt. Buy nutzt dieselben Player-`mdl` und die Weltwaffen `w_*.mdl`; `terror.tga`/`urban.tga` sind dort nicht mehr die Laufzeitquelle.
+Seit der Studioaufstellung von Team-, Class- und Buy-Wahl wird der alte statische Bildbaum `cstrike/gfx/vgui` nicht mehr importiert und aus bestehenden Bäumen entfernt. Die Figuren kommen aus den Player-`mdl`, ihre Waffen aus `p_*.mdl` und die Kaufkarten aus den vorhandenen Weltmodellen `w_*.mdl`. Damit existiert kein stiller TGA-Rueckfall fuer diese Menues mehr.
 
 Nicht als Runtime übernehmen: Valve-Engine, `client.dll`/`client.so`, Steam-`cs_amd64.so`, `hw.dll`, SteamAPI.
 

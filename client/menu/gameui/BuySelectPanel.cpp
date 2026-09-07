@@ -21,6 +21,7 @@
 #include "../src/menu_priv.h"
 #include "../vgui/main_menu.h"
 #include "cdll_dll.h"
+#include "cl_dll/IGameMenuExports.h"
 #include "keydefs.h"
 
 #include <algorithm>
@@ -47,6 +48,8 @@ void UI_KeyEvent(int key, int down);
 
 namespace
 {
+BuyHudState g_buyHud = {};
+
 struct SlotBind
 {
 	const char *name;
@@ -380,6 +383,7 @@ public:
 		std::fill(std::begin(m_overviewTitles), std::end(m_overviewTitles), nullptr);
 		m_character = nullptr;
 		m_plate = nullptr;
+		m_money = nullptr;
 		while (GetChildCount() > 0)
 			delete GetChild(0);
 		m_type = menuType;
@@ -400,6 +404,7 @@ public:
 		if (m_pageIsMain)
 			BuildUnifiedOverview();
 		BuildCharacterStage(enteringMain);
+		BuildRuntimeChrome();
 		ApplyBuyLabels();
 		BlankRawTokens();
 		StyleButtons();
@@ -446,6 +451,12 @@ public:
 		BaseClass::ApplySchemeSettings(pScheme);
 		SetPaintBackgroundEnabled(false);
 		StyleButtons();
+	}
+
+	void OnThink() override
+	{
+		BaseClass::OnThink();
+		UpdateRuntimeChrome();
 	}
 
 	void LayoutFamily()
@@ -767,6 +778,7 @@ private:
 	bool m_pending = false;
 	CTeamModelPreview *m_character = nullptr;
 	Panel *m_plate = nullptr;
+	Label *m_money = nullptr;
 	std::string m_characterModel;
 	struct OverviewCard { CBuyHoverButton *button; int column; int row; };
 	std::vector<OverviewCard> m_overview;
@@ -866,12 +878,57 @@ private:
 		snprintf(path, sizeof(path), "models/player/%s/%s.mdl",
 			m_characterModel.c_str(), m_characterModel.c_str());
 		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl",
-			ct ? 206.0f : 154.0f, ct ? 33 : 80);
-		m_character->SetWorldWidth(72.0f);
+			ct ? 300.0f : 60.0f, ct ? 33 : 80);
+		// The buy reference devotes almost the complete right half to a
+		// full-height character.  A 72-unit horizontal frame made the model
+		// occupy barely half that stage; frame the actual player silhouette.
+		m_character->SetWorldWidth(32.0f);
+		m_character->SetWorldHeight(64.0f);
 		m_character->SetMouseInputEnabled(false);
 		m_character->SetKeyBoardInputEnabled(false);
 		m_character->SetZPos(1);
 		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s", m_team, m_characterModel.c_str());
+	}
+
+	void BuildRuntimeChrome()
+	{
+		m_money = new Label(this, "BuyMoney", "");
+		m_money->SetContentAlignment(Label::a_west);
+		m_money->SetPaintBackgroundEnabled(false);
+		m_money->SetFgColor(InGameViewportLook::BuyGold());
+		m_money->SetMouseInputEnabled(false);
+		m_money->SetKeyBoardInputEnabled(false);
+		UpdateRuntimeChrome();
+	}
+
+	void UpdateRuntimeChrome()
+	{
+		if (m_money)
+		{
+			char money[32];
+			std::snprintf(money, sizeof(money), "$%d", std::max(0, g_buyHud.money));
+			m_money->SetText(money);
+		}
+		if (!m_pageIsMain)
+			return;
+		auto *title = dynamic_cast<Label *>(FindChildByName("Title"));
+		if (!title)
+			return;
+		const int configured = static_cast<int>(MenuEngine::GetCvarFloat("mp_buytime") * 60.0f + 0.5f);
+		int remaining = configured;
+		if (configured > 0 && g_buyHud.roundDuration > 0)
+		{
+			const int elapsed = std::max(0, g_buyHud.roundDuration - g_buyHud.roundRemaining);
+			remaining = std::max(0, configured - elapsed);
+		}
+		char text[80];
+		if (configured < 0)
+			std::snprintf(text, sizeof(text), "BUY TIME REMAINING  --:--");
+		else
+			std::snprintf(text, sizeof(text), "BUY TIME REMAINING  %02d:%02d",
+				remaining / 60, remaining % 60);
+		title->SetText(text);
+		title->SetContentAlignment(Label::a_center);
 	}
 
 	Button *ButtonForSlot(int slot)
@@ -1001,12 +1058,25 @@ private:
 				continue;
 			title->SetFgColor(InGameViewportLook::TextDim());
 			title->SetPaintBackgroundEnabled(false);
-			title->SetContentAlignment(Label::a_west);
+			title->SetContentAlignment(Label::a_center);
+		}
+		if (m_money)
+		{
+			IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
+			if (sch)
+			{
+				vgui2::HFont font = sch->GetFont("CreditsTitle", IsProportional());
+				if (font != INVALID_FONT)
+					m_money->SetFont(font);
+			}
+			m_money->SetFgColor(InGameViewportLook::BuyGold());
 		}
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
-			info->SetPaintBackgroundEnabled(true);
-			info->SetBgColor(InGameViewportLook::BuyPlate());
+			// The CS:GO-style character is composited directly over the dimmed
+			// world.  The legacy Steam ItemInfo rectangle is only a layout host.
+			info->SetPaintBackgroundEnabled(false);
+			info->SetPaintBorderEnabled(false);
 		}
 		if (Panel *div = FindChildByName("Divider1"))
 			div->SetVisible(false);
@@ -1020,29 +1090,31 @@ private:
 		GetSize(w, h);
 		if (w < 400 || h < 300)
 			return;
-		int canvasX = 0, canvasY = 0, canvasW = 0, canvasH = 0;
-		InGameViewportLook::ContentCanvas(w, h, canvasX, canvasY, canvasW, canvasH);
-		const bool compact = canvasW < 800;
-		const int pad = std::max(10, canvasW * 2 / 100);
-		const int gap = std::max(4, canvasW / 240);
-		if (auto *title = FindChildByName("Title"))
-			title->SetBounds(canvasX + pad, canvasY + canvasH * 2 / 100,
-				canvasW * 58 / 100, std::max(24, canvasH * 6 / 100));
-		HideSteamCategoryChrome();
-
-		const int gridX = canvasX + pad;
-		const int gridW = compact ? canvasW - pad * 2 : canvasW * 56 / 100;
-		const int headerY = canvasY + canvasH * 9 / 100;
-		const int headerH = std::max(20, canvasH * 4 / 100);
-		const int gridY = headerY + headerH + gap;
-		const int gridBottom = canvasY + canvasH * 86 / 100;
+		const float scale = std::max(0.5f, std::min(1.2f,
+			std::min(static_cast<float>(w) / 1280.0f, static_cast<float>(h) / 720.0f)));
+		const int stageW = std::min(w - 16, static_cast<int>(980.0f * scale));
+		const int stageH = std::min(h - 16, static_cast<int>(600.0f * scale));
+		const int stageX = (w - stageW) / 2;
+		const int stageY = (h - stageH) / 2;
+		const bool compact = w < 1000 || stageW < static_cast<int>(800.0f * scale);
+		const int gap = std::max(3, static_cast<int>(4.0f * scale));
+		const int gridX = stageX;
+		const int gridW = compact ? stageW : static_cast<int>(600.0f * scale);
+		const int titleY = stageY + static_cast<int>(80.0f * scale);
+		const int titleH = std::max(22, static_cast<int>(26.0f * scale));
+		const int headerY = titleY + titleH;
+		const int headerH = std::max(20, static_cast<int>(24.0f * scale));
+		const int gridY = headerY + headerH;
 		const int cellW = (gridW - gap * 4) / 5;
-		const int cellH = (gridBottom - gridY - gap * 5) / 6;
+		const int cellH = std::max(42, static_cast<int>(50.0f * scale));
+		const int gridBottom = gridY + cellH * 6 + gap * 5;
+		if (auto *title = FindChildByName("Title"))
+			title->SetBounds(gridX, titleY, gridW, titleH);
+		HideSteamCategoryChrome();
 		if (m_plate)
 		{
 			m_plate->SetVisible(true);
-			m_plate->SetBounds(gridX - gap, headerY - gap,
-				gridW + gap * 2, gridBottom - headerY + gap * 2);
+			m_plate->SetBounds(gridX, titleY, gridW, gridBottom - titleY);
 		}
 		for (int col = 0; col < 5; ++col)
 		{
@@ -1055,12 +1127,14 @@ private:
 		if (m_character)
 		{
 			m_character->SetVisible(!compact);
-			const int x = gridX + gridW + std::max(8, canvasW * 2 / 100);
-			const int cw = canvasX + canvasW - pad - x;
-			const int charTop = canvasY + canvasH * 6 / 100;
-			const int charH = canvasH * 82 / 100;
-			m_character->SetBounds(x, charTop, std::max(1, cw), charH);
+			const int charX = stageX + static_cast<int>(590.0f * scale);
+			const int charW = stageX + stageW - charX;
+			m_character->SetBounds(charX, stageY,
+				std::max(1, charW), static_cast<int>(590.0f * scale));
 		}
+		if (m_money)
+			m_money->SetBounds(std::max(18, w * 3 / 100), h - std::max(70, static_cast<int>(100.0f * scale)),
+				std::max(120, static_cast<int>(180.0f * scale)), std::max(36, static_cast<int>(50.0f * scale)));
 
 		std::vector<Panel *> bottom;
 		for (const char *name : {"AutobuyButton", "RebuyButton", "CancelButton"})
@@ -1071,11 +1145,11 @@ private:
 		}
 		if (bottom.empty())
 			return;
-		const int by = canvasY + canvasH * 91 / 100;
-		const int bh = std::max(28, canvasH * 5 / 100);
-		const int bw = std::min(220, (canvasW - pad * 2) / static_cast<int>(bottom.size()));
+		const int by = stageY + static_cast<int>(575.0f * scale);
+		const int bh = std::max(28, static_cast<int>(32.0f * scale));
+		const int bw = std::max(110, static_cast<int>(145.0f * scale));
 		const int totalW = bw * static_cast<int>(bottom.size()) + gap * static_cast<int>(bottom.size() - 1);
-		const int startX = canvasX + (canvasW - totalW) / 2;
+		const int startX = stageX + (stageW - totalW) / 2;
 		for (size_t i = 0; i < bottom.size(); ++i)
 			bottom[i]->SetBounds(startX + static_cast<int>(i) * (bw + gap), by, bw, bh);
 	}
@@ -1086,16 +1160,21 @@ private:
 		GetSize(w, h);
 		if (w < 400 || h < 300)
 			return;
-		int canvasX = 0, canvasY = 0, canvasW = 0, canvasH = 0;
-		InGameViewportLook::ContentCanvas(w, h, canvasX, canvasY, canvasW, canvasH);
-		const bool compact = canvasW < 900;
-		const int pad = std::max(10, canvasW * 3 / 100);
-		const int gap = std::max(4, canvasH / 80);
+		const float scale = std::max(0.5f, std::min(1.2f,
+			std::min(static_cast<float>(w) / 1280.0f, static_cast<float>(h) / 720.0f)));
+		const int stageW = std::min(w - 16, static_cast<int>(980.0f * scale));
+		const int stageH = std::min(h - 16, static_cast<int>(600.0f * scale));
+		const int stageX = (w - stageW) / 2;
+		const int stageY = (h - stageH) / 2;
+		const bool compact = w < 1000;
+		const int gap = std::max(4, static_cast<int>(6.0f * scale));
+		const int listW = compact ? stageW : static_cast<int>(600.0f * scale);
+		const int titleY = stageY + static_cast<int>(80.0f * scale);
+		const int titleH = std::max(24, static_cast<int>(28.0f * scale));
 		if (auto *title = FindChildByName("Title"))
-			title->SetBounds(canvasX + pad, canvasY, canvasW - pad * 2, std::max(28, canvasH * 7 / 100));
+			title->SetBounds(stageX, titleY, listW, titleH);
 		if (auto *cat = FindChildByName("selectCategory"))
-			cat->SetBounds(canvasX + pad, canvasY + canvasH * 7 / 100,
-				canvasW - pad * 2, std::max(18, canvasH * 4 / 100));
+			cat->SetVisible(false);
 
 		std::vector<Button *> weapons;
 		Button *cancel = nullptr;
@@ -1118,9 +1197,8 @@ private:
 			b->GetPos(bx, by);
 			return ay < by;
 		});
-		const int listW = compact ? canvasW - pad * 2 : canvasW * 56 / 100;
-		const int listY = canvasY + canvasH * 14 / 100;
-		const int listH = canvasH * 70 / 100;
+		const int listY = titleY + titleH;
+		const int listH = static_cast<int>(390.0f * scale);
 		const int cols = weapons.size() > 1 ? 2 : 1;
 		const int rows = weapons.empty() ? 1 :
 			(static_cast<int>(weapons.size()) + cols - 1) / cols;
@@ -1130,23 +1208,32 @@ private:
 		{
 			const int col = static_cast<int>(i) % cols;
 			const int row = static_cast<int>(i) / cols;
-			weapons[i]->SetBounds(canvasX + pad + col * (cardW + gap), listY + row * (rowH + gap), cardW, rowH);
+			weapons[i]->SetBounds(stageX + col * (cardW + gap), listY + row * (rowH + gap), cardW, rowH);
 		}
 		if (cancel)
-			cancel->SetBounds(canvasX + pad, canvasY + canvasH * 91 / 100,
-				std::min(220, listW), std::max(28, canvasH * 5 / 100));
+			cancel->SetBounds(stageX + (stageW - static_cast<int>(145.0f * scale)) / 2,
+				stageY + static_cast<int>(575.0f * scale),
+				std::max(110, static_cast<int>(145.0f * scale)),
+				std::max(28, static_cast<int>(32.0f * scale)));
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
 			info->SetVisible(!compact);
-			const int infoX = canvasX + pad + listW + canvasW * 4 / 100;
-			const int infoW = canvasX + canvasW - pad - infoX;
-			info->SetBounds(infoX, listY, infoW, listH);
+			const int infoX = stageX + static_cast<int>(590.0f * scale);
+			const int infoW = stageX + stageW - infoX;
+			info->SetBounds(infoX, stageY,
+				std::max(1, infoW), static_cast<int>(590.0f * scale));
 			if (m_character)
 			{
 				m_character->SetVisible(!compact);
-				m_character->SetBounds(infoX, listY, infoW, listH);
+				m_character->SetBounds(infoX, stageY,
+					std::max(1, infoW), static_cast<int>(590.0f * scale));
 			}
 		}
+		if (m_money)
+			m_money->SetBounds(std::max(18, w * 3 / 100),
+				h - std::max(70, static_cast<int>(100.0f * scale)),
+				std::max(120, static_cast<int>(180.0f * scale)),
+				std::max(36, static_cast<int>(50.0f * scale)));
 	}
 
 	void LogOpen()
@@ -1313,6 +1400,7 @@ bool BuySelect_Show(Panel *root, int menuType, int validSlots)
 	int w = 0, h = 0;
 	host->GetSize(w, h);
 	g_overlay->SetBounds(0, 0, w, h);
+	PauseBackdrop_Invalidate();
 	g_overlay->SetVisible(true);
 	g_overlay->MoveToFront();
 	g_panel->Open(validSlots);
@@ -1334,6 +1422,7 @@ void BuySelect_Hide()
 		g_panel->SetVisible(false);
 	if (g_overlay)
 		g_overlay->SetVisible(false);
+	PauseBackdrop_Invalidate();
 	MainMenu_SyncDialogVisibility();
 	if (g_keyDestPushed && !gMenuVisible && !TeamSelect_IsActive() && !ClassSelect_IsActive() &&
 		!RadioSelect_IsActive())
@@ -1371,6 +1460,12 @@ void BuySelect_AfterFrame()
 {
 	if (g_panel && g_panel->IsVisible())
 		g_panel->ApplyPendingPage();
+}
+
+void BuySelect_SetHud(const BuyHudState *state)
+{
+	if (state)
+		g_buyHud = *state;
 }
 
 void BuySelect_GateTick()
@@ -1429,7 +1524,10 @@ void BuySelect_GateTick()
 		if (ClassSelect_IsActive() || TeamSelect_IsActive())
 			return;
 		++hold;
-		if (hold < 60)
+		// Give the server's buy-zone/player-spawn state time to settle.  If the
+		// synthetic `buy` arrives on the transition frame, BuyClose legitimately
+		// closes it again and makes the visual gate intermittent.
+		if (hold < 90)
 			return;
 		MenuEngine::ClientCmdNow("buy\n");
 		Menu_Con("CSRETRO_BUY_GATE_REQUEST");

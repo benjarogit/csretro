@@ -58,6 +58,13 @@ struct ScoreboardHudState
 	ScoreboardPlayerRow players[CSRETRO_SCOREBOARD_PLAYERS];
 };
 
+struct BuyHudState
+{
+	int money;
+	int roundRemaining;
+	int roundDuration;
+};
+
 class IGameMenuExports : public IBaseInterface
 {
 public:
@@ -98,6 +105,9 @@ public:
 
 	// Scoreboard (eigene Familie). visible=0 blendet aus. Kein vtable-Einschub oben.
 	virtual void  SetScoreboardHud( const ScoreboardHudState *state ) = 0;
+
+	// Buy-Menü: echte Client-HUD-Werte statt eines beim Öffnen geratenen Timers.
+	virtual void  SetBuyHud( const BuyHudState *state ) = 0;
 };
 
 #define GAMEMENUEXPORTS_INTERFACE_VERSION "GameMenuExports001"

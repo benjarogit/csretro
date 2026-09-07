@@ -100,6 +100,15 @@ int CHud :: Redraw( float flTime, int intermission )
 
 	m_iIntermission = intermission;
 
+	if( g_pMenu )
+	{
+		BuyHudState buy = {};
+		buy.money = m_Money.GetMoney();
+		buy.roundRemaining = m_Timer.GetTimeRemaining();
+		buy.roundDuration = m_Timer.GetRoundDuration();
+		g_pMenu->SetBuyHud( &buy );
+	}
+
 	UpdateDefaultHUDColor();
 
 	if ( m_pCvarDraw->value && (intermission || !(m_iHideHUDDisplay & HIDEHUD_ALL) ) )

@@ -15,6 +15,7 @@ public:
 	void SetStageBackdrop(bool enabled);
 	void ClearPreviews(float worldWidth);
 	void SetWorldWidth(float worldWidth) { m_worldWidth = worldWidth > 1.0f ? worldWidth : 1.0f; }
+	void SetWorldHeight(float worldHeight) { m_worldHeight = worldHeight > 1.0f ? worldHeight : 1.0f; }
 	bool AddPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence, float lateralOffset);
 	void SetPreviewVisible(int index, bool visible);
 	int PreviewCount() const { return m_count; }
@@ -36,6 +37,7 @@ private:
 	Preview m_previews[kMaxPreviews];
 	int m_count = 0;
 	float m_worldWidth = 50.0f;
+	float m_worldHeight = 82.0f;
 	float m_animStart = 0.0f;
 	bool m_logged = false;
 	bool m_item = false;

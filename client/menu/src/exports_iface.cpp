@@ -2,6 +2,7 @@
 #include "../vgui/vgui_boot.h"
 #include "../gameui/SpectatorHudPanel.h"
 #include "../gameui/ScoreboardHudPanel.h"
+#include "../gameui/BuySelectPanel.h"
 
 #include "interface.h"
 #include "cl_dll/IGameMenuExports.h"
@@ -44,6 +45,7 @@ public:
 	void DrawSpectatorMenu(void) override {}
 	void SetSpectatorHud(const SpectatorHudState *state) override { SpectatorHud_Set(state); }
 	void SetScoreboardHud(const ScoreboardHudState *state) override { ScoreboardHud_Set(state); }
+	void SetBuyHud(const BuyHudState *state) override { BuySelect_SetHud(state); }
 	void ShowVGUIMenu(int menuType, int param1, int param2) override
 	{
 		Menu_NotePlayerTeam(param2);

@@ -54,6 +54,11 @@ int CHudTimer::VidInit()
 	return 1;
 }
 
+int CHudTimer::GetTimeRemaining() const
+{
+	return max( 0, (int)( m_iTime + m_fStartTime - gHUD.m_flTime ) );
+}
+
 int CHudTimer::Draw( float fTime )
 {
 	if( gHUD.m_iHideHUDDisplay & ( HIDEHUD_TIMER | HIDEHUD_ALL ) )

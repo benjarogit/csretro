@@ -202,7 +202,7 @@ void CTeamModelPreview::Paint()
 	if (m_animStart <= 0.0f && gGlobals)
 		m_animStart = gGlobals->time;
 
-	const float distH = DistanceForHeight(82.0f, rvp.fov_y);
+	const float distH = DistanceForHeight(m_worldHeight, rvp.fov_y);
 	const float distW = DistanceForHeight(m_worldWidth, rvp.fov_x);
 	const float dist = std::max(distH, distW) * 1.04f;
 	const float now = gGlobals ? gGlobals->time : 0.0f;
@@ -244,7 +244,7 @@ void CTeamModelPreview::Paint()
 			const float centerX = (model->mins[0] + model->maxs[0]) * 0.5f;
 			const float centerY = (model->mins[1] + model->maxs[1]) * 0.5f;
 			const float centerZ = (model->mins[2] + model->maxs[2]) * 0.5f;
-			const float itemSize = std::max(spanX, std::max(spanY, spanZ)) * 1.28f;
+			const float itemSize = std::max(spanX, std::max(spanY, spanZ)) * 1.08f;
 			const float itemDist = std::max(DistanceForHeight(itemSize, rvp.fov_y),
 				DistanceForHeight(itemSize, rvp.fov_x));
 			const float pitch = 50.0f;

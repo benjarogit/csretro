@@ -608,7 +608,8 @@ void UI_Redraw(float)
 			else
 				Menu_DrawBackground();
 		}
-		else if (InGame() && VGuiXash_IsTeamSelectActive())
+		else if (InGame() && (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() ||
+			VGuiXash_IsBuySelectActive()))
 		{
 			PauseBackdrop_Paint();
 		}

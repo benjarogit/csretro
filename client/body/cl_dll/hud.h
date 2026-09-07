@@ -765,6 +765,7 @@ public:
 	int Draw( float flTime );
 	CHudMsgFunc(Money);
 	CHudMsgFunc(BlinkAcct);
+	int GetMoney() const { return m_iMoneyCount; }
 
 private:
 	int m_iMoneyCount;
@@ -809,6 +810,8 @@ public:
 	// show the timer
 	// [empty]
 	CHudMsgFunc(ShowTimer);
+	int GetTimeRemaining() const;
+	int GetRoundDuration() const { return m_iTime; }
 
 	int m_right;
 private:

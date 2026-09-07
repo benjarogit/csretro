@@ -135,10 +135,11 @@ void CTeamModelPreview::Paint()
 
 	int ax = 0, ay = 0;
 	LocalToScreen(ax, ay);
-
 	ref_viewpass_t rvp;
 	memset(&rvp, 0, sizeof(rvp));
 	rvp.viewport[0] = ax;
+	// ref_viewpass_t uses top-left screen coordinates; the GL backend performs
+	// the bottom-left conversion when installing the actual GL viewport.
 	rvp.viewport[1] = ay;
 	rvp.viewport[2] = w;
 	rvp.viewport[3] = h;

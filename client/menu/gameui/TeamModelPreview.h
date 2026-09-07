@@ -12,6 +12,7 @@ public:
 
 	void SetPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence);
 	void ClearPreviews(float worldWidth);
+	void SetWorldWidth(float worldWidth) { m_worldWidth = worldWidth > 1.0f ? worldWidth : 1.0f; }
 	bool AddPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence, float lateralOffset);
 	void SetPreviewVisible(int index, bool visible);
 	int PreviewCount() const { return m_count; }

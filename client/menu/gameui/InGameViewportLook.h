@@ -20,6 +20,21 @@ inline Color TextDim() { return Color(190, 190, 190, 255); }
 inline Color Terror() { return Color(210, 170, 70, 255); }
 inline Color CT() { return Color(90, 170, 230, 255); }
 
+// In-game UI grows up to a comfortable 1440x810 workspace, then stays centered.
+// This is deliberately not a fixed 16:9 letterbox: 4:3 and ultrawide keep all
+// available height, while large desktop resolutions no longer inflate controls.
+inline void ContentCanvas(int viewW, int viewH, int &x, int &y, int &w, int &h)
+{
+	const int marginX = std::max(8, viewW * 3 / 100);
+	const int marginY = std::max(8, viewH * 3 / 100);
+	w = std::max(320, std::min(1440, viewW - marginX * 2));
+	h = std::max(260, std::min(810, viewH - marginY * 2));
+	w = std::min(w, viewW);
+	h = std::min(h, viewH);
+	x = (viewW - w) / 2;
+	y = (viewH - h) / 2;
+}
+
 inline void StyleCardButton(vgui2::Button *btn, Color accent)
 {
 	if (!btn)
@@ -76,11 +91,13 @@ inline void PaintCardBackground(int w, int h, Color accent, bool armed)
 	vgui2::surface()->DrawFilledRect(3, h - 1, w, h);
 }
 
-// Fast volle Fläche, etwas Luft oben/unten — wie die CS:GO-Teamwahl, nicht eine kleine Mittelkarte.
+// Fast volle Fläche auf kleinen Viewports; auf großen Displays begrenzte Bühne.
 inline void TeamStage(int viewW, int viewH, int &x, int &y, int &w, int &h)
 {
-	w = std::max(320, viewW * 94 / 100);
+	w = std::max(320, std::min(1440, viewW * 94 / 100));
 	h = std::max(260, viewH * 86 / 100);
+	w = std::min(w, viewW);
+	h = std::min(h, viewH);
 	x = (viewW - w) / 2;
 	y = viewH * 6 / 100;
 }

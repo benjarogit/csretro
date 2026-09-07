@@ -8,6 +8,7 @@
 
 #include <tier1/KeyValues.h>
 #include <vgui/ILocalize.h>
+#include <vgui/IImage.h>
 #include <vgui/ISchemeNext.h>
 #include <vgui/ISurfaceNext.h>
 #include <vgui/KeyCode.h>
@@ -206,6 +207,7 @@ public:
 
 	void SetHost(CBuySelectPanel *host) { m_host = host; }
 	void SetPreviewName(const char *name) { m_preview = name ? name : ""; }
+	void SetFooter(bool footer) { m_isFooter = footer; ApplyLook(); }
 	void ConfigureWeapon(const char *command, const char *label, int cost)
 	{
 		if (!command || !command[0] || cost <= 0)
@@ -259,15 +261,34 @@ public:
 			const bool compact = h < 70;
 			const int imageTop = compact ? 14 : 24;
 			const int imageBottom = compact ? 8 : 23;
-			const int imageH = std::max(1, h - imageTop - imageBottom);
-			m_weaponImage->SetBounds(compact ? 5 : 12, imageTop,
-				std::max(1, w - (compact ? 10 : 24)), imageH);
+			const int sidePad = compact ? 5 : 12;
+			const int maxImageW = std::max(1, w - sidePad * 2);
+			const int maxImageH = std::max(1, h - imageTop - imageBottom);
+			// Steam weapon art varies from 4:1 rifles to 2:1 pistols/equipment.
+			// ImagePanel stretches to its bounds, so retain each loaded image's
+			// actual dimensions instead of applying one guessed ratio to all.
+			int sourceW = 256, sourceH = 128;
+			if (IImage *image = m_weaponImage->GetImage())
+				image->GetContentSize(sourceW, sourceH);
+			sourceW = std::max(1, sourceW);
+			sourceH = std::max(1, sourceH);
+			int imageW = maxImageW;
+			int imageH = imageW * sourceH / sourceW;
+			if (imageH > maxImageH)
+			{
+				imageH = maxImageH;
+				imageW = imageH * sourceW / sourceH;
+			}
+			m_weaponImage->SetBounds((w - imageW) / 2, imageTop + (maxImageH - imageH) / 2,
+				std::max(1, imageW), std::max(1, imageH));
 			m_price->SetBounds(std::max(4, w - 66), h - (compact ? 15 : 23), 60, compact ? 13 : 20);
 		}
 	}
 
 	void PaintBackground() override
 	{
+		if (m_isFooter)
+			return;
 		int w = 0, h = 0;
 		GetSize(w, h);
 		InGameViewportLook::PaintCardBackground(w, h, m_accent, IsArmed() || IsDepressed());
@@ -298,9 +319,17 @@ private:
 	ImagePanel *m_weaponImage = nullptr;
 	Label *m_price = nullptr;
 	bool m_isWeaponCard = false;
+	bool m_isFooter = false;
 
 	void ApplyLook()
 	{
+		if (m_isFooter)
+		{
+			InGameViewportLook::StyleFooterButton(this, m_accent);
+			SetContentAlignment(Label::a_center);
+			SetTextInset(0, 0);
+			return;
+		}
 		InGameViewportLook::StyleCardButton(this, m_accent);
 		SetContentAlignment(m_isWeaponCard ? Label::a_northwest : Label::a_west);
 		SetTextInset(m_isWeaponCard ? 6 : 12, m_isWeaponCard ? 3 : 0);
@@ -354,6 +383,7 @@ public:
 			res = resolved;
 		snprintf(m_res, sizeof(m_res), "%s", res);
 		LoadControlSettings(res);
+		SetProportional(false);
 		ApplySteamCommands();
 		if (m_pageIsMain)
 			BuildUnifiedOverview();
@@ -899,12 +929,21 @@ private:
 			auto *btn = dynamic_cast<Button *>(GetChild(i));
 			if (!btn)
 				continue;
+			const char *name = btn->GetName();
+			const bool footer = name && (!strcasecmp(name, "AutobuyButton") ||
+				!strcasecmp(name, "RebuyButton") || !strcasecmp(name, "CancelButton") ||
+				!strcasecmp(name, "cancelbutton"));
 			if (auto *look = dynamic_cast<CBuyHoverButton *>(btn))
+			{
+				look->SetFooter(footer);
 				look->SetAccent(teamAccent);
+			}
+			else if (footer)
+				InGameViewportLook::StyleFooterButton(btn, teamAccent);
 			else
 				InGameViewportLook::StyleCardButton(btn, teamAccent);
-			btn->SetContentAlignment(Label::a_west);
-			btn->SetTextInset(12, 0);
+			btn->SetContentAlignment(footer ? Label::a_center : Label::a_west);
+			btn->SetTextInset(footer ? 0 : 12, 0);
 		}
 		InGameViewportLook::StyleTitle(dynamic_cast<Label *>(FindChildByName("Title")));
 		if (auto *cat = dynamic_cast<Label *>(FindChildByName("selectCategory")))
@@ -935,33 +974,42 @@ private:
 		GetSize(w, h);
 		if (w < 400 || h < 300)
 			return;
-		const int pad = w / 28;
-		const int gap = std::max(3, w / 220);
+		int canvasX = 0, canvasY = 0, canvasW = 0, canvasH = 0;
+		InGameViewportLook::ContentCanvas(w, h, canvasX, canvasY, canvasW, canvasH);
+		const bool compact = canvasW < 900;
+		const int pad = std::max(8, canvasW * 2 / 100);
+		const int gap = std::max(3, canvasW / 280);
 		if (auto *title = FindChildByName("Title"))
-			title->SetBounds(pad, h / 24, w - pad * 2, h / 12);
+			title->SetBounds(canvasX + pad, canvasY, canvasW - pad * 2, std::max(26, canvasH * 7 / 100));
 		if (auto *cat = FindChildByName("selectCategory"))
-			cat->SetBounds(pad, h / 24 + h / 14, w - pad * 2, h / 20);
+			cat->SetBounds(canvasX + pad, canvasY + canvasH * 7 / 100,
+				canvasW - pad * 2, std::max(18, canvasH * 4 / 100));
 
-		const int gridW = w * 62 / 100;
-		const int headerY = h * 22 / 100;
-		const int headerH = h * 6 / 100;
+		const int gridX = canvasX + pad;
+		const int gridW = compact ? canvasW - pad * 2 : canvasW * 52 / 100;
+		const int headerY = canvasY + canvasH * 14 / 100;
+		const int headerH = std::max(26, canvasH * 6 / 100);
 		const int gridY = headerY + headerH + gap;
-		const int gridBottom = h * 82 / 100;
+		const int gridBottom = canvasY + canvasH * 78 / 100;
 		const int cellW = (gridW - gap * 4) / 5;
 		const int cellH = (gridBottom - gridY - gap * 5) / 6;
 		for (int col = 0; col < 5; ++col)
 		{
 			if (m_overviewTitles[col])
-				m_overviewTitles[col]->SetBounds(pad + col * (cellW + gap), headerY, cellW, headerH);
+				m_overviewTitles[col]->SetBounds(gridX + col * (cellW + gap), headerY, cellW, headerH);
 		}
 		for (const OverviewCard &card : m_overview)
-			card.button->SetBounds(pad + card.column * (cellW + gap),
+			card.button->SetBounds(gridX + card.column * (cellW + gap),
 				gridY + card.row * (cellH + gap), cellW, cellH);
 		if (m_character)
 		{
-			const int x = pad + gridW + w / 30;
-			const int cw = w - x - pad;
-			m_character->SetBounds(x, h * 20 / 100, cw, h * 58 / 100);
+			m_character->SetVisible(!compact);
+			const int x = gridX + gridW + canvasW * 4 / 100;
+			const int cw = canvasX + canvasW - pad - x;
+			const int charTop = canvasY + canvasH * 11 / 100;
+			const int charH = canvasH * 69 / 100;
+			const int side = std::max(1, std::min(cw, charH));
+			m_character->SetBounds(x + (cw - side) / 2, charTop + (charH - side) / 2, side, side);
 		}
 
 		std::vector<Panel *> bottom;
@@ -973,12 +1021,13 @@ private:
 		}
 		if (bottom.empty())
 			return;
-		const int by = h - h / 10 - pad / 2;
-		const int bh = h / 12;
-		const int bw = (w - pad * 2 - gap * static_cast<int>(bottom.size() - 1)) /
-			static_cast<int>(bottom.size());
+		const int by = canvasY + canvasH * 91 / 100;
+		const int bh = std::max(28, canvasH * 5 / 100);
+		const int bw = std::min(220, (canvasW - pad * 2) / static_cast<int>(bottom.size()));
+		const int totalW = bw * static_cast<int>(bottom.size()) + gap * static_cast<int>(bottom.size() - 1);
+		const int startX = canvasX + (canvasW - totalW) / 2;
 		for (size_t i = 0; i < bottom.size(); ++i)
-			bottom[i]->SetBounds(pad + static_cast<int>(i) * (bw + gap), by, bw, bh);
+			bottom[i]->SetBounds(startX + static_cast<int>(i) * (bw + gap), by, bw, bh);
 	}
 
 	void RelayoutWeaponList()
@@ -987,12 +1036,16 @@ private:
 		GetSize(w, h);
 		if (w < 400 || h < 300)
 			return;
-		const int pad = w / 18;
-		const int gap = h / 60;
+		int canvasX = 0, canvasY = 0, canvasW = 0, canvasH = 0;
+		InGameViewportLook::ContentCanvas(w, h, canvasX, canvasY, canvasW, canvasH);
+		const bool compact = canvasW < 900;
+		const int pad = std::max(10, canvasW * 3 / 100);
+		const int gap = std::max(4, canvasH / 80);
 		if (auto *title = FindChildByName("Title"))
-			title->SetBounds(pad, h / 24, w - pad * 2, h / 14);
+			title->SetBounds(canvasX + pad, canvasY, canvasW - pad * 2, std::max(28, canvasH * 7 / 100));
 		if (auto *cat = FindChildByName("selectCategory"))
-			cat->SetBounds(pad, h / 24 + h / 16, w - pad * 2, h / 22);
+			cat->SetBounds(canvasX + pad, canvasY + canvasH * 7 / 100,
+				canvasW - pad * 2, std::max(18, canvasH * 4 / 100));
 
 		std::vector<Button *> weapons;
 		Button *cancel = nullptr;
@@ -1015,9 +1068,9 @@ private:
 			b->GetPos(bx, by);
 			return ay < by;
 		});
-		const int listW = w * 60 / 100;
-		const int listY = h * 20 / 100;
-		const int listH = h * 66 / 100;
+		const int listW = compact ? canvasW - pad * 2 : canvasW * 56 / 100;
+		const int listY = canvasY + canvasH * 14 / 100;
+		const int listH = canvasH * 70 / 100;
 		const int cols = weapons.size() > 1 ? 2 : 1;
 		const int rows = weapons.empty() ? 1 :
 			(static_cast<int>(weapons.size()) + cols - 1) / cols;
@@ -1027,14 +1080,17 @@ private:
 		{
 			const int col = static_cast<int>(i) % cols;
 			const int row = static_cast<int>(i) / cols;
-			weapons[i]->SetBounds(pad + col * (cardW + gap), listY + row * (rowH + gap), cardW, rowH);
+			weapons[i]->SetBounds(canvasX + pad + col * (cardW + gap), listY + row * (rowH + gap), cardW, rowH);
 		}
 		if (cancel)
-			cancel->SetBounds(pad, h - pad - h / 14, listW, h / 14);
+			cancel->SetBounds(canvasX + pad, canvasY + canvasH * 91 / 100,
+				std::min(220, listW), std::max(28, canvasH * 5 / 100));
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
-			const int infoW = w - pad * 3 - listW;
-			info->SetBounds(pad + listW + pad, listY, infoW, listH);
+			info->SetVisible(!compact);
+			const int infoX = canvasX + pad + listW + canvasW * 4 / 100;
+			const int infoW = canvasX + canvasW - pad - infoX;
+			info->SetBounds(infoX, listY, infoW, listH);
 			if (m_preview)
 			{
 				const int iw = std::max(1, infoW - 16);
@@ -1107,6 +1163,12 @@ private:
 			m_type, m_team, m_pageIsMain ? 1 : 0, VisibleButtonCount(), m_slots);
 		Menu_Con("CSRETRO_BUY_LAYOUT panel=%d,%d %dx%d child=%d,%d %dx%d fit=%d",
 			px, py, pw, ph, bx, by, bw, bh, ButtonsOnPanel() ? 1 : 0);
+		int canvasX = 0, canvasY = 0, canvasW = 0, canvasH = 0;
+		InGameViewportLook::ContentCanvas(pw, ph, canvasX, canvasY, canvasW, canvasH);
+		Menu_Con("CSRETRO_BUY_CANVAS view=%dx%d canvas=%d,%d %dx%d capped=%d compact=%d model=%d",
+			pw, ph, canvasX, canvasY, canvasW, canvasH,
+			(canvasW < pw * 9 / 10 || canvasH < ph * 9 / 10) ? 1 : 0,
+			canvasW < 900 ? 1 : 0, m_character && m_character->IsVisible() ? 1 : 0);
 	}
 };
 

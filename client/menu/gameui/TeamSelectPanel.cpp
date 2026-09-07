@@ -451,6 +451,8 @@ private:
 			m_ctPreviewIndex = (m_ctPreviewIndex + gEng.pfnRandomLong(1, 3)) % 4;
 		m_tModel->SetPreview(terrorModels[m_tPreviewIndex], "models/p_ak47.mdl", 154.0f, 80);
 		m_ctModel->SetPreview(ctModels[m_ctPreviewIndex], "models/p_m4a1.mdl", 206.0f, 33);
+		m_tModel->SetWorldWidth(65.0f);
+		m_ctModel->SetWorldWidth(65.0f);
 		Menu_Con("CSRETRO_TEAM_RANDOM t=%d ct=%d changed=%d", m_tPreviewIndex,
 			m_ctPreviewIndex, oldT >= 0 && oldCT >= 0 && oldT != m_tPreviewIndex && oldCT != m_ctPreviewIndex ? 1 : 0);
 	}
@@ -752,10 +754,10 @@ private:
 				m_ctPlayers[i]->SetBounds(listLeft + listW - colW, listTop + i * rowH, colW, rowH);
 		}
 
-		const int footerH = std::max(28, h * 5 / 100);
-		const int footerW = std::max(138, w * 14 / 100);
-		int fx = w - 20;
-		const int fy = h - footerH - std::max(18, h * 3 / 100);
+		const int footerH = std::max(28, stageH * 6 / 100);
+		const int footerW = std::max(138, stageW * 14 / 100);
+		int fx = stageX + stageW - 20;
+		const int fy = stageY + stageH - footerH - std::max(12, stageH * 2 / 100);
 		for (const char *name : {"autobutton", "specbutton", "vipbutton", "CancelButton"})
 		{
 			Panel *p = FindChildByName(name);
@@ -788,7 +790,7 @@ private:
 		const int mid = sx + sw / 2;
 		vgui2::surface()->DrawSetColor(255, 255, 255, 36);
 		vgui2::surface()->DrawFilledRect(mid, sy + sh * 16 / 100, mid + 1, sy + sh * 84 / 100);
-		const int footerTop = h - std::max(62, h * 10 / 100);
+		const int footerTop = sy + sh - std::max(62, sh * 10 / 100);
 		vgui2::surface()->DrawSetColor(0, 0, 0, 70);
 		vgui2::surface()->DrawFilledRect(0, footerTop, w, h);
 		vgui2::surface()->DrawSetColor(255, 255, 255, 28);
@@ -862,6 +864,11 @@ private:
 		Menu_Con("CSRetro-VGUI: %s (%d)", kResource, MENU_TEAM);
 		Menu_Con("CSRETRO_TEAM_VGUI open slots=%d t=%d ct=%d auto=%d vip=%d spec=%d cancel=%d tplayers=%d ctplayers=%d",
 			m_slots, t, ct, autoas, vip, spec, cancel, m_rosterT, m_rosterCT);
+		int stageX = 0, stageY = 0, stageW = 0, stageH = 0;
+		InGameViewportLook::TeamStage(GetWide(), GetTall(), stageX, stageY, stageW, stageH);
+		Menu_Con("CSRETRO_TEAM_CANVAS view=%dx%d canvas=%d,%d %dx%d capped=%d",
+			GetWide(), GetTall(), stageX, stageY, stageW, stageH,
+			(stageW < GetWide() * 9 / 10 || stageH < GetTall() * 9 / 10) ? 1 : 0);
 		Menu_Con("CSRETRO_TEAM_LOOK split=1 roster=1 emblem=1 footer=1 stage=1 models=1");
 	}
 };

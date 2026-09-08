@@ -11,8 +11,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 
 #ifndef M_PI
@@ -23,21 +23,6 @@ using namespace vgui2;
 
 namespace
 {
-// Stable leading part of Xash model_t through radius. Keeping this local
-// avoids importing the engine math headers into the Source-style VGUI build.
-struct PreviewModelBounds
-{
-	char name[64];
-	int needload;
-	int type;
-	int numframes;
-	std::uint32_t mempool;
-	int flags;
-	float mins[3];
-	float maxs[3];
-	float radius;
-};
-
 float Deg2Rad(float deg)
 {
 	return deg * static_cast<float>(M_PI) / 180.0f;
@@ -63,7 +48,133 @@ float DistanceForHeight(float worldH, float fovY)
 	return worldH * 0.5f / std::tan(Deg2Rad(fovY) * 0.5f);
 }
 
-void SetupStudio(cl_entity_t *ent, const char *path, int sequence, float yaw, float dist, float animStart, int index)
+// Same matrix as Xash Matrix3x4_CreateFromEntity after the Quake pitch negate.
+void EntityAxes(float pitch, float yaw, float roll, float axis[3][3])
+{
+	const float p = Deg2Rad(-pitch);
+	const float y = Deg2Rad(yaw);
+	const float r = Deg2Rad(roll);
+	const float sp = std::sin(p), cp = std::cos(p);
+	const float sy = std::sin(y), cy = std::cos(y);
+	const float sr = std::sin(r), cr = std::cos(r);
+	if (std::fabs(roll) > 0.001f)
+	{
+		axis[0][0] = cp * cy;
+		axis[0][1] = sr * sp * cy + cr * -sy;
+		axis[0][2] = cr * sp * cy + -sr * -sy;
+		axis[1][0] = cp * sy;
+		axis[1][1] = sr * sp * sy + cr * cy;
+		axis[1][2] = cr * sp * sy + -sr * cy;
+		axis[2][0] = -sp;
+		axis[2][1] = sr * cp;
+		axis[2][2] = cr * cp;
+	}
+	else if (std::fabs(pitch) > 0.001f)
+	{
+		axis[0][0] = cp * cy;
+		axis[0][1] = -sy;
+		axis[0][2] = sp * cy;
+		axis[1][0] = cp * sy;
+		axis[1][1] = cy;
+		axis[1][2] = sp * sy;
+		axis[2][0] = -sp;
+		axis[2][1] = 0.0f;
+		axis[2][2] = cp;
+	}
+	else
+	{
+		axis[0][0] = cy;
+		axis[0][1] = -sy;
+		axis[0][2] = 0.0f;
+		axis[1][0] = sy;
+		axis[1][1] = cy;
+		axis[1][2] = 0.0f;
+		axis[2][0] = 0.0f;
+		axis[2][1] = 0.0f;
+		axis[2][2] = 1.0f;
+	}
+}
+
+void RotatePoint(const float axis[3][3], const float in[3], float out[3])
+{
+	out[0] = axis[0][0] * in[0] + axis[0][1] * in[1] + axis[0][2] * in[2];
+	out[1] = axis[1][0] * in[0] + axis[1][1] * in[1] + axis[1][2] * in[2];
+	out[2] = axis[2][0] * in[0] + axis[2][1] * in[1] + axis[2][2] * in[2];
+}
+
+bool ReadStudioIdleBox(const char *path, float mins[3], float maxs[3])
+{
+	int len = 0;
+	byte *raw = (path && path[0] && gEng.COM_LoadFile) ? gEng.COM_LoadFile(path, &len) : nullptr;
+	if (!raw || len < 180 || std::memcmp(raw, "IDST", 4) != 0)
+	{
+		if (raw)
+			gEng.COM_FreeFile(raw);
+		return false;
+	}
+	std::int32_t numseq = 0;
+	std::int32_t seqindex = 0;
+	std::memcpy(&numseq, raw + 164, 4);
+	std::memcpy(&seqindex, raw + 168, 4);
+	if (numseq < 1 || seqindex < 0 || seqindex + 120 > len)
+	{
+		gEng.COM_FreeFile(raw);
+		return false;
+	}
+	std::memcpy(mins, raw + seqindex + 96, 12);
+	std::memcpy(maxs, raw + seqindex + 108, 12);
+	gEng.COM_FreeFile(raw);
+	return true;
+}
+
+void FrameItem(const float mins[3], const float maxs[3], float *pitch, float *yaw, float *roll,
+	float *frameW, float *frameH, float shift[3])
+{
+	const float dx = maxs[0] - mins[0];
+	const float dy = maxs[1] - mins[1];
+	// GoldSrc w_*.mdl lie in XY (Z is a few units thick). Yaw-only shows the
+	// edge. Pitch 90 faces the silhouette at the camera; X-long guns need roll
+	// so the barrel stays horizontal in the card.
+	if (dy >= dx)
+	{
+		*pitch = 90.0f;
+		*yaw = 0.0f;
+		*roll = 0.0f;
+	}
+	else
+	{
+		*pitch = 0.0f;
+		*yaw = 90.0f;
+		*roll = 90.0f;
+	}
+	float axis[3][3];
+	EntityAxes(*pitch, *yaw, *roll, axis);
+	float minW[3] = { 1.0e9f, 1.0e9f, 1.0e9f };
+	float maxW[3] = { -1.0e9f, -1.0e9f, -1.0e9f };
+	for (int i = 0; i < 8; ++i)
+	{
+		const float p[3] = {
+			(i & 1) ? maxs[0] : mins[0],
+			(i & 2) ? maxs[1] : mins[1],
+			(i & 4) ? maxs[2] : mins[2],
+		};
+		float wpt[3];
+		RotatePoint(axis, p, wpt);
+		for (int a = 0; a < 3; ++a)
+		{
+			minW[a] = std::min(minW[a], wpt[a]);
+			maxW[a] = std::max(maxW[a], wpt[a]);
+		}
+	}
+	*frameW = std::max(4.0f, maxW[1] - minW[1]);
+	*frameH = std::max(4.0f, maxW[2] - minW[2]);
+	shift[0] = -0.5f * (minW[0] + maxW[0]);
+	shift[1] = -0.5f * (minW[1] + maxW[1]);
+	shift[2] = -0.5f * (minW[2] + maxW[2]);
+}
+
+void SetupStudio(cl_entity_t *ent, const char *path, int sequence, float pitch, float yaw, float roll,
+	float ox, float oy, float oz, float animStart, int index)
 {
 	memset(ent, 0, sizeof(*ent));
 	gEng.pfnSetModel(ent, path);
@@ -92,9 +203,12 @@ void SetupStudio(cl_entity_t *ent, const char *path, int sequence, float yaw, fl
 		ent->curstate.blending[i] = 127;
 		ent->latched.prevblending[i] = 127;
 	}
-	ent->origin[0] = ent->curstate.origin[0] = dist;
-	ent->origin[2] = ent->curstate.origin[2] = 0.0f;
+	ent->origin[0] = ent->curstate.origin[0] = ox;
+	ent->origin[1] = ent->curstate.origin[1] = oy;
+	ent->origin[2] = ent->curstate.origin[2] = oz;
+	ent->angles[0] = ent->curstate.angles[0] = pitch;
 	ent->angles[1] = ent->curstate.angles[1] = yaw;
+	ent->angles[2] = ent->curstate.angles[2] = roll;
 }
 } // namespace
 
@@ -116,13 +230,22 @@ void CTeamModelPreview::SetPreview(const char *modelPath, const char *weaponPath
 	AddPreview(modelPath, weaponPath, yaw, sequence, 0.0f);
 }
 
-void CTeamModelPreview::SetItemPreview(const char *modelPath, float worldWidth, float yaw)
+void CTeamModelPreview::SetItemPreview(const char *modelPath)
 {
-	ClearPreviews(worldWidth > 1.0f ? worldWidth : 24.0f);
+	ClearPreviews(24.0f);
 	m_item = true;
 	m_stageBackdrop = false;
 	SetPaintBackgroundEnabled(false);
-	AddPreview(modelPath, nullptr, yaw, 0, 0.0f);
+	if (!AddPreview(modelPath, nullptr, 0.0f, 0, 0.0f))
+		return;
+	Preview &preview = m_previews[m_count - 1];
+	float mins[3] = { -12.0f, -12.0f, -2.0f };
+	float maxs[3] = { 12.0f, 12.0f, 2.0f };
+	if (!ReadStudioIdleBox(modelPath, mins, maxs))
+		Menu_Con("CSRETRO_BUY_ITEM_BOX_FALLBACK path=%s", modelPath);
+	FrameItem(mins, maxs, &preview.pitch, &preview.yaw, &preview.roll,
+		&preview.frameW, &preview.frameH, preview.shift);
+	m_worldWidth = preview.frameW;
 }
 
 void CTeamModelPreview::SetStageBackdrop(bool enabled)
@@ -204,10 +327,6 @@ void CTeamModelPreview::Paint()
 
 	const float distH = DistanceForHeight(m_worldHeight, rvp.fov_y);
 	const float distW = DistanceForHeight(m_worldWidth, rvp.fov_x);
-	// Item cards are short: worldHeight 82 would push the camera so far that
-	// the gun vanishes. Class/Team characters keep the height/width max.
-	const float dist = m_item ? DistanceForHeight(m_worldWidth / 0.88f, rvp.fov_x) :
-		std::max(distH, distW) * 1.04f;
 	const float now = gGlobals ? gGlobals->time : 0.0f;
 	gEng.pfnClearScene();
 	cl_entity_t players[kMaxPreviews];
@@ -222,10 +341,19 @@ void CTeamModelPreview::Paint()
 		const float phase = static_cast<float>(i) * 0.73f;
 		const float idleYaw = m_item ? 0.0f : std::sin(now * 0.85f + phase) * 1.25f;
 		const float idleLift = m_item ? 0.0f : std::sin(now * 1.35f + phase) * 0.22f;
-		const float place = dist;
+		float dist = std::max(distH, distW) * 1.04f;
+		if (m_item)
+		{
+			const float byWidth = DistanceForHeight(preview.frameW / 0.84f, rvp.fov_x);
+			const float byHeight = DistanceForHeight(preview.frameH / 0.72f, rvp.fov_y);
+			dist = std::max(byWidth, byHeight);
+		}
 		const int studioIndex = m_independentPlayerState ? (3 - i) : (i + 1);
-		SetupStudio(&players[i], preview.path, preview.sequence, preview.yaw + idleYaw,
-			place, m_animStart, studioIndex);
+		const float ox = dist + (m_item ? preview.shift[0] : 0.0f);
+		const float oy = (m_item ? preview.shift[1] : preview.lateralOffset);
+		const float oz = (m_item ? preview.shift[2] : idleLift);
+		SetupStudio(&players[i], preview.path, preview.sequence, preview.pitch,
+			preview.yaw + idleYaw, preview.roll, ox, oy, oz, m_animStart, studioIndex);
 		if (!m_item)
 			players[i].curstate.effects |= EF_CSRETRO_PREVIEW | EF_NOINTERP;
 		if (m_item && !players[i].model)
@@ -243,18 +371,17 @@ void CTeamModelPreview::Paint()
 			players[i].curstate.rendercolor.g = 196;
 			players[i].curstate.rendercolor.b = 48;
 			if (!m_logged)
-				Menu_Con("CSRETRO_BUY_ITEM path=%s yaw=%.0f width=%.1f dist=%.1f",
-					preview.path, preview.yaw, m_worldWidth, dist);
+				Menu_Con("CSRETRO_BUY_ITEM path=%s pitch=%.0f yaw=%.0f roll=%.0f frame=%.1fx%.1f dist=%.1f",
+					preview.path, preview.pitch, preview.yaw, preview.roll,
+					preview.frameW, preview.frameH, dist);
 		}
 		// Items stay non-player. Characters keep player=true so p_* weapons
 		// bone-merge. Buy's dark stage must not disable that.
 		players[i].player = !m_item;
-		players[i].origin[1] = players[i].curstate.origin[1] = preview.lateralOffset;
-		players[i].origin[2] = players[i].curstate.origin[2] = idleLift;
 		if (preview.weapon[0])
 		{
-			SetupStudio(&weapons[i], preview.weapon, 0, preview.yaw + idleYaw,
-				dist, m_animStart, i + 1 + kMaxPreviews);
+			SetupStudio(&weapons[i], preview.weapon, 0, 0.0f, preview.yaw + idleYaw, 0.0f,
+				dist, preview.lateralOffset, idleLift, m_animStart, i + 1 + kMaxPreviews);
 			if (weapons[i].curstate.modelindex > 0)
 				weaponIndex[i] = weapons[i].curstate.modelindex;
 		}

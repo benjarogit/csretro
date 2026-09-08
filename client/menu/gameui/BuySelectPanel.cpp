@@ -213,38 +213,6 @@ const char *BuyModel(const char *name)
 	return name;
 }
 
-float BuyWorldWidth(const char *model)
-{
-	if (!model || !model[0])
-		return 24.0f;
-	if (!strcasecmp(model, "kevlar") || !strcasecmp(model, "assault") || !strcasecmp(model, "thighpack"))
-		return 32.0f;
-	if (!strcasecmp(model, "flashbang") || !strcasecmp(model, "hegrenade") || !strcasecmp(model, "smokegrenade"))
-		return 16.0f;
-	if (!strcasecmp(model, "elite"))
-		return 22.0f;
-	if (!strcasecmp(model, "glock18") || !strcasecmp(model, "usp") || !strcasecmp(model, "deagle") ||
-		!strcasecmp(model, "p228") || !strcasecmp(model, "fiveseven"))
-		return 18.0f;
-	if (!strcasecmp(model, "awp") || !strcasecmp(model, "scout") || !strcasecmp(model, "g3sg1") ||
-		!strcasecmp(model, "galil") || !strcasecmp(model, "ak47") || !strcasecmp(model, "m4a1") ||
-		!strcasecmp(model, "aug") || !strcasecmp(model, "sg552") || !strcasecmp(model, "sg550") ||
-		!strcasecmp(model, "famas") || !strcasecmp(model, "m249"))
-		return 32.0f;
-	return 24.0f;
-}
-
-float BuyItemYaw(const char *model)
-{
-	if (!model || !model[0])
-		return 90.0f;
-	if (!strcasecmp(model, "flashbang") || !strcasecmp(model, "hegrenade") || !strcasecmp(model, "smokegrenade"))
-		return 40.0f;
-	if (!strcasecmp(model, "kevlar") || !strcasecmp(model, "assault") || !strcasecmp(model, "thighpack"))
-		return 20.0f;
-	return 90.0f;
-}
-
 const char *BuyDisplayName(const char *command)
 {
 	struct Entry { const char *command; const char *label; };
@@ -277,7 +245,7 @@ void SetBuyModel(CTeamModelPreview *preview, const char *name)
 	if (!model) return;
 	char path[96];
 	snprintf(path, sizeof(path), "models/w_%s.mdl", model);
-	preview->SetItemPreview(path, BuyWorldWidth(model), BuyItemYaw(model));
+	preview->SetItemPreview(path);
 }
 
 class CBuyRoundedPanel : public Panel
@@ -997,7 +965,7 @@ private:
 		char path[96];
 		snprintf(path, sizeof(path), "models/player/%s/%s.mdl", model, model);
 		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl",
-			206.0f, ct ? 33 : 80);
+			ct ? 206.0f : 202.0f, ct ? 33 : 80);
 		m_character->SetWorldWidth(65.0f);
 		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s", m_team, model);
 	}

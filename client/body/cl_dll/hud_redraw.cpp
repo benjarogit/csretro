@@ -106,15 +106,31 @@ int CHud :: Redraw( float flTime, int intermission )
 		buy.money = m_Money.GetMoney();
 		buy.roundRemaining = m_Timer.GetTimeRemaining();
 		buy.roundDuration = m_Timer.GetRoundDuration();
+		const char *modelSrc = nullptr;
 		if (cl_entity_t *local = gEngfuncs.GetLocalPlayer())
 		{
 			hud_player_info_t info = {};
 			GetPlayerInfo(local->index, &info);
 			if (info.model && info.model[0])
+				modelSrc = info.model;
+		}
+		if (!modelSrc && gEngfuncs.LocalPlayerInfo_ValueForKey)
+			modelSrc = gEngfuncs.LocalPlayerInfo_ValueForKey("model");
+		if (modelSrc && modelSrc[0])
+		{
+			const char *stem = modelSrc;
+			for (const char *p = modelSrc; *p; ++p)
 			{
-				strncpy(buy.model, info.model, sizeof(buy.model) - 1);
-				buy.model[sizeof(buy.model) - 1] = '\0';
+				if (*p == '/' || *p == '\\')
+					stem = p + 1;
 			}
+			size_t n = 0;
+			while (stem[n] && stem[n] != '.' && n + 1 < sizeof(buy.model))
+			{
+				buy.model[n] = stem[n];
+				++n;
+			}
+			buy.model[n] = '\0';
 		}
 		g_pMenu->SetBuyHud( &buy );
 	}

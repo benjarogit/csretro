@@ -141,7 +141,7 @@ Inhalte: nur `gamedata/` (`docs/GAMEDATA.md`). Client: `-clientlib`. GameDLL: `-
 
 **Nicht enthalten:** Economy-Modernisierung. Externe Plugins/Demos, die ein echtes Schild brauchen, funktionieren nicht. Normale Karten ohne Schild bleiben spielbar.
 
-**Nächster Schritt:** Spiel vollständig neu starten (Engine + Client + Menü + GameDLL). Danach Buy visuell gegen die CS:GO-Referenz prüfen: Figur rechts zur Kamera mit Gewehr in den Händen, Gold-Waffen füllen die Karten, kein Schild.
+**Nächster Schritt:** Spiel vollständig neu starten (Client + Menü). Waffenkarten nutzen jetzt die Studio-Idle-Box: flache `w_*.mdl` werden mit Pitch/Roll zur Kamera gedreht, nicht mehr von der Kante. Figur rechts = eigene Klasse, Yaw wie Class/Team rechts (202 T / 206 CT). Danach visuell gegen die CS:GO-Referenz prüfen.
 
 ## Nicht anfassen
 

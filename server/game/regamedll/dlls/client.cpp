@@ -1132,13 +1132,7 @@ void EXT_FUNC __API_HOOK(SendSayMessage)(CBasePlayer *pPlayer, const char *pszCm
 
 bool CanBuyThis(CBasePlayer *pPlayer, int iWeapon)
 {
-	if (pPlayer->HasShield() && iWeapon == WEAPON_ELITE)
-		return false;
-
-	if (pPlayer->HasShield() && iWeapon == WEAPON_SHIELDGUN)
-		return false;
-
-	if (pPlayer->m_rgpPlayerItems[PISTOL_SLOT] && pPlayer->m_rgpPlayerItems[PISTOL_SLOT]->m_iId == WEAPON_ELITE && iWeapon == WEAPON_SHIELDGUN)
+	if (iWeapon == WEAPON_SHIELDGUN)
 		return false;
 
 	if (pPlayer->m_rgpPlayerItems[PRIMARY_WEAPON_SLOT] && pPlayer->m_rgpPlayerItems[PRIMARY_WEAPON_SLOT]->m_iId == iWeapon)
@@ -1543,24 +1537,8 @@ void EXT_FUNC __API_HOOK(BuyItem)(CBasePlayer *pPlayer, int iSlot)
 		}
 		case MENU_SLOT_ITEM_SHIELD:
 		{
-#ifdef REGAMEDLL_ADD
-			if (pPlayer->HasRestrictItem(ITEM_SHIELDGUN, ITEM_TYPE_BUYING))
-				return;
-#endif
-
-			if (!CanBuyThis(pPlayer, WEAPON_SHIELDGUN))
-				return;
-
-			if (pPlayer->m_iAccount >= SHIELDGUN_PRICE)
-			{
-				bEnoughMoney = true;
-				pPlayer->DropPrimary();
-				pPlayer->GiveShield();
-				pPlayer->AddAccount(-SHIELDGUN_PRICE, RT_PLAYER_BOUGHT_SOMETHING);
-
-				EMIT_SOUND(ENT(pPlayer->pev), CHAN_ITEM, "items/gunpickup2.wav", VOL_NORM, ATTN_NORM);
-			}
-			break;
+			// CS Retro: shield is not a buyable item. Keep the slot enum.
+			return;
 		}
 	}
 
@@ -2392,12 +2370,6 @@ bool BuyAmmo(CBasePlayer *pPlayer, int nSlot, bool bBlinkMoney)
 
 	CBasePlayerItem *pItem = pPlayer->m_rgpPlayerItems[nSlot];
 
-	if (pPlayer->HasShield())
-	{
-		if (pPlayer->m_rgpPlayerItems[PISTOL_SLOT])
-			pItem = pPlayer->m_rgpPlayerItems[PISTOL_SLOT];
-	}
-
 	if (pItem)
 	{
 		while (BuyGunAmmo(pPlayer, pItem, bBlinkMoney))
@@ -2584,15 +2556,6 @@ BOOL HandleBuyAliasCommands(CBasePlayer *pPlayer, const char *pszCommand)
 		else if (FStrEq(pszCommand, "shield"))
 		{
 			bRetVal = TRUE;
-			if (pPlayer->m_iTeam == CT)
-			{
-				BuyItem(pPlayer, MENU_SLOT_ITEM_SHIELD);
-			}
-			else
-			{
-				// fail gracefully
-				pszFailItem = "#TactShield_Desc";
-			}
 		}
 	}
 
@@ -3096,14 +3059,14 @@ void EXT_FUNC InternalCommand(edict_t *pEntity, const char *pcmd, const char *pa
 								if (CSGameRules()->m_bMapHasBombTarget)
 								{
 									if (pPlayer->m_iTeam == CT)
-										ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_7 | MENU_KEY_8 | MENU_KEY_0), "#DCT_BuyItem");
+										ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_7 | MENU_KEY_0), "#DCT_BuyItem");
 									else
 										ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_0), "#DT_BuyItem");
 								}
 								else
 								{
 									if (pPlayer->m_iTeam == CT)
-										ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_8 | MENU_KEY_0), "#CT_BuyItem");
+										ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_0), "#CT_BuyItem");
 									else
 										ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_0), "#T_BuyItem");
 								}
@@ -3531,18 +3494,7 @@ void EXT_FUNC InternalCommand(edict_t *pEntity, const char *pcmd, const char *pa
 			}
 			else if (FStrEq(pcmd, "drop"))
 			{
-				// player is dropping an item.
-				if (pPlayer->HasShield())
-				{
-					if (pPlayer->m_pActiveItem && pPlayer->m_pActiveItem->m_iId == WEAPON_C4)
-					{
-						pPlayer->DropPlayerItem("weapon_c4");
-					}
-					else
-						pPlayer->DropShield();
-				}
-				else
-					pPlayer->DropPlayerItem(parg1);
+				pPlayer->DropPlayerItem(parg1);
 			}
 			else if (FStrEq(pcmd, "fov"))
 			{
@@ -3598,14 +3550,14 @@ void EXT_FUNC InternalCommand(edict_t *pEntity, const char *pcmd, const char *pa
 					if (CSGameRules()->m_bMapHasBombTarget)
 					{
 						if (pPlayer->m_iTeam == CT)
-							ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_7 | MENU_KEY_8 | MENU_KEY_0), "#DCT_BuyItem");
+							ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_7 | MENU_KEY_0), "#DCT_BuyItem");
 						else
 							ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_0), "#DT_BuyItem");
 					}
 					else
 					{
 						if (pPlayer->m_iTeam == CT)
-							ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_8 | MENU_KEY_0), "#CT_BuyItem");
+							ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_0), "#CT_BuyItem");
 						else
 							ShowVGUIMenu(pPlayer, VGUI_Menu_Buy_Item, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_0), "#T_BuyItem");
 					}
@@ -4098,23 +4050,14 @@ void ClientPrecache()
 	PRECACHE_MODEL("models/p_c4.mdl");
 	PRECACHE_MODEL("models/w_c4.mdl");
 	PRECACHE_MODEL("models/p_deagle.mdl");
-	PRECACHE_MODEL("models/shield/p_shield_deagle.mdl");
 	PRECACHE_MODEL("models/p_flashbang.mdl");
-	PRECACHE_MODEL("models/shield/p_shield_flashbang.mdl");
 	PRECACHE_MODEL("models/p_hegrenade.mdl");
-	PRECACHE_MODEL("models/shield/p_shield_hegrenade.mdl");
 	PRECACHE_MODEL("models/p_glock18.mdl");
-	PRECACHE_MODEL("models/shield/p_shield_glock18.mdl");
 	PRECACHE_MODEL("models/p_p228.mdl");
-	PRECACHE_MODEL("models/shield/p_shield_p228.mdl");
 	PRECACHE_MODEL("models/p_smokegrenade.mdl");
-	PRECACHE_MODEL("models/shield/p_shield_smokegrenade.mdl");
 	PRECACHE_MODEL("models/p_usp.mdl");
-	PRECACHE_MODEL("models/shield/p_shield_usp.mdl");
 	PRECACHE_MODEL("models/p_fiveseven.mdl");
-	PRECACHE_MODEL("models/shield/p_shield_fiveseven.mdl");
 	PRECACHE_MODEL("models/p_knife.mdl");
-	PRECACHE_MODEL("models/shield/p_shield_knife.mdl");
 	PRECACHE_MODEL("models/w_flashbang.mdl");
 	PRECACHE_MODEL("models/w_hegrenade.mdl");
 	PRECACHE_MODEL("models/p_sg550.mdl");
@@ -4134,8 +4077,6 @@ void ClientPrecache()
 	PRECACHE_MODEL("models/p_xm1014.mdl");
 	PRECACHE_MODEL("models/p_galil.mdl");
 	PRECACHE_MODEL("models/p_famas.mdl");
-	PRECACHE_MODEL("models/p_shield.mdl");
-	PRECACHE_MODEL("models/w_shield.mdl");
 
 	Vector temp = g_vecZero;
 	Vector vMin(-38, -24, -41);
@@ -4314,16 +4255,6 @@ void ClientPrecache()
 		vMin = Vector(-16, -8, -54);
 		vMax = Vector(16, 6, 24);
 	}
-
-	ENGINE_FORCE_UNMODIFIED(force_model_specifybounds, (float *)&vMin, (float *)&vMax, "models/shield/p_shield_deagle.mdl");
-	ENGINE_FORCE_UNMODIFIED(force_model_specifybounds, (float *)&vMin, (float *)&vMax, "models/shield/p_shield_fiveseven.mdl");
-	ENGINE_FORCE_UNMODIFIED(force_model_specifybounds, (float *)&vMin, (float *)&vMax, "models/shield/p_shield_flashbang.mdl");
-	ENGINE_FORCE_UNMODIFIED(force_model_specifybounds, (float *)&vMin, (float *)&vMax, "models/shield/p_shield_glock18.mdl");
-	ENGINE_FORCE_UNMODIFIED(force_model_specifybounds, (float *)&vMin, (float *)&vMax, "models/shield/p_shield_hegrenade.mdl");
-	ENGINE_FORCE_UNMODIFIED(force_model_specifybounds, (float *)&vMin, (float *)&vMax, "models/shield/p_shield_knife.mdl");
-	ENGINE_FORCE_UNMODIFIED(force_model_specifybounds, (float *)&vMin, (float *)&vMax, "models/shield/p_shield_p228.mdl");
-	ENGINE_FORCE_UNMODIFIED(force_model_specifybounds, (float *)&vMin, (float *)&vMax, "models/shield/p_shield_smokegrenade.mdl");
-	ENGINE_FORCE_UNMODIFIED(force_model_specifybounds, (float *)&vMin, (float *)&vMax, "models/shield/p_shield_usp.mdl");
 
 	PRECACHE_SOUND("common/wpn_hudoff.wav");
 	PRECACHE_SOUND("common/wpn_hudon.wav");
@@ -5107,9 +5038,6 @@ void EXT_FUNC UpdateClientData(const edict_t *ent, int sendweapons, struct clien
 
 		if (pPlayer->m_signals.GetState() & SIGNAL_BOMB)
 			iUser3 |= PLAYER_IN_BOMB_ZONE;
-
-		if (pPlayer->HasShield())
-			iUser3 |= PLAYER_HOLDING_SHIELD;
 
 		if (pPlayer->pev->iuser1 == OBS_NONE && !pevOrg)
 		{

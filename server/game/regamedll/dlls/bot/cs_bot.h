@@ -104,8 +104,6 @@ protected:
 	bool m_haveSeenEnemy;
 	bool m_isEnemyHidden;
 	float m_reacquireTimestamp;
-	float m_shieldToggleTimestamp;
-	bool m_shieldForceOpen;
 	float m_pinnedDownTimestamp;
 	bool m_crouchAndHold;
 	bool m_didAmbushCheck;
@@ -144,7 +142,6 @@ private:
 	bool m_doneBuying;
 	bool m_buyDefuseKit;
 	bool m_buyGrenade;
-	bool m_buyShield;
 	bool m_buyPistol;
 };
 

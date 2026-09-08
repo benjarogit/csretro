@@ -116,13 +116,13 @@ void CTeamModelPreview::SetPreview(const char *modelPath, const char *weaponPath
 	AddPreview(modelPath, weaponPath, yaw, sequence, 0.0f);
 }
 
-void CTeamModelPreview::SetItemPreview(const char *modelPath, float worldWidth)
+void CTeamModelPreview::SetItemPreview(const char *modelPath, float worldWidth, float yaw)
 {
 	ClearPreviews(worldWidth > 1.0f ? worldWidth : 24.0f);
 	m_item = true;
 	m_stageBackdrop = false;
 	SetPaintBackgroundEnabled(false);
-	AddPreview(modelPath, nullptr, 18.0f, 0, 0.0f);
+	AddPreview(modelPath, nullptr, yaw, 0, 0.0f);
 }
 
 void CTeamModelPreview::SetStageBackdrop(bool enabled)
@@ -192,7 +192,7 @@ void CTeamModelPreview::Paint()
 	rvp.viewport[1] = ay;
 	rvp.viewport[2] = w;
 	rvp.viewport[3] = h;
-	rvp.fov_x = m_item ? 32.0f : 26.0f;
+	rvp.fov_x = 26.0f;
 	rvp.fov_y = FovYFromX(w, h, rvp.fov_x);
 	if (rvp.fov_y <= 0.0f)
 		return;
@@ -204,11 +204,11 @@ void CTeamModelPreview::Paint()
 
 	const float distH = DistanceForHeight(m_worldHeight, rvp.fov_y);
 	const float distW = DistanceForHeight(m_worldWidth, rvp.fov_x);
-	const float dist = std::max(distH, distW) * 1.04f;
+	// Item cards are short: worldHeight 82 would push the camera so far that
+	// the gun vanishes. Class/Team characters keep the height/width max.
+	const float dist = m_item ? DistanceForHeight(m_worldWidth / 0.88f, rvp.fov_x) :
+		std::max(distH, distW) * 1.04f;
 	const float now = gGlobals ? gGlobals->time : 0.0f;
-	// Rifle aim references are intentionally almost static.  Keep the authored
-	// pose and add only a restrained showroom idle, applied once to player and
-	// bone-merged weapon so it costs no additional model or texture.
 	gEng.pfnClearScene();
 	cl_entity_t players[kMaxPreviews];
 	cl_entity_t weapons[kMaxPreviews];
@@ -222,14 +222,11 @@ void CTeamModelPreview::Paint()
 		const float phase = static_cast<float>(i) * 0.73f;
 		const float idleYaw = m_item ? 0.0f : std::sin(now * 0.85f + phase) * 1.25f;
 		const float idleLift = m_item ? 0.0f : std::sin(now * 1.35f + phase) * 0.22f;
-		const float place = m_item ? 0.0f : dist;
-		// The renderer only exposes initialized player-info records for the first
-		// menu-safe slots. Slot three is the same stable record used by the Arctic
-		// entry in the verified four-model class lineup.
+		const float place = dist;
 		const int studioIndex = m_independentPlayerState ? (3 - i) : (i + 1);
 		SetupStudio(&players[i], preview.path, preview.sequence, preview.yaw + idleYaw,
 			place, m_animStart, studioIndex);
-		if (m_independentPlayerState && !m_item)
+		if (!m_item)
 			players[i].curstate.effects |= EF_CSRETRO_PREVIEW | EF_NOINTERP;
 		if (m_item && !players[i].model)
 		{
@@ -239,33 +236,15 @@ void CTeamModelPreview::Paint()
 		}
 		if (m_item)
 		{
-			// Render the source MDL itself as a flat, readable gold silhouette. This
-			// uses normal studio geometry, not GlowShell or a bitmap fallback.
 			players[i].curstate.effects |= EF_CSRETRO_ITEM;
-			players[i].curstate.rendermode = kRenderTransAdd;
+			players[i].curstate.rendermode = kRenderNormal;
 			players[i].curstate.renderamt = 255;
 			players[i].curstate.rendercolor.r = 255;
-			players[i].curstate.rendercolor.g = 220;
-			players[i].curstate.rendercolor.b = 64;
-			// World items use the familiar elevated GoldSrc inventory view. Frame
-			// that view from the engine-computed model bounds: the old fixed camera
-			// made long rifles overflow, while a level camera showed pistols end-on.
-			const PreviewModelBounds *model =
-				reinterpret_cast<const PreviewModelBounds *>(players[i].model);
-			const float centerX = (model->mins[0] + model->maxs[0]) * 0.5f;
-			const float centerY = (model->mins[1] + model->maxs[1]) * 0.5f;
-			const float centerZ = (model->mins[2] + model->maxs[2]) * 0.5f;
-			// SetItemPreview receives a per-kind visual frame chosen for pistols,
-			// rifles, grenades and equipment. Raw MDL bounds include outliers on
-			// several w_* files and made those models illegibly small.
-			const float itemSize = m_worldWidth * 0.68f;
-			const float itemDist = std::max(DistanceForHeight(itemSize, rvp.fov_y),
-				DistanceForHeight(itemSize, rvp.fov_x));
-			const float pitch = 50.0f;
-			rvp.viewangles[0] = pitch;
-			rvp.vieworigin[0] = centerX - itemDist * std::cos(Deg2Rad(pitch));
-			rvp.vieworigin[1] = centerY;
-			rvp.vieworigin[2] = centerZ + itemDist * std::sin(Deg2Rad(pitch));
+			players[i].curstate.rendercolor.g = 196;
+			players[i].curstate.rendercolor.b = 48;
+			if (!m_logged)
+				Menu_Con("CSRETRO_BUY_ITEM path=%s yaw=%.0f width=%.1f dist=%.1f",
+					preview.path, preview.yaw, m_worldWidth, dist);
 		}
 		// Items stay non-player. Characters keep player=true so p_* weapons
 		// bone-merge. Buy's dark stage must not disable that.

@@ -64,12 +64,6 @@ BOOL CC4::Deploy()
 	m_bStartedArming = false;
 	m_fArmedTime = 0;
 
-	if (m_pPlayer->HasShield())
-	{
-		m_bHasShield = true;
-		m_pPlayer->pev->gamestate = HITGROUP_SHIELD_DISABLED;
-	}
-
 	return DefaultDeploy("models/v_c4.mdl", "models/p_c4.mdl", C4_DRAW, "c4", UseDecrement() != FALSE);
 }
 
@@ -94,12 +88,6 @@ void CC4::Holster(int skiplocal)
 #endif
 
 		DestroyItem();
-	}
-
-	if (m_bHasShield)
-	{
-		m_pPlayer->pev->gamestate = HITGROUP_SHIELD_ENABLED;
-		m_bHasShield = false;
 	}
 }
 

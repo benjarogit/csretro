@@ -58,7 +58,6 @@ void BuyState::OnEnter(CCSBot *me)
 	me->EquipBestWeapon();
 
 	m_buyDefuseKit = false;
-	m_buyShield = false;
 
 	if (me->m_iTeam == CT)
 	{
@@ -72,18 +71,6 @@ void BuyState::OnEnter(CCSBot *me)
 				{
 					m_buyDefuseKit = true;
 				}
-			}
-		}
-
-		// determine if we want a tactical shield
-		if (!me->m_bHasPrimary && TheCSBots()->AllowTacticalShield())
-		{
-			if (me->m_iAccount > 2500)
-			{
-				if (me->m_iAccount < 4000)
-					m_buyShield = (RANDOM_FLOAT(0, 100.0f) < 33.3f) ? true : false;
-				else
-					m_buyShield = (RANDOM_FLOAT(0, 100.0f) < 10.0f) ? true : false;
 			}
 		}
 	}
@@ -114,7 +101,6 @@ void BuyState::OnEnter(CCSBot *me)
 					&& !TheCSBots()->AllowSubMachineGuns()
 					&& !TheCSBots()->AllowRifles()
 					&& !TheCSBots()->AllowMachineGuns()
-					&& !TheCSBots()->AllowTacticalShield()
 					&& !TheCSBots()->AllowSnipers())
 				{
 					m_buyPistol = (RANDOM_FLOAT(0, 100) < 75.0f);
@@ -312,22 +298,15 @@ void BuyState::OnUpdate(CCSBot *me)
 				return;
 			}
 
-			if (me->HasShield() && weaponPreference == WEAPON_SHIELDGUN)
+			if (weaponPreference == WEAPON_SHIELDGUN)
 			{
-				// done with buying preferred weapon
-				m_prefIndex = 9999;
+				m_prefIndex++;
 				return;
 			}
 
-			const char *buyAlias = nullptr;
-			if (weaponPreference == WEAPON_SHIELDGUN)
+			const char *buyAlias = WeaponIDToAlias(weaponPreference);
+			if (buyAlias)
 			{
-				if (TheCSBots()->AllowTacticalShield())
-					buyAlias = "shield";
-			}
-			else
-			{
-				buyAlias = WeaponIDToAlias(weaponPreference);
 				WeaponType type = GetWeaponType(buyAlias);
 
 				switch (type)
@@ -378,15 +357,7 @@ void BuyState::OnUpdate(CCSBot *me)
 		// if we have no preferred primary weapon (or everything we want is disallowed), buy at random
 		if (!me->m_bHasPrimary && (isPreferredAllDisallowed || !me->GetProfile()->HasPrimaryPreference()))
 		{
-			if (m_buyShield)
-			{
-				// buy a shield
-				me->ClientCommand("shield");
-				me->PrintIfWatched("Tried to buy a shield.\n");
-			}
-			else
-			{
-				// build list of allowable weapons to buy
+			// build list of allowable weapons to buy
 				BuyInfo *masterPrimary = (me->m_iTeam == TERRORIST) ? primaryWeaponBuyInfoT : primaryWeaponBuyInfoCT;
 				BuyInfo *stockPrimary[MAX_BUY_WEAPON_PRIMARY];
 				int stockPrimaryCount = 0;
@@ -446,7 +417,6 @@ void BuyState::OnUpdate(CCSBot *me)
 					me->ClientCommand(stockPrimary[which]->buyAlias);
 					me->PrintIfWatched("Tried to buy %s.\n", stockPrimary[which]->buyAlias);
 				}
-			}
 		}
 
 		// If we now have a weapon, or have tried for too long, we're done

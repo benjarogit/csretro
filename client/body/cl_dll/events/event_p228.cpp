@@ -55,14 +55,11 @@ void EV_FireP228(event_args_s *args)
 		int seq;
 		if( !args->bparam1 )
 		{
-			if( g_bHoldingShield )
-				seq = Com_RandomLong(P228_SHIELD_SHOOT1, P228_SHIELD_SHOOT2);
-			else
-				seq = Com_RandomLong(P228_SHOOT1, P228_SHOOT3);
+			seq = Com_RandomLong(P228_SHOOT1, P228_SHOOT3);
 		}
 		else
 		{
-			seq = g_bHoldingShield ? (int)P228_SHIELD_SHOOT_EMPTY : (int)P228_SHOOT_EMPTY;
+			seq = P228_SHOOT_EMPTY;
 		}
 		gEngfuncs.pEventAPI->EV_WeaponAnimation(seq, 2);
 		if( !gHUD.cl_righthand->value )

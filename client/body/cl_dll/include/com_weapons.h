@@ -51,7 +51,6 @@ extern float g_lastFOV;
 extern int g_iWeaponFlags;
 extern bool g_bInBombZone;
 extern int g_iFreezeTimeOver;
-extern bool g_bHoldingShield;
 extern bool g_bHoldingKnife;
 extern int g_iPlayerFlags;
 extern float g_flPlayerSpeed;

@@ -182,6 +182,8 @@ run_one() {
 	rg -q 'CSRETRO_BUY_GATE_OPEN .*visible=1 main=1' "${ALL}" || fail "Buy-Gate-Audit fehlt ${W}x${H}"
 	rg -q 'CSRETRO_BUY_GATE_OPEN .*title=1 pistols=1 shotguns=1 rifles=1 cancel=1 raw=0' "${ALL}" \
 		|| fail "Localization der Buy-Hauptseite fehlt ${W}x${H}"
+	rg -q 'CSRETRO_BUY_GATE_OPEN .*shield=0' "${ALL}" \
+		|| fail "Tactical-Shield-Karte noch im Buy-Raster ${W}x${H}"
 	rg -q 'CSRETRO_BUY_CANVAS .*model=1' "${ALL}" \
 		|| fail "Player-MDL auf dieser Auflösung ausgeblendet ${W}x${H}"
 	rg -q 'CSRETRO_BUY_GATE_ESC visible=0' "${ALL}" \

@@ -1622,9 +1622,6 @@ void CHudAmmo::DrawCrosshair()
 	     || weaponid == WEAPON_G3SG1 )
 		return;
 
-	if ( g_iWeaponFlags & WPNSTATE_SHIELD_DRAWN )
-		return;
-
 	if ( weaponid <= 30 )
 	{
 		iDistance = Distances[weaponid - 1][0];

@@ -1023,18 +1023,9 @@ CBasePlayer *CCSBot::FindMostDangerousThreat()
 		}
 #endif
 
-		// otherwise, find the closest threat that without using shield
-		for (t = 0; t < threatCount; t++)
-		{
-			if (!threat[t].enemy->IsProtectedByShield())
-			{
-				return threat[t].enemy;
-			}
-		}
-	}
-
 	// return closest threat
 	return threat[0].enemy;
+	}
 }
 
 // Update our reaction time queue
@@ -1059,7 +1050,7 @@ void CCSBot::UpdateReactionQueue()
 	{
 		m_enemyQueue[now].player = threat;
 		m_enemyQueue[now].isReloading = threat->IsReloading();
-		m_enemyQueue[now].isProtectedByShield = threat->IsProtectedByShield();
+		m_enemyQueue[now].isProtectedByShield = false;
 	}
 	else
 	{

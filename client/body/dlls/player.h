@@ -390,18 +390,7 @@ public:
 	void LeaveVIPSafetyZone(void);
 	void InitStatusBar(void);
 	void UpdateStatusBar(void);
-	bool IsHittingShield(const Vector &vecDirection, TraceResult *ptr);
 	bool IsReloading(void);
-	bool IsThrowingGrenade(void);
-	void StopReload(void);
-	void DrawnShiled(void);
-	bool HasShield(void);
-	void UpdateShieldCrosshair(bool bShieldDrawn);
-	void DropShield(bool bDeploy);
-	void GiveShield(bool bRetire);
-	bool IsProtectedByShield(void);
-	void RemoveShield(void);
-	void UpdateLocation(bool bForceUpdate);
 	void ClientCommand(const char *arg0, const char *arg1 = NULL, const char *arg2 = NULL, const char *arg3 = NULL);
 	void ClearAutoBuyData(void);
 	void AddAutoBuyData(const char *string);
@@ -589,8 +578,6 @@ public:
 	int m_iAutoWepSwitch;
 	bool m_bVGUIMenus;
 	bool m_bShowHints;
-	bool m_bShieldDrawn;
-	bool m_bOwnsShield;
 	bool m_bWasFollowing;
 	float m_flNextFollowTime;
 	float m_flYawModifier;

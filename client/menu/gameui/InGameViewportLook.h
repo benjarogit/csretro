@@ -20,9 +20,9 @@ inline Color TextDim() { return Color(190, 190, 190, 255); }
 inline Color Terror() { return Color(210, 170, 70, 255); }
 inline Color CT() { return Color(90, 170, 230, 255); }
 inline Color BuyGold() { return Color(232, 196, 52, 255); }
-inline Color BuyCell() { return Color(38, 39, 42, 205); }
-inline Color BuyCellArmed() { return Color(54, 49, 27, 228); }
-inline Color BuyPlate() { return Color(18, 19, 21, 172); }
+inline Color BuyCell() { return Color(39, 41, 45, 218); }
+inline Color BuyCellArmed() { return Color(58, 53, 29, 238); }
+inline Color BuyPlate() { return Color(16, 17, 19, 196); }
 
 // In-game UI grows up to a comfortable 1440x810 workspace, then stays centered.
 // This is deliberately not a fixed 16:9 letterbox: 4:3 and ultrawide keep all
@@ -81,22 +81,56 @@ inline void StyleTitle(vgui2::Label *lab)
 	lab->SetPaintBackgroundEnabled(false);
 }
 
+// VGUI1's Xash surface does not implement textured polygons, so rounded UI
+// geometry is built from a center rectangle and a handful of horizontal edge
+// spans.  With a 4-8 px radius this stays cheaper than introducing bitmap
+// corners and scales cleanly at every viewport size.
+inline void PaintRoundedRect(int x0, int y0, int x1, int y1, int radius, Color color)
+{
+	if (!vgui2::surface() || x1 <= x0 || y1 <= y0)
+		return;
+	const int w = x1 - x0;
+	const int h = y1 - y0;
+	radius = std::max(0, std::min(radius, std::min(w, h) / 2));
+	vgui2::surface()->DrawSetColor(color);
+	if (radius == 0)
+	{
+		vgui2::surface()->DrawFilledRect(x0, y0, x1, y1);
+		return;
+	}
+	vgui2::surface()->DrawFilledRect(x0, y0 + radius, x1, y1 - radius);
+	vgui2::surface()->DrawFilledRect(x0 + radius, y0, x1 - radius, y1);
+	for (int row = 0; row < radius; ++row)
+	{
+		const float dy = static_cast<float>(radius - row) - 0.5f;
+		const int span = static_cast<int>(std::sqrt(
+			std::max(0.0f, static_cast<float>(radius * radius) - dy * dy)));
+		const int inset = std::max(0, radius - span);
+		vgui2::surface()->DrawFilledRect(x0 + inset, y0 + row, x1 - inset, y0 + row + 1);
+		vgui2::surface()->DrawFilledRect(x0 + inset, y1 - row - 1, x1 - inset, y1 - row);
+	}
+}
+
+inline void PaintBuyPlate(int w, int h)
+{
+	PaintRoundedRect(0, 0, w, h, std::min(8, h / 8), BuyPlate());
+}
+
+inline void PaintBuyHeader(int w, int h)
+{
+	PaintRoundedRect(0, 0, w, h, std::min(4, h / 5), Color(31, 33, 36, 218));
+}
+
 inline void PaintBuyCell(int w, int h, bool armed)
 {
 	if (!vgui2::surface() || w < 2 || h < 2)
 		return;
-	vgui2::surface()->DrawSetColor(armed ? BuyCellArmed() : BuyCell());
-	vgui2::surface()->DrawFilledRect(0, 0, w, h);
-	if (armed)
-	{
-		vgui2::surface()->DrawSetColor(BuyGold().r(), BuyGold().g(), BuyGold().b(), 220);
-		vgui2::surface()->DrawOutlinedRect(0, 0, w, h);
-	}
-	else
-	{
-		vgui2::surface()->DrawSetColor(255, 255, 255, 26);
-		vgui2::surface()->DrawOutlinedRect(0, 0, w, h);
-	}
+	const int radius = std::max(3, std::min(5, h / 9));
+	const Color edge = armed ? Color(BuyGold().r(), BuyGold().g(), BuyGold().b(), 235) :
+		Color(116, 120, 126, 86);
+	PaintRoundedRect(0, 0, w, h, radius, edge);
+	PaintRoundedRect(1, 1, w - 1, h - 1, std::max(2, radius - 1),
+		armed ? BuyCellArmed() : BuyCell());
 }
 
 inline void PaintCardBackground(int w, int h, Color accent, bool armed)
@@ -151,32 +185,69 @@ inline void TeamModelViewport(int sideW, int sideH, int &x, int &y, int &w, int 
 	h = std::max(64, sideH - y);
 }
 
+inline bool PointInTriangle(float px, float py,
+	float ax, float ay, float bx, float by, float cx, float cy)
+{
+	const float d0 = (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+	const float d1 = (cx - bx) * (py - by) - (cy - by) * (px - bx);
+	const float d2 = (ax - cx) * (py - cy) - (ay - cy) * (px - cx);
+	const bool hasNeg = (d0 < 0.0f) || (d1 < 0.0f) || (d2 < 0.0f);
+	const bool hasPos = (d0 > 0.0f) || (d1 > 0.0f) || (d2 > 0.0f);
+	return !(hasNeg && hasPos);
+}
+
 inline void DrawFilledTriangle(int x0, int y0, int x1, int y1, int x2, int y2, Color color)
 {
 	auto *surf = vgui2::surface();
 	if (!surf)
 		return;
+	const int minX = std::min(x0, std::min(x1, x2));
+	const int maxX = std::max(x0, std::max(x1, x2));
 	const int minY = std::min(y0, std::min(y1, y2));
 	const int maxY = std::max(y0, std::max(y1, y2));
-	surf->DrawSetColor(color);
+	const float ax = static_cast<float>(x0);
+	const float ay = static_cast<float>(y0);
+	const float bx = static_cast<float>(x1);
+	const float by = static_cast<float>(y1);
+	const float cx = static_cast<float>(x2);
+	const float cy = static_cast<float>(y2);
 	for (int y = minY; y <= maxY; ++y)
 	{
-		int hits[3] = {};
-		int count = 0;
-		auto hit = [&](int ax, int ay, int bx, int by) {
-			if (ay == by || y < std::min(ay, by) || y > std::max(ay, by) || count >= 3)
+		int runStart = -1;
+		int runCover = -1;
+		auto flush = [&](int xEnd) {
+			if (runStart < 0)
 				return;
-			hits[count++] = ax + (bx - ax) * (y - ay) / (by - ay);
+			surf->DrawSetColor(color.r(), color.g(), color.b(), (color.a() * runCover + 2) / 4);
+			surf->DrawFilledRect(runStart, y, xEnd, y + 1);
+			runStart = -1;
+			runCover = -1;
 		};
-		hit(x0, y0, x1, y1);
-		hit(x1, y1, x2, y2);
-		hit(x2, y2, x0, y0);
-		if (count >= 2)
+		for (int x = minX; x <= maxX; ++x)
 		{
-			if (hits[0] > hits[1])
-				std::swap(hits[0], hits[1]);
-			surf->DrawFilledRect(hits[0], y, hits[1] + 1, y + 1);
+			int cover = 0;
+			for (int sy = 0; sy < 2; ++sy)
+			{
+				for (int sx = 0; sx < 2; ++sx)
+				{
+					if (PointInTriangle(static_cast<float>(x) + (static_cast<float>(sx) + 0.5f) * 0.5f,
+						static_cast<float>(y) + (static_cast<float>(sy) + 0.5f) * 0.5f,
+						ax, ay, bx, by, cx, cy))
+						++cover;
+				}
+			}
+			if (cover == 0)
+			{
+				flush(x);
+				continue;
+			}
+			if (runStart >= 0 && cover == runCover)
+				continue;
+			flush(x);
+			runStart = x;
+			runCover = cover;
 		}
+		flush(maxX + 1);
 	}
 }
 

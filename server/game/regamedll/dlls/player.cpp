@@ -200,7 +200,6 @@ const char *GetCSModelName(int item_id)
 	case WEAPON_AK47:         modelName = "models/w_ak47.mdl"; break;
 	case WEAPON_KNIFE:        modelName = "models/w_knife.mdl"; break;
 	case WEAPON_P90:          modelName = "models/w_p90.mdl"; break;
-	case WEAPON_SHIELDGUN:    modelName = "models/w_shield.mdl"; break;
 	default:
 		ALERT(at_console, "CBasePlayer::PackDeadPlayerItems(): Unhandled item- not creating weaponbox\n");
 	}
@@ -651,27 +650,12 @@ Vector CBasePlayer::GetGunPosition()
 	return pev->origin + pev->view_ofs;
 }
 
-bool CBasePlayer::IsHittingShield(Vector &vecDirection, TraceResult *ptr)
-{
-	if ((m_pActiveItem && m_pActiveItem->m_iId == WEAPON_C4) || !HasShield())
-		return false;
-
-	if (ptr->iHitgroup == HITGROUP_SHIELD)
-		return true;
-
-	if (m_bShieldDrawn)
-		UTIL_MakeVectors(pev->angles);
-
-	return false;
-}
-
 LINK_HOOK_CLASS_VOID_CHAIN(CBasePlayer, TraceAttack, (entvars_t *pevAttacker, float flDamage, Vector vecDir, TraceResult *ptr, int bitsDamageType), pevAttacker, flDamage, vecDir, ptr, bitsDamageType)
 
 void EXT_FUNC CBasePlayer::__API_HOOK(TraceAttack)(entvars_t *pevAttacker, float flDamage, VectorRef vecDir, TraceResult *ptr, int bitsDamageType)
 {
 	bool bShouldBleed = true;
 	bool bShouldSpark = false;
-	bool bHitShield = IsHittingShield(vecDir, ptr);
 
 	CBasePlayer *pAttacker = CBasePlayer::Instance(pevAttacker);
 
@@ -696,28 +680,10 @@ void EXT_FUNC CBasePlayer::__API_HOOK(TraceAttack)(entvars_t *pevAttacker, float
 
 	m_LastHitGroup = ptr->iHitgroup;
 
-	if (bHitShield)
+	switch (ptr->iHitgroup)
 	{
-#ifndef REGAMEDLL_FIXES
-		// BUGBUG: zeroing out damage BEFORE altering victim's punchangle
-		// will simply nullify any previous punchangles
-		flDamage = 0;
-#endif
-
-		bShouldBleed = false;
-		HitShield(flDamage, ptr);
-
-#ifdef REGAMEDLL_FIXES
-		// reset damage after messing with victim's punchangle
-		flDamage = 0;
-#endif
-	}
-	else
-	{
-		switch (ptr->iHitgroup)
-		{
-		case HITGROUP_GENERIC:
-			break;
+	case HITGROUP_GENERIC:
+		break;
 
 		case HITGROUP_HEAD:
 		{
@@ -790,7 +756,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(TraceAttack)(entvars_t *pevAttacker, float
 		{
 			flDamage *= 0.75;
 			break;
-		}
 		}
 	}
 
@@ -912,7 +877,6 @@ BOOL EXT_FUNC CBasePlayer::__API_HOOK(TakeDamage)(entvars_t *pevInflictor, entva
 	float flRatio = ARMOR_RATIO;
 	float flBonus = ARMOR_BONUS;
 	int iGunType = 0;
-	float flShieldRatio = 0;
 	BOOL bTeamAttack = FALSE;
 	int armorHit = 0;
 	CBasePlayer *pAttack = nullptr;
@@ -929,12 +893,6 @@ BOOL EXT_FUNC CBasePlayer::__API_HOOK(TakeDamage)(entvars_t *pevInflictor, entva
 
 	if (bitsDamageType & (DMG_EXPLOSION | DMG_BLAST | DMG_FALL))
 		m_LastHitGroup = HITGROUP_GENERIC;
-
-	else if (m_LastHitGroup == HITGROUP_SHIELD && (bitsDamageType & DMG_BULLET))
-		return FALSE;
-
-	if (HasShield())
-		flShieldRatio = 0.2;
 
 	if (m_bIsVIP)
 		flRatio *= 0.5;
@@ -1053,7 +1011,7 @@ BOOL EXT_FUNC CBasePlayer::__API_HOOK(TakeDamage)(entvars_t *pevInflictor, entva
 				CBasePlayer *pPlayerAttacker = CBasePlayer::Instance(pevAttacker);
 				if (pPlayerAttacker && !pPlayerAttacker->IsBot() && pPlayerAttacker->m_iTeam != m_iTeam)
 				{
-					TheCareerTasks->HandleEnemyInjury(GetKillerWeaponName(pevInflictor, pevAttacker), pPlayerAttacker->HasShield(), pPlayerAttacker);
+					TheCareerTasks->HandleEnemyInjury(GetKillerWeaponName(pevInflictor, pevAttacker), false, pPlayerAttacker);
 				}
 			}
 
@@ -1185,7 +1143,6 @@ BOOL EXT_FUNC CBasePlayer::__API_HOOK(TakeDamage)(entvars_t *pevInflictor, entva
 		if (pAttack->m_pActiveItem)
 		{
 			iGunType = pAttack->m_pActiveItem->m_iId;
-			flRatio += flShieldRatio;
 
 			switch (iGunType)
 			{
@@ -1311,7 +1268,7 @@ BOOL EXT_FUNC CBasePlayer::__API_HOOK(TakeDamage)(entvars_t *pevInflictor, entva
 			CBasePlayer *pPlayerAttacker = CBasePlayer::Instance(pevAttacker);
 			if (pPlayerAttacker && !pPlayerAttacker->IsBot() && pPlayerAttacker->m_iTeam != m_iTeam)
 			{
-				TheCareerTasks->HandleEnemyInjury(GetKillerWeaponName(pevInflictor, pevAttacker), pPlayerAttacker->HasShield(), pPlayerAttacker);
+					TheCareerTasks->HandleEnemyInjury(GetKillerWeaponName(pevInflictor, pevAttacker), false, pPlayerAttacker);
 			}
 		}
 
@@ -1529,16 +1486,6 @@ void CBasePlayer::PackDeadPlayerItems()
 	if (iPackGun != GR_PLR_DROP_GUN_NO)
 	{
 		bool bSkipPrimSec = false;
-		if (HasShield())
-		{
-			DropShield();
-#ifdef REGAMEDLL_ADD
-			if (iPackGun != GR_PLR_DROP_GUN_ALL)
-#endif
-			{
-				bSkipPrimSec = true;
-			}
-		}
 
 		int nBestWeight = 0;
 		CBasePlayerItem *pBestItem = nullptr;
@@ -1857,8 +1804,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(RemoveAllItems)(BOOL removeSuit)
 		SetBombIcon(FALSE);
 		SetProgressBarTime(0);
 	}
-
-	RemoveShield();
 
 	if (m_pActiveItem)
 	{
@@ -2263,9 +2208,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(Killed)(entvars_t *pevAttacker, int iGib)
 
 				if (pAttacker /*safety*/ && !pAttacker->IsBot() && pAttacker->m_iTeam != m_iTeam)
 				{
-					if (pAttacker->HasShield())
-						killerHasShield = true;
-
 					if (IsBot() && IsBlind()) // dystopm: shouldn't be !IsBot() ?
 						wasBlind = true;
 
@@ -2279,9 +2221,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(Killed)(entvars_t *pevAttacker, int iGib)
 		if (!m_bKilledByBomb)
 		{
 			CBasePlayer *pAttacker = CBasePlayer::Instance(pevAttacker);
-
-			if (pAttacker->HasShield())
-				killerHasShield = true;
 
 			if (IsBot() && IsBlind())
 			{
@@ -2408,9 +2347,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(Killed)(entvars_t *pevAttacker, int iGib)
 	pev->deadflag = DEAD_DYING;
 	pev->movetype = MOVETYPE_TOSS;
 	pev->takedamage = DAMAGE_NO;
-
-	pev->gamestate = HITGROUP_SHIELD_DISABLED;
-	m_bShieldDrawn = false;
 
 	pev->flags &= ~FL_ONGROUND;
 
@@ -2659,9 +2595,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(SetAnimation)(PLAYER_ANIM playerAnim)
 	int leapSeq;
 
 	if (!pev->modelindex)
-		return;
-
-	if ((playerAnim == PLAYER_FLINCH || playerAnim == PLAYER_LARGE_FLINCH) && HasShield())
 		return;
 
 	if (playerAnim != PLAYER_FLINCH && playerAnim != PLAYER_LARGE_FLINCH && m_flFlinchTime > gpGlobals->time && pev->health > 0.0f)
@@ -2933,12 +2866,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(SetAnimation)(PLAYER_ANIM playerAnim)
 		{
 			m_Activity = m_IdealActivity;
 
-#ifndef REGAMEDLL_FIXES
-			// TODO: why? this condition was checked!
-			if ((playerAnim == PLAYER_FLINCH || playerAnim == PLAYER_LARGE_FLINCH) && HasShield())
-				return;
-#endif
-
 			switch (m_LastHitGroup)
 			{
 				case HITGROUP_GENERIC:
@@ -2952,9 +2879,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(SetAnimation)(PLAYER_ANIM playerAnim)
 				case HITGROUP_HEAD:
 				case HITGROUP_CHEST:
 					animDesired = LookupSequence("head_flinch");
-					break;
-				case HITGROUP_SHIELD:
-					animDesired = 0;
 					break;
 				default:
 					animDesired = LookupSequence("gut_flinch");
@@ -3328,183 +3252,39 @@ LINK_ENTITY_TO_CLASS(weapon_shield, CWShield, CCSShield)
 
 void CWShield::Spawn()
 {
-	pev->movetype = MOVETYPE_TOSS;
-	pev->solid = SOLID_TRIGGER;
-
-	UTIL_SetSize(pev, g_vecZero, g_vecZero);
-	SET_MODEL(ENT(pev), "models/w_shield.mdl");
+	// Maps may still contain weapon_shield. Ignore it without crashing.
+	pev->solid = SOLID_NOT;
+	pev->effects |= EF_NODRAW;
+	UTIL_Remove(this);
 }
 
 void CWShield::Touch(CBaseEntity *pOther)
 {
-	if (!pOther->IsPlayer())
-		return;
-
-	CBasePlayer *pPlayer = (CBasePlayer *)pOther;
-
-	if (pPlayer->pev->deadflag != DEAD_NO)
-		return;
-
-	if (m_hEntToIgnoreTouchesFrom && m_hEntToIgnoreTouchesFrom == pPlayer)
-	{
-		if (m_flTimeToIgnoreTouches > gpGlobals->time)
-			return;
-
-		m_hEntToIgnoreTouchesFrom = nullptr;
-	}
-
-	if (!pPlayer->m_bHasPrimary)
-	{
-		if (pPlayer->m_rgpPlayerItems[PISTOL_SLOT] && pPlayer->m_rgpPlayerItems[PISTOL_SLOT]->m_iId == WEAPON_ELITE)
-			return;
-
-		if (pPlayer->m_pActiveItem)
-		{
-			if (!pPlayer->m_pActiveItem->CanHolster())
-				return;
-		}
-
-		if (!pPlayer->m_bIsVIP)
-		{
-#ifdef REGAMEDLL_ADD
-			if (pPlayer->HasRestrictItem(ITEM_SHIELDGUN, ITEM_TYPE_TOUCHED))
-				return;
-#endif
-			pPlayer->GiveShield();
-
-			EMIT_SOUND(edict(), CHAN_ITEM, "items/gunpickup2.wav", VOL_NORM, ATTN_NORM);
-			UTIL_Remove(this);
-
-			pev->nextthink = gpGlobals->time + 0.1;
-		}
-	}
+	(void)pOther;
+	UTIL_Remove(this);
 }
 
 LINK_HOOK_CLASS_VOID_CHAIN(CBasePlayer, GiveShield, (bool bDeploy), bDeploy)
 
 void EXT_FUNC CBasePlayer::__API_HOOK(GiveShield)(bool bDeploy)
 {
-	m_bOwnsShield = true;
-	m_bHasPrimary = true;
-
-#ifdef REGAMEDLL_FIXES
-	pev->gamestate = HITGROUP_SHIELD_ENABLED;
-#endif
-
-	if (m_pActiveItem)
-	{
-		CBasePlayerWeapon *pWeapon = static_cast<CBasePlayerWeapon *>(m_pActiveItem);
-
-		if (bDeploy)
-		{
-			if (m_rgAmmo[pWeapon->m_iPrimaryAmmoType] > 0)
-				pWeapon->Holster();
-
-			if (!pWeapon->Deploy())
-				pWeapon->RetireWeapon();
-		}
-	}
-
-#ifdef REGAMEDLL_FIXES
-	MESSAGE_BEGIN(MSG_ONE, gmsgWeaponList, nullptr, pev);
-		WRITE_STRING("weapon_shieldgun");
-		WRITE_BYTE(-1); // PrimaryAmmoID
-		WRITE_BYTE(-1); // PrimaryAmmoMaxAmount
-		WRITE_BYTE(-1); // SecondaryAmmoID
-		WRITE_BYTE(-1); // SecondaryAmmoMaxAmount
-		WRITE_BYTE(0); // SlotID (0...N)
-		WRITE_BYTE(0); // NumberInSlot (1...N)
-		WRITE_BYTE(0); // WeaponID
-		WRITE_BYTE(0); // Flags
-	MESSAGE_END();
-
-	MESSAGE_BEGIN(MSG_ONE, gmsgWeapPickup, nullptr, pev);
-		WRITE_BYTE(0); // WeaponID
-	MESSAGE_END();
-#else
-	// NOTE: Moved above, because CC4::Deploy can reset hitbox of shield
-	pev->gamestate = HITGROUP_SHIELD_ENABLED;
-#endif
+	// Deprecated ReGame-API vtable slot. Do not remove while binary ReGame API
+	// compatibility is supported. Tactical Shield is not implemented.
+	(void)bDeploy;
 }
 
 void CBasePlayer::RemoveShield()
 {
-	if (HasShield())
-	{
-		m_bOwnsShield = false;
-#ifdef REGAMEDLL_FIXES
-		if (!m_rgpPlayerItems[PRIMARY_WEAPON_SLOT]) // prevent potential mod bugs
-#endif
-		{
-			m_bHasPrimary = false;
-		}
-		m_bShieldDrawn = false;
-		pev->gamestate = HITGROUP_SHIELD_DISABLED;
-
-		UpdateShieldCrosshair(true);
-	}
+	// Deprecated ReGame-API vtable slot. Do not remove while binary ReGame API
+	// compatibility is supported. Tactical Shield is not implemented.
 }
 
 LINK_HOOK_CLASS_CHAIN(CBaseEntity *, CBasePlayer, DropShield, (bool bDeploy), bDeploy)
 
 CBaseEntity *EXT_FUNC CBasePlayer::__API_HOOK(DropShield)(bool bDeploy)
 {
-	if (!HasShield())
-		return nullptr;
-
-	if (m_pActiveItem && !m_pActiveItem->CanHolster())
-		return nullptr;
-
-	CBasePlayerWeapon *pWeapon = static_cast<CBasePlayerWeapon *>(m_pActiveItem);
-
-	if (pWeapon)
-	{
-		if (pWeapon->m_iId == WEAPON_HEGRENADE || pWeapon->m_iId == WEAPON_FLASHBANG || pWeapon->m_iId == WEAPON_SMOKEGRENADE)
-		{
-			if (m_rgAmmo[pWeapon->m_iPrimaryAmmoType] <= 0)
-				g_pGameRules->GetNextBestWeapon(this, pWeapon);
-		}
-	}
-
-	if (m_pActiveItem)
-	{
-		if (m_pActiveItem->m_flStartThrow != 0.0f)
-			m_pActiveItem->Holster();
-	}
-
-	if (IsReloading())
-	{
-		pWeapon->m_fInReload = FALSE;
-		m_flNextAttack = 0;
-	}
-
-	if (m_pActiveItem && IsProtectedByShield())
-		((CBasePlayerWeapon *)m_pActiveItem)->SecondaryAttack();
-
-	m_bShieldDrawn = false;
-
-	RemoveShield();
-
-	if (m_pActiveItem && bDeploy)
-		m_pActiveItem->Deploy();
-
-	UTIL_MakeVectors(pev->angles);
-
-	CWShield *pShield = (CWShield *)CBaseEntity::Create("weapon_shield", pev->origin + gpGlobals->v_forward * 10, pev->angles, edict());
-
-	pShield->pev->angles.x = 0;
-	pShield->pev->angles.z = 0;
-	pShield->pev->velocity = gpGlobals->v_forward * 400;
-	pShield->SetThink(&CBaseEntity::SUB_Remove);
-	pShield->pev->nextthink = gpGlobals->time + CGameRules::GetItemKillDelay();
-	pShield->SetCantBePickedUpByUser(this, 2.0);
-
-	return pShield;
-}
-
-bool CBasePlayer::HasShield()
-{
-	return m_bOwnsShield;
+	(void)bDeploy;
+	return nullptr;
 }
 
 NOXREF void CBasePlayer::ThrowPrimary()
@@ -3523,8 +3303,6 @@ NOXREF void CBasePlayer::ThrowPrimary()
 	ThrowWeapon("weapon_scout");
 	ThrowWeapon("weapon_galil");
 	ThrowWeapon("weapon_famas");
-
-	DropShield();
 }
 
 LINK_HOOK_CLASS_CHAIN(CGrenade *, CBasePlayer, ThrowGrenade, (CBasePlayerWeapon *pWeapon, Vector vecSrc, Vector vecThrow, float time, unsigned short usEvent), pWeapon, vecSrc, vecThrow, time, usEvent)
@@ -5826,11 +5604,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(Spawn)()
 	m_iClientFOV = 0;
 	m_pentCurBombTarget = nullptr;
 
-	if (m_bOwnsShield)
-		pev->gamestate = HITGROUP_SHIELD_ENABLED;
-	else
-		pev->gamestate = HITGROUP_SHIELD_DISABLED;
-
 	ResetStamina();
 	pev->friction = 1;
 	pev->gravity = 1;
@@ -5878,7 +5651,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(Spawn)()
 	m_flLastFired = -15;
 	m_bHeadshotKilled = false;
 	m_bReceivesNoMoneyNextRound = false;
-	m_bShieldDrawn = false;
 
 	m_blindUntilTime = 0;
 	m_blindStartTime = 0;
@@ -6265,12 +6037,7 @@ void CBasePlayer::Reset()
 
 	m_bNotKilled = false;
 
-#ifdef REGAMEDLL_FIXES
-	// RemoveShield() included
 	RemoveAllItems(TRUE);
-#else
-	RemoveShield();
-#endif
 
 	CheckStartMoney();
 	AddAccount(startmoney.value, RT_PLAYER_RESET);
@@ -6332,17 +6099,8 @@ NOXREF void CBasePlayer::SelectNextItem(int iItem)
 		m_pActiveItem->Holster();
 	}
 
-	if (HasShield())
-	{
-		CBasePlayerWeapon *pWeapon = (CBasePlayerWeapon *)m_pActiveItem;
-		pWeapon->m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
-		m_bShieldDrawn = false;
-	}
-
 	m_pLastItem = m_pActiveItem;
 	m_pActiveItem = pItem;
-
-	UpdateShieldCrosshair(true);
 
 	m_pActiveItem->Deploy();
 	m_pActiveItem->UpdateItemInfo();
@@ -6381,12 +6139,6 @@ void CBasePlayer::SelectItem(const char *pstr)
 
 	m_pLastItem = m_pActiveItem;
 	m_pActiveItem = pItem;
-
-	CBasePlayerWeapon *pWeapon = (CBasePlayerWeapon *)m_pActiveItem;
-	pWeapon->m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
-
-	m_bShieldDrawn = false;
-	UpdateShieldCrosshair(true);
 
 	m_pActiveItem->Deploy();
 	m_pActiveItem->UpdateItemInfo();
@@ -6427,21 +6179,10 @@ void CBasePlayer::SelectLastItem()
 		m_pActiveItem->Holster();
 	}
 
-	if (HasShield())
-	{
-		CBasePlayerWeapon *pWeapon = static_cast<CBasePlayerWeapon *>(m_pActiveItem);
-		if (pWeapon)
-			pWeapon->m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
-
-		m_bShieldDrawn = false;
-	}
-
 	SWAP(m_pActiveItem, m_pLastItem);
 
 	m_pActiveItem->Deploy();
 	m_pActiveItem->UpdateItemInfo();
-
-	UpdateShieldCrosshair(true);
 
 	ResetMaxSpeed();
 }
@@ -7284,17 +7025,8 @@ BOOL EXT_FUNC CBasePlayer::__API_HOOK(AddPlayerItem)(CBasePlayerItem *pItem)
 		pItem->m_pNext = m_rgpPlayerItems[pItem->iItemSlot()];
 		m_rgpPlayerItems[pItem->iItemSlot()] = pItem;
 
-		if (HasShield())
-			pev->gamestate = HITGROUP_SHIELD_ENABLED;
-
-		// should we switch to this item?
 		if (g_pGameRules->FShouldSwitchWeapon(this, pItem))
-		{
-			if (!m_bShieldDrawn)
-			{
-				SwitchWeapon(pItem);
-			}
-		}
+			SwitchWeapon(pItem);
 #ifdef REGAMEDLL_FIXES
 		m_iHideHUD &= ~HIDEHUD_WEAPONS;
 #endif
@@ -7428,15 +7160,6 @@ void CBasePlayer::ItemPostFrame()
 	// check if the player is using a tank
 	if (m_pTank)
 		return;
-
-	if (m_pActiveItem)
-	{
-		if (HasShield() && IsReloading())
-		{
-			if (pev->button & IN_ATTACK2)
-				m_flNextAttack = 0;
-		}
-	}
 
 #ifdef CLIENT_WEAPONS
 	if (m_flNextAttack > 0)
@@ -8433,11 +8156,6 @@ CBaseEntity *EXT_FUNC CBasePlayer::__API_HOOK(DropPlayerItem)(const char *pszIte
 		ClientPrint(pev, HUD_PRINTCENTER, "#Weapon_Cannot_Be_Dropped");
 		return nullptr;
 	}
-	else if (!pszItemName && HasShield())
-	{
-		DropShield();
-		return nullptr;
-	}
 
 #ifndef REGAMEDLL_FIXES
 	CBasePlayerItem *pWeapon = nullptr;
@@ -8558,7 +8276,7 @@ CBaseEntity *EXT_FUNC CBasePlayer::__API_HOOK(DropPlayerItem)(const char *pszIte
 		}
 
 #ifdef REGAMEDLL_FIXES
-		if (!m_rgpPlayerItems[PRIMARY_WEAPON_SLOT] && !HasShield()) {
+		if (!m_rgpPlayerItems[PRIMARY_WEAPON_SLOT]) {
 			m_bHasPrimary = false; // ensure value assignation on successful weapon removal
 		}
 #endif
@@ -8785,14 +8503,6 @@ void CBasePlayer::__API_HOOK(SwitchTeam)()
 #endif
 }
 
-void CBasePlayer::UpdateShieldCrosshair(bool draw)
-{
-	if (draw)
-		m_iHideHUD &= ~HIDEHUD_CROSSHAIR;
-	else
-		m_iHideHUD |= HIDEHUD_CROSSHAIR;
-}
-
 BOOL CBasePlayer::SwitchWeapon(CBasePlayerItem *pWeapon)
 {
 	if (!pWeapon->CanDeploy())
@@ -8816,11 +8526,6 @@ BOOL CBasePlayer::SwitchWeapon(CBasePlayerItem *pWeapon)
 	if (pWeapon->m_pPlayer)
 	{
 		pWeapon->m_pPlayer->ResetMaxSpeed();
-	}
-
-	if (HasShield())
-	{
-		UpdateShieldCrosshair(true);
 	}
 
 	return TRUE;
@@ -8966,7 +8671,6 @@ void CStripWeapons::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE 
 					pPlayer->CSPlayer()->RemovePlayerItem("item_assaultsuit");
 					pPlayer->CSPlayer()->RemovePlayerItem("item_kevlar");
 					pPlayer->CSPlayer()->RemovePlayerItem("item_thighpack");
-					pPlayer->CSPlayer()->RemovePlayerItem("weapon_shield");
 				}
 				else
 				{
@@ -9484,7 +9188,7 @@ bool CBasePlayer::CanAffordGrenade()
 bool CBasePlayer::NeedsPrimaryAmmo()
 {
 	CBasePlayerWeapon *pPrimary = static_cast<CBasePlayerWeapon *>(m_rgpPlayerItems[PRIMARY_WEAPON_SLOT]);
-	if (!pPrimary || pPrimary->m_iId == WEAPON_SHIELDGUN) {
+	if (!pPrimary) {
 		return false;
 	}
 
@@ -9554,7 +9258,7 @@ const char *GetBuyStringForWeaponClass(int weaponClass)
 	switch (weaponClass)
 	{
 	case WEAPONCLASS_PISTOL:
-		return "deagle elites fn57 usp glock p228 shield";
+		return "deagle elites fn57 usp glock p228";
 	case WEAPONCLASS_SNIPERRIFLE:
 		return "awp sg550 g3sg1 scout";
 	case WEAPONCLASS_GRENADE:
@@ -10109,11 +9813,6 @@ void CBasePlayer::PostAutoBuyCommandProcessing(AutoBuyInfoStruct *commandInfo, b
 		// I just bought the gun I was trying to buy.
 		boughtPrimary = true;
 	}
-	else if (!pPrimary && ((commandInfo->m_class & AUTOBUYCLASS_SHIELD) == AUTOBUYCLASS_SHIELD) && HasShield())
-	{
-		// the shield is a primary weapon even though it isn't a "real" weapon.
-		boughtPrimary = true;
-	}
 	else if (pSecondary && FClassnameIs(pSecondary->pev, commandInfo->m_classname))
 	{
 		// I just bought the pistol I was trying to buy.
@@ -10135,17 +9834,8 @@ void CBasePlayer::BuildRebuyStruct()
 	// do the primary weapon/ammo stuff.
 	if (!pPrimary)
 	{
-		// count a shieldgun as a primary.
-		if (HasShield())
-		{
-			m_rebuyStruct.m_primaryWeapon = WEAPON_SHIELDGUN;
-			m_rebuyStruct.m_primaryAmmo = 0;			// shields don't have ammo.
-		}
-		else
-		{
-			m_rebuyStruct.m_primaryWeapon = 0;	// if we don't have a shield and we don't have a primary weapon, we got nuthin.
-			m_rebuyStruct.m_primaryAmmo = 0;	// can't have ammo if we don't have a gun right?
-		}
+		m_rebuyStruct.m_primaryWeapon = 0;
+		m_rebuyStruct.m_primaryAmmo = 0;
 	}
 	else
 	{
@@ -10495,15 +10185,6 @@ bool EXT_FUNC CBasePlayer::__API_HOOK(HasRestrictItem)(ItemID item, ItemRestType
 
 void CBasePlayer::DropSecondary()
 {
-	if (HasShield())
-	{
-		if (IsProtectedByShield() && m_pActiveItem) {
-			((CBasePlayerWeapon *)m_pActiveItem)->SecondaryAttack();
-		}
-
-		m_bShieldDrawn = false;
-	}
-
 #ifdef REGAMEDLL_ADD
 	ForEachItem(PISTOL_SLOT, [this](CBasePlayerItem *item) {
 		DropPlayerItem(STRING(item->pev->classname));
@@ -10521,11 +10202,6 @@ void CBasePlayer::DropSecondary()
 
 void CBasePlayer::DropPrimary()
 {
-	if (HasShield()) {
-		DropShield();
-		return;
-	}
-
 #ifdef REGAMEDLL_ADD
 	ForEachItem(PRIMARY_WEAPON_SLOT, [this](CBasePlayerItem *item) {
 		DropPlayerItem(STRING(item->pev->classname));

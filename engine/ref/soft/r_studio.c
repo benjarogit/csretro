@@ -993,7 +993,8 @@ static void R_StudioSetupBones( cl_entity_t *e )
 	pbones = (mstudiobone_t *)((byte *)m_pStudioHeader + m_pStudioHeader->boneindex );
 
 	// calc gait animation
-	if( m_pPlayerInfo && m_pPlayerInfo->gaitsequence != 0 )
+	if( m_pPlayerInfo && m_pPlayerInfo->gaitsequence != 0
+		&& !FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
 	{
 		qboolean copy_bones = true;
 
@@ -1614,6 +1615,12 @@ static void R_StudioSetupSkin( studiohdr_t *ptexturehdr, int index )
 {
 	mstudiotexture_t *ptexture = NULL;
 
+	if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
+	{
+		GL_Bind( XASH_TEXTURE0, tr.whiteTexture );
+		return;
+	}
+
 	if( FBitSet( g_nForceFaceFlags, STUDIO_NF_CHROME ))
 	{
 		GL_Bind( XASH_TEXTURE0, tr.whiteTexture );
@@ -1927,6 +1934,8 @@ static void R_StudioDrawPoints( void )
 	for( j = k = 0; j < m_pSubModel->nummesh; j++ )
 	{
 		g_nFaceFlags = ptexture[pskinref[pmesh[j].skinref]].flags | g_nForceFaceFlags;
+		if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
+			g_nFaceFlags &= ~( STUDIO_NF_CHROME | STUDIO_NF_ADDITIVE | STUDIO_NF_MASKED );
 
 		// fill in sortedmesh info
 		g_studio.meshes[j].flags = g_nFaceFlags;
@@ -1979,6 +1988,8 @@ static void R_StudioDrawPoints( void )
 		ptricmds = (short *)((byte *)m_pStudioHeader + pmesh->triindex );
 
 		g_nFaceFlags = ptexture[pskinref[pmesh->skinref]].flags | g_nForceFaceFlags;
+		if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
+			g_nFaceFlags &= ~( STUDIO_NF_CHROME | STUDIO_NF_ADDITIVE | STUDIO_NF_MASKED );
 
 		s = 1.0f / (float)ptexture[pskinref[pmesh->skinref]].width;
 		t = 1.0f / (float)ptexture[pskinref[pmesh->skinref]].height;
@@ -2179,6 +2190,9 @@ int R_GetEntityRenderMode( cl_entity_t *ent )
 	cl_entity_t      *oldent;
 	model_t          *model = NULL;
 	studiohdr_t      *phdr;
+
+	if( FBitSet( ent->curstate.effects, EF_CSRETRO_ITEM ))
+		return ent->curstate.rendermode;
 
 	oldent = RI.currententity;
 	RI.currententity = ent;
@@ -2655,7 +2669,7 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 
 	R_StudioSetHeader((studiohdr_t *)gEngfuncs.Mod_Extradata( mod_studio, RI.currentmodel ));
 
-	if( pplayer->gaitsequence )
+	if( pplayer->gaitsequence && !FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
 	{
 		m_pPlayerInfo = pfnPlayerInfo( m_nPlayerIndex );
 		vec3_t orig_angles = Vec3( RI.currententity->angles );
@@ -2681,6 +2695,7 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 
 		m_pPlayerInfo = pfnPlayerInfo( m_nPlayerIndex );
 		m_pPlayerInfo->gaitsequence = 0;
+		m_pPlayerInfo->gaitframe = 0.0f;
 
 		R_StudioSetUpTransform( RI.currententity );
 	}

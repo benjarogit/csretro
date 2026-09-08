@@ -85,12 +85,6 @@ BOOL CC4::Deploy(void)
 	m_bStartedArming = false;
 	m_fArmedTime = 0;
 
-	if (m_pPlayer->HasShield())
-	{
-		m_bHasShield = true;
-		m_pPlayer->pev->gamestate = 1;
-	}
-
 	return DefaultDeploy("models/v_c4.mdl", "models/p_c4.mdl", C4_DRAW, "c4", UseDecrement() != FALSE);
 }
 
@@ -103,12 +97,6 @@ void CC4::Holster(int skiplocal)
 	{
 		m_pPlayer->pev->weapons &= ~(1 << WEAPON_C4);
 		DestroyItem();
-	}
-
-	if (m_bHasShield)
-	{
-		m_pPlayer->pev->gamestate = 0;
-		m_bHasShield = false;
 	}
 }
 

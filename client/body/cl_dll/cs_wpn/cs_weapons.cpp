@@ -109,7 +109,6 @@ static CXM1014 g_XM1014;
 int    g_iWeaponFlags;
 bool   g_bInBombZone;
 int    g_iFreezeTimeOver;
-bool   g_bHoldingShield;
 bool   g_bHoldingKnife;
 float  g_flPlayerSpeed;
 int    g_iPlayerFlags;
@@ -274,16 +273,6 @@ BOOL CBasePlayerWeapon :: CanDeploy( void )
 {
 	return TRUE;
 }
-/*
-=====================
-CBasePlayer :: HasShield
-
-=====================
-*/
-bool CBasePlayer::HasShield()
-{
-	return g_bHoldingShield;
-}
 
 /*
 =====================
@@ -293,11 +282,6 @@ CBasePlayerWeapon::HasSecondaryAttack()
 */
 bool CBasePlayerWeapon::HasSecondaryAttack()
 {
-	if (m_pPlayer->HasShield())
-	{
-		return true;
-	}
-
 	switch (m_iId)
 	{
 	case WEAPON_AK47:
@@ -360,64 +344,9 @@ void CBasePlayerWeapon::FireRemaining(int &shotsFired, float &shootTime, BOOL is
 		shootTime = 0;
 }
 
-bool CBasePlayerWeapon::ShieldSecondaryFire(int iUpAnim, int iDownAnim)
-{
-	if (!m_pPlayer->HasShield())
-		return false;
-
-	if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-	{
-		m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
-		SendWeaponAnim(iDownAnim, UseDecrement() != FALSE);
-		strcpy(m_pPlayer->m_szAnimExtention, "shieldgun");
-		m_fMaxSpeed = 250.0f;
-		m_pPlayer->m_bShieldDrawn = false;
-	}
-	else
-	{
-		m_iWeaponState |= WPNSTATE_SHIELD_DRAWN;
-		SendWeaponAnim(iUpAnim, UseDecrement() != FALSE);
-		strcpy(m_pPlayer->m_szAnimExtention, "shielded");
-		m_fMaxSpeed = 180.0f;
-		m_pPlayer->m_bShieldDrawn = true;
-	}
-
-	m_flNextSecondaryAttack = 0.4f;
-	m_flNextPrimaryAttack = 0.4f;
-	m_flTimeWeaponIdle = 0.6f;
-
-	return true;
-}
-
 void CBasePlayerWeapon::KickBack(float up_base, float lateral_base, float up_modifier, float lateral_modifier, float up_max, float lateral_max, int direction_change)
 {
 
-}
-
-void CBasePlayerWeapon::SetPlayerShieldAnim(void)
-{
-	if (!m_pPlayer->HasShield())
-		return;
-
-	if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-	{
-		strcpy(m_pPlayer->m_szAnimExtention, "shield");
-	}
-	else
-	{
-		strcpy(m_pPlayer->m_szAnimExtention, "shieldgun");
-	}
-}
-
-void CBasePlayerWeapon::ResetPlayerShieldAnim(void)
-{
-	if (m_pPlayer->HasShield())
-	{
-		if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-		{
-			strcpy(m_pPlayer->m_szAnimExtention, "shieldgun");
-		}
-	}
 }
 
 /*
@@ -584,17 +513,6 @@ void CBasePlayerWeapon::ItemPostFrame( void )
 		}
 	}
 
-	if ( m_pPlayer->HasShield() )
-	{
-		if (m_fInReload && m_pPlayer->pev->button & IN_ATTACK2)
-		{
-			SecondaryAttack();
-			m_pPlayer->pev->button &= ~IN_ATTACK2;
-			m_fInReload = FALSE;
-			m_pPlayer->m_flNextAttack = UTIL_WeaponTimeBase();
-		}
-	}
-
 	if ((m_fInReload) && m_pPlayer->m_flNextAttack <= UTIL_WeaponTimeBase())
 	{
 		int j = min(iMaxClip() - m_iClip, m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType]);
@@ -626,8 +544,7 @@ void CBasePlayerWeapon::ItemPostFrame( void )
 		{
 			if (m_flFamasShoot == 0 && m_flGlock18Shoot == 0)
 			{
-				if (!(m_iWeaponState & WPNSTATE_SHIELD_DRAWN))
-					Reload();
+				Reload();
 			}
 		}
 	}
@@ -660,17 +577,13 @@ void CBasePlayerWeapon::ItemPostFrame( void )
 			m_iShotsFired = 0;
 
 
-		if (!(m_iWeaponState & WPNSTATE_SHIELD_DRAWN))
+		if (m_iClip == 0 && !(iFlags() & ITEM_FLAG_NOAUTORELOAD)
+				&& m_flNextPrimaryAttack < UTIL_WeaponTimeBase())
 		{
-
-			if (m_iClip == 0 && !(iFlags() & ITEM_FLAG_NOAUTORELOAD)
-					&& m_flNextPrimaryAttack < UTIL_WeaponTimeBase())
+			if (m_flFamasShoot == 0 && m_flGlock18Shoot == 0)
 			{
-				if (m_flFamasShoot == 0 && m_flGlock18Shoot == 0)
-				{
-					Reload();
-					return;
-				}
+				Reload();
+				return;
 			}
 		}
 
@@ -1259,25 +1172,6 @@ void HUD_WeaponsPostThink( local_state_s *from, local_state_s *to, usercmd_t *cm
 	player.m_bCanShoot	= (flags & PLAYER_CAN_SHOOT) != 0;
 	g_iFreezeTimeOver	= !(flags & PLAYER_FREEZE_TIME_OVER);
 	g_bInBombZone		= (flags & PLAYER_IN_BOMB_ZONE) != 0;
-
-	// validate if we can hold shield with specified weapon
-	switch( from->client.m_iId )
-	{
-	case WEAPON_KNIFE:
-	case WEAPON_GLOCK18:
-	case WEAPON_USP:
-	case WEAPON_P228:
-	case WEAPON_DEAGLE:
-	case WEAPON_FIVESEVEN:
-	case WEAPON_HEGRENADE:
-	case WEAPON_FLASHBANG:
-	case WEAPON_SMOKEGRENADE:
-		g_bHoldingShield	= (flags & PLAYER_HOLDING_SHIELD) != 0;
-		break;
-	default:
-		g_bHoldingShield = false;
-		break;
-	}
 
 	// Point to current weapon object
 	if ( from->client.m_iId )

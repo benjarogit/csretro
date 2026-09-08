@@ -33,7 +33,6 @@ void CGLOCK18::Spawn(void)
 	m_iId = WEAPON_GLOCK18;
 	SET_MODEL(edict(), "models/w_glock18.mdl");
 
-	m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
 	m_iDefaultAmmo = GLOCK18_DEFAULT_GIVE;
 	m_bBurstFire = false;
 
@@ -48,7 +47,6 @@ void CGLOCK18::Precache(void)
 {
 	PRECACHE_MODEL("models/v_glock18.mdl");
 	PRECACHE_MODEL("models/w_glock18.mdl");
-	PRECACHE_MODEL("models/shield/v_shield_glock18.mdl");
 
 	PRECACHE_SOUND("weapons/glock18-1.wav");
 	PRECACHE_SOUND("weapons/glock18-2.wav");
@@ -83,22 +81,13 @@ int CGLOCK18::GetItemInfo(ItemInfo *p)
 
 BOOL CGLOCK18::Deploy(void)
 {
-	m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
-
 	m_bBurstFire = false;
 	m_iGlock18ShotsFired = 0;
 	m_flGlock18Shoot = 0;
 	m_flAccuracy = 0.9f;
 	m_fMaxSpeed = GLOCK18_MAX_SPEED;
 
-	m_pPlayer->m_bShieldDrawn = false;
-
-	if (m_pPlayer->HasShield())
-	{
-		m_iWeaponState &= ~WPNSTATE_GLOCK18_BURST_MODE;
-		return DefaultDeploy("models/shield/v_shield_glock18.mdl", "models/shield/p_shield_glock18.mdl", GLOCK18_SHIELD_DRAW, "shieldgun", UseDecrement() != FALSE);
-	}
-	else if (RANDOM_LONG(0, 1))
+	if (RANDOM_LONG(0, 1))
 	{
 		return DefaultDeploy("models/v_glock18.mdl", "models/p_glock18.mdl", GLOCK18_DRAW, "onehanded", UseDecrement() != FALSE);
 	}
@@ -108,11 +97,6 @@ BOOL CGLOCK18::Deploy(void)
 
 void CGLOCK18::SecondaryAttack(void)
 {
-	if (ShieldSecondaryFire(GLOCK18_SHIELD_UP, GLOCK18_SHIELD_DOWN))
-	{
-		return;
-	}
-
 	if (m_iWeaponState & WPNSTATE_GLOCK18_BURST_MODE)
 	{
 		ClientPrint(m_pPlayer->pev, HUD_PRINTCENTER, "#Switch_To_SemiAuto");
@@ -268,8 +252,6 @@ void CGLOCK18::GLOCK18Fire(float flSpread, float flCycleTime, BOOL bFireBurst)
 		++m_iGlock18ShotsFired;
 		m_flGlock18Shoot = gpGlobals->time + 0.1f;
 	}
-
-	ResetPlayerShieldAnim();
 }
 
 void CGLOCK18::Reload(void)
@@ -278,9 +260,7 @@ void CGLOCK18::Reload(void)
 	if (m_pPlayer->ammo_9mm <= 0)
 		return;
 
-	if (m_pPlayer->HasShield())
-		iResult = GLOCK18_SHIELD_RELOAD;
-	else if (RANDOM_LONG(0, 1))
+	if (RANDOM_LONG(0, 1))
 		iResult = GLOCK18_RELOAD;
 	else
 		iResult = GLOCK18_RELOAD2;
@@ -307,17 +287,8 @@ void CGLOCK18::WeaponIdle(void)
 		return;
 	}
 
-	if (m_pPlayer->HasShield())
-	{
-		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 20.0f;
-
-		if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-		{
-			SendWeaponAnim(GLOCK18_SHIELD_IDLE, UseDecrement() != FALSE);
-		}
-	}
 	// only idle if the slid isn't back
-	else if (m_iClip)
+	if (m_iClip)
 	{
 		flRand = RANDOM_FLOAT(0, 1);
 

@@ -162,7 +162,6 @@ public:
 	bool Intersects(const Vector &mins, const Vector &maxs);
 	bool CanTakeHealth(float flHealth = 0.0f) const;
 	void MakeDormant();
-	void HitShield(float flDamage, TraceResult* ptr);
 
 	// This entity's classname.
 	const char *GetClassname() const { return pev->classname.str(); }

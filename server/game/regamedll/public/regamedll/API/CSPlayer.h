@@ -75,6 +75,8 @@ public:
 	virtual CBaseEntity *GiveNamedItem(const char *pszName);
 	virtual CBaseEntity *GiveNamedItemEx(const char *pszName);
 	virtual void GiveDefaultItems();
+	// Deprecated ReGame-API vtable slots. Do not remove while binary ReGame API
+	// compatibility is supported. Tactical Shield is not implemented.
 	virtual void GiveShield(bool bDeploy = true);
 	virtual CBaseEntity *DropShield(bool bDeploy = true);
 	virtual CBaseEntity* DropPlayerItem(const char *pszItemName);

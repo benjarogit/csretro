@@ -90,8 +90,11 @@ case "${MODE}" in
         ;;
     listen)
         [[ -f "${CLIENT}" ]] || fail "Client fehlt für Listen-Modus: ${CLIENT}"
+        MENU="${CSRETRO_MENU_SO:-${ROOT}/build/client-cmake/menu/menu_amd64.so}"
+        [[ -f "${MENU}" ]] || fail "Menü fehlt für Listen-Modus: ${MENU}"
         # Kleines Fenster: Vollbild auf dem Host-Display schließt den Smoke oft mit SDL_QUIT.
-        ARGS=(-clientlib "${CLIENT}" -windowed -width 640 -height 480 "${ARGS[@]}")
+        # Engine Menu API 2 gehört zur CS-Retro-Menü-Lib, nicht zu 3rdparty/mainui.
+        ARGS=(-clientlib "${CLIENT}" -menulib "${MENU}" -windowed -width 640 -height 480 "${ARGS[@]}")
         ;;
     *)
         fail "Modus: dedicated|listen (got: ${MODE})"

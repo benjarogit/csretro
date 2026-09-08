@@ -79,7 +79,6 @@ void Game_HookEvents( void )
 		HOOK_EVENT( m60, FireM60 );
 		HOOK_EVENT( camera, FireCamera );
 		HOOK_EVENT( fiberopticcamera, FireFiberOpticCamera );
-		HOOK_EVENT( shieldgun, FireShieldGun );
 		HOOK_EVENT( blowtorchholster, HolsterBlowtorch );
 		HOOK_EVENT( blowtorchidle, IdleBlowtorch );
 		HOOK_EVENT( blowtorch, FireBlowtorch );

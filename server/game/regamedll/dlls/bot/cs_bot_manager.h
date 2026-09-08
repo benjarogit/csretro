@@ -195,7 +195,6 @@ public:
 	bool AllowMachineGuns()        const { return cv_bot_allow_machine_guns.value != 0.0f; }
 	bool AllowGrenades()           const { return cv_bot_allow_grenades.value != 0.0f; }
 	bool AllowSnipers()            const { return cv_bot_allow_snipers.value != 0.0f; }
-	bool AllowTacticalShield()     const { return cv_bot_allow_shield.value != 0.0f; }
 	bool AllowFriendlyFireDamage() const { return friendlyfire.value != 0.0f; }
 
 	bool IsWeaponUseable(CBasePlayerItem *item) const;						// return true if the bot can use this weapon

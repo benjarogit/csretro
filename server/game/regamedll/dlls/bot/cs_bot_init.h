@@ -49,7 +49,6 @@ extern cvar_t cv_bot_allow_rifles;
 extern cvar_t cv_bot_allow_machine_guns;
 extern cvar_t cv_bot_allow_grenades;
 extern cvar_t cv_bot_allow_snipers;
-extern cvar_t cv_bot_allow_shield;
 extern cvar_t cv_bot_join_team;
 extern cvar_t cv_bot_join_after_player;
 extern cvar_t cv_bot_auto_vacate;

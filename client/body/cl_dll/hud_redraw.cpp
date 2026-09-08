@@ -106,6 +106,16 @@ int CHud :: Redraw( float flTime, int intermission )
 		buy.money = m_Money.GetMoney();
 		buy.roundRemaining = m_Timer.GetTimeRemaining();
 		buy.roundDuration = m_Timer.GetRoundDuration();
+		if (cl_entity_t *local = gEngfuncs.GetLocalPlayer())
+		{
+			hud_player_info_t info = {};
+			GetPlayerInfo(local->index, &info);
+			if (info.model && info.model[0])
+			{
+				strncpy(buy.model, info.model, sizeof(buy.model) - 1);
+				buy.model[sizeof(buy.model) - 1] = '\0';
+			}
+		}
 		g_pMenu->SetBuyHud( &buy );
 	}
 

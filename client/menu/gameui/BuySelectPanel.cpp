@@ -187,6 +187,11 @@ bool IsResCommand(const char *cmd)
 	return cmd && (strstr(cmd, ".res") || strstr(cmd, ".RES"));
 }
 
+bool IsShieldBuy(const char *cmd)
+{
+	return cmd && !strcasecmp(cmd, "shield");
+}
+
 class CBuySelectPanel;
 
 const char *BuyModel(const char *name)
@@ -213,18 +218,31 @@ float BuyWorldWidth(const char *model)
 	if (!model || !model[0])
 		return 24.0f;
 	if (!strcasecmp(model, "kevlar") || !strcasecmp(model, "assault") || !strcasecmp(model, "thighpack"))
-		return 34.0f;
+		return 32.0f;
 	if (!strcasecmp(model, "flashbang") || !strcasecmp(model, "hegrenade") || !strcasecmp(model, "smokegrenade"))
 		return 16.0f;
+	if (!strcasecmp(model, "elite"))
+		return 22.0f;
 	if (!strcasecmp(model, "glock18") || !strcasecmp(model, "usp") || !strcasecmp(model, "deagle") ||
-		!strcasecmp(model, "p228") || !strcasecmp(model, "fiveseven") || !strcasecmp(model, "elite"))
-		return 12.0f;
+		!strcasecmp(model, "p228") || !strcasecmp(model, "fiveseven"))
+		return 18.0f;
 	if (!strcasecmp(model, "awp") || !strcasecmp(model, "scout") || !strcasecmp(model, "g3sg1") ||
 		!strcasecmp(model, "galil") || !strcasecmp(model, "ak47") || !strcasecmp(model, "m4a1") ||
 		!strcasecmp(model, "aug") || !strcasecmp(model, "sg552") || !strcasecmp(model, "sg550") ||
 		!strcasecmp(model, "famas") || !strcasecmp(model, "m249"))
-		return 28.0f;
-	return 22.0f;
+		return 32.0f;
+	return 24.0f;
+}
+
+float BuyItemYaw(const char *model)
+{
+	if (!model || !model[0])
+		return 90.0f;
+	if (!strcasecmp(model, "flashbang") || !strcasecmp(model, "hegrenade") || !strcasecmp(model, "smokegrenade"))
+		return 40.0f;
+	if (!strcasecmp(model, "kevlar") || !strcasecmp(model, "assault") || !strcasecmp(model, "thighpack"))
+		return 20.0f;
+	return 90.0f;
 }
 
 const char *BuyDisplayName(const char *command)
@@ -259,8 +277,47 @@ void SetBuyModel(CTeamModelPreview *preview, const char *name)
 	if (!model) return;
 	char path[96];
 	snprintf(path, sizeof(path), "models/w_%s.mdl", model);
-	preview->SetItemPreview(path, BuyWorldWidth(model));
+	preview->SetItemPreview(path, BuyWorldWidth(model), BuyItemYaw(model));
 }
+
+class CBuyRoundedPanel : public Panel
+{
+	DECLARE_CLASS_SIMPLE_OVERRIDE(CBuyRoundedPanel, Panel);
+
+public:
+	CBuyRoundedPanel(Panel *parent, const char *name) : BaseClass(parent, name)
+	{
+		SetPaintBackgroundEnabled(true);
+		SetPaintBorderEnabled(false);
+	}
+
+	void PaintBackground() override
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		InGameViewportLook::PaintBuyPlate(w, h);
+	}
+};
+
+class CBuySectionLabel : public Label
+{
+	DECLARE_CLASS_SIMPLE_OVERRIDE(CBuySectionLabel, Label);
+
+public:
+	CBuySectionLabel(Panel *parent, const char *name, const char *text)
+		: BaseClass(parent, name, text)
+	{
+		SetPaintBackgroundEnabled(true);
+		SetPaintBorderEnabled(false);
+	}
+
+	void PaintBackground() override
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		InGameViewportLook::PaintBuyHeader(w, h);
+	}
+};
 
 class CBuyHoverButton : public Button
 {
@@ -329,14 +386,14 @@ public:
 		GetSize(w, h);
 		if (m_isWeaponCard)
 		{
-			const bool compact = h < 70;
-			const int imageTop = compact ? 18 : 20;
-			const int imageBottom = compact ? 8 : 18;
-			const int sidePad = compact ? 4 : 8;
+			const bool compact = h < 54;
+			const int imageTop = compact ? 11 : 12;
+			const int imageBottom = compact ? 11 : 13;
+			const int sidePad = compact ? 2 : 4;
 			const int maxImageW = std::max(1, w - sidePad * 2);
 			const int maxImageH = std::max(1, h - imageTop - imageBottom);
 			m_weaponImage->SetBounds(sidePad, imageTop, maxImageW, maxImageH);
-			m_price->SetBounds(std::max(4, w - 70), h - (compact ? 15 : 22), 64, compact ? 13 : 18);
+			m_price->SetBounds(std::max(4, w - 70), h - (compact ? 13 : 15), 64, compact ? 11 : 14);
 			m_price->SetFgColor(InGameViewportLook::BuyGold());
 		}
 	}
@@ -483,6 +540,11 @@ public:
 		MoveToFront();
 		RequestFocus();
 		LogOpen();
+	}
+
+	void SyncCharacterFromHud()
+	{
+		ApplyOwnClassPreview();
 	}
 
 	void ApplySchemeSettings(IScheme *pScheme) override
@@ -856,7 +918,7 @@ private:
 		{
 			char name[32];
 			snprintf(name, sizeof(name), "OverviewTitle%d", col);
-			m_overviewTitles[col] = new Label(this, name, titles[col]);
+			m_overviewTitles[col] = new CBuySectionLabel(this, name, titles[col]);
 			m_overviewTitles[col]->SetContentAlignment(Label::a_center);
 		}
 
@@ -864,7 +926,8 @@ private:
 		auto append = [&](const char *path, int column, int filter) {
 			for (const ResField &field : Menu_LoadRes(path))
 			{
-				if (field.command.empty() || field.cost <= 0 || IsResCommand(field.command.c_str()))
+				if (field.command.empty() || field.cost <= 0 || IsResCommand(field.command.c_str()) ||
+					IsShieldBuy(field.command.c_str()))
 					continue;
 				const bool grenade = !strcasecmp(field.command.c_str(), "flash") ||
 					!strcasecmp(field.command.c_str(), "hegren") || !strcasecmp(field.command.c_str(), "sgren");
@@ -890,7 +953,7 @@ private:
 		append(equipment, 4, 1);
 
 		HideSteamCategoryChrome();
-		m_plate = new Panel(this, "BuyPlate");
+		m_plate = new CBuyRoundedPanel(this, "BuyPlate");
 		m_plate->SetPaintBackgroundEnabled(true);
 		m_plate->SetPaintBorderEnabled(false);
 		m_plate->SetBgColor(InGameViewportLook::BuyPlate());
@@ -899,43 +962,55 @@ private:
 		m_plate->SetZPos(-2);
 	}
 
+	static bool ValidPlayerModel(const char *name)
+	{
+		if (!name || !name[0] || std::strlen(name) >= 32)
+			return false;
+		for (const char *p = name; *p; ++p)
+		{
+			const unsigned char c = static_cast<unsigned char>(*p);
+			if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+				(c >= '0' && c <= '9') || c == '_'))
+				return false;
+		}
+		return true;
+	}
+
+	void ApplyOwnClassPreview()
+	{
+		if (!m_character)
+			return;
+		const bool ct = m_team == TEAM_CT;
+		const char *name = nullptr;
+		if (const char *forced = std::getenv("CSRETRO_BUY_PREVIEW_MODEL"))
+		{
+			if (ValidPlayerModel(forced))
+				name = forced;
+		}
+		if (!name && ValidPlayerModel(g_buyHud.model))
+			name = g_buyHud.model;
+		const char *fallback = ct ? "urban" : "terror";
+		const char *model = name ? name : fallback;
+		if (m_characterModel == model)
+			return;
+		m_characterModel = model;
+		char path[96];
+		snprintf(path, sizeof(path), "models/player/%s/%s.mdl", model, model);
+		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl",
+			206.0f, ct ? 33 : 80);
+		m_character->SetWorldWidth(65.0f);
+		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s", m_team, model);
+	}
+
 	void BuildCharacterStage(bool randomize)
 	{
-		const bool ct = m_team == TEAM_CT;
+		(void)randomize;
 		m_character = new CTeamModelPreview(this, "BuyCharacter");
-		static int previous[2] = {-1, -1};
-		const int side = ct ? 1 : 0;
-		const char *terror[] = {"terror", "leet", "arctic", "guerilla"};
-		const char *counter[] = {"urban", "gsg9", "sas", "gign"};
-		if (randomize || m_characterModel.empty())
-		{
-			int pick = previous[side] < 0 ? gEng.pfnRandomLong(0, 3) :
-				(previous[side] + gEng.pfnRandomLong(1, 3)) % 4;
-			if (const char *forced = std::getenv("CSRETRO_BUY_PREVIEW_MODEL"))
-			{
-				for (int i = 0; i < 4; ++i)
-					if (!strcasecmp(forced, ct ? counter[i] : terror[i]))
-						pick = i;
-			}
-			previous[side] = pick;
-			m_characterModel = ct ? counter[pick] : terror[pick];
-		}
-		char path[96];
-		snprintf(path, sizeof(path), "models/player/%s/%s.mdl",
-			m_characterModel.c_str(), m_characterModel.c_str());
-		m_character->ClearPreviews(50.0f);
-		m_character->AddPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl",
-			110.0f, ct ? 33 : 80, -5.0f);
-		m_character->SetIndependentPlayerState(true);
-		// The buy reference devotes almost the complete right half to a
-		// full-height character.  A 72-unit horizontal frame made the model
-		// occupy barely half that stage; frame the actual player silhouette.
-		m_character->SetWorldWidth(50.0f);
-		m_character->SetWorldHeight(72.0f);
 		m_character->SetMouseInputEnabled(false);
 		m_character->SetKeyBoardInputEnabled(false);
 		m_character->SetZPos(1);
-		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s", m_team, m_characterModel.c_str());
+		m_characterModel.clear();
+		ApplyOwnClassPreview();
 	}
 
 	void BuildRuntimeChrome()
@@ -1138,46 +1213,60 @@ private:
 		GetSize(w, h);
 		if (w < 400 || h < 300)
 			return;
-		const float scale = std::max(0.5f, std::min(1.2f,
+		const float scale = std::max(0.5f, std::min(1.0f,
 			std::min(static_cast<float>(w) / 1280.0f, static_cast<float>(h) / 720.0f)));
 		const int stageW = std::min(w - 16, static_cast<int>(980.0f * scale));
 		const int stageH = std::min(h - 16, static_cast<int>(600.0f * scale));
 		const int stageX = (w - stageW) / 2;
 		const int stageY = (h - stageH) / 2;
-		const int gap = std::max(3, static_cast<int>(4.0f * scale));
-		const int gridX = stageX;
-		const int gridW = std::min(stageW, static_cast<int>(600.0f * scale));
-		const int titleY = stageY + static_cast<int>(80.0f * scale);
+		const int footerGap = std::max(4, static_cast<int>(6.0f * scale));
+		const int plateX = stageX;
+		const int plateW = std::min(stageW, static_cast<int>(600.0f * scale));
+		const int titleY = stageY + static_cast<int>(82.0f * scale);
 		const int titleH = std::max(22, static_cast<int>(26.0f * scale));
 		const int headerY = titleY + titleH;
 		const int headerH = std::max(20, static_cast<int>(24.0f * scale));
-		const int gridY = headerY + headerH;
-		const int cellW = (gridW - gap * 4) / 5;
-		const int cellH = std::max(42, static_cast<int>(50.0f * scale));
-		const int gridBottom = gridY + cellH * 6 + gap * 5;
+		const int gridY = headerY + headerH + std::max(3, static_cast<int>(6.0f * scale));
+		const int cellH = std::max(52, static_cast<int>(66.0f * scale));
+		const int rowGap = std::max(4, static_cast<int>(6.0f * scale));
+		const int gridBottom = gridY + cellH * 6 + rowGap * 5;
+		// Measured from the supplied 1280x720 reference. Equal-width columns
+		// erase its rhythm; equipment/pistols/grenades are narrow while the two
+		// long-name weapon groups intentionally receive more room.
+		const int baseX[5] = {9, 116, 224, 355, 497};
+		const int baseW[5] = {89, 89, 110, 122, 87};
+		int colX[5] = {};
+		int colW[5] = {};
+		for (int col = 0; col < 5; ++col)
+		{
+			colX[col] = plateX + static_cast<int>(baseX[col] * scale);
+			colW[col] = std::max(42, static_cast<int>(baseW[col] * scale));
+		}
 		if (auto *title = FindChildByName("Title"))
-			title->SetBounds(gridX, titleY, gridW, titleH);
+			title->SetBounds(plateX, titleY, plateW, titleH);
 		HideSteamCategoryChrome();
 		if (m_plate)
 		{
 			m_plate->SetVisible(true);
-			m_plate->SetBounds(gridX, titleY, gridW, gridBottom - titleY);
+			m_plate->SetBounds(plateX, titleY, plateW, gridBottom - titleY + std::max(4, static_cast<int>(6.0f * scale)));
 		}
 		for (int col = 0; col < 5; ++col)
 		{
 			if (m_overviewTitles[col])
-				m_overviewTitles[col]->SetBounds(gridX + col * (cellW + gap), headerY, cellW, headerH);
+				m_overviewTitles[col]->SetBounds(colX[col], headerY, colW[col], headerH);
 		}
 		for (const OverviewCard &card : m_overview)
-			card.button->SetBounds(gridX + card.column * (cellW + gap),
-				gridY + card.row * (cellH + gap), cellW, cellH);
+			card.button->SetBounds(colX[card.column],
+				gridY + card.row * (cellH + rowGap), colW[card.column], cellH);
 		if (m_character)
 		{
 			m_character->SetVisible(true);
-			const int charX = stageX + static_cast<int>(590.0f * scale);
+			const int charGap = std::max(20, static_cast<int>(28.0f * scale));
+			const int charX = plateX + plateW + charGap;
 			const int charW = stageX + stageW - charX;
-			m_character->SetBounds(charX, stageY,
-				std::max(1, charW), static_cast<int>(590.0f * scale));
+			const int charBottom = stageY + static_cast<int>(555.0f * scale);
+			m_character->SetBounds(charX, titleY, std::max(1, charW),
+				std::max(1, charBottom - titleY));
 		}
 		if (m_money)
 			m_money->SetBounds(std::max(18, w * 3 / 100), h - std::max(70, static_cast<int>(100.0f * scale)),
@@ -1195,10 +1284,10 @@ private:
 		const int by = stageY + static_cast<int>(575.0f * scale);
 		const int bh = std::max(28, static_cast<int>(32.0f * scale));
 		const int bw = std::max(110, static_cast<int>(145.0f * scale));
-		const int totalW = bw * static_cast<int>(bottom.size()) + gap * static_cast<int>(bottom.size() - 1);
+		const int totalW = bw * static_cast<int>(bottom.size()) + footerGap * static_cast<int>(bottom.size() - 1);
 		const int startX = stageX + (stageW - totalW) / 2;
 		for (size_t i = 0; i < bottom.size(); ++i)
-			bottom[i]->SetBounds(startX + static_cast<int>(i) * (bw + gap), by, bw, bh);
+			bottom[i]->SetBounds(startX + static_cast<int>(i) * (bw + footerGap), by, bw, bh);
 	}
 
 	void RelayoutWeaponList()
@@ -1227,14 +1316,30 @@ private:
 		for (int i = 0; i < GetChildCount(); ++i)
 		{
 			auto *btn = dynamic_cast<Button *>(GetChild(i));
-			if (!btn || !btn->IsVisible())
+			if (!btn)
 				continue;
 			const char *name = btn->GetName();
 			if (name && (!strcasecmp(name, "CancelButton") || !strcasecmp(name, "cancelbutton")))
 			{
-				cancel = btn;
+				if (btn->IsVisible())
+					cancel = btn;
 				continue;
 			}
+			if (name && !strcasecmp(name, "shield"))
+			{
+				btn->SetVisible(false);
+				continue;
+			}
+			if (KeyValues *kv = btn->GetCommand())
+			{
+				if (IsShieldBuy(kv->GetString("command", "")))
+				{
+					btn->SetVisible(false);
+					continue;
+				}
+			}
+			if (!btn->IsVisible())
+				continue;
 			weapons.push_back(btn);
 		}
 		std::sort(weapons.begin(), weapons.end(), [](Button *a, Button *b) {
@@ -1264,15 +1369,15 @@ private:
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
 			info->SetVisible(true);
-			const int infoX = stageX + static_cast<int>(590.0f * scale);
+			const int infoGap = std::max(16, static_cast<int>(22.0f * scale));
+			const int infoX = stageX + listW + infoGap;
 			const int infoW = stageX + stageW - infoX;
-			info->SetBounds(infoX, stageY,
-				std::max(1, infoW), static_cast<int>(590.0f * scale));
+			const int infoH = titleH + static_cast<int>(390.0f * scale);
+			info->SetBounds(infoX, titleY, std::max(1, infoW), std::max(1, infoH));
 			if (m_character)
 			{
 				m_character->SetVisible(true);
-				m_character->SetBounds(infoX, stageY,
-					std::max(1, infoW), static_cast<int>(590.0f * scale));
+				m_character->SetBounds(infoX, titleY, std::max(1, infoW), std::max(1, infoH));
 			}
 		}
 		if (m_money)
@@ -1396,6 +1501,13 @@ bool BuySelect_Show(Panel *root, int menuType, int validSlots)
 		return false;
 
 	int team = Menu_LastPlayerTeam();
+	if (const char *forcedTeam = std::getenv("CSRETRO_BUY_PREVIEW_TEAM"))
+	{
+		if (!strcasecmp(forcedTeam, "ct"))
+			team = TEAM_CT;
+		else if (!strcasecmp(forcedTeam, "t"))
+			team = TEAM_TERRORIST;
+	}
 	if (team != TEAM_TERRORIST && team != TEAM_CT)
 	{
 		const int cls = ClassSelect_MenuType();
@@ -1510,8 +1622,12 @@ void BuySelect_AfterFrame()
 
 void BuySelect_SetHud(const BuyHudState *state)
 {
-	if (state)
-		g_buyHud = *state;
+	if (!state)
+		return;
+	const bool modelChanged = std::strcmp(g_buyHud.model, state->model) != 0;
+	g_buyHud = *state;
+	if (modelChanged && g_panel && g_panel->IsVisible())
+		g_panel->SyncCharacterFromHud();
 }
 
 void BuySelect_GateTick()
@@ -1632,10 +1748,22 @@ void BuySelect_GateTick()
 			const int rifles = g_panel->LabelLooksLocalized("rifles") ? 1 : 0;
 			const int cancel = g_panel->LabelLooksLocalized("CancelButton") ? 1 : 0;
 			const int raw = g_panel->AnyRawToken() ? 1 : 0;
+			int shield = 0;
+			if (Panel *card = g_panel->FindChildByName("shield"))
+				shield = card->IsVisible() ? 1 : 0;
+			for (int i = 0; i < g_panel->GetChildCount() && !shield; ++i)
+			{
+				auto *btn = dynamic_cast<Button *>(g_panel->GetChild(i));
+				if (!btn || !btn->IsVisible())
+					continue;
+				if (KeyValues *kv = btn->GetCommand())
+					if (IsShieldBuy(kv->GetString("command", "")))
+						shield = 1;
+			}
 			Menu_Con("CSRETRO_BUY_GATE_OPEN type=%d visible=1 main=1 buttons=%d title=%d "
-				 "pistols=%d shotguns=%d rifles=%d cancel=%d raw=%d team=%d",
+				 "pistols=%d shotguns=%d rifles=%d cancel=%d raw=%d team=%d shield=%d",
 				g_panel->MenuType(), g_panel->VisibleButtonCount(), title, pistols,
-				shotguns, rifles, cancel, raw, g_panel->Team());
+				shotguns, rifles, cancel, raw, g_panel->Team(), shield);
 			if (g_pVGuiLocalize)
 			{
 				const char *probes[] = {

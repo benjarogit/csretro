@@ -10,7 +10,6 @@ void CDEAGLE::Spawn()
 	SET_MODEL(edict(), "models/w_deagle.mdl");
 
 	m_iDefaultAmmo = DEAGLE_DEFAULT_GIVE;
-	m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
 	m_fMaxSpeed = DEAGLE_MAX_SPEED;
 	m_flAccuracy = 0.9f;
 
@@ -28,7 +27,6 @@ void CDEAGLE::Spawn()
 void CDEAGLE::Precache()
 {
 	PRECACHE_MODEL("models/v_deagle.mdl");
-	PRECACHE_MODEL("models/shield/v_shield_deagle.mdl");
 	PRECACHE_MODEL("models/w_deagle.mdl");
 
 	PRECACHE_SOUND("weapons/deagle-1.wav");
@@ -62,13 +60,8 @@ BOOL CDEAGLE::Deploy()
 {
 	m_flAccuracy = 0.9f;
 	m_fMaxSpeed = DEAGLE_MAX_SPEED;
-	m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
-	m_pPlayer->m_bShieldDrawn = false;
 
-	if (m_pPlayer->HasShield())
-		return DefaultDeploy("models/shield/v_shield_deagle.mdl", "models/shield/p_shield_deagle.mdl", DEAGLE_DRAW, "shieldgun", UseDecrement() != FALSE);
-	else
-		return DefaultDeploy("models/v_deagle.mdl", "models/p_deagle.mdl", DEAGLE_DRAW, "onehanded", UseDecrement() != FALSE);
+	return DefaultDeploy("models/v_deagle.mdl", "models/p_deagle.mdl", DEAGLE_DRAW, "onehanded", UseDecrement() != FALSE);
 }
 
 void CDEAGLE::PrimaryAttack()
@@ -89,11 +82,6 @@ void CDEAGLE::PrimaryAttack()
 	{
 		DEAGLEFire(0.13 * (1 - m_flAccuracy), 0.3, FALSE);
 	}
-}
-
-void CDEAGLE::SecondaryAttack()
-{
-	ShieldSecondaryFire(DEAGLE_SHIELD_UP, DEAGLE_SHIELD_DOWN);
 }
 
 void CDEAGLE::DEAGLEFire(float flSpread, float flCycleTime, BOOL fUseSemi)
@@ -142,7 +130,6 @@ void CDEAGLE::DEAGLEFire(float flSpread, float flCycleTime, BOOL fUseSemi)
 
 	m_iClip--;
 	m_pPlayer->pev->effects |= EF_MUZZLEFLASH;
-	SetPlayerShieldAnim();
 
 	m_pPlayer->SetAnimation(PLAYER_ATTACK1);
 	UTIL_MakeVectors(m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle);
@@ -182,7 +169,6 @@ void CDEAGLE::DEAGLEFire(float flSpread, float flCycleTime, BOOL fUseSemi)
 #else
 	m_pPlayer->pev->punchangle.x -= 2;
 #endif
-	ResetPlayerShieldAnim();
 }
 
 void CDEAGLE::Reload()
@@ -207,22 +193,13 @@ void CDEAGLE::WeaponIdle()
 	if (m_flTimeWeaponIdle <= UTIL_WeaponTimeBase())
 	{
 #ifdef REGAMEDLL_FIXES
-		if (m_pPlayer->HasShield())
-#endif
-		{
-			m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 20.0f;
-
-			if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-			{
-				SendWeaponAnim(DEAGLE_SHIELD_IDLE_UP, UseDecrement() != FALSE);
-			}
-		}
-#ifdef REGAMEDLL_FIXES
-		else if (m_iClip)
+		if (m_iClip)
 		{
 			m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 3.0625f;
 			SendWeaponAnim(DEAGLE_IDLE1, UseDecrement() != FALSE);
 		}
+#else
+		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 20.0f;
 #endif
 	}
 }

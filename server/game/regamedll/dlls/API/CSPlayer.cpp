@@ -197,11 +197,6 @@ EXT_FUNC bool CCSPlayer::RemovePlayerItemEx(const char* pszItemName, bool bRemov
 		return true;
 	}
 
-	else if (FStrEq(pszItemName, "weapon_shield"))
-	{
-		return RemoveShield();
-	}
-
 	auto pItem = GetItemByName(pszItemName);
 	if (pItem)
 	{
@@ -257,9 +252,6 @@ EXT_FUNC CBaseEntity *CCSPlayer::GiveNamedItemEx(const char *pszName)
 		pPlayer->SetBombIcon();
 
 	} else if (FStrEq(pszName, "weapon_shield")) {
-		pPlayer->DropPrimary();
-		pPlayer->DropPlayerItem("weapon_elite");
-		pPlayer->GiveShield();
 		return nullptr;
 	}
 
@@ -293,12 +285,13 @@ EXT_FUNC void CCSPlayer::GiveDefaultItems()
 
 EXT_FUNC void CCSPlayer::GiveShield(bool bDeploy)
 {
-	BasePlayer()->GiveShield(bDeploy);
+	(void)bDeploy;
 }
 
 EXT_FUNC CBaseEntity *CCSPlayer::DropShield(bool bDeploy)
 {
-	return BasePlayer()->DropShield(bDeploy);
+	(void)bDeploy;
+	return nullptr;
 }
 
 EXT_FUNC CBaseEntity *CCSPlayer::DropPlayerItem(const char *pszItemName)
@@ -308,43 +301,7 @@ EXT_FUNC CBaseEntity *CCSPlayer::DropPlayerItem(const char *pszItemName)
 
 EXT_FUNC bool CCSPlayer::RemoveShield()
 {
-	CBasePlayer *pPlayer = BasePlayer();
-
-	if (!pPlayer->HasShield())
-		return false;
-
-	bool bIsProtectedShield = pPlayer->IsProtectedByShield();
-	pPlayer->RemoveShield();
-
-	CBasePlayerWeapon *pWeapon = static_cast<CBasePlayerWeapon *>(pPlayer->m_pActiveItem);
-	if (pWeapon && pWeapon->IsWeapon())
-	{
-		if (!pWeapon->CanHolster())
-			return false;
-
-		if (pWeapon->m_iId == WEAPON_HEGRENADE || pWeapon->m_iId == WEAPON_FLASHBANG || pWeapon->m_iId == WEAPON_SMOKEGRENADE)
-		{
-			if (pPlayer->m_rgAmmo[pWeapon->m_iPrimaryAmmoType] <= 0)
-				g_pGameRules->GetNextBestWeapon(pPlayer, pWeapon);
-		}
-
-		if (pWeapon->m_flStartThrow != 0.0f)
-			pWeapon->Holster();
-
-		if (pPlayer->IsReloading())
-		{
-			pWeapon->m_fInReload = FALSE;
-			pPlayer->m_flNextAttack = 0;
-		}
-
-		if (bIsProtectedShield)
-			pWeapon->SecondaryAttack();
-
-		if (!pWeapon->Deploy())
-			return false;
-	}
-
-	return true;
+	return false;
 }
 
 EXT_FUNC void CCSPlayer::RemoveAllItems(bool bRemoveSuit)

@@ -61,21 +61,11 @@ void EV_Fireglock18( event_args_t *args )
 		bool isBurst = (g_iWeaponFlags & WPNSTATE_GLOCK18_BURST_MODE) != 0 || g_bGlockBurstMode;
 		if( !args->bparam1 )
 		{
-			if( g_bHoldingShield )
-			{
-				seq = Com_RandomLong(GLOCK18_SHIELD_SHOOT, GLOCK18_SHIELD_SHOOT2);
-			}
-			else
-			{
-				seq = isBurst? GLOCK18_SHOOT : GLOCK18_SHOOT3;
-			}
+			seq = isBurst? GLOCK18_SHOOT : GLOCK18_SHOOT3;
 		}
 		else
 		{
-			if( g_bHoldingShield )
-				seq = GLOCK18_SHIELD_SHOOT_EMPTY;
-			else
-				seq = GLOCK18_SHOOT_EMPTY;
+			seq = GLOCK18_SHOOT_EMPTY;
 		}
 		gEngfuncs.pEventAPI->EV_WeaponAnimation(seq, 2);
 		if( !gHUD.cl_righthand->value )
@@ -96,7 +86,7 @@ void EV_Fireglock18( event_args_t *args )
 	EV_EjectBrass(ShellOrigin, ShellVelocity, angles[ YAW ], g_iPShell, TE_BOUNCE_SHELL);
 
 	PLAY_EVENT_SOUND( ((g_iWeaponFlags & WPNSTATE_GLOCK18_BURST_MODE) != 0 || g_bGlockBurstMode )
-						&& !g_bHoldingShield ? SOUNDS_NAME[0] : SOUNDS_NAME[1] );
+						? SOUNDS_NAME[0] : SOUNDS_NAME[1] );
 
 	EV_GetGunPosition( args, vecSrc, origin );
 	VectorCopy( forward, vecAiming );

@@ -54,8 +54,6 @@ void AttackState::OnEnter(CCSBot *me)
 	m_reacquireTimestamp = 0.0f;
 
 	m_pinnedDownTimestamp = gpGlobals->time + RANDOM_FLOAT(7.0f, 10.0f);
-	m_shieldToggleTimestamp = gpGlobals->time + RANDOM_FLOAT(2.0f, 10.0f);
-	m_shieldForceOpen = false;
 
 	// if we encountered someone while escaping, grab our weapon and fight!
 	if (me->IsEscapingFromBomb())
@@ -271,40 +269,6 @@ void AttackState::OnUpdate(CCSBot *me)
 		}
 
 		return;
-	}
-
-	// Simple shield usage
-	if (me->HasShield())
-	{
-		if (me->IsEnemyVisible() && !m_shieldForceOpen)
-		{
-			if (!me->IsRecognizedEnemyReloading() && !me->IsReloading() && me->IsPlayerLookingAtMe(pEnemy))
-			{
-				// close up - enemy is pointing his gun at us
-				if (!me->IsProtectedByShield())
-					me->SecondaryAttack();
-			}
-			else
-			{
-				// enemy looking away or reloading his weapon - open up and shoot him
-				if (me->IsProtectedByShield())
-					me->SecondaryAttack();
-			}
-		}
-		else
-		{
-			// can't see enemy, open up
-			if (me->IsProtectedByShield())
-				me->SecondaryAttack();
-		}
-
-		if (gpGlobals->time > m_shieldToggleTimestamp)
-		{
-			m_shieldToggleTimestamp = gpGlobals->time + RANDOM_FLOAT(0.5, 2.0f);
-
-			// toggle shield force open
-			m_shieldForceOpen = !m_shieldForceOpen;
-		}
 	}
 
 	// check if our weapon range is bad and we should switch to pistol
@@ -574,10 +538,6 @@ void AttackState::OnExit(CCSBot *me)
 
 	// resume our original posture
 	me->PopPostureContext();
-
-	// put shield away
-	if (me->IsProtectedByShield())
-		me->SecondaryAttack();
 
 	me->StopRapidFire();
 	me->ClearSurpriseDelay();

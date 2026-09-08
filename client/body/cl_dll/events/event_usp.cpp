@@ -58,13 +58,7 @@ void EV_FireUSP( event_args_t *args )
 	{
 		++g_iShotsFired;
 		int seq;
-		if( g_bHoldingShield )
-		{
-			if( !empty )
-				seq = Com_RandomLong(USP_SHIELD_SHOOT1, USP_SHIELD_SHOOT2);
-			else seq = USP_SHIELD_SHOOT_EMPTY;
-		}
-		else if ( silencer_on )
+		if ( silencer_on )
 		{
 			if( !empty )
 				seq = Com_RandomLong(USP_UNSIL_SHOOT1, USP_UNSIL_SHOOT3);

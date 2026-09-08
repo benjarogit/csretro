@@ -49,7 +49,6 @@ cvar_t cv_bot_allow_rifles           = { "bot_allow_rifles", "1", FCVAR_SERVER, 
 cvar_t cv_bot_allow_machine_guns     = { "bot_allow_machine_guns", "1", FCVAR_SERVER, 0.0f, nullptr };
 cvar_t cv_bot_allow_grenades         = { "bot_allow_grenades", "1", FCVAR_SERVER, 0.0f, nullptr };
 cvar_t cv_bot_allow_snipers          = { "bot_allow_snipers", "1", FCVAR_SERVER, 0.0f, nullptr };
-cvar_t cv_bot_allow_shield           = { "bot_allow_shield", "1", FCVAR_SERVER, 0.0f, nullptr };
 cvar_t cv_bot_join_team              = { "bot_join_team", "any", FCVAR_SERVER, 0.0f, nullptr };
 cvar_t cv_bot_join_after_player      = { "bot_join_after_player", "1", FCVAR_SERVER, 0.0f, nullptr };
 cvar_t cv_bot_auto_vacate            = { "bot_auto_vacate", "1", FCVAR_SERVER, 0.0f, nullptr };
@@ -121,7 +120,6 @@ void Bot_RegisterCVars()
 	CVAR_REGISTER(&cv_bot_allow_machine_guns);
 	CVAR_REGISTER(&cv_bot_allow_grenades);
 	CVAR_REGISTER(&cv_bot_allow_snipers);
-	CVAR_REGISTER(&cv_bot_allow_shield);
 	CVAR_REGISTER(&cv_bot_join_team);
 	CVAR_REGISTER(&cv_bot_join_after_player);
 	CVAR_REGISTER(&cv_bot_auto_vacate);

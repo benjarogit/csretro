@@ -60,9 +60,11 @@ Windows zusätzlich: Registry `SteamPath`. Linux: inkl. Flatpak-Pfad. macOS: `~/
 
 **IGNORE** — Steam-/GoldSrc-Binaries (`*.so`/`*.dll`/`*.exe`, `hl_linux`, `hw.so`, `steam_api`, CEF), `platform/steam`, `platform/servers`, `platform/config`, `platform/gl_shaders`, `redist/`, `cstrike_hd/`, Steam-`config.cfg`, `steam.inf` / `steam_appid.txt`.
 
-**OVERRIDE** — `data/ui-overrides/` (Git) wird nach der Steam-Kopie über `gamedata/` gelegt (Branding, zusätzliche Menüeinträge, **`platform/resource/csretro_fonts/`** mit Noto Sans, **Hauptmenü-Hintergrund** `cstrike/resource/background/csretro.png`, **`cstrike/autobuy.txt`** / **`rebuy.txt`**). Originalressourcen bleiben unangetastet.
+**OVERRIDE** — `data/ui-overrides/` (Git) wird nach der Steam-Kopie über `gamedata/` gelegt (Branding, zusätzliche Menüeinträge, **`platform/resource/csretro_fonts/`** mit Noto Sans, **Hauptmenü-Hintergrund** `cstrike/resource/background/csretro.png`, **`cstrike/autobuy.txt`** / **`rebuy.txt`**, **`cstrike/resource/UI/BuyEquipment_CT.res`** ohne Tactical-Shield-Slot). Originalressourcen bleiben unangetastet.
 
 **VALIDIERTE REPARATUR** — Steam liefert `cstrike/sprites/hud.txt` mit dem alten Kopfzähler `215`, aber 190 vollständigen Sprite-Datensätzen. Der Bootstrap validiert jeden Datensatz auf sieben Felder und korrigiert ausschließlich diesen bekannten Zustand im privaten CS-Retro-Datenbaum auf `190`. Bei jeder anderen Abweichung bricht er ab. Der Engine-Parser bleibt streng; die Steam-Installation bleibt unangetastet.
+
+Derselbe Bootstrap streicht in `cstrike/titles.txt` die ShowMenu-Zeile `\w8. Tactical Shield…` aus `CT_BuyItem` und `DCT_BuyItem`. Die Vendor-Datei bleibt unversioniert; nur der Strip ist reproduzierbar.
 
 Steam-Schriften (`platform/resource/linux_fonts`) werden nicht importiert; bestehende Bäume räumt die `prune`-Regel im Manifest auf. Dasselbe gilt für die Steam-Menükacheln (`cstrike`/`valve` `resource/background/`, `BackgroundLayout.txt`): CS Retro liefert ein eigenes Motiv unter `data/ui-overrides/cstrike/resource/background/csretro.png`.
 

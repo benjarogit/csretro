@@ -13,6 +13,7 @@ import fnmatch
 import hashlib
 import json
 import os
+import re
 import shutil
 import sys
 import urllib.request
@@ -557,6 +558,25 @@ def repair_cs_hud_sprite_count(dest_root: Path) -> list[str]:
     return [rel]
 
 
+def strip_tactical_shield_buy_titles(dest_root: Path) -> list[str]:
+    """Remove the Tactical Shield line from CT equipment ShowMenu titles."""
+    rel = "cstrike/titles.txt"
+    path = dest_root / rel
+    if not path.is_file():
+        return []
+    text = path.read_text(encoding="utf-8", errors="replace")
+    stripped, n = re.subn(
+        r"\n\\w8\. Tactical Shield\\y\\R2200\n",
+        "\n",
+        text,
+        count=2,
+    )
+    if n == 0:
+        return []
+    path.write_text(stripped, encoding="utf-8")
+    return [rel]
+
+
 def ensure_platform_resource(source: Path, dest_root: Path, manifest: dict) -> list[str]:
     if (dest_root / "platform" / "resource" / "TrackerScheme.res").is_file():
         return []
@@ -677,6 +697,7 @@ def do_import(args: argparse.Namespace) -> int:
             apply_ui_overrides(dest_root)
             patch_tracker_scheme_menu_item_height(dest_root)
             repair_cs_hud_sprite_count(dest_root)
+            strip_tactical_shield_buy_titles(dest_root)
             print(f"XASH3D_RODIR={dest_root}")
             return 0
         if not same:
@@ -713,6 +734,7 @@ def do_import(args: argparse.Namespace) -> int:
     copied.extend(apply_ui_overrides(dest_root))
     copied.extend(patch_tracker_scheme_menu_item_height(dest_root))
     repaired = repair_cs_hud_sprite_count(dest_root)
+    copied.extend(strip_tactical_shield_buy_titles(dest_root))
 
     write_origin(
         dest_root,

@@ -9,7 +9,6 @@ void CUSP::Spawn()
 	m_iId = WEAPON_USP;
 	SET_MODEL(ENT(pev), "models/w_usp.mdl");
 
-	m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
 	m_iDefaultAmmo = USP_DEFAULT_GIVE;
 	m_flAccuracy = 0.92f;
 
@@ -29,7 +28,6 @@ void CUSP::Precache()
 {
 	PRECACHE_MODEL("models/v_usp.mdl");
 	PRECACHE_MODEL("models/w_usp.mdl");
-	PRECACHE_MODEL("models/shield/v_shield_usp.mdl");
 
 	PRECACHE_SOUND("weapons/usp1.wav");
 	PRECACHE_SOUND("weapons/usp2.wav");
@@ -68,17 +66,10 @@ int CUSP::GetItemInfo(ItemInfo *p)
 
 BOOL CUSP::Deploy()
 {
-	m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
 	m_flAccuracy = 0.92f;
 	m_fMaxSpeed = USP_MAX_SPEED;
-	m_pPlayer->m_bShieldDrawn = false;
 
-	if (m_pPlayer->HasShield())
-	{
-		m_iWeaponState &= ~WPNSTATE_USP_SILENCED;
-		return DefaultDeploy("models/shield/v_shield_usp.mdl", "models/shield/p_shield_usp.mdl", USP_SHIELD_DRAW, "shieldgun", UseDecrement());
-	}
-	else if (m_iWeaponState & WPNSTATE_USP_SILENCED)
+	if (m_iWeaponState & WPNSTATE_USP_SILENCED)
 	{
 		return DefaultDeploy("models/v_usp.mdl", "models/p_usp.mdl", USP_DRAW, "onehanded", UseDecrement());
 	}
@@ -88,11 +79,6 @@ BOOL CUSP::Deploy()
 
 void CUSP::SecondaryAttack()
 {
-	if (ShieldSecondaryFire(USP_SHIELD_UP, USP_SHIELD_DOWN))
-	{
-		return;
-	}
-
 	if (m_iWeaponState & WPNSTATE_USP_SILENCED)
 	{
 		m_iWeaponState &= ~WPNSTATE_USP_SILENCED;
@@ -201,7 +187,6 @@ void CUSP::USPFire(float flSpread, float flCycleTime, BOOL fUseSemi)
 	m_flNextPrimaryAttack = m_flNextSecondaryAttack = GetNextAttackDelay(flCycleTime);
 
 	m_iClip--;
-	SetPlayerShieldAnim();
 
 	m_pPlayer->SetAnimation(PLAYER_ATTACK1);
 	m_pPlayer->m_iWeaponVolume = BIG_EXPLOSION_VOLUME;
@@ -244,7 +229,6 @@ void CUSP::USPFire(float flSpread, float flCycleTime, BOOL fUseSemi)
 #else
 	m_pPlayer->pev->punchangle.x -= 2.0f;
 #endif
-	ResetPlayerShieldAnim();
 }
 
 void CUSP::Reload()
@@ -255,9 +239,7 @@ void CUSP::Reload()
 #endif
 
 	int iAnim;
-	if (m_pPlayer->HasShield())
-		iAnim = USP_SHIELD_RELOAD;
-	else if (m_iWeaponState & WPNSTATE_USP_SILENCED)
+	if (m_iWeaponState & WPNSTATE_USP_SILENCED)
 		iAnim = USP_RELOAD;
 	else
 		iAnim = USP_UNSIL_RELOAD;
@@ -279,16 +261,7 @@ void CUSP::WeaponIdle()
 		return;
 	}
 
-	if (m_pPlayer->HasShield())
-	{
-		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 20.0f;
-
-		if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-		{
-			SendWeaponAnim(USP_SHIELD_IDLE_UP, UseDecrement());
-		}
-	}
-	else if (m_iClip)
+	if (m_iClip)
 	{
 		int iAnim = (~m_iWeaponState & WPNSTATE_USP_SILENCED) ? USP_UNSIL_IDLE: USP_IDLE;
 

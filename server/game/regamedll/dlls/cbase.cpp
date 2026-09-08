@@ -1441,13 +1441,6 @@ VectorRef CBaseEntity::__API_HOOK(FireBullets3)(VectorRef vecSrc, VectorRef vecD
 			if (!bIsPenatrable)
 				iPenetration = 0;
 
-			if (tr.iHitgroup == HITGROUP_SHIELD)
-			{
-				// stop on shield hit
-				pEntity->HitShield(iCurrentDamage, &tr);
-				break;
-			}
-
 			float flDistanceModifier;
 			if (VARS(tr.pHit)->solid != SOLID_BSP || !iPenetration)
 			{
@@ -1479,43 +1472,6 @@ VectorRef CBaseEntity::__API_HOOK(FireBullets3)(VectorRef vecSrc, VectorRef vecD
 	vecRet.z = 0;
 
 	return vecRet;
-}
-
-void CBaseEntity::HitShield(float flDamage, TraceResult *ptr)
-{
-	if (RANDOM_LONG(0, 1))
-		EMIT_SOUND(ENT(pev), CHAN_VOICE, "weapons/ric_metal-1.wav", VOL_NORM, ATTN_NORM);
-	else
-		EMIT_SOUND(ENT(pev), CHAN_VOICE, "weapons/ric_metal-2.wav", VOL_NORM, ATTN_NORM);
-
-	UTIL_Sparks(ptr->vecEndPos);
-
-#ifdef REGAMEDLL_FIXES
-	// dont modify punchangle if it is already above this threshold
-	if (Q_fabs(pev->punchangle.x) < 4.0)
-	{
-		pev->punchangle.x = clamp(flDamage * RANDOM_FLOAT(-0.15, 0.15), -4.0f, 4.0f);
-	}
-#else
-	pev->punchangle.x = flDamage * RANDOM_FLOAT(-0.15, 0.15);
-
-	if (pev->punchangle.x < 4) // BUGBUG: https://github.com/rehlds/ReGameDLL_CS/pull/919
-		pev->punchangle.x = -4;
-#endif
-
-#ifdef REGAMEDLL_FIXES
-	// dont modify punchangle if it is already above this threshold
-	if (Q_fabs(pev->punchangle.z) < 5.0)
-#endif
-	{
-		pev->punchangle.z = clamp(flDamage * RANDOM_FLOAT(-0.15, 0.15), -5.0f, 5.0f);
-		// the code above is replicated as:
-		//	if (pev->punchangle.z < -5) 
-		//		pev->punchangle.z = -5;
-		//	else if (pev->punchangle.z > 5) 
-		//		pev->punchangle.z = 5;
-		// which is the original logic
-	}
 }
 
 void CBaseEntity::TraceBleed(float flDamage, Vector vecDir, TraceResult *ptr, int bitsDamageType)

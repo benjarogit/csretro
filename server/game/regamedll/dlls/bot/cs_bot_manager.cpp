@@ -175,7 +175,7 @@ bool CCSBotManager::IsWeaponUseable(CBasePlayerItem *item) const
 		|| (!AllowRifles()         && weaponClass == WEAPONCLASS_RIFLE)
 		|| (!AllowSnipers()        && weaponClass == WEAPONCLASS_SNIPERRIFLE)
 		|| (!AllowSubMachineGuns() && weaponClass == WEAPONCLASS_SUBMACHINEGUN)
-		|| (!AllowTacticalShield() && item->m_iId == WEAPON_SHIELDGUN)
+		|| (item->m_iId == WEAPON_SHIELDGUN)
 		|| (!AllowPistols()        && weaponClass == WEAPONCLASS_PISTOL)
 		|| (!AllowGrenades()       && weaponClass == WEAPONCLASS_GRENADE))
 	{
@@ -194,7 +194,7 @@ bool CCSBotManager::IsWeaponUseable(ArmouryItemPack item) const
 		|| (!AllowRifles()         && weaponClass == WEAPONCLASS_RIFLE)
 		|| (!AllowSnipers()        && weaponClass == WEAPONCLASS_SNIPERRIFLE)
 		|| (!AllowSubMachineGuns() && weaponClass == WEAPONCLASS_SUBMACHINEGUN)
-		|| (!AllowTacticalShield() && item == ARMOURY_SHIELD)
+		|| (item == ARMOURY_SHIELD)
 		|| (!AllowPistols()        && weaponClass == WEAPONCLASS_PISTOL)
 		|| (!AllowGrenades()       && weaponClass == WEAPONCLASS_GRENADE))
 	{
@@ -476,7 +476,6 @@ void CCSBotManager::ServerCommand(const char *pcmd)
 		CVAR_SET_FLOAT("bot_allow_machine_guns", 0);
 		CVAR_SET_FLOAT("bot_allow_grenades", 0);
 		CVAR_SET_FLOAT("bot_allow_snipers", 0);
-		CVAR_SET_FLOAT("bot_allow_shield", 0);
 	}
 	else if (FStrEq(pcmd, "bot_pistols_only"))
 	{
@@ -487,7 +486,6 @@ void CCSBotManager::ServerCommand(const char *pcmd)
 		CVAR_SET_FLOAT("bot_allow_machine_guns", 0);
 		CVAR_SET_FLOAT("bot_allow_grenades", 0);
 		CVAR_SET_FLOAT("bot_allow_snipers", 0);
-		CVAR_SET_FLOAT("bot_allow_shield", 0);
 	}
 	else if (FStrEq(pcmd, "bot_snipers_only"))
 	{
@@ -498,7 +496,6 @@ void CCSBotManager::ServerCommand(const char *pcmd)
 		CVAR_SET_FLOAT("bot_allow_machine_guns", 0);
 		CVAR_SET_FLOAT("bot_allow_grenades", 0);
 		CVAR_SET_FLOAT("bot_allow_snipers", 1);
-		CVAR_SET_FLOAT("bot_allow_shield", 0);
 	}
 	else if (FStrEq(pcmd, "bot_all_weapons"))
 	{
@@ -509,7 +506,6 @@ void CCSBotManager::ServerCommand(const char *pcmd)
 		CVAR_SET_FLOAT("bot_allow_machine_guns", 1);
 		CVAR_SET_FLOAT("bot_allow_grenades", 1);
 		CVAR_SET_FLOAT("bot_allow_snipers", 1);
-		CVAR_SET_FLOAT("bot_allow_shield", 1);
 	}
 	else if (FStrEq(pcmd, "entity_dump"))
 	{

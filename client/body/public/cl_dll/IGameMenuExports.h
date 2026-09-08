@@ -63,6 +63,7 @@ struct BuyHudState
 	int money;
 	int roundRemaining;
 	int roundDuration;
+	char model[32];
 };
 
 class IGameMenuExports : public IBaseInterface

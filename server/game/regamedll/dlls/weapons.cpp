@@ -653,32 +653,6 @@ void CBasePlayerItem::DefaultTouch(CBaseEntity *pOther)
 	SUB_UseTargets(pOther, USE_TOGGLE, 0);
 }
 
-void CBasePlayerWeapon::SetPlayerShieldAnim()
-{
-	if (!m_pPlayer->HasShield())
-		return;
-
-	if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-	{
-		Q_strlcpy(m_pPlayer->m_szAnimExtention, "shield");
-	}
-	else
-	{
-		Q_strlcpy(m_pPlayer->m_szAnimExtention, "shieldgun");
-	}
-}
-
-void CBasePlayerWeapon::ResetPlayerShieldAnim()
-{
-	if (m_pPlayer->HasShield())
-	{
-		if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-		{
-			Q_strlcpy(m_pPlayer->m_szAnimExtention, "shieldgun");
-		}
-	}
-}
-
 void CBasePlayerWeapon::EjectBrassLate()
 {
 	int soundType;
@@ -694,38 +668,6 @@ void CBasePlayerWeapon::EjectBrassLate()
 
 	EjectBrass(pev->origin + m_pPlayer->pev->view_ofs + gpGlobals->v_up * -9 + gpGlobals->v_forward * 16, gpGlobals->v_right * -9,
 		vecShellVelocity, pev->angles.y, m_iShellId, soundType, m_pPlayer->entindex());
-}
-
-bool CBasePlayerWeapon::ShieldSecondaryFire(int iUpAnim, int iDownAnim)
-{
-	if (!m_pPlayer->HasShield())
-		return false;
-
-	if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-	{
-		m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
-		SendWeaponAnim(iDownAnim, UseDecrement() != FALSE);
-		Q_strlcpy(m_pPlayer->m_szAnimExtention, "shieldgun");
-		m_fMaxSpeed = 250.0f;
-		m_pPlayer->m_bShieldDrawn = false;
-	}
-	else
-	{
-		m_iWeaponState |= WPNSTATE_SHIELD_DRAWN;
-		SendWeaponAnim(iUpAnim, UseDecrement() != FALSE);
-		Q_strlcpy(m_pPlayer->m_szAnimExtention, "shielded");
-		m_fMaxSpeed = 180.0f;
-		m_pPlayer->m_bShieldDrawn = true;
-	}
-
-	m_pPlayer->UpdateShieldCrosshair((m_iWeaponState & WPNSTATE_SHIELD_DRAWN) != WPNSTATE_SHIELD_DRAWN);
-	m_pPlayer->ResetMaxSpeed();
-
-	m_flNextSecondaryAttack = 0.4f;
-	m_flNextPrimaryAttack = 0.4f;
-	m_flTimeWeaponIdle = 0.6f;
-
-	return true;
 }
 
 LINK_HOOK_CLASS_VOID_CHAIN(CBasePlayerWeapon, KickBack, (float up_base, float lateral_base, float up_modifier, float lateral_modifier, float up_max, float lateral_max, int direction_change), up_base, lateral_base, up_modifier, lateral_modifier, up_max, lateral_max, direction_change)
@@ -909,11 +851,6 @@ bool CBasePlayerWeapon::HasSecondaryAttack()
 	}
 #endif
 
-	if (m_pPlayer && m_pPlayer->HasShield())
-	{
-		return true;
-	}
-
 	switch (m_iId)
 	{
 	case WEAPON_AK47:
@@ -1024,17 +961,6 @@ void EXT_FUNC CBasePlayerWeapon::__API_HOOK(ItemPostFrame)()
 		m_flLastFireTime = 0;
 	}
 
-	if (m_pPlayer->HasShield())
-	{
-		if (m_fInReload && (m_pPlayer->pev->button & IN_ATTACK2))
-		{
-			SecondaryAttack();
-			m_pPlayer->pev->button &= ~IN_ATTACK2;
-			m_fInReload = FALSE;
-			m_pPlayer->m_flNextAttack = UTIL_WeaponTimeBase();
-		}
-	}
-
 	if (m_fInReload && m_pPlayer->m_flNextAttack <= UTIL_WeaponTimeBase())
 	{
 		// complete the reload.
@@ -1104,11 +1030,8 @@ void EXT_FUNC CBasePlayerWeapon::__API_HOOK(ItemPostFrame)()
 		// reload when reload is pressed, or if no buttons are down and weapon is empty.
 		if (m_flFamasShoot == 0 && m_flGlock18Shoot == 0)
 		{
-			if (!(m_iWeaponState & WPNSTATE_SHIELD_DRAWN))
-			{
-				// reload when reload is pressed, or if no buttons are down and weapon is empty.
-				Reload();
-			}
+			// reload when reload is pressed, or if no buttons are down and weapon is empty.
+			Reload();
 		}
 	}
 	else if (!(usableButtons & (IN_ATTACK | IN_ATTACK2)))
@@ -1170,16 +1093,13 @@ void EXT_FUNC CBasePlayerWeapon::__API_HOOK(ItemPostFrame)()
 		}
 		else
 		{
-			if (!(m_iWeaponState & WPNSTATE_SHIELD_DRAWN))
+			// weapon is useable. Reload if empty and weapon has waited as long as it has to after firing
+			if (!m_iClip && !(iFlags() & ITEM_FLAG_NOAUTORELOAD) && m_flNextPrimaryAttack < UTIL_WeaponTimeBase())
 			{
-				// weapon is useable. Reload if empty and weapon has waited as long as it has to after firing
-				if (!m_iClip && !(iFlags() & ITEM_FLAG_NOAUTORELOAD) && m_flNextPrimaryAttack < UTIL_WeaponTimeBase())
+				if (m_flFamasShoot == 0 && m_flGlock18Shoot == 0)
 				{
-					if (m_flFamasShoot == 0 && m_flGlock18Shoot == 0)
-					{
-						Reload();
-						return;
-					}
+					Reload();
+					return;
 				}
 			}
 		}
@@ -1228,7 +1148,7 @@ bool CBasePlayerItem::DestroyItem()
 				m_pPlayer->m_iHideHUD |= HIDEHUD_WEAPONS;
 			}
 
-			if (!m_pPlayer->m_rgpPlayerItems[PRIMARY_WEAPON_SLOT] && !m_pPlayer->HasShield()) {
+			if (!m_pPlayer->m_rgpPlayerItems[PRIMARY_WEAPON_SLOT]) {
 				m_pPlayer->m_bHasPrimary = false;
 			}
 #endif
@@ -2030,7 +1950,7 @@ void CWeaponBox::Touch(CBaseEntity *pOther)
 
 	CBasePlayer *pPlayer = static_cast<CBasePlayer *>(pOther);
 
-	if (pPlayer->m_bIsVIP || pPlayer->m_bShieldDrawn)
+	if (pPlayer->m_bIsVIP)
 		return;
 
 	pPlayer->OnTouchingWeapon(this);
@@ -2057,8 +1977,7 @@ void CWeaponBox::Touch(CBaseEntity *pOther)
 		// have at least one weapon in this slot
 		while (pItem)
 		{
-			if ((pPlayer->HasShield() && pItem->m_iId == WEAPON_ELITE)
-				|| (pPlayer->IsBot() && TheCSBots() && !TheCSBots()->IsWeaponUseable(pItem)))
+			if (pPlayer->IsBot() && TheCSBots() && !TheCSBots()->IsWeaponUseable(pItem))
 			{
 				return;
 			}
@@ -2218,10 +2137,6 @@ void CWeaponBox::Touch(CBaseEntity *pOther)
 #endif
 
 				}
-			}
-			else if (pPlayer->HasShield() && i == PRIMARY_WEAPON_SLOT)
-			{
-				// ...
 			}
 			else
 			{
@@ -2734,9 +2649,6 @@ void CArmoury::ArmouryTouch(CBaseEntity *pOther)
 		if (pToucher->m_rgpPlayerItems[PISTOL_SLOT])
 			return;
 
-		if (pToucher->HasShield() && m_iItem == ARMOURY_ELITE)
-			return;
-
 		m_iCount--;
 		auto item = &armouryItemInfo[m_iItem];
 
@@ -2810,10 +2722,6 @@ void CArmoury::ArmouryTouch(CBaseEntity *pOther)
 #ifdef REGAMEDLL_ADD
 		case ARMOURY_SHIELD:
 		{
-			if (pToucher->m_bHasPrimary || (pToucher->m_rgpPlayerItems[PISTOL_SLOT] && pToucher->GetItemById(WEAPON_ELITE)))
-				return;
-
-			pToucher->GiveNamedItemEx("weapon_shield");
 			m_iCount--;
 			break;
 		}

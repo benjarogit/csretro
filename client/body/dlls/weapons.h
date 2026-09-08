@@ -275,9 +275,6 @@ public:
 	void EjectBrassLate(void);
 	void KickBack(float up_base, float lateral_base, float up_modifier, float lateral_modifier, float up_max, float lateral_max, int direction_change);
 	void FireRemaining(int &shotsFired, float &shootTime, BOOL isGlock18);
-	void SetPlayerShieldAnim(void);
-	void ResetPlayerShieldAnim(void);
-	bool ShieldSecondaryFire(int up_anim, int down_anim);
 	bool HasSecondaryAttack(void);
 	float GetNextAttackDelay(float delay);
 
@@ -571,7 +568,6 @@ public:
 	bool m_bStartedArming;
 	bool m_bBombPlacedAnimation;
 	float m_fArmedTime;
-	bool m_bHasShield;
 };
 
 class CDEAGLE : public CBasePlayerWeapon
@@ -584,7 +580,6 @@ public:
 	float GetMaxSpeed(void) { return m_fMaxSpeed; }
 	int iItemSlot(void) { return WPNSLOT_SECONDARY; }
 	void PrimaryAttack(void);
-	void SecondaryAttack(void);
 	void Reload(void);
 	void WeaponIdle(void);
 
@@ -677,7 +672,6 @@ public:
 	float GetMaxSpeed(void) { return m_fMaxSpeed; }
 	int iItemSlot(void) { return WPNSLOT_SECONDARY; }
 	void PrimaryAttack(void);
-	void SecondaryAttack(void);
 	void Reload(void);
 	void WeaponIdle(void);
 
@@ -711,11 +705,7 @@ public:
 	float GetMaxSpeed(void) { return m_fMaxSpeed; }
 	int iItemSlot(void) { return WPNSLOT_GRENADE; }
 	void PrimaryAttack(void);
-	void SecondaryAttack(void);
 	void WeaponIdle(void);
-	void SetPlayerShieldAnim(void);
-	void ResetPlayerShieldAnim(void);
-	bool ShieldSecondaryFire(int up_anim, int down_anim);
 
 	BOOL UseDecrement(void)
 	{
@@ -834,11 +824,7 @@ public:
 	float GetMaxSpeed(void) { return m_fMaxSpeed; }
 	int iItemSlot(void) { return WPNSLOT_GRENADE; }
 	void PrimaryAttack(void);
-	void SecondaryAttack(void);
 	void WeaponIdle(void);
-	void SetPlayerShieldAnim(void);
-	void ResetPlayerShieldAnim(void);
-	bool ShieldSecondaryFire(int up_anim, int down_anim);
 
 	BOOL UseDecrement(void)
 	{
@@ -866,9 +852,6 @@ public:
 	int iItemSlot(void) { return WPNSLOT_KNIFE; }
 	void PrimaryAttack(void);
 	void SecondaryAttack(void);
-	void SetPlayerShieldAnim(void);
-	void ResetPlayerShieldAnim(void);
-	bool ShieldSecondaryFire(int up_anim, int down_anim);
 	void WeaponIdle(void);
 
 	BOOL UseDecrement(void)
@@ -1056,7 +1039,6 @@ public:
 	float GetMaxSpeed(void) { return m_fMaxSpeed; }
 	int iItemSlot(void) { return WPNSLOT_SECONDARY; }
 	void PrimaryAttack(void);
-	void SecondaryAttack(void);
 	void Reload(void);
 	void WeaponIdle(void);
 
@@ -1215,11 +1197,7 @@ public:
 	float GetMaxSpeed(void) { return m_fMaxSpeed; }
 	int iItemSlot(void) { return WPNSLOT_GRENADE; }
 	void PrimaryAttack(void);
-	void SecondaryAttack(void);
 	void WeaponIdle(void);
-	void SetPlayerShieldAnim(void);
-	void ResetPlayerShieldAnim(void);
-	bool ShieldSecondaryFire(int up_anim, int down_anim);
 
 	BOOL UseDecrement(void)
 	{

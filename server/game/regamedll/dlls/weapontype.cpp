@@ -75,7 +75,6 @@ AutoBuyInfoStruct g_autoBuyInfo[] =
 	{ AUTOBUYCLASS_GRENADE,                         "sgren",    "weapon_smokegrenade"   },
 	{ AUTOBUYCLASS_NIGHTVISION,                     "nvgs",     "nvgs"                  },
 	{ AUTOBUYCLASS_DEFUSER,                         "defuser",  "defuser"               },
-	{ AUTOBUYCLASS_PRIMARY|AUTOBUYCLASS_SHIELD,     "shield",   "shield"                },
 	{ AUTOBUYCLASS_NONE,                            nullptr,     nullptr                },
 };
 
@@ -111,7 +110,6 @@ WeaponAliasInfo g_weaponAliasInfo[] =
 	{ "ak47",       WEAPON_AK47         },
 	{ "knife",      WEAPON_KNIFE        },
 	{ "p90",        WEAPON_P90          },
-	{ "shield",     WEAPON_SHIELDGUN    },
 	{ "none",       WEAPON_NONE         },
 	{ "grenade",    WEAPON_HEGRENADE    },
 	{ "hegrenade",  WEAPON_HEGRENADE    },
@@ -201,7 +199,6 @@ WeaponClassAliasInfo g_weaponClassAliasInfo[] =
 	{ "ak47",       WEAPONCLASS_RIFLE           },
 	{ "knife",      WEAPONCLASS_KNIFE           },
 	{ "p90",        WEAPONCLASS_SUBMACHINEGUN   },
-	{ "shield",     WEAPONCLASS_PISTOL          },
 	{ "grenade",    WEAPONCLASS_GRENADE         },
 	{ "hegrenade",  WEAPONCLASS_GRENADE         },
 	{ "glock18",    WEAPONCLASS_PISTOL          },
@@ -465,7 +462,6 @@ bool IsPrimaryWeapon(int id)
 	case WEAPON_SG552:
 	case WEAPON_AK47:
 	case WEAPON_P90:
-	case WEAPON_SHIELDGUN:
 		return true;
 	default:
 		break;
@@ -617,7 +613,6 @@ bool CanBuyWeaponByMaptype(int playerTeam, WeaponIdType weaponID, bool useAssasi
 			case WEAPON_TMP:
 			case WEAPON_DEAGLE:
 			case WEAPON_P90:
-			case WEAPON_SHIELDGUN:
 				return true;
 			default:
 				return false;
@@ -667,7 +662,6 @@ bool CanBuyWeaponByMaptype(int playerTeam, WeaponIdType weaponID, bool useAssasi
 		case WEAPON_TMP:
 		case WEAPON_DEAGLE:
 		case WEAPON_P90:
-		case WEAPON_SHIELDGUN:
 			return true;
 		default:
 			return false;

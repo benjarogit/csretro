@@ -30,7 +30,6 @@ void CKnife::Spawn()
 	m_iId = WEAPON_KNIFE;
 	SET_MODEL(edict(), "models/w_knife.mdl");
 
-	m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
 	m_iClip = WEAPON_NOCLIP;
 
 	FallInit();
@@ -39,7 +38,6 @@ void CKnife::Spawn()
 void CKnife::Precache()
 {
 	PRECACHE_MODEL("models/v_knife.mdl");
-	PRECACHE_MODEL("models/shield/v_shield_knife.mdl");
 	PRECACHE_MODEL("models/w_knife.mdl");
 
 	PRECACHE_SOUND("weapons/knife_deploy1.wav");
@@ -82,15 +80,7 @@ BOOL CKnife::Deploy()
 	m_iSwing = 0;
 	m_fMaxSpeed = KNIFE_MAX_SPEED;
 
-	m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
-	m_pPlayer->m_bShieldDrawn = false;
-
-	if (m_pPlayer->HasShield())
-	{
-		return DefaultDeploy("models/shield/v_shield_knife.mdl", "models/shield/p_shield_knife.mdl", KNIFE_SHIELD_DRAW, "shieldknife", UseDecrement() != FALSE);
-	}
-	else
-		return DefaultDeploy("models/v_knife.mdl", "models/p_knife.mdl", KNIFE_DRAW, "knife", UseDecrement() != FALSE);
+	return DefaultDeploy("models/v_knife.mdl", "models/p_knife.mdl", KNIFE_DRAW, "knife", UseDecrement() != FALSE);
 }
 
 void CKnife::Holster(int skiplocal)
@@ -167,80 +157,10 @@ void CKnife::PrimaryAttack()
 	Swing(TRUE);
 }
 
-void CKnife::SetPlayerShieldAnim()
-{
-	if (!m_pPlayer->HasShield())
-		return;
-
-	if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-	{
-		strcpy(m_pPlayer->m_szAnimExtention, "shield");
-	}
-	else
-	{
-		strcpy(m_pPlayer->m_szAnimExtention, "shieldknife");
-	}
-}
-
-void CKnife::ResetPlayerShieldAnim()
-{
-	if (!m_pPlayer->HasShield())
-		return;
-
-	if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-	{
-		strcpy(m_pPlayer->m_szAnimExtention, "shieldknife");
-	}
-}
-
-bool CKnife::ShieldSecondaryFire(int iUpAnim, int iDownAnim)
-{
-	if (!m_pPlayer->HasShield())
-	{
-		return false;
-	}
-
-	if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-	{
-		m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
-
-		SendWeaponAnim(iDownAnim, UseDecrement() != FALSE);
-
-		strcpy(m_pPlayer->m_szAnimExtention, "shieldknife");
-
-		m_fMaxSpeed = KNIFE_MAX_SPEED;
-		m_pPlayer->m_bShieldDrawn = false;
-	}
-	else
-	{
-		m_iWeaponState |= WPNSTATE_SHIELD_DRAWN;
-		SendWeaponAnim(iUpAnim, UseDecrement() != FALSE);
-
-		strcpy(m_pPlayer->m_szAnimExtention, "shielded");
-
-		m_fMaxSpeed = KNIFE_MAX_SPEED_SHIELD;
-		m_pPlayer->m_bShieldDrawn = true;
-	}
-
-#ifndef CLIENT_DLL
-	m_pPlayer->UpdateShieldCrosshair((m_iWeaponState & WPNSTATE_SHIELD_DRAWN) != WPNSTATE_SHIELD_DRAWN);
-#endif
-	m_pPlayer->ResetMaxSpeed();
-
-	m_flNextPrimaryAttack = GetNextAttackDelay(0.4);
-	m_flNextSecondaryAttack = UTIL_WeaponTimeBase() + 0.4f;
-	m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 0.6f;
-
-	return true;
-}
-
 void CKnife::SecondaryAttack()
 {
-	if (!ShieldSecondaryFire(KNIFE_SHIELD_UP, KNIFE_SHIELD_DOWN))
-	{
-		Stab(TRUE);
-		pev->nextthink = UTIL_WeaponTimeBase() + 0.35f;
-	}
+	Stab(TRUE);
+	pev->nextthink = UTIL_WeaponTimeBase() + 0.35f;
 }
 
 void CKnife::Smack()
@@ -259,9 +179,6 @@ void CKnife::WeaponIdle()
 	m_pPlayer->GetAutoaimVector(AUTOAIM_10DEGREES);
 
 	if (m_flTimeWeaponIdle > UTIL_WeaponTimeBase())
-		return;
-
-	if (m_pPlayer->m_bShieldDrawn)
 		return;
 
 	m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 20.0f;
@@ -307,25 +224,15 @@ int CKnife::Swing(int fFirst)
 	{
 		if (fFirst)
 		{
-			if (!m_pPlayer->HasShield())
+			switch ((m_iSwing++) % 2)
 			{
-				switch ((m_iSwing++) % 2)
-				{
-				case 0: SendWeaponAnim(KNIFE_MIDATTACK1HIT, UseDecrement() != FALSE); break;
-				case 1: SendWeaponAnim(KNIFE_MIDATTACK2HIT, UseDecrement() != FALSE); break;
-				}
-
-				// miss
-				m_flNextPrimaryAttack = GetNextAttackDelay(0.35);
-				m_flNextSecondaryAttack = UTIL_WeaponTimeBase() + 0.5f;
+			case 0: SendWeaponAnim(KNIFE_MIDATTACK1HIT, UseDecrement() != FALSE); break;
+			case 1: SendWeaponAnim(KNIFE_MIDATTACK2HIT, UseDecrement() != FALSE); break;
 			}
-			else
-			{
-				SendWeaponAnim(KNIFE_SHIELD_ATTACKHIT, UseDecrement() != FALSE);
 
-				m_flNextPrimaryAttack = GetNextAttackDelay(1.0);
-				m_flNextSecondaryAttack = UTIL_WeaponTimeBase() + 1.2f;
-			}
+			// miss
+			m_flNextPrimaryAttack = GetNextAttackDelay(0.35);
+			m_flNextSecondaryAttack = UTIL_WeaponTimeBase() + 0.5f;
 
 			m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 2.0f;
 
@@ -346,24 +253,14 @@ int CKnife::Swing(int fFirst)
 		// hit
 		fDidHit = TRUE;
 
-		if (!m_pPlayer->HasShield())
+		switch ((m_iSwing++) % 2)
 		{
-			switch ((m_iSwing++) % 2)
-			{
-			case 0: SendWeaponAnim(KNIFE_MIDATTACK1HIT, UseDecrement() != FALSE); break;
-			case 1: SendWeaponAnim(KNIFE_MIDATTACK2HIT, UseDecrement() != FALSE); break;
-			}
-
-			m_flNextPrimaryAttack = GetNextAttackDelay(0.4);
-			m_flNextSecondaryAttack = UTIL_WeaponTimeBase() + 0.5f;
+		case 0: SendWeaponAnim(KNIFE_MIDATTACK1HIT, UseDecrement() != FALSE); break;
+		case 1: SendWeaponAnim(KNIFE_MIDATTACK2HIT, UseDecrement() != FALSE); break;
 		}
-		else
-		{
-			SendWeaponAnim(KNIFE_SHIELD_ATTACKHIT, UseDecrement() != FALSE);
 
-			m_flNextPrimaryAttack = GetNextAttackDelay(1.0);
-			m_flNextSecondaryAttack = UTIL_WeaponTimeBase() + 1.2f;
-		}
+		m_flNextPrimaryAttack = GetNextAttackDelay(0.4);
+		m_flNextSecondaryAttack = UTIL_WeaponTimeBase() + 0.5f;
 
 		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 2.0f;
 
@@ -372,7 +269,6 @@ int CKnife::Swing(int fFirst)
 		int fHitWorld = TRUE;
 
 		CBaseEntity *pEntity = CBaseEntity::Instance(tr.pHit);
-		SetPlayerShieldAnim();
 
 #ifndef CLIENT_DLL
 		// player "shoot" animation
@@ -437,8 +333,6 @@ int CKnife::Swing(int fFirst)
 
 			pev->nextthink = UTIL_WeaponTimeBase() + 0.2f;
 			m_pPlayer->m_iWeaponVolume = int(flVol * KNIFE_WALLHIT_VOLUME);
-
-			ResetPlayerShieldAnim();
 		}
 		else
 		{
@@ -595,8 +489,6 @@ int CKnife::Stab(int fFirst)
 
 			SetThink(&CKnife::Smack);
 			pev->nextthink = UTIL_WeaponTimeBase() + 0.2f;
-
-			ResetPlayerShieldAnim();
 		}
 		else
 		{

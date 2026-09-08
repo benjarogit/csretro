@@ -11,7 +11,7 @@ public:
 	CTeamModelPreview(vgui2::Panel *parent, const char *name);
 
 	void SetPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence);
-	void SetItemPreview(const char *modelPath, float worldWidth = 24.0f);
+	void SetItemPreview(const char *modelPath, float worldWidth = 24.0f, float yaw = 90.0f);
 	void SetStageBackdrop(bool enabled);
 	void ClearPreviews(float worldWidth);
 	void SetWorldWidth(float worldWidth) { m_worldWidth = worldWidth > 1.0f ? worldWidth : 1.0f; }

@@ -449,8 +449,7 @@ void CCSBot::EquipBestWeapon(bool mustEquip)
 			|| (TheCSBots()->AllowMachineGuns() && weaponClass == WEAPONCLASS_MACHINEGUN)
 			|| (TheCSBots()->AllowRifles() && weaponClass == WEAPONCLASS_RIFLE)
 			|| (TheCSBots()->AllowSnipers() && weaponClass == WEAPONCLASS_SNIPERRIFLE)
-			|| (TheCSBots()->AllowSubMachineGuns() && weaponClass == WEAPONCLASS_SUBMACHINEGUN)
-			|| (TheCSBots()->AllowTacticalShield() && pPrimary->m_iId == WEAPON_SHIELDGUN))
+			|| (TheCSBots()->AllowSubMachineGuns() && weaponClass == WEAPONCLASS_SUBMACHINEGUN))
 		{
 			if (DoEquip(pPrimary))
 				return;
@@ -784,14 +783,14 @@ void CCSBot::SilencerCheck()
 		bool isSilencerOn = (pCurrentWeapon->m_iWeaponState & (WPNSTATE_M4A1_SILENCED | WPNSTATE_USP_SILENCED)) != 0;
 
 #ifndef REGAMEDLL_FIXES
-		if (isSilencerOn != GetProfile()->PrefersSilencer() && !HasShield())
+		if (isSilencerOn != GetProfile()->PrefersSilencer())
 #else
 
 		if (pCurrentWeapon->m_flNextSecondaryAttack >= gpGlobals->time)
 			return;
 
 		// equip silencer if we want to and we don't have a shield.
-		if (isSilencerOn != (GetProfile()->PrefersSilencer() || GetProfile()->GetSkill() > 0.7f) && !HasShield())
+		if (isSilencerOn != (GetProfile()->PrefersSilencer() || GetProfile()->GetSkill() > 0.7f))
 #endif
 		{
 			PrintIfWatched("%s silencer!\n", (isSilencerOn) ? "Unequipping" : "Equipping");

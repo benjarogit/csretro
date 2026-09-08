@@ -30,7 +30,6 @@ void CFiveSeven::Spawn(void)
 	SET_MODEL(edict(), "models/w_fiveseven.mdl");
 
 	m_iDefaultAmmo = FIVESEVEN_DEFAULT_GIVE;
-	m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
 	m_flAccuracy = 0.92f;
 
 	FallInit();
@@ -40,7 +39,6 @@ void CFiveSeven::Precache(void)
 {
 	PRECACHE_MODEL("models/v_fiveseven.mdl");
 	PRECACHE_MODEL("models/w_fiveseven.mdl");
-	PRECACHE_MODEL("models/shield/v_shield_fiveseven.mdl");
 
 	PRECACHE_SOUND("weapons/fiveseven-1.wav");
 	PRECACHE_SOUND("weapons/fiveseven_clipout.wav");
@@ -73,13 +71,8 @@ BOOL CFiveSeven::Deploy(void)
 {
 	m_flAccuracy = 0.92f;
 	m_fMaxSpeed = FIVESEVEN_MAX_SPEED;
-	m_iWeaponState &= ~WPNSTATE_SHIELD_DRAWN;
-	m_pPlayer->m_bShieldDrawn = false;
 
-	if (m_pPlayer->HasShield())
-		return DefaultDeploy("models/shield/v_shield_fiveseven.mdl", "models/shield/p_shield_fiveseven.mdl", FIVESEVEN_DRAW, "shieldgun", UseDecrement() != FALSE);
-	else
-		return DefaultDeploy("models/v_fiveseven.mdl", "models/p_fiveseven.mdl", FIVESEVEN_DRAW, "onehanded", UseDecrement() != FALSE);
+	return DefaultDeploy("models/v_fiveseven.mdl", "models/p_fiveseven.mdl", FIVESEVEN_DRAW, "onehanded", UseDecrement() != FALSE);
 }
 
 void CFiveSeven::PrimaryAttack(void)
@@ -100,11 +93,6 @@ void CFiveSeven::PrimaryAttack(void)
 	{
 		FiveSevenFire(0.15 * (1 - m_flAccuracy), 0.2, FALSE);
 	}
-}
-
-void CFiveSeven::SecondaryAttack(void)
-{
-	ShieldSecondaryFire(SHIELDGUN_UP, SHIELDGUN_DOWN);
 }
 
 void CFiveSeven::FiveSevenFire(float flSpread, float flCycleTime, BOOL fUseAutoAim)
@@ -155,7 +143,6 @@ void CFiveSeven::FiveSevenFire(float flSpread, float flCycleTime, BOOL fUseAutoA
 
 	--m_iClip;
 	m_pPlayer->pev->effects |= EF_MUZZLEFLASH;
-	SetPlayerShieldAnim();
 
 #ifndef CLIENT_DLL
 	m_pPlayer->SetAnimation(PLAYER_ATTACK1);
@@ -190,7 +177,6 @@ void CFiveSeven::FiveSevenFire(float flSpread, float flCycleTime, BOOL fUseAutoA
 
 	m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 2.0f;
 	m_pPlayer->pev->punchangle.x -= 2.0f;
-	ResetPlayerShieldAnim();
 }
 
 void CFiveSeven::Reload(void)
@@ -217,16 +203,7 @@ void CFiveSeven::WeaponIdle(void)
 		return;
 	}
 
-	if (m_pPlayer->HasShield())
-	{
-		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 20.0f;
-
-		if (m_iWeaponState & WPNSTATE_SHIELD_DRAWN)
-		{
-			SendWeaponAnim(SHIELDGUN_DRAWN_IDLE, UseDecrement() != FALSE);
-		}
-	}
-	else if (m_iClip)
+	if (m_iClip)
 	{
 		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 3.0625f;
 		SendWeaponAnim(FIVESEVEN_IDLE, UseDecrement() != FALSE);

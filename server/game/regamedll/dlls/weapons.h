@@ -400,9 +400,6 @@ public:
 #ifndef REGAMEDLL_FIXES
 	BOOL IsPistol() { return (m_iId == WEAPON_USP || m_iId == WEAPON_GLOCK18 || m_iId == WEAPON_P228 || m_iId == WEAPON_DEAGLE || m_iId == WEAPON_ELITE || m_iId == WEAPON_FIVESEVEN); }
 #endif
-	void SetPlayerShieldAnim();
-	void ResetPlayerShieldAnim();
-	bool ShieldSecondaryFire(int iUpAnim, int iDownAnim);
 	void HandleInfiniteAmmo();
 	void InstantReload(bool bCanRefillBPAmmo = false);
 	bool DefaultShotgunReload(int iAnim, int iStartAnim, float fDelay, float fStartDelay, const char *pszReloadSound1 = nullptr, const char *pszReloadSound2 = nullptr);
@@ -894,9 +891,6 @@ public:
 	bool m_bStartedArming;
 	bool m_bBombPlacedAnimation;
 	float m_fArmedTime;
-
-private:
-	bool m_bHasShield;
 };
 
 
@@ -938,7 +932,6 @@ public:
 	virtual float GetMaxSpeed() { return m_fMaxSpeed; }
 	virtual int iItemSlot() { return PISTOL_SLOT; }
 	virtual void PrimaryAttack();
-	virtual void SecondaryAttack();
 	virtual void Reload();
 	virtual void WeaponIdle();
 	virtual BOOL UseDecrement()
@@ -985,7 +978,6 @@ public:
 	virtual float GetMaxSpeed() { return m_fMaxSpeed; }
 	virtual int iItemSlot() { return GRENADE_SLOT; }
 	virtual void PrimaryAttack();
-	virtual void SecondaryAttack();
 	virtual void WeaponIdle();
 	virtual BOOL UseDecrement()
 	{
@@ -1002,11 +994,6 @@ public:
 #ifdef REGAMEDLL_API
 	BOOL CanDeploy_OrigFunc();
 #endif
-
-public:
-	bool ShieldSecondaryFire(int iUpAnim, int iDownAnim);
-	void SetPlayerShieldAnim();
-	void ResetPlayerShieldAnim();
 };
 
 
@@ -1148,7 +1135,6 @@ public:
 	virtual float GetMaxSpeed() { return m_fMaxSpeed; }
 	virtual int iItemSlot() { return GRENADE_SLOT; }
 	virtual void PrimaryAttack();
-	virtual void SecondaryAttack();
 	virtual void WeaponIdle();
 	virtual BOOL UseDecrement()
 	{
@@ -1162,11 +1148,6 @@ public:
 #ifdef REGAMEDLL_API
 	BOOL CanDeploy_OrigFunc();
 #endif
-
-public:
-	bool ShieldSecondaryFire(int iUpAnim, int iDownAnim);
-	void SetPlayerShieldAnim();
-	void ResetPlayerShieldAnim();
 
 public:
 	unsigned short m_usCreateExplosion;
@@ -1237,11 +1218,6 @@ public:
 	void WeaponAnimation(int iAnimation);
 	BOOL Stab(BOOL fFirst);
 	BOOL Swing(BOOL fFirst);
-
-public:
-	bool ShieldSecondaryFire(int iUpAnim, int iDownAnim);
-	void SetPlayerShieldAnim();
-	void ResetPlayerShieldAnim();
 
 	float KnifeStabDamage() const;
 	float KnifeSwingDamage(bool fast) const;
@@ -1534,7 +1510,6 @@ public:
 	virtual float GetMaxSpeed() { return m_fMaxSpeed; }
 	virtual int iItemSlot() { return PISTOL_SLOT; }
 	virtual void PrimaryAttack();
-	virtual void SecondaryAttack();
 	virtual void Reload();
 	virtual void WeaponIdle();
 	virtual BOOL UseDecrement()
@@ -1682,7 +1657,6 @@ public:
 	virtual float GetMaxSpeed() { return m_fMaxSpeed; }
 	virtual int iItemSlot() { return GRENADE_SLOT; }
 	virtual void PrimaryAttack();
-	virtual void SecondaryAttack();
 	virtual void WeaponIdle();
 	virtual BOOL UseDecrement()
 	{
@@ -1696,11 +1670,6 @@ public:
 #ifdef REGAMEDLL_API
 	BOOL CanDeploy_OrigFunc();
 #endif
-
-public:
-	bool ShieldSecondaryFire(int iUpAnim, int iDownAnim);
-	void SetPlayerShieldAnim();
-	void ResetPlayerShieldAnim();
 
 public:
 	unsigned short m_usCreateSmoke;
@@ -1901,7 +1870,6 @@ public:
 	virtual float GetMaxSpeed() { return m_fMaxSpeed; }
 	virtual int iItemSlot() { return PISTOL_SLOT; }
 	virtual void PrimaryAttack();
-	virtual void SecondaryAttack();
 	virtual void Reload();
 	virtual void WeaponIdle();
 	virtual BOOL UseDecrement()

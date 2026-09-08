@@ -119,6 +119,22 @@ public:
 	{
 	}
 
+	void FireActionSignal() override
+	{
+		BuySelect_RememberClass(GetName());
+		BaseClass::FireActionSignal();
+	}
+
+	void ApplySettings(KeyValues *inResourceData) override
+	{
+		BaseClass::ApplySettings(inResourceData);
+		const char *cmd = inResourceData->GetString("command", "");
+		if (!cmd[0])
+			cmd = inResourceData->GetString("Command", "");
+		if (cmd[0])
+			SetCommand(cmd);
+	}
+
 	void SetLineupCard(bool lineup) { m_lineupCard = lineup; ApplyLook(); }
 	void SetAccent(Color accent)
 	{
@@ -265,6 +281,15 @@ public:
 				if (auto *btn = dynamic_cast<Button *>(child))
 					btn->SetCommand("joinclass 5");
 			}
+			else if (auto *btn = dynamic_cast<Button *>(child))
+			{
+				if (bind.slot >= 1 && bind.slot <= 5 && !IsAutoselect(bind.name))
+				{
+					char cmd[32];
+					snprintf(cmd, sizeof(cmd), "joinclass %d", bind.slot);
+					btn->SetCommand(cmd);
+				}
+			}
 			child->SetVisible((m_slots & SlotBit(slot)) != 0);
 		}
 		SyncLineupVisibility();
@@ -348,23 +373,17 @@ public:
 		{
 			Menu_Con("CSRETRO_CLASS_CMD %s", command);
 			const int n = atoi(command + 10);
-			const bool cz = (m_slots & MENU_KEY_6) != 0;
 			const char *stem = nullptr;
-			if (m_type == MENU_CLASS_CT)
+			const SlotBind *binds = Binds();
+			const int count = BindCount();
+			for (int i = 0; i < count; ++i)
 			{
-				if (n == 1) stem = "urban";
-				else if (n == 2) stem = "gsg9";
-				else if (n == 3) stem = "sas";
-				else if (n == 4) stem = "gign";
-				else if (n == 5 && cz) stem = "spetsnaz";
-			}
-			else
-			{
-				if (n == 1) stem = "terror";
-				else if (n == 2) stem = "leet";
-				else if (n == 3) stem = "arctic";
-				else if (n == 4) stem = "guerilla";
-				else if (n == 5 && cz) stem = "militia";
+				if (EffectiveSlot(binds[i]) != n)
+					continue;
+				if (IsAutoselect(binds[i].name) || binds[i].slot == 10)
+					continue;
+				stem = binds[i].name;
+				break;
 			}
 			BuySelect_RememberClass(stem);
 			char buf[64];

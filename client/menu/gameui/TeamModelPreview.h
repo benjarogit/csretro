@@ -10,7 +10,8 @@ class CTeamModelPreview : public vgui2::Panel
 public:
 	CTeamModelPreview(vgui2::Panel *parent, const char *name);
 
-	void SetPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence);
+	void SetPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence,
+		float lateralOffset = 0.0f);
 	void SetItemPreview(const char *modelPath);
 	void SetStageBackdrop(bool enabled);
 	void ClearPreviews(float worldWidth);
@@ -33,6 +34,7 @@ private:
 		float pitch = 0.0f;
 		float yaw = 180.0f;
 		float roll = 0.0f;
+		float camRoll = 0.0f;
 		float lateralOffset = 0.0f;
 		float shift[3] = {};
 		float frameW = 24.0f;

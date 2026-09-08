@@ -111,8 +111,8 @@
 #define EF_LIGHT			64	// rocket flare glow sprite
 #define EF_NODRAW			128	// don't draw entity
 
-// CS Retro menu-only studio entity. It keeps the native player weaponmodel
-// merge but must not inherit gait/yaw state from the reused network slot.
+// CS Retro menu-only studio flags. Keep in sync with the engine copy.
+// ITEM: buy-card w_*.mdl — real skin, chrome off, fullbright (not a gold tint).
 #define EF_CSRETRO_ITEM		(1<<22)
 #define EF_CSRETRO_PREVIEW	(1<<23)
 

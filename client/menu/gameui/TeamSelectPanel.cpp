@@ -449,7 +449,10 @@ private:
 			m_ctPreviewIndex = gEng.pfnRandomLong(0, 3);
 		else
 			m_ctPreviewIndex = (m_ctPreviewIndex + gEng.pfnRandomLong(1, 3)) % 4;
-		m_tModel->SetPreview(terrorModels[m_tPreviewIndex], "models/p_ak47.mdl", 154.0f, 80);
+		// EF_CSRETRO_PREVIEW now preserves authored yaw on every open. The old
+		// 154-degree value only looked correct while a live player slot rewrote it;
+		// 202 is the stable front-facing T pose also used by the buy preview.
+		m_tModel->SetPreview(terrorModels[m_tPreviewIndex], "models/p_ak47.mdl", 202.0f, 80);
 		m_ctModel->SetPreview(ctModels[m_ctPreviewIndex], "models/p_m4a1.mdl", 206.0f, 33);
 		m_tModel->SetWorldWidth(65.0f);
 		m_ctModel->SetWorldWidth(65.0f);

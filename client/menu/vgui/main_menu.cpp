@@ -522,10 +522,17 @@ void MainMenu_SyncDialogVisibility()
 	{
 		if (g_mainMenu->GetMenu())
 			g_mainMenu->GetMenu()->SetVisibleExplicit(false);
+		// Hiding only the item list still leaves the pause title and other host
+		// chrome painting through the in-game overlay (visible as "Pa..." in
+		// screenshots). Keep the whole desktop host out of this render pass.
+		g_mainMenu->SetVisible(false);
 		return;
 	}
-	if (g_mainMenu->IsVisible())
+	if (gMenuVisible)
+	{
+		g_mainMenu->SetVisible(true);
 		g_mainMenu->SyncDialogVisibility();
+	}
 }
 
 void MainMenu_InvalidateLayout()

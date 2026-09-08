@@ -73,34 +73,129 @@ bool ReadStudioIdleBox(const char *path, float mins[3], float maxs[3])
 	return true;
 }
 
-// Camera looks down -Z (view pitch 90). Yaw 90 puts an X-long pancake
-// onto world Y so the barrel sits horizontal on screen.
-void FrameItem(const float mins[3], const float maxs[3], float *pitch, float *yaw, float *roll,
-	float *frameW, float *frameH, float shift[3])
+// Camera looks +X (same as Class/Team). Studio pitch is Quake-inverted, so
+// entity pitch 90 puts the idle XY pancake into the YZ plane — a side profile
+// with the barrel in the picture. Pitch-90 cameras gimbal and look 3/4.
+// Portrait pancakes get a camera roll so the barrel stays horizontal.
+void StudioPoint(float pitch, float yaw, const float in[3], float out[3])
 {
-	const float dx = std::max(0.1f, maxs[0] - mins[0]);
-	const float dy = std::max(0.1f, maxs[1] - mins[1]);
-	const float cx = 0.5f * (mins[0] + maxs[0]);
-	const float cy = 0.5f * (mins[1] + maxs[1]);
-	const float cz = 0.5f * (mins[2] + maxs[2]);
-	*pitch = 0.0f;
+	const float p = Deg2Rad(-pitch);
+	const float y = Deg2Rad(yaw);
+	const float sp = std::sin(p);
+	const float cp = std::cos(p);
+	const float sy = std::sin(y);
+	const float cy = std::cos(y);
+	out[0] = (cp * cy) * in[0] + (-sy) * in[1] + (sp * cy) * in[2];
+	out[1] = (cp * sy) * in[0] + (cy) * in[1] + (sp * sy) * in[2];
+	out[2] = (-sp) * in[0] + (cp) * in[2];
+}
+
+void FrameItem(const float mins[3], const float maxs[3], float *pitch, float *yaw, float *roll,
+	float *camRoll, float *frameW, float *frameH, float shift[3])
+{
+	*pitch = 90.0f;
+	*yaw = 0.0f;
 	*roll = 0.0f;
-	if (dx > dy)
+	*camRoll = 0.0f;
+
+	float xMin = 1.0e9f, xMax = -1.0e9f;
+	float yMin = 1.0e9f, yMax = -1.0e9f;
+	float zMin = 1.0e9f, zMax = -1.0e9f;
+	for (int i = 0; i < 8; ++i)
 	{
-		*yaw = 90.0f;
-		shift[0] = cy;
-		shift[1] = -cx;
-		shift[2] = -cz;
+		const float in[3] = {
+			(i & 1) ? maxs[0] : mins[0],
+			(i & 2) ? maxs[1] : mins[1],
+			(i & 4) ? maxs[2] : mins[2]
+		};
+		float out[3];
+		StudioPoint(*pitch, *yaw, in, out);
+		xMin = std::min(xMin, out[0]);
+		xMax = std::max(xMax, out[0]);
+		yMin = std::min(yMin, out[1]);
+		yMax = std::max(yMax, out[1]);
+		zMin = std::min(zMin, out[2]);
+		zMax = std::max(zMax, out[2]);
+	}
+	const float yExt = std::max(0.1f, yMax - yMin);
+	const float zExt = std::max(0.1f, zMax - zMin);
+	if (zExt > yExt)
+	{
+		*camRoll = 90.0f;
+		*frameW = zExt;
+		*frameH = yExt;
 	}
 	else
 	{
-		*yaw = 0.0f;
-		shift[0] = -cx;
-		shift[1] = -cy;
-		shift[2] = -cz;
+		*frameW = yExt;
+		*frameH = zExt;
 	}
-	*frameW = std::max(dx, dy);
-	*frameH = std::min(dx, dy);
+	shift[0] = -0.5f * (xMin + xMax);
+	shift[1] = -0.5f * (yMin + yMax);
+	shift[2] = -0.5f * (zMin + zMax);
+}
+
+float ItemScreenRoll(const char *path)
+{
+	// The stock w_*.mdl files do not share one authored orientation. Their
+	// sequence boxes describe only an axis-aligned envelope, so they cannot tell
+	// whether a pistol grip points up or how far a rifle mesh is diagonal inside
+	// that envelope. These small per-asset corrections keep the real MDLs while
+	// presenting the same readable, horizontal inventory profile as the reference.
+	struct Roll { const char *stem; float degrees; };
+	static const Roll rolls[] = {
+		{"w_glock18.mdl", 180.0f}, {"w_usp.mdl", 210.0f},
+		{"w_p228.mdl", 195.0f}, {"w_deagle.mdl", 180.0f},
+		{"w_elite.mdl", 180.0f},
+		{"w_m3.mdl", -45.0f}, {"w_xm1014.mdl", 0.0f},
+		{"w_mac10.mdl", 0.0f}, {"w_mp5.mdl", 8.0f},
+		{"w_ump45.mdl", 20.0f}, {"w_p90.mdl", -45.0f},
+		{"w_galil.mdl", 18.0f}, {"w_ak47.mdl", -30.0f},
+		{"w_scout.mdl", 25.0f}, {"w_sg552.mdl", -45.0f},
+		{"w_awp.mdl", -20.0f}, {"w_g3sg1.mdl", -20.0f},
+		{"w_famas.mdl", 18.0f}, {"w_m4a1.mdl", -30.0f},
+		{"w_aug.mdl", -45.0f}, {"w_sg550.mdl", -20.0f},
+		{"w_tmp.mdl", 0.0f}, {"w_fiveseven.mdl", 180.0f},
+		{"w_flashbang.mdl", -90.0f}, {"w_hegrenade.mdl", -90.0f},
+		{"w_smokegrenade.mdl", -90.0f},
+	};
+	for (const Roll &entry : rolls)
+		if (path && std::strstr(path, entry.stem))
+			return entry.degrees;
+	return 0.0f;
+}
+
+void ApplyItemScreenRoll(const char *path, float *camRoll, float *frameW, float *frameH)
+{
+	const float correction = ItemScreenRoll(path);
+	if (std::fabs(correction) < 0.01f)
+		return;
+	*camRoll += correction;
+	// The grenade world meshes are much chunkier than weapon silhouettes. Once
+	// upright, swap the projected axes and reserve extra framing so they match
+	// the reference's smaller icons. Rifle/pistol corrections align their long
+	// axis and deliberately keep the already measured frame instead of shrinking
+	// the model a second time with a rotated axis-aligned box.
+	if (path && (std::strstr(path, "flashbang") || std::strstr(path, "hegrenade") ||
+		std::strstr(path, "smokegrenade")))
+	{
+		const float oldW = *frameW;
+		*frameW = *frameH * 0.95f;
+		*frameH = oldW * 0.95f;
+	}
+	// A few stock world models have sequence boxes far larger than their visible
+	// mesh. They otherwise remain tiny despite correct centering and rotation.
+	// This is camera framing only; the cards still render the original MDLs.
+	float framing = 1.0f;
+	if (path && std::strstr(path, "w_m3.mdl"))
+		framing = 0.72f;
+	else if (path && std::strstr(path, "w_sg552.mdl"))
+		framing = 0.55f;
+	if (framing < 1.0f)
+	{
+		*frameW *= framing;
+		*frameH *= framing;
+	}
 }
 
 void SetupStudio(cl_entity_t *ent, const char *path, int sequence, float pitch, float yaw, float roll,
@@ -164,13 +259,14 @@ CTeamModelPreview::CTeamModelPreview(Panel *parent, const char *name)
 	SetKeyBoardInputEnabled(false);
 }
 
-void CTeamModelPreview::SetPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence)
+void CTeamModelPreview::SetPreview(const char *modelPath, const char *weaponPath, float yaw, int sequence,
+	float lateralOffset)
 {
 	m_item = false;
 	m_stageBackdrop = false;
 	SetPaintBackgroundEnabled(false);
 	ClearPreviews(50.0f);
-	AddPreview(modelPath, weaponPath, yaw, sequence, 0.0f);
+	AddPreview(modelPath, weaponPath, yaw, sequence, lateralOffset);
 }
 
 void CTeamModelPreview::SetItemPreview(const char *modelPath)
@@ -186,8 +282,9 @@ void CTeamModelPreview::SetItemPreview(const char *modelPath)
 	float maxs[3] = { 12.0f, 12.0f, 2.0f };
 	if (!ReadStudioIdleBox(modelPath, mins, maxs))
 		Menu_Con("CSRETRO_BUY_ITEM_BOX_FALLBACK path=%s", modelPath);
-	FrameItem(mins, maxs, &preview.pitch, &preview.yaw, &preview.roll,
+	FrameItem(mins, maxs, &preview.pitch, &preview.yaw, &preview.roll, &preview.camRoll,
 		&preview.frameW, &preview.frameH, preview.shift);
+	ApplyItemScreenRoll(modelPath, &preview.camRoll, &preview.frameW, &preview.frameH);
 	m_worldWidth = preview.frameW;
 }
 
@@ -258,7 +355,7 @@ void CTeamModelPreview::Paint()
 	rvp.viewport[1] = ay;
 	rvp.viewport[2] = w;
 	rvp.viewport[3] = h;
-	rvp.fov_x = m_item ? 16.0f : 26.0f;
+	rvp.fov_x = m_item ? 13.0f : 26.0f;
 	rvp.fov_y = FovYFromX(w, h, rvp.fov_x);
 	if (rvp.fov_y <= 0.0f)
 		return;
@@ -269,29 +366,16 @@ void CTeamModelPreview::Paint()
 	const float distH = DistanceForHeight(m_worldHeight, rvp.fov_y);
 	const float distW = DistanceForHeight(m_worldWidth, rvp.fov_x);
 	const float now = gGlobals ? gGlobals->time : 0.0f;
-	float itemDist = 0.0f;
-	if (m_item)
+	float itemDist = 24.0f;
+	if (m_item && m_count > 0)
 	{
-		for (int i = 0; i < m_count; ++i)
-		{
-			if (!m_previews[i].visible)
-				continue;
-			const float byWidth = DistanceForHeight(m_previews[i].frameW / 0.92f, rvp.fov_x);
-			const float byHeight = DistanceForHeight(m_previews[i].frameH / 0.82f, rvp.fov_y);
-			itemDist = std::max(8.0f, std::max(byWidth, byHeight));
-			break;
-		}
+		const float byWidth = DistanceForHeight(m_previews[0].frameW / 0.94f, rvp.fov_x);
+		const float byHeight = DistanceForHeight(m_previews[0].frameH / 0.84f, rvp.fov_y);
+		itemDist = std::max(8.0f, std::max(byWidth, byHeight));
+		rvp.viewangles[2] = m_previews[0].camRoll;
 	}
 	else
 		rvp.vieworigin[2] = -5.0f;
-
-	if (m_item)
-	{
-		rvp.viewangles[0] = 90.0f;
-		rvp.vieworigin[0] = 0.0f;
-		rvp.vieworigin[1] = 0.0f;
-		rvp.vieworigin[2] = itemDist;
-	}
 
 	gEng.pfnClearScene();
 	cl_entity_t players[kMaxPreviews];
@@ -308,7 +392,7 @@ void CTeamModelPreview::Paint()
 		const float idleLift = m_item ? 0.0f : std::sin(now * 1.35f + phase) * 0.22f;
 		const float dist = m_item ? itemDist : std::max(distH, distW) * 1.04f;
 		const int studioIndex = m_independentPlayerState ? (3 - i) : (i + 1);
-		const float ox = m_item ? preview.shift[0] : (dist + preview.shift[0]);
+		const float ox = dist + preview.shift[0];
 		const float oy = m_item ? preview.shift[1] : preview.lateralOffset;
 		const float oz = m_item ? preview.shift[2] : idleLift;
 		SetupStudio(&players[i], preview.path, preview.sequence, preview.pitch,
@@ -325,10 +409,11 @@ void CTeamModelPreview::Paint()
 		{
 			players[i].index = 0;
 			players[i].curstate.number = 0;
-			players[i].curstate.effects |= EF_NOINTERP;
+			players[i].curstate.effects |= EF_CSRETRO_ITEM | EF_FULLBRIGHT | EF_NOINTERP;
 			if (!m_logged)
-				Menu_Con("CSRETRO_BUY_ITEM path=%s yaw=%.0f frame=%.1fx%.1f dist=%.1f",
-					preview.path, preview.yaw, preview.frameW, preview.frameH, dist);
+				Menu_Con("CSRETRO_BUY_ITEM path=%s pitch=%.0f yaw=%.0f camRoll=%.0f frame=%.1fx%.1f dist=%.1f",
+					preview.path, preview.pitch, preview.yaw, preview.camRoll,
+					preview.frameW, preview.frameH, dist);
 		}
 		// Items stay non-player. Characters keep player=true so p_* weapons
 		// bone-merge. Buy's dark stage must not disable that.

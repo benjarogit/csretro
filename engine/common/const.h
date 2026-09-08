@@ -114,8 +114,8 @@
 #define EF_LIGHT			64	// rocket flare glow sprite
 #define EF_NODRAW			128	// don't draw entity
 
-// CS Retro menu-only studio entity. Keep this value in sync with the client
-// SDK copy: the menu constructs the entity and the client renderer consumes it.
+// CS Retro menu-only studio flags. Keep in sync with the client SDK copy.
+// ITEM: buy-card w_*.mdl — real skin, chrome off, fullbright (not a gold tint).
 #define EF_CSRETRO_ITEM		(1U<<22)
 #define EF_CSRETRO_PREVIEW	(1U<<23)
 

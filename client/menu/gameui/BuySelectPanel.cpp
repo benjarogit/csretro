@@ -234,7 +234,7 @@ const char *BuyDisplayName(const char *command)
 {
 	struct Entry { const char *command; const char *label; };
 	static const Entry names[] = {
-		{"vest", "Kevlar Vest"}, {"vesthelm", "Kevlar + Helmet"},
+		{"vest", "Kevlar Vest"}, {"vesthelm", "Kevlar+Helm"},
 		{"nvgs", "Nightvision"}, {"defuser", "Defuse Kit"},
 		{"glock", "Glock-18"}, {"usp", "USP"}, {"p228", "P228"},
 		{"deagle", "Desert Eagle"}, {"elites", "Dual Elites"},
@@ -245,7 +245,7 @@ const char *BuyDisplayName(const char *command)
 		{"m4a1", "M4A1"}, {"scout", "Scout"}, {"sg552", "SG 552"},
 		{"aug", "AUG"}, {"awp", "AWP"}, {"g3sg1", "G3SG1"},
 		{"sg550", "SG 550"}, {"flash", "Flashbang"},
-		{"hegren", "HE Grenade"}, {"sgren", "Smoke Grenade"},
+		{"hegren", "HE Grenade"}, {"sgren", "Smoke"},
 	};
 	if (!command)
 		return nullptr;
@@ -253,6 +253,21 @@ const char *BuyDisplayName(const char *command)
 		if (!strcasecmp(command, entry.command))
 			return entry.label;
 	return nullptr;
+}
+
+const char *CompactBuyDisplayName(const std::string &name)
+{
+	struct Entry { const char *full; const char *compact; };
+	static const Entry names[] = {
+		{"Kevlar Vest", "Kevlar"}, {"Kevlar+Helm", "Kev+Helm"},
+		{"Nightvision", "NVGs"}, {"Desert Eagle", "Deagle"},
+		{"Dual Elites", "Elites"}, {"Flashbang", "Flash"},
+		{"HE Grenade", "HE Gren."},
+	};
+	for (const Entry &entry : names)
+		if (name == entry.full)
+			return entry.compact;
+	return name.c_str();
 }
 
 void SetBuyModel(CTeamModelPreview *preview, const char *name)
@@ -391,12 +406,16 @@ public:
 		if (m_isWeaponCard)
 		{
 			const bool compact = h < 54;
-			const int pad = compact ? 4 : 6;
-			const int numberW = m_number->IsVisible() ? (compact ? 12 : 16) : 0;
+			const int pad = compact ? 3 : 6;
+			const int numberW = m_number->IsVisible() ? (compact ? 10 : 16) : 0;
 			const int labelH = compact ? 12 : 15;
 			const int priceH = compact ? 11 : 14;
-			const int imgY = labelH + 2;
-			const int imgH = std::max(1, h - imgY - priceH - 2);
+			if (!m_productName.empty())
+				m_name->SetText(w < 80 ? CompactBuyDisplayName(m_productName) : m_productName.c_str());
+			const int imgY = labelH + 1;
+			// The price is an overlay, as in the reference. Reserving a second text
+			// row here squeezed the real MDL into a thin strip on compact cards.
+			const int imgH = std::max(1, h - imgY - (compact ? 3 : 4));
 			m_weaponImage->SetBounds(pad, imgY, std::max(1, w - pad * 2), imgH);
 			m_number->SetBounds(pad, 3, numberW, labelH);
 			m_name->SetBounds(pad + numberW, 3, std::max(1, w - numberW - pad * 2), labelH);
@@ -554,6 +573,7 @@ public:
 		SetVisible(true);
 		MoveToFront();
 		RequestFocus();
+		ApplyOwnClassPreview();
 		LogOpen();
 	}
 
@@ -801,7 +821,7 @@ public:
 								     MENU_KEY_7 | MENU_KEY_8 | MENU_KEY_0);
 				return;
 			}
-			BuySelect_Hide();
+			CloseClientBuyMenu();
 			return;
 		}
 		if (IsResCommand(command))
@@ -839,7 +859,7 @@ public:
 		// Kategorie bleibt offen. Munition auf der Hauptseite auch (6+7).
 		// Waffe / Equipment / Autobuy / Rebuy: Menü zu, wie CS-1.6-Tastatur.
 		if (strcasecmp(mapped, "primammo") != 0 && strcasecmp(mapped, "secammo") != 0)
-			BuySelect_Hide();
+			CloseClientBuyMenu();
 		return;
 	}
 
@@ -847,7 +867,7 @@ public:
 	{
 		if (code == KEY_ESCAPE)
 		{
-			BuySelect_Hide();
+			CloseClientBuyMenu();
 			return;
 		}
 		if (code == KEY_A)
@@ -871,6 +891,16 @@ public:
 			return;
 		}
 		BaseClass::OnKeyCodeTyped(code);
+	}
+
+	void CloseClientBuyMenu()
+	{
+		// This overlay replaces the server-owned Menu_Buy page. Closing only its
+		// VGUI controls leaves CBasePlayer::m_iMenu at Menu_Buy; a later `buy`
+		// can then be followed by a stale BuyClose. Slot 10 is the protocol-level
+		// cancel used by the original menu and clears that state deterministically.
+		BuySelect_Hide();
+		MenuEngine::ClientCmdNow("menuselect 10\n");
 	}
 
 	void PerformLayout() override
@@ -997,15 +1027,28 @@ private:
 			return;
 		const bool ct = m_team == TEAM_CT;
 		const char *name = nullptr;
+		const char *src = "fallback";
 		if (const char *forced = std::getenv("CSRETRO_BUY_PREVIEW_MODEL"))
 		{
 			if (ValidPlayerModel(forced))
+			{
 				name = forced;
+				src = "env";
+			}
+		}
+		// The rendered local entity is authoritative: it is the class the player
+		// is actually using now. The remembered joinclass is only the transition
+		// fallback until the HUD has received that entity/model update.
+		if (!name && ClassStemForTeam(g_buyHud.model, ct))
+		{
+			name = g_buyHud.model;
+			src = "hud";
 		}
 		if (!name && ClassStemForTeam(g_buyClassModel, ct))
+		{
 			name = g_buyClassModel;
-		if (!name && ClassStemForTeam(g_buyHud.model, ct))
-			name = g_buyHud.model;
+			src = "joinclass";
+		}
 		const char *fallback = ct ? "urban" : "terror";
 		const char *model = name ? name : fallback;
 		if (m_characterModel == model)
@@ -1013,13 +1056,20 @@ private:
 		m_characterModel = model;
 		char path[96];
 		snprintf(path, sizeof(path), "models/player/%s/%s.mdl", model, model);
-		// Same one-figure SetPreview as Team-CT right / Class guerilla (on-axis,
-		// worldWidth 65, seq 80 T / 33 CT). Do not invent a second yaw.
+		// Same one-figure player/weapon path as Team/Class; only the Buy camera
+		// frames it closer to match the supplied composition.
 		const float yaw = ct ? 206.0f : 202.0f;
 		const int seq = ct ? 33 : 80;
-		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl", yaw, seq);
-		m_character->SetWorldWidth(65.0f);
-		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s yaw=%.0f seq=%d", m_team, model, yaw, seq);
+		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl", yaw, seq,
+			ct ? 4.0f : 0.0f);
+		// The reference devotes roughly the full stage height to the character.
+		// Width is the limiting camera axis in this wide viewport, so framing only
+		// by height leaves the real player MDL visibly too small.
+		m_character->SetWorldWidth(44.0f);
+		m_character->SetWorldHeight(60.0f);
+		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s src=%s remember=%s hud=%s yaw=%.0f seq=%d",
+			m_team, model, src, g_buyClassModel[0] ? g_buyClassModel : "-",
+			g_buyHud.model[0] ? g_buyHud.model : "-", yaw, seq);
 	}
 
 	void BuildCharacterStage(bool randomize)
@@ -1233,8 +1283,11 @@ private:
 		GetSize(w, h);
 		if (w < 400 || h < 300)
 			return;
+		// On sub-720p windows, scaling the 1280 reference literally leaves large
+		// dead margins while item names collapse into ellipses. Use the available
+		// 4:3 stage more fully there; the 1.0 cap keeps 1280+ layouts from growing.
 		const float scale = std::max(0.5f, std::min(1.0f,
-			std::min(static_cast<float>(w) / 1280.0f, static_cast<float>(h) / 720.0f)));
+			std::min(static_cast<float>(w) / 1066.6667f, static_cast<float>(h) / 720.0f)));
 		const int stageW = std::min(w - 16, static_cast<int>(980.0f * scale));
 		const int stageH = std::min(h - 16, static_cast<int>(600.0f * scale));
 		const int stageX = (w - stageW) / 2;
@@ -1247,7 +1300,9 @@ private:
 		const int headerY = titleY + titleH;
 		const int headerH = std::max(20, static_cast<int>(24.0f * scale));
 		const int gridY = headerY + headerH + std::max(3, static_cast<int>(6.0f * scale));
-		const int cellH = std::max(52, static_cast<int>(66.0f * scale));
+		// Six CS 1.6 entries must occupy roughly the same total height as the
+		// five-row reference instead of stretching the plate to the footer.
+		const int cellH = std::max(40, static_cast<int>(48.0f * scale));
 		const int rowGap = std::max(4, static_cast<int>(6.0f * scale));
 		const int gridBottom = gridY + cellH * 6 + rowGap * 5;
 		// Measured from the supplied 1280x720 reference. Equal-width columns
@@ -1281,12 +1336,14 @@ private:
 		if (m_character)
 		{
 			m_character->SetVisible(true);
-			const int charGap = std::max(20, static_cast<int>(28.0f * scale));
+			const int charGap = std::max(6, static_cast<int>(8.0f * scale));
 			const int charX = plateX + plateW + charGap;
-			const int charW = stageX + stageW - charX;
-			const int charBottom = stageY + static_cast<int>(555.0f * scale);
-			m_character->SetBounds(charX, titleY, std::max(1, charW),
-				std::max(1, charBottom - titleY));
+			const int charRight = stageX + stageW - std::max(18, static_cast<int>(35.0f * scale));
+			const int charW = charRight - charX;
+			const int charY = stageY + static_cast<int>(40.0f * scale);
+			const int charBottom = stageY + static_cast<int>(580.0f * scale);
+			m_character->SetBounds(charX, charY, std::max(1, charW),
+				std::max(1, charBottom - charY));
 		}
 		if (m_money)
 			m_money->SetBounds(std::max(18, w * 3 / 100), h - std::max(70, static_cast<int>(100.0f * scale)),
@@ -1521,13 +1578,6 @@ bool BuySelect_Show(Panel *root, int menuType, int validSlots)
 		return false;
 
 	int team = Menu_LastPlayerTeam();
-	if (const char *forcedTeam = std::getenv("CSRETRO_BUY_PREVIEW_TEAM"))
-	{
-		if (!strcasecmp(forcedTeam, "ct"))
-			team = TEAM_CT;
-		else if (!strcasecmp(forcedTeam, "t"))
-			team = TEAM_TERRORIST;
-	}
 	if (team != TEAM_TERRORIST && team != TEAM_CT)
 	{
 		const int cls = ClassSelect_MenuType();
@@ -1647,7 +1697,10 @@ void BuySelect_RememberClass(const char *modelStem)
 		g_buyClassModel[0] = '\0';
 		return;
 	}
+	if (!ClassStemForTeam(modelStem, false) && !ClassStemForTeam(modelStem, true))
+		return;
 	snprintf(g_buyClassModel, sizeof(g_buyClassModel), "%s", modelStem);
+	Menu_Con("CSRETRO_BUY_REMEMBER class=%s", g_buyClassModel);
 	if (g_panel && g_panel->IsVisible())
 		g_panel->SyncCharacterFromHud();
 }
@@ -1692,8 +1745,11 @@ void BuySelect_GateTick()
 		++hold;
 		if (hold < 20)
 			return;
-		UI_KeyEvent('1', 1);
-		UI_KeyEvent('1', 0);
+		const bool gateCt = std::getenv("CSRETRO_BUY_GATE_TEAM") &&
+			!strcasecmp(std::getenv("CSRETRO_BUY_GATE_TEAM"), "ct");
+		const int teamKey = gateCt ? '2' : '1';
+		UI_KeyEvent(teamKey, 1);
+		UI_KeyEvent(teamKey, 0);
 		++step;
 		hold = 0;
 		return;
@@ -1706,8 +1762,11 @@ void BuySelect_GateTick()
 		++hold;
 		if (hold < 30)
 			return;
-		UI_KeyEvent('1', 1);
-		UI_KeyEvent('1', 0);
+		// Deliberately choose the non-default Leet class. This makes the gate
+		// prove that Buy uses the active HUD/player model rather than a hard-coded
+		// Terror fallback which would coincidentally pass slot 1.
+		UI_KeyEvent('2', 1);
+		UI_KeyEvent('2', 0);
 		++step;
 		hold = 0;
 		return;

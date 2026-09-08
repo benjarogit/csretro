@@ -1561,13 +1561,6 @@ static void R_LightLambert( vec4_t light[MAX_LOCALLIGHTS], const vec3_t normal, 
 
 static void R_StudioSetColorBegin( short *ptricmds, vec3_t *pstudionorms )
 {
-	if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
-	{
-		color24 *color = &RI.currententity->curstate.rendercolor;
-		TriColor4ub( color->r, color->g, color->b, 255 );
-		return;
-	}
-
 	float  *lv = (float *)g_studio.lightvalues[ptricmds[1]];
 	rgba_t color;
 
@@ -1615,12 +1608,6 @@ R_StudioSetupSkin
 static void R_StudioSetupSkin( studiohdr_t *ptexturehdr, int index )
 {
 	mstudiotexture_t *ptexture = NULL;
-
-	if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
-	{
-		GL_Bind( XASH_TEXTURE0, tr.whiteTexture );
-		return;
-	}
 
 	if( FBitSet( g_nForceFaceFlags, STUDIO_NF_CHROME ))
 	{
@@ -1936,7 +1923,7 @@ static void R_StudioDrawPoints( void )
 	{
 		g_nFaceFlags = ptexture[pskinref[pmesh[j].skinref]].flags | g_nForceFaceFlags;
 		if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
-			g_nFaceFlags &= ~( STUDIO_NF_CHROME | STUDIO_NF_ADDITIVE | STUDIO_NF_MASKED );
+			g_nFaceFlags &= ~( STUDIO_NF_CHROME | STUDIO_NF_ADDITIVE );
 
 		// fill in sortedmesh info
 		g_studio.meshes[j].flags = g_nFaceFlags;
@@ -1995,7 +1982,7 @@ static void R_StudioDrawPoints( void )
 
 		g_nFaceFlags = ptexture[pskinref[pmesh->skinref]].flags | g_nForceFaceFlags;
 		if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
-			g_nFaceFlags &= ~( STUDIO_NF_CHROME | STUDIO_NF_ADDITIVE | STUDIO_NF_MASKED );
+			g_nFaceFlags &= ~( STUDIO_NF_CHROME | STUDIO_NF_ADDITIVE );
 
 		s = 1.0f / (float)ptexture[pskinref[pmesh->skinref]].width;
 		t = 1.0f / (float)ptexture[pskinref[pmesh->skinref]].height;

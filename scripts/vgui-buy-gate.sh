@@ -54,7 +54,10 @@ developer 2
 mp_auto_join_team 0
 mp_limitteams 0
 mp_autoteambalance 0
-bot_quota 0
+bot_join_team CT
+bot_quota 1
+bot_stop 1
+mp_round_infinite 1
 mp_buytime 9
 mp_freezetime 6
 mp_buy_anywhere 1
@@ -66,7 +69,10 @@ cat > "${RUN}/cstrike/listenserver.cfg" <<'EOF'
 mp_auto_join_team 0
 mp_limitteams 0
 mp_autoteambalance 0
-bot_quota 0
+bot_join_team CT
+bot_quota 1
+bot_stop 1
+mp_round_infinite 1
 mp_buytime 9
 mp_freezetime 6
 mp_buy_anywhere 1

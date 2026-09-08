@@ -1483,15 +1483,6 @@ static void R_LightLambert( vec4_t light[MAX_LOCALLIGHTS], const vec3_t normal, 
 
 static void R_StudioSetColorArray( short *ptricmds, vec3_t *pstudionorms, byte *color )
 {
-	if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
-	{
-		color[0] = RI.currententity->curstate.rendercolor.r;
-		color[1] = RI.currententity->curstate.rendercolor.g;
-		color[2] = RI.currententity->curstate.rendercolor.b;
-		color[3] = 255;
-		return;
-	}
-
 	float	*lv = (float *)g_studio.lightvalues[ptricmds[1]];
 
 	color[3] = tr.blend * 255;
@@ -1541,12 +1532,6 @@ R_StudioSetupSkin
 static void R_StudioSetupSkin( studiohdr_t *ptexturehdr, int index )
 {
 	mstudiotexture_t	*ptexture = NULL;
-
-	if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
-	{
-		GL_Bind( XASH_TEXTURE0, tr.whiteTexture );
-		return;
-	}
 
 	if( FBitSet( g_nForceFaceFlags, STUDIO_NF_CHROME ))
 		return;
@@ -2080,8 +2065,10 @@ static void R_StudioDrawPoints( void )
 	for( int j = 0; j < m_pSubModel->nummesh; j++ )
 	{
 		g_nFaceFlags = ptexture[pskinref[pmesh[j].skinref]].flags | g_nForceFaceFlags;
+		// Buy-item previews keep the real skin but drop chrome: CS w_*.mdl
+		// chrome plus menu lighting is the yellow rim, not metal texture.
 		if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
-			g_nFaceFlags &= ~( STUDIO_NF_CHROME | STUDIO_NF_ADDITIVE | STUDIO_NF_MASKED );
+			g_nFaceFlags &= ~( STUDIO_NF_CHROME | STUDIO_NF_ADDITIVE );
 
 		// fill in sortedmesh info
 		g_studio.meshes[j].flags = g_nFaceFlags;
@@ -2106,6 +2093,7 @@ static void R_StudioDrawPoints( void )
 				float lv_tmp;
 				if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
 				{
+					// Fullbright vertex lighting; R_StudioSetupSkin still binds the mdl skin.
 					VectorSet( g_studio.lightvalues[k], 1.0f, 1.0f, 1.0f );
 					continue;
 				}
@@ -2163,8 +2151,10 @@ static void R_StudioDrawPoints( void )
 		short *ptricmds = (short *)((byte *)m_pStudioHeader + pmesh->triindex);
 
 		g_nFaceFlags = ptexture[pskinref[pmesh->skinref]].flags | g_nForceFaceFlags;
+		// Buy-item previews keep the real skin but drop chrome: CS w_*.mdl
+		// chrome plus menu lighting is the yellow rim, not metal texture.
 		if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
-			g_nFaceFlags &= ~( STUDIO_NF_CHROME | STUDIO_NF_ADDITIVE | STUDIO_NF_MASKED );
+			g_nFaceFlags &= ~( STUDIO_NF_CHROME | STUDIO_NF_ADDITIVE );
 
 		float s = 1.0f / (float)ptexture[pskinref[pmesh->skinref]].width;
 		float t = 1.0f / (float)ptexture[pskinref[pmesh->skinref]].height;

@@ -73,27 +73,113 @@ bool ReadStudioIdleBox(const char *path, float mins[3], float maxs[3])
 	return true;
 }
 
-// Engine maps the idle AABB onto the Class picture plane (thin axis = look).
-// Menu only supplies the two large extents so the camera distance fills the tile.
+// Same yaw/pitch/roll matrix as the studio path, including the Quake pitch flip
+// CS 1.6 leaves enabled (ENGINE_COMPENSATE_QUAKE_BUG is off).
+void EntityAxes(float pitch, float yaw, float roll, float axis[3][3])
+{
+	pitch = -pitch;
+	const float sy = std::sin(Deg2Rad(yaw));
+	const float cy = std::cos(Deg2Rad(yaw));
+	const float sp = std::sin(Deg2Rad(pitch));
+	const float cp = std::cos(Deg2Rad(pitch));
+	const float sr = std::sin(Deg2Rad(roll));
+	const float cr = std::cos(Deg2Rad(roll));
+	axis[0][0] = cp * cy;
+	axis[0][1] = sr * sp * cy + cr * -sy;
+	axis[0][2] = cr * sp * cy + -sr * -sy;
+	axis[1][0] = cp * sy;
+	axis[1][1] = sr * sp * sy + cr * cy;
+	axis[1][2] = cr * sp * sy + -sr * cy;
+	axis[2][0] = -sp;
+	axis[2][1] = sr * cp;
+	axis[2][2] = cr * cp;
+}
+
+void RotatePoint(const float axis[3][3], const float in[3], float out[3])
+{
+	out[0] = axis[0][0] * in[0] + axis[0][1] * in[1] + axis[0][2] * in[2];
+	out[1] = axis[1][0] * in[0] + axis[1][1] * in[1] + axis[1][2] * in[2];
+	out[2] = axis[2][0] * in[0] + axis[2][1] * in[1] + axis[2][2] * in[2];
+}
+
+// Class/Team camera looks along +X. Pancake w_*.mdl (rifles, vests) need their
+// large XY face in the YZ picture plane, longest axis horizontal. Chunky
+// meshes (grenades) stand on the long axis so they are not a lying rectangle.
 void FrameItem(const float mins[3], const float maxs[3], float *pitch, float *yaw, float *roll,
 	float *frameW, float *frameH, float shift[3])
 {
-	const float dx = std::max(0.1f, maxs[0] - mins[0]);
-	const float dy = std::max(0.1f, maxs[1] - mins[1]);
-	const float dz = std::max(0.1f, maxs[2] - mins[2]);
-	float a = dx, b = dy, c = dz;
-	if (b > a)
-		std::swap(a, b);
-	if (c > a)
-		std::swap(a, c);
-	if (c > b)
-		std::swap(b, c);
-	*pitch = 0.0f;
-	*yaw = 0.0f;
-	*roll = 0.0f;
-	*frameW = std::max(4.0f, a);
-	*frameH = std::max(4.0f, b);
-	shift[0] = shift[1] = shift[2] = 0.0f;
+	const float size[3] = {
+		std::max(0.1f, maxs[0] - mins[0]),
+		std::max(0.1f, maxs[1] - mins[1]),
+		std::max(0.1f, maxs[2] - mins[2])
+	};
+	int order[3] = { 0, 1, 2 };
+	for (int i = 0; i < 2; ++i)
+	{
+		for (int j = i + 1; j < 3; ++j)
+		{
+			if (size[order[j]] > size[order[i]])
+				std::swap(order[i], order[j]);
+		}
+	}
+	const int lng = order[0];
+	const int mid = order[1];
+	const int thin = order[2];
+	const bool pancake = size[thin] < size[mid] * 0.40f;
+
+	float p = 0.0f, y = 0.0f, r = 0.0f;
+	if (pancake)
+	{
+		if (lng == 1)
+			p = 90.0f;
+		else if (lng == 0)
+		{
+			y = 90.0f;
+			r = 90.0f;
+		}
+		else
+			r = 90.0f;
+	}
+	else if (lng == 1)
+		r = 90.0f;
+	else if (lng == 0)
+		p = 90.0f;
+
+	float axis[3][3];
+	EntityAxes(p, y, r, axis);
+
+	const float center[3] = {
+		0.5f * (mins[0] + maxs[0]),
+		0.5f * (mins[1] + maxs[1]),
+		0.5f * (mins[2] + maxs[2])
+	};
+	float worldCenter[3];
+	RotatePoint(axis, center, worldCenter);
+
+	float minY = 1.0e9f, maxY = -1.0e9f, minZ = 1.0e9f, maxZ = -1.0e9f;
+	for (int i = 0; i < 8; ++i)
+	{
+		const float corner[3] = {
+			(i & 1) ? maxs[0] : mins[0],
+			(i & 2) ? maxs[1] : mins[1],
+			(i & 4) ? maxs[2] : mins[2]
+		};
+		float world[3];
+		RotatePoint(axis, corner, world);
+		minY = std::min(minY, world[1]);
+		maxY = std::max(maxY, world[1]);
+		minZ = std::min(minZ, world[2]);
+		maxZ = std::max(maxZ, world[2]);
+	}
+
+	*pitch = p;
+	*yaw = y;
+	*roll = r;
+	*frameW = std::max(4.0f, maxY - minY);
+	*frameH = std::max(4.0f, maxZ - minZ);
+	shift[0] = -worldCenter[0];
+	shift[1] = -worldCenter[1];
+	shift[2] = -worldCenter[2];
 }
 
 void SetupStudio(cl_entity_t *ent, const char *path, int sequence, float pitch, float yaw, float roll,
@@ -269,8 +355,8 @@ void CTeamModelPreview::Paint()
 		{
 			if (!m_previews[i].visible)
 				continue;
-			const float byWidth = DistanceForHeight(m_previews[i].frameW / 0.90f, rvp.fov_x);
-			const float byHeight = DistanceForHeight(m_previews[i].frameH / 0.78f, rvp.fov_y);
+			const float byWidth = DistanceForHeight(m_previews[i].frameW / 0.92f, rvp.fov_x);
+			const float byHeight = DistanceForHeight(m_previews[i].frameH / 0.82f, rvp.fov_y);
 			itemDist = std::max(8.0f, std::max(byWidth, byHeight));
 			break;
 		}

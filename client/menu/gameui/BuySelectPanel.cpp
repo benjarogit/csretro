@@ -374,15 +374,18 @@ public:
 		if (m_isWeaponCard)
 		{
 			const bool compact = h < 54;
-			const int numberW = m_number->IsVisible() ? (compact ? 10 : 12) : 0;
-			const int labelH = compact ? 12 : 14;
+			const int pad = compact ? 4 : 6;
+			const int numberW = m_number->IsVisible() ? (compact ? 12 : 16) : 0;
+			const int labelH = compact ? 12 : 15;
 			const int priceH = compact ? 11 : 14;
-			m_weaponImage->SetBounds(2, 2, std::max(1, w - 4), std::max(1, h - 4));
-			m_number->SetBounds(5, 3, numberW, labelH);
-			m_name->SetBounds(5 + numberW, 3, std::max(1, w - numberW - 10), labelH);
-			m_price->SetBounds(std::max(4, w - 72), h - priceH - 2, 68, priceH);
+			const int imgY = labelH + 2;
+			const int imgH = std::max(1, h - imgY - priceH - 2);
+			m_weaponImage->SetBounds(pad, imgY, std::max(1, w - pad * 2), imgH);
+			m_number->SetBounds(pad, 3, numberW, labelH);
+			m_name->SetBounds(pad + numberW, 3, std::max(1, w - numberW - pad * 2), labelH);
+			m_price->SetBounds(std::max(pad, w - 72), h - priceH - 2, 68, priceH);
 			m_number->SetFgColor(Color(210, 210, 214, 170));
-			m_name->SetFgColor(InGameViewportLook::BuyGold());
+			m_name->SetFgColor(InGameViewportLook::Text());
 			m_price->SetFgColor(InGameViewportLook::BuyGold());
 		}
 	}
@@ -439,7 +442,7 @@ private:
 		if (m_number)
 			m_number->SetFgColor(Color(210, 210, 214, 170));
 		if (m_name)
-			m_name->SetFgColor(InGameViewportLook::BuyGold());
+			m_name->SetFgColor(InGameViewportLook::Text());
 		if (m_price)
 			m_price->SetFgColor(InGameViewportLook::BuyGold());
 	}

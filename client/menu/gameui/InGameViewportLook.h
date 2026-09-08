@@ -20,9 +20,9 @@ inline Color TextDim() { return Color(190, 190, 190, 255); }
 inline Color Terror() { return Color(210, 170, 70, 255); }
 inline Color CT() { return Color(90, 170, 230, 255); }
 inline Color BuyGold() { return Color(232, 196, 52, 255); }
-inline Color BuyCell() { return Color(14, 14, 16, 185); }
-inline Color BuyCellArmed() { return Color(36, 32, 18, 220); }
-inline Color BuyPlate() { return Color(8, 8, 10, 205); }
+inline Color BuyCell() { return Color(38, 39, 42, 205); }
+inline Color BuyCellArmed() { return Color(54, 49, 27, 228); }
+inline Color BuyPlate() { return Color(18, 19, 21, 172); }
 
 // In-game UI grows up to a comfortable 1440x810 workspace, then stays centered.
 // This is deliberately not a fixed 16:9 letterbox: 4:3 and ultrawide keep all
@@ -94,8 +94,8 @@ inline void PaintBuyCell(int w, int h, bool armed)
 	}
 	else
 	{
-		vgui2::surface()->DrawSetColor(255, 255, 255, 16);
-		vgui2::surface()->DrawFilledRect(0, 0, w, 1);
+		vgui2::surface()->DrawSetColor(255, 255, 255, 26);
+		vgui2::surface()->DrawOutlinedRect(0, 0, w, h);
 	}
 }
 

@@ -227,6 +227,31 @@ float BuyWorldWidth(const char *model)
 	return 22.0f;
 }
 
+const char *BuyDisplayName(const char *command)
+{
+	struct Entry { const char *command; const char *label; };
+	static const Entry names[] = {
+		{"vest", "Kevlar Vest"}, {"vesthelm", "Kevlar + Helmet"},
+		{"nvgs", "Nightvision"}, {"defuser", "Defuse Kit"},
+		{"glock", "Glock-18"}, {"usp", "USP"}, {"p228", "P228"},
+		{"deagle", "Desert Eagle"}, {"elites", "Dual Elites"},
+		{"fn57", "Five-SeveN"}, {"m3", "M3"}, {"xm1014", "XM1014"},
+		{"mac10", "MAC-10"}, {"tmp", "TMP"}, {"mp5", "MP5"},
+		{"ump45", "UMP45"}, {"p90", "P90"}, {"m249", "M249"},
+		{"galil", "Galil"}, {"famas", "FAMAS"}, {"ak47", "AK-47"},
+		{"m4a1", "M4A1"}, {"scout", "Scout"}, {"sg552", "SG 552"},
+		{"aug", "AUG"}, {"awp", "AWP"}, {"g3sg1", "G3SG1"},
+		{"sg550", "SG 550"}, {"flash", "Flashbang"},
+		{"hegren", "HE Grenade"}, {"sgren", "Smoke Grenade"},
+	};
+	if (!command)
+		return nullptr;
+	for (const Entry &entry : names)
+		if (!strcasecmp(command, entry.command))
+			return entry.label;
+	return nullptr;
+}
+
 void SetBuyModel(CTeamModelPreview *preview, const char *name)
 {
 	const char *model = BuyModel(name);
@@ -256,13 +281,26 @@ public:
 	}
 
 	void SetFooter(bool footer) { m_isFooter = footer; ApplyLook(); }
+	void SetOverviewNumber(int number)
+	{
+		if (number < 1 || m_productName.empty())
+			return;
+		char numbered[96];
+		std::snprintf(numbered, sizeof(numbered), "%d  %s", number, m_productName.c_str());
+		SetText(numbered);
+	}
 	void ConfigureWeapon(const char *command, const char *label, int cost)
 	{
 		if (!command || !command[0] || cost <= 0)
 			return;
 		SetCommand(command);
-		if (label && label[0])
-			SetText(label);
+		const char *display = BuyDisplayName(command);
+		const char *productName = display && display[0] ? display : label;
+		if (productName && productName[0])
+		{
+			m_productName = productName;
+			SetText(productName);
+		}
 		m_isWeaponCard = true;
 		SetBuyModel(m_weaponImage, command);
 		char price[24];
@@ -292,7 +330,7 @@ public:
 		if (m_isWeaponCard)
 		{
 			const bool compact = h < 70;
-			const int imageTop = compact ? 12 : 16;
+			const int imageTop = compact ? 18 : 20;
 			const int imageBottom = compact ? 8 : 18;
 			const int sidePad = compact ? 4 : 8;
 			const int maxImageW = std::max(1, w - sidePad * 2);
@@ -334,6 +372,7 @@ private:
 	Label *m_price = nullptr;
 	bool m_isWeaponCard = false;
 	bool m_isFooter = false;
+	std::string m_productName;
 
 	void ApplyLook()
 	{
@@ -812,7 +851,7 @@ private:
 
 	void BuildUnifiedOverview()
 	{
-		const char *titles[5] = {"Equipment", "Pistols", "Mid-Tier", "Rifles", "Grenades"};
+		const char *titles[5] = {"1  Equipment", "2  Pistols", "3  Mid-Tier", "4  Rifles", "5  Grenades"};
 		for (int col = 0; col < 5; ++col)
 		{
 			char name[32];
@@ -835,6 +874,7 @@ private:
 				snprintf(name, sizeof(name), "Overview%d_%d", column, nextRow[column]);
 				auto *button = new CBuyHoverButton(this, name);
 				button->ConfigureWeapon(field.command.c_str(), field.label.c_str(), field.cost);
+				button->SetOverviewNumber(nextRow[column] + 1);
 				m_overview.push_back({button, column, nextRow[column]++});
 			}
 		};
@@ -869,21 +909,29 @@ private:
 		const char *counter[] = {"urban", "gsg9", "sas", "gign"};
 		if (randomize || m_characterModel.empty())
 		{
-			const int pick = previous[side] < 0 ? gEng.pfnRandomLong(0, 3) :
+			int pick = previous[side] < 0 ? gEng.pfnRandomLong(0, 3) :
 				(previous[side] + gEng.pfnRandomLong(1, 3)) % 4;
+			if (const char *forced = std::getenv("CSRETRO_BUY_PREVIEW_MODEL"))
+			{
+				for (int i = 0; i < 4; ++i)
+					if (!strcasecmp(forced, ct ? counter[i] : terror[i]))
+						pick = i;
+			}
 			previous[side] = pick;
 			m_characterModel = ct ? counter[pick] : terror[pick];
 		}
 		char path[96];
 		snprintf(path, sizeof(path), "models/player/%s/%s.mdl",
 			m_characterModel.c_str(), m_characterModel.c_str());
-		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl",
-			ct ? 300.0f : 60.0f, ct ? 33 : 80);
+		m_character->ClearPreviews(50.0f);
+		m_character->AddPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl",
+			110.0f, ct ? 33 : 80, -5.0f);
+		m_character->SetIndependentPlayerState(true);
 		// The buy reference devotes almost the complete right half to a
 		// full-height character.  A 72-unit horizontal frame made the model
 		// occupy barely half that stage; frame the actual player silhouette.
-		m_character->SetWorldWidth(32.0f);
-		m_character->SetWorldHeight(64.0f);
+		m_character->SetWorldWidth(50.0f);
+		m_character->SetWorldHeight(72.0f);
 		m_character->SetMouseInputEnabled(false);
 		m_character->SetKeyBoardInputEnabled(false);
 		m_character->SetZPos(1);
@@ -1096,10 +1144,9 @@ private:
 		const int stageH = std::min(h - 16, static_cast<int>(600.0f * scale));
 		const int stageX = (w - stageW) / 2;
 		const int stageY = (h - stageH) / 2;
-		const bool compact = w < 1000 || stageW < static_cast<int>(800.0f * scale);
 		const int gap = std::max(3, static_cast<int>(4.0f * scale));
 		const int gridX = stageX;
-		const int gridW = compact ? stageW : static_cast<int>(600.0f * scale);
+		const int gridW = std::min(stageW, static_cast<int>(600.0f * scale));
 		const int titleY = stageY + static_cast<int>(80.0f * scale);
 		const int titleH = std::max(22, static_cast<int>(26.0f * scale));
 		const int headerY = titleY + titleH;
@@ -1126,7 +1173,7 @@ private:
 				gridY + card.row * (cellH + gap), cellW, cellH);
 		if (m_character)
 		{
-			m_character->SetVisible(!compact);
+			m_character->SetVisible(true);
 			const int charX = stageX + static_cast<int>(590.0f * scale);
 			const int charW = stageX + stageW - charX;
 			m_character->SetBounds(charX, stageY,
@@ -1166,9 +1213,8 @@ private:
 		const int stageH = std::min(h - 16, static_cast<int>(600.0f * scale));
 		const int stageX = (w - stageW) / 2;
 		const int stageY = (h - stageH) / 2;
-		const bool compact = w < 1000;
 		const int gap = std::max(4, static_cast<int>(6.0f * scale));
-		const int listW = compact ? stageW : static_cast<int>(600.0f * scale);
+		const int listW = std::min(stageW, static_cast<int>(600.0f * scale));
 		const int titleY = stageY + static_cast<int>(80.0f * scale);
 		const int titleH = std::max(24, static_cast<int>(28.0f * scale));
 		if (auto *title = FindChildByName("Title"))
@@ -1217,14 +1263,14 @@ private:
 				std::max(28, static_cast<int>(32.0f * scale)));
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
-			info->SetVisible(!compact);
+			info->SetVisible(true);
 			const int infoX = stageX + static_cast<int>(590.0f * scale);
 			const int infoW = stageX + stageW - infoX;
 			info->SetBounds(infoX, stageY,
 				std::max(1, infoW), static_cast<int>(590.0f * scale));
 			if (m_character)
 			{
-				m_character->SetVisible(!compact);
+				m_character->SetVisible(true);
 				m_character->SetBounds(infoX, stageY,
 					std::max(1, infoW), static_cast<int>(590.0f * scale));
 			}
@@ -1660,8 +1706,9 @@ void BuySelect_GateTick()
 		}
 		if (hold < 15)
 			return;
-		UI_KeyEvent('1', 1);
-		UI_KeyEvent('1', 0);
+		Menu_Con("CSRETRO_BUY_GATE_DIRECT command=glock main=%d",
+			g_panel && g_panel->IsMainPage() ? 1 : 0);
+		g_panel->OnCommand("glock");
 		++step;
 		hold = 0;
 		return;
@@ -1670,49 +1717,13 @@ void BuySelect_GateTick()
 	if (step == 7)
 	{
 		++hold;
-		if (BuySelect_IsActive() && g_panel && !g_panel->IsMainPage())
-		{
-			if (hold < 20)
-				return;
-			if (!g_panel->ButtonsOnPanel())
-			{
-				failDone("pistol layout clip");
-				return;
-			}
-			const int title = g_panel->LabelLooksLocalized("Title") ? 1 : 0;
-			const int glock = g_panel->LabelLooksLocalized("Glock18") ? 1 : 0;
-			const int raw = g_panel->AnyRawToken() ? 1 : 0;
-			Menu_Con("CSRETRO_BUY_GATE_PISTOL type=%d visible=1 title=%d glock=%d raw=%d",
-				g_panel->MenuType(), title, glock, raw);
-			MenuEngine::ClientCmd("screenshot scrshots/buy-pistols.png\n");
-			step = 9;
-			hold = 0;
-			return;
-		}
-		if (hold > 120)
-		{
-			failDone("pistols fehlt");
-			return;
-		}
-		return;
-	}
-
-	if (step == 9)
-	{
-		if (++hold < 20)
-			return;
-		UI_KeyEvent('1', 1);
-		UI_KeyEvent('1', 0);
-		step = 8;
-		hold = 0;
-		return;
-	}
-
-	if (step == 8)
-	{
-		++hold;
 		if (hold < 20)
 			return;
+		if (BuySelect_IsActive())
+		{
+			failDone("direct purchase did not close");
+			return;
+		}
 		if (getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
 			MenuEngine::ClientCmd("quit\n");
 		Menu_Con("CSRETRO_BUY_GATE_DONE");

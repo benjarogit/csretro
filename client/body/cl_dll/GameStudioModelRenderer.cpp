@@ -917,12 +917,25 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 		m_pCurrentEntity->latched.prevcontroller[3] = m_pCurrentEntity->curstate.controller[3];
 
 		m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
+		if(( m_pCurrentEntity->curstate.effects & EF_CSRETRO_PREVIEW ) != 0 )
+		{
+			// A menu preview borrows only the valid player slot required by the
+			// studio weaponmodel merge. Its authored yaw/blends must not be
+			// replaced by movement state from the live network player in that slot.
+			// StudioSetupBones also reads gaitframe even for gait sequence zero;
+			// clear it so a stale live-player frame cannot twist the preview pelvis.
+			m_pPlayerInfo->gaitsequence = 0;
+			m_pPlayerInfo->gaitframe = 0.0f;
+			StudioSetUpTransform( 0 );
+		}
+		else
+		{
+			CalculatePitchBlend(pplayer);
+			CalculateYawBlend(pplayer);
 
-		CalculatePitchBlend(pplayer);
-		CalculateYawBlend(pplayer);
-
-		m_pPlayerInfo->gaitsequence = 0;
-		StudioSetUpTransform(0);
+			m_pPlayerInfo->gaitsequence = 0;
+			StudioSetUpTransform(0);
+		}
 	}
 
 	if (flags & STUDIO_RENDER)
@@ -1191,4 +1204,3 @@ int DLLEXPORT HUD_GetStudioModelInterface( int version, struct r_studio_interfac
 	// Success
 	return 1;
 }
-

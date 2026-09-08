@@ -1559,6 +1559,13 @@ static void R_LightLambert( vec4_t light[MAX_LOCALLIGHTS], const vec3_t normal, 
 
 static void R_StudioSetColorBegin( short *ptricmds, vec3_t *pstudionorms )
 {
+	if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
+	{
+		color24 *color = &RI.currententity->curstate.rendercolor;
+		TriColor4ub( color->r, color->g, color->b, 255 );
+		return;
+	}
+
 	float  *lv = (float *)g_studio.lightvalues[ptricmds[1]];
 	rgba_t color;
 

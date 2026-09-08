@@ -223,8 +223,14 @@ void CTeamModelPreview::Paint()
 		const float idleYaw = m_item ? 0.0f : std::sin(now * 0.85f + phase) * 1.25f;
 		const float idleLift = m_item ? 0.0f : std::sin(now * 1.35f + phase) * 0.22f;
 		const float place = m_item ? 0.0f : dist;
+		// The renderer only exposes initialized player-info records for the first
+		// menu-safe slots. Slot three is the same stable record used by the Arctic
+		// entry in the verified four-model class lineup.
+		const int studioIndex = m_independentPlayerState ? (3 - i) : (i + 1);
 		SetupStudio(&players[i], preview.path, preview.sequence, preview.yaw + idleYaw,
-			place, m_animStart, i + 1);
+			place, m_animStart, studioIndex);
+		if (m_independentPlayerState && !m_item)
+			players[i].curstate.effects |= EF_CSRETRO_PREVIEW | EF_NOINTERP;
 		if (m_item && !players[i].model)
 		{
 			if (!m_logged)
@@ -233,18 +239,26 @@ void CTeamModelPreview::Paint()
 		}
 		if (m_item)
 		{
+			// Render the source MDL itself as a flat, readable gold silhouette. This
+			// uses normal studio geometry, not GlowShell or a bitmap fallback.
+			players[i].curstate.effects |= EF_CSRETRO_ITEM;
+			players[i].curstate.rendermode = kRenderTransAdd;
+			players[i].curstate.renderamt = 255;
+			players[i].curstate.rendercolor.r = 255;
+			players[i].curstate.rendercolor.g = 220;
+			players[i].curstate.rendercolor.b = 64;
 			// World items use the familiar elevated GoldSrc inventory view. Frame
 			// that view from the engine-computed model bounds: the old fixed camera
 			// made long rifles overflow, while a level camera showed pistols end-on.
 			const PreviewModelBounds *model =
 				reinterpret_cast<const PreviewModelBounds *>(players[i].model);
-			const float spanX = std::max(1.0f, model->maxs[0] - model->mins[0]);
-			const float spanY = std::max(1.0f, model->maxs[1] - model->mins[1]);
-			const float spanZ = std::max(1.0f, model->maxs[2] - model->mins[2]);
 			const float centerX = (model->mins[0] + model->maxs[0]) * 0.5f;
 			const float centerY = (model->mins[1] + model->maxs[1]) * 0.5f;
 			const float centerZ = (model->mins[2] + model->maxs[2]) * 0.5f;
-			const float itemSize = std::max(spanX, std::max(spanY, spanZ)) * 1.08f;
+			// SetItemPreview receives a per-kind visual frame chosen for pistols,
+			// rifles, grenades and equipment. Raw MDL bounds include outliers on
+			// several w_* files and made those models illegibly small.
+			const float itemSize = m_worldWidth * 0.68f;
 			const float itemDist = std::max(DistanceForHeight(itemSize, rvp.fov_y),
 				DistanceForHeight(itemSize, rvp.fov_x));
 			const float pitch = 50.0f;

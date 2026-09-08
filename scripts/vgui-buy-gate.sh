@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Buy-Gate: In-Game Buy als echte VGUI2-Controls.
 # Team → T → Class → Spawn, dann buy. Prüft MainBuyMenu.res, Localization
-# (kein Cstrike_ roh), ESC, Pistolen-Unterseite, glock → ReGameDLL-Alias, quit.
+# (kein Cstrike_ roh), ESC, direkter Glock-Kauf aus dem Raster → ReGameDLL-Alias, quit.
 # Usage: ./scripts/build-menu.sh && ./scripts/build-client.sh && ./scripts/vgui-buy-gate.sh
 # Optional: CSRETRO_FOREGROUND=1, CSRETRO_GATE_RES=800x600
 set -euo pipefail
@@ -182,10 +182,13 @@ run_one() {
 	rg -q 'CSRETRO_BUY_GATE_OPEN .*visible=1 main=1' "${ALL}" || fail "Buy-Gate-Audit fehlt ${W}x${H}"
 	rg -q 'CSRETRO_BUY_GATE_OPEN .*title=1 pistols=1 shotguns=1 rifles=1 cancel=1 raw=0' "${ALL}" \
 		|| fail "Localization der Buy-Hauptseite fehlt ${W}x${H}"
+	rg -q 'CSRETRO_BUY_CANVAS .*model=1' "${ALL}" \
+		|| fail "Player-MDL auf dieser Auflösung ausgeblendet ${W}x${H}"
 	rg -q 'CSRETRO_BUY_GATE_ESC visible=0' "${ALL}" \
 		|| fail "ESC schließt das Buy-Menü nicht ${W}x${H}"
-	rg -q 'CSRETRO_BUY_GATE_PISTOL .*title=1 glock=1 raw=0' "${ALL}" \
-		|| fail "Pistolen-Unterseite fehlt oder Loc roh ${W}x${H}"
+	rg -q 'CSRETRO_BUY_GATE_DIRECT command=glock main=1' "${ALL}" \
+		|| fail "direkter Rasterkauf fehlt ${W}x${H}"
+	rg -q 'CSRETRO_BUY_GATE_PISTOL' "${ALL}" && fail "Gate öffnet alte Pistolen-Unterseite ${W}x${H}"
 	rg -q 'CSRETRO_BUY_CMD glock' "${ALL}" \
 		|| fail "Taste 1 sendet glock nicht ${W}x${H}"
 	rg -q 'CSRETRO_LOC_MISSING' "${ALL}" && {

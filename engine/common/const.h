@@ -114,6 +114,11 @@
 #define EF_LIGHT			64	// rocket flare glow sprite
 #define EF_NODRAW			128	// don't draw entity
 
+// CS Retro menu-only studio entity. Keep this value in sync with the client
+// SDK copy: the menu constructs the entity and the client renderer consumes it.
+#define EF_CSRETRO_ITEM		(1U<<22)
+#define EF_CSRETRO_PREVIEW	(1U<<23)
+
 #define EF_WATERSIDES		(1U<<26)	// Do not remove sides for func_water entity
 #define EF_FULLBRIGHT		(1U<<27)	// Just get fullbright
 #define EF_NOSHADOW			(1U<<28)	// ignore shadow for this entity

@@ -49,6 +49,23 @@ void UI_KeyEvent(int key, int down);
 namespace
 {
 BuyHudState g_buyHud = {};
+char g_buyClassModel[32] = {};
+
+bool ClassStemForTeam(const char *stem, bool ct)
+{
+	if (!stem || !stem[0])
+		return false;
+	static const char *tNames[] = {"terror", "leet", "arctic", "guerilla", "militia"};
+	static const char *ctNames[] = {"urban", "gsg9", "sas", "gign", "spetsnaz"};
+	const char **names = ct ? ctNames : tNames;
+	const int count = ct ? 5 : 5;
+	for (int i = 0; i < count; ++i)
+	{
+		if (!strcasecmp(stem, names[i]))
+			return true;
+	}
+	return false;
+}
 
 struct SlotBind
 {
@@ -985,7 +1002,9 @@ private:
 			if (ValidPlayerModel(forced))
 				name = forced;
 		}
-		if (!name && ValidPlayerModel(g_buyHud.model))
+		if (!name && ClassStemForTeam(g_buyClassModel, ct))
+			name = g_buyClassModel;
+		if (!name && ClassStemForTeam(g_buyHud.model, ct))
 			name = g_buyHud.model;
 		const char *fallback = ct ? "urban" : "terror";
 		const char *model = name ? name : fallback;
@@ -1619,6 +1638,18 @@ void BuySelect_AfterFrame()
 {
 	if (g_panel && g_panel->IsVisible())
 		g_panel->ApplyPendingPage();
+}
+
+void BuySelect_RememberClass(const char *modelStem)
+{
+	if (!modelStem || !modelStem[0])
+	{
+		g_buyClassModel[0] = '\0';
+		return;
+	}
+	snprintf(g_buyClassModel, sizeof(g_buyClassModel), "%s", modelStem);
+	if (g_panel && g_panel->IsVisible())
+		g_panel->SyncCharacterFromHud();
 }
 
 void BuySelect_SetHud(const BuyHudState *state)

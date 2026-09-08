@@ -19,6 +19,8 @@
 #include "hud.h"
 #include "cl_util.h"
 #include "triangleapi.h"
+#include "com_model.h"
+#include "cl_entity.h"
 
 #include <string.h>
 
@@ -109,10 +111,15 @@ int CHud :: Redraw( float flTime, int intermission )
 		const char *modelSrc = nullptr;
 		if (cl_entity_t *local = gEngfuncs.GetLocalPlayer())
 		{
-			hud_player_info_t info = {};
-			GetPlayerInfo(local->index, &info);
-			if (info.model && info.model[0])
-				modelSrc = info.model;
+			if (local->model && local->model->name[0])
+				modelSrc = local->model->name;
+			if (!modelSrc)
+			{
+				hud_player_info_t info = {};
+				GetPlayerInfo(local->index, &info);
+				if (info.model && info.model[0])
+					modelSrc = info.model;
+			}
 		}
 		if (!modelSrc && gEngfuncs.LocalPlayerInfo_ValueForKey)
 			modelSrc = gEngfuncs.LocalPlayerInfo_ValueForKey("model");

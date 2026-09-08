@@ -16,5 +16,6 @@ bool BuySelect_ActivateSlot(int slot); // 1..10, wie menuselect
 int BuySelect_MenuType();
 void BuySelect_GateTick();
 void BuySelect_AfterFrame();
+void BuySelect_RememberClass(const char *modelStem);
 void BuySelect_SetHud(const BuyHudState *state);
 void BuySelect_Shutdown();

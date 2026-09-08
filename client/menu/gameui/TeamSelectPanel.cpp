@@ -947,6 +947,7 @@ bool g_keyDestPushed = false;
 
 bool TeamSelect_Show(Panel *root, int validSlots)
 {
+	BuySelect_RememberClass(nullptr);
 	if (!g_overlay)
 	{
 		if (!root)

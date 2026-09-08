@@ -347,6 +347,26 @@ public:
 		if (!strncasecmp(command, "joinclass ", 10))
 		{
 			Menu_Con("CSRETRO_CLASS_CMD %s", command);
+			const int n = atoi(command + 10);
+			const bool cz = (m_slots & MENU_KEY_6) != 0;
+			const char *stem = nullptr;
+			if (m_type == MENU_CLASS_CT)
+			{
+				if (n == 1) stem = "urban";
+				else if (n == 2) stem = "gsg9";
+				else if (n == 3) stem = "sas";
+				else if (n == 4) stem = "gign";
+				else if (n == 5 && cz) stem = "spetsnaz";
+			}
+			else
+			{
+				if (n == 1) stem = "terror";
+				else if (n == 2) stem = "leet";
+				else if (n == 3) stem = "arctic";
+				else if (n == 4) stem = "guerilla";
+				else if (n == 5 && cz) stem = "militia";
+			}
+			BuySelect_RememberClass(stem);
 			char buf[64];
 			snprintf(buf, sizeof(buf), "%s\n", command);
 			MenuEngine::ClientCmdNow(buf);

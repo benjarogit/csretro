@@ -20,8 +20,8 @@ inline Color TextDim() { return Color(190, 190, 190, 255); }
 inline Color Terror() { return Color(210, 170, 70, 255); }
 inline Color CT() { return Color(90, 170, 230, 255); }
 inline Color BuyGold() { return Color(232, 196, 52, 255); }
-inline Color BuyCell() { return Color(39, 41, 45, 218); }
-inline Color BuyCellArmed() { return Color(58, 53, 29, 238); }
+inline Color BuyCell() { return Color(32, 34, 38, 222); }
+inline Color BuyCellArmed() { return Color(78, 80, 86, 242); }
 inline Color BuyPlate() { return Color(16, 17, 19, 196); }
 
 // In-game UI grows up to a comfortable 1440x810 workspace, then stays centered.
@@ -126,8 +126,8 @@ inline void PaintBuyCell(int w, int h, bool armed)
 	if (!vgui2::surface() || w < 2 || h < 2)
 		return;
 	const int radius = std::max(3, std::min(5, h / 9));
-	const Color edge = armed ? Color(BuyGold().r(), BuyGold().g(), BuyGold().b(), 235) :
-		Color(116, 120, 126, 86);
+	const Color edge = armed ? Color(200, 200, 204, 160) :
+		Color(130, 134, 140, 110);
 	PaintRoundedRect(0, 0, w, h, radius, edge);
 	PaintRoundedRect(1, 1, w - 1, h - 1, std::max(2, radius - 1),
 		armed ? BuyCellArmed() : BuyCell());

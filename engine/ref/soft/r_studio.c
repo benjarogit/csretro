@@ -516,6 +516,84 @@ void GAME_EXPORT R_StudioLerpMovement( cl_entity_t *e, double time, vec3_t origi
 
 /*
 ====================
+R_StudioOrientBuyItem
+
+GoldSrc w_*.mdl lie in a thin AABB. Map that plane onto the Class/Team
+picture plane (look along +X) and squash the thin axis.
+====================
+*/
+static void R_StudioOrientBuyItem( cl_entity_t *e, const vec3_t origin )
+{
+	if( !m_pStudioHeader )
+		return;
+
+	(void)e;
+
+	int32_t seqindex = 0;
+	int32_t fileLen = 0;
+	memcpy( &seqindex, (byte *)m_pStudioHeader + 168, 4 );
+	memcpy( &fileLen, (byte *)m_pStudioHeader + 72, 4 );
+	if( seqindex < 0 || fileLen < seqindex + 120 )
+		return;
+
+	vec3_t mins, maxs, size, center;
+	memcpy( mins, (byte *)m_pStudioHeader + seqindex + 96, 12 );
+	memcpy( maxs, (byte *)m_pStudioHeader + seqindex + 108, 12 );
+	VectorSubtract( maxs, mins, size );
+	center[0] = 0.5f * ( mins[0] + maxs[0] );
+	center[1] = 0.5f * ( mins[1] + maxs[1] );
+	center[2] = 0.5f * ( mins[2] + maxs[2] );
+
+	int axis[3] = { 0, 1, 2 };
+	for( int i = 0; i < 2; i++ )
+	{
+		for( int j = i + 1; j < 3; j++ )
+		{
+			if( size[axis[j]] > size[axis[i]] )
+			{
+				const int t = axis[i];
+				axis[i] = axis[j];
+				axis[j] = t;
+			}
+		}
+	}
+
+	const int lng = axis[0];
+	const int mid = axis[1];
+	const int thin = axis[2];
+
+	memset( g_studio.rotationmatrix, 0, sizeof( g_studio.rotationmatrix ));
+	g_studio.rotationmatrix[0][thin] = 1.0f;
+	g_studio.rotationmatrix[1][lng] = 1.0f;
+	g_studio.rotationmatrix[2][mid] = 1.0f;
+
+	const float det =
+		g_studio.rotationmatrix[0][0] * ( g_studio.rotationmatrix[1][1] * g_studio.rotationmatrix[2][2]
+			- g_studio.rotationmatrix[1][2] * g_studio.rotationmatrix[2][1] )
+		- g_studio.rotationmatrix[0][1] * ( g_studio.rotationmatrix[1][0] * g_studio.rotationmatrix[2][2]
+			- g_studio.rotationmatrix[1][2] * g_studio.rotationmatrix[2][0] )
+		+ g_studio.rotationmatrix[0][2] * ( g_studio.rotationmatrix[1][0] * g_studio.rotationmatrix[2][1]
+			- g_studio.rotationmatrix[1][1] * g_studio.rotationmatrix[2][0] );
+	if( det < 0.0f )
+		g_studio.rotationmatrix[2][mid] = -1.0f;
+
+	vec3_t worldCenter;
+	worldCenter[0] = g_studio.rotationmatrix[0][0] * center[0] + g_studio.rotationmatrix[0][1] * center[1]
+		+ g_studio.rotationmatrix[0][2] * center[2];
+	worldCenter[1] = g_studio.rotationmatrix[1][0] * center[0] + g_studio.rotationmatrix[1][1] * center[1]
+		+ g_studio.rotationmatrix[1][2] * center[2];
+	worldCenter[2] = g_studio.rotationmatrix[2][0] * center[0] + g_studio.rotationmatrix[2][1] * center[1]
+		+ g_studio.rotationmatrix[2][2] * center[2];
+
+	g_studio.rotationmatrix[0][thin] *= 0.06f;
+
+	g_studio.rotationmatrix[0][3] = origin[0] - worldCenter[0];
+	g_studio.rotationmatrix[1][3] = origin[1] - worldCenter[1];
+	g_studio.rotationmatrix[2][3] = origin[2] - worldCenter[2];
+}
+
+/*
+====================
 StudioSetUpTransform
 
 ====================
@@ -539,6 +617,9 @@ static void R_StudioSetUpTransform( cl_entity_t *e )
 		angles[PITCH] = 0.0f;
 
 	Matrix3x4_CreateFromEntity( g_studio.rotationmatrix, angles, origin, 1.0f );
+
+	if( FBitSet( e->curstate.effects, EF_CSRETRO_ITEM ))
+		R_StudioOrientBuyItem( e, origin );
 
 	if( tr.fFlipViewModel )
 	{

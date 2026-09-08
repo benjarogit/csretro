@@ -299,20 +299,37 @@ public:
 		m_weaponImage->SetMouseInputEnabled(false);
 		m_weaponImage->SetKeyBoardInputEnabled(false);
 		m_weaponImage->SetVisible(false);
+		m_weaponImage->SetZPos(0);
+		m_number = new Label(this, "ItemNumber", "");
+		m_number->SetContentAlignment(Label::a_west);
+		m_number->SetMouseInputEnabled(false);
+		m_number->SetPaintBackgroundEnabled(false);
+		m_number->SetVisible(false);
+		m_number->SetZPos(2);
+		m_name = new Label(this, "ItemName", "");
+		m_name->SetContentAlignment(Label::a_west);
+		m_name->SetMouseInputEnabled(false);
+		m_name->SetPaintBackgroundEnabled(false);
+		m_name->SetVisible(false);
+		m_name->SetZPos(2);
 		m_price = new Label(this, "Price", "");
 		m_price->SetContentAlignment(Label::a_east);
 		m_price->SetMouseInputEnabled(false);
+		m_price->SetPaintBackgroundEnabled(false);
 		m_price->SetVisible(false);
+		m_price->SetZPos(2);
 	}
 
 	void SetFooter(bool footer) { m_isFooter = footer; ApplyLook(); }
 	void SetOverviewNumber(int number)
 	{
-		if (number < 1 || m_productName.empty())
+		if (number < 1)
 			return;
-		char numbered[96];
-		std::snprintf(numbered, sizeof(numbered), "%d  %s", number, m_productName.c_str());
-		SetText(numbered);
+		char digits[8];
+		std::snprintf(digits, sizeof(digits), "%d", number);
+		m_number->SetText(digits);
+		m_number->SetVisible(true);
+		SetText("");
 	}
 	void ConfigureWeapon(const char *command, const char *label, int cost)
 	{
@@ -324,8 +341,10 @@ public:
 		if (productName && productName[0])
 		{
 			m_productName = productName;
-			SetText(productName);
+			m_name->SetText(productName);
+			m_name->SetVisible(true);
 		}
+		SetText("");
 		m_isWeaponCard = true;
 		SetBuyModel(m_weaponImage, command);
 		char price[24];
@@ -355,13 +374,15 @@ public:
 		if (m_isWeaponCard)
 		{
 			const bool compact = h < 54;
-			const int imageTop = compact ? 11 : 12;
-			const int imageBottom = compact ? 11 : 13;
-			const int sidePad = compact ? 2 : 4;
-			const int maxImageW = std::max(1, w - sidePad * 2);
-			const int maxImageH = std::max(1, h - imageTop - imageBottom);
-			m_weaponImage->SetBounds(sidePad, imageTop, maxImageW, maxImageH);
-			m_price->SetBounds(std::max(4, w - 70), h - (compact ? 13 : 15), 64, compact ? 11 : 14);
+			const int numberW = m_number->IsVisible() ? (compact ? 10 : 12) : 0;
+			const int labelH = compact ? 12 : 14;
+			const int priceH = compact ? 11 : 14;
+			m_weaponImage->SetBounds(2, 2, std::max(1, w - 4), std::max(1, h - 4));
+			m_number->SetBounds(5, 3, numberW, labelH);
+			m_name->SetBounds(5 + numberW, 3, std::max(1, w - numberW - 10), labelH);
+			m_price->SetBounds(std::max(4, w - 72), h - priceH - 2, 68, priceH);
+			m_number->SetFgColor(Color(210, 210, 214, 170));
+			m_name->SetFgColor(InGameViewportLook::BuyGold());
 			m_price->SetFgColor(InGameViewportLook::BuyGold());
 		}
 	}
@@ -394,6 +415,8 @@ public:
 private:
 	Color m_accent = InGameViewportLook::Text();
 	CTeamModelPreview *m_weaponImage = nullptr;
+	Label *m_number = nullptr;
+	Label *m_name = nullptr;
 	Label *m_price = nullptr;
 	bool m_isWeaponCard = false;
 	bool m_isFooter = false;
@@ -410,9 +433,13 @@ private:
 		}
 		InGameViewportLook::StyleCardButton(this, InGameViewportLook::BuyGold());
 		SetContentAlignment(m_isWeaponCard ? Label::a_northwest : Label::a_west);
-		SetTextInset(m_isWeaponCard ? 8 : 12, m_isWeaponCard ? 4 : 0);
+		SetTextInset(m_isWeaponCard ? 0 : 12, m_isWeaponCard ? 0 : 0);
 		SetFgColor(InGameViewportLook::Text());
 		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::BuyCellArmed() : InGameViewportLook::BuyCell());
+		if (m_number)
+			m_number->SetFgColor(Color(210, 210, 214, 170));
+		if (m_name)
+			m_name->SetFgColor(InGameViewportLook::BuyGold());
 		if (m_price)
 			m_price->SetFgColor(InGameViewportLook::BuyGold());
 	}

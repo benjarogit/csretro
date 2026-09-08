@@ -48,60 +48,6 @@ float DistanceForHeight(float worldH, float fovY)
 	return worldH * 0.5f / std::tan(Deg2Rad(fovY) * 0.5f);
 }
 
-// Same matrix as Xash Matrix3x4_CreateFromEntity after the Quake pitch negate.
-void EntityAxes(float pitch, float yaw, float roll, float axis[3][3])
-{
-	const float p = Deg2Rad(-pitch);
-	const float y = Deg2Rad(yaw);
-	const float r = Deg2Rad(roll);
-	const float sp = std::sin(p), cp = std::cos(p);
-	const float sy = std::sin(y), cy = std::cos(y);
-	const float sr = std::sin(r), cr = std::cos(r);
-	if (std::fabs(roll) > 0.001f)
-	{
-		axis[0][0] = cp * cy;
-		axis[0][1] = sr * sp * cy + cr * -sy;
-		axis[0][2] = cr * sp * cy + -sr * -sy;
-		axis[1][0] = cp * sy;
-		axis[1][1] = sr * sp * sy + cr * cy;
-		axis[1][2] = cr * sp * sy + -sr * cy;
-		axis[2][0] = -sp;
-		axis[2][1] = sr * cp;
-		axis[2][2] = cr * cp;
-	}
-	else if (std::fabs(pitch) > 0.001f)
-	{
-		axis[0][0] = cp * cy;
-		axis[0][1] = -sy;
-		axis[0][2] = sp * cy;
-		axis[1][0] = cp * sy;
-		axis[1][1] = cy;
-		axis[1][2] = sp * sy;
-		axis[2][0] = -sp;
-		axis[2][1] = 0.0f;
-		axis[2][2] = cp;
-	}
-	else
-	{
-		axis[0][0] = cy;
-		axis[0][1] = -sy;
-		axis[0][2] = 0.0f;
-		axis[1][0] = sy;
-		axis[1][1] = cy;
-		axis[1][2] = 0.0f;
-		axis[2][0] = 0.0f;
-		axis[2][1] = 0.0f;
-		axis[2][2] = 1.0f;
-	}
-}
-
-void RotatePoint(const float axis[3][3], const float in[3], float out[3])
-{
-	out[0] = axis[0][0] * in[0] + axis[0][1] * in[1] + axis[0][2] * in[2];
-	out[1] = axis[1][0] * in[0] + axis[1][1] * in[1] + axis[1][2] * in[2];
-	out[2] = axis[2][0] * in[0] + axis[2][1] * in[1] + axis[2][2] * in[2];
-}
-
 bool ReadStudioIdleBox(const char *path, float mins[3], float maxs[3])
 {
 	int len = 0;
@@ -127,42 +73,27 @@ bool ReadStudioIdleBox(const char *path, float mins[3], float maxs[3])
 	return true;
 }
 
+// Engine maps the idle AABB onto the Class picture plane (thin axis = look).
+// Menu only supplies the two large extents so the camera distance fills the tile.
 void FrameItem(const float mins[3], const float maxs[3], float *pitch, float *yaw, float *roll,
 	float *frameW, float *frameH, float shift[3])
 {
-	const float dx = maxs[0] - mins[0];
-	const float dy = maxs[1] - mins[1];
-	// Same Class/Team camera (look along +X). w_*.mdl lie in XY only a few
-	// units thick; rotate that plane onto the picture plane so the camera
-	// sees the side profile (barrel / mag / grip), not the 2-unit edge.
-	if (dx > dy)
-	{
-		*pitch = 0.0f;
-		*yaw = 90.0f;
-		*roll = 90.0f;
-		*frameW = std::max(4.0f, dx);
-		*frameH = std::max(4.0f, dy);
-	}
-	else
-	{
-		*pitch = 90.0f;
-		*yaw = 0.0f;
-		*roll = 0.0f;
-		*frameW = std::max(4.0f, dy);
-		*frameH = std::max(4.0f, dx);
-	}
-	const float center[3] = {
-		0.5f * (mins[0] + maxs[0]),
-		0.5f * (mins[1] + maxs[1]),
-		0.5f * (mins[2] + maxs[2]),
-	};
-	float axis[3][3];
-	EntityAxes(*pitch, *yaw, *roll, axis);
-	float worldCenter[3];
-	RotatePoint(axis, center, worldCenter);
-	shift[0] = -worldCenter[0];
-	shift[1] = -worldCenter[1];
-	shift[2] = -worldCenter[2];
+	const float dx = std::max(0.1f, maxs[0] - mins[0]);
+	const float dy = std::max(0.1f, maxs[1] - mins[1]);
+	const float dz = std::max(0.1f, maxs[2] - mins[2]);
+	float a = dx, b = dy, c = dz;
+	if (b > a)
+		std::swap(a, b);
+	if (c > a)
+		std::swap(a, c);
+	if (c > b)
+		std::swap(b, c);
+	*pitch = 0.0f;
+	*yaw = 0.0f;
+	*roll = 0.0f;
+	*frameW = std::max(4.0f, a);
+	*frameH = std::max(4.0f, b);
+	shift[0] = shift[1] = shift[2] = 0.0f;
 }
 
 void SetupStudio(cl_entity_t *ent, const char *path, int sequence, float pitch, float yaw, float roll,
@@ -320,7 +251,7 @@ void CTeamModelPreview::Paint()
 	rvp.viewport[1] = ay;
 	rvp.viewport[2] = w;
 	rvp.viewport[3] = h;
-	rvp.fov_x = 26.0f;
+	rvp.fov_x = m_item ? 12.0f : 26.0f;
 	rvp.fov_y = FovYFromX(w, h, rvp.fov_x);
 	if (rvp.fov_y <= 0.0f)
 		return;
@@ -338,8 +269,8 @@ void CTeamModelPreview::Paint()
 		{
 			if (!m_previews[i].visible)
 				continue;
-			const float byWidth = DistanceForHeight(m_previews[i].frameW / 0.84f, rvp.fov_x);
-			const float byHeight = DistanceForHeight(m_previews[i].frameH / 0.72f, rvp.fov_y);
+			const float byWidth = DistanceForHeight(m_previews[i].frameW / 0.90f, rvp.fov_x);
+			const float byHeight = DistanceForHeight(m_previews[i].frameH / 0.78f, rvp.fov_y);
 			itemDist = std::max(8.0f, std::max(byWidth, byHeight));
 			break;
 		}

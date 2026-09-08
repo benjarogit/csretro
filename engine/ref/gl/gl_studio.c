@@ -958,6 +958,7 @@ static void R_StudioSetupBones( cl_entity_t *e )
 
 	// calc gait animation
 	if( m_pPlayerInfo && m_pPlayerInfo->gaitsequence != 0
+		&& FBitSet( RI.rvp.flags, RF_DRAW_WORLD )
 		&& !FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
 	{
 		qboolean	copy_bones = true;
@@ -2103,6 +2104,11 @@ static void R_StudioDrawPoints( void )
 			for( int i = 0; i < pmesh[j].numnorms; i++, k++, pstudionorms++, pnormbone++ )
 			{
 				float lv_tmp;
+				if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
+				{
+					VectorSet( g_studio.lightvalues[k], 1.0f, 1.0f, 1.0f );
+					continue;
+				}
 				if( FBitSet( m_pStudioHeader->flags, STUDIO_HAS_BONEWEIGHTS ))
 					R_StudioLighting( &lv_tmp, -1, g_nFaceFlags, g_studio.norms[k] );
 				else R_StudioLighting( &lv_tmp, *pnormbone, g_nFaceFlags, (float *)pstudionorms );
@@ -2133,7 +2139,6 @@ static void R_StudioDrawPoints( void )
 	if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
 	{
 		tr.fFlipViewModel = false;
-		GL_Cull( 0 );
 	}
 	else if( glState.faceCull != GL_NONE )
 	{
@@ -2202,9 +2207,6 @@ static void R_StudioDrawPoints( void )
 		r_stats.c_studio_polys += pmesh->numtris;
 		tr.blend = oldblend;
 	}
-
-	if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
-		GL_Cull( GL_FRONT );
 }
 
 /*
@@ -3076,7 +3078,8 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 
 	R_StudioSetHeader((studiohdr_t *)gEngfuncs.Mod_Extradata( mod_studio, RI.currentmodel ));
 
-	if( pplayer->gaitsequence && !FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
+	if( pplayer->gaitsequence && FBitSet( RI.rvp.flags, RF_DRAW_WORLD )
+		&& !FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
 	{
 		m_pPlayerInfo = pfnPlayerInfo( m_nPlayerIndex );
 		vec3_t orig_angles = Vec3( RI.currententity->angles );
@@ -3104,7 +3107,8 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 		m_pPlayerInfo->gaitsequence = 0;
 		m_pPlayerInfo->gaitframe = 0.0f;
 
-		if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
+		if( !FBitSet( RI.rvp.flags, RF_DRAW_WORLD )
+			|| FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
 			VectorCopy( RI.currententity->curstate.angles, RI.currententity->angles );
 
 		R_StudioSetUpTransform( RI.currententity );
@@ -3136,7 +3140,7 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 		R_StudioClientEvents( );
 
 		// copy attachments into global entity array
-		if( RI.currententity->index > 0 )
+		if( RI.currententity->index > 0 && FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
 		{
 			cl_entity_t *ent = CL_GetEntityByIndex( RI.currententity->index );
 			memcpy( ent->attachment, RI.currententity->attachment, sizeof( vec3_t ) * 4 );
@@ -3263,7 +3267,7 @@ static int R_StudioDrawModel( int flags )
 		R_StudioClientEvents( );
 
 		// copy attachments into global entity array
-		if( RI.currententity->index > 0 )
+		if( RI.currententity->index > 0 && FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
 		{
 			cl_entity_t *ent = CL_GetEntityByIndex( RI.currententity->index );
 			memcpy( ent->attachment, RI.currententity->attachment, sizeof( vec3_t ) * 4 );

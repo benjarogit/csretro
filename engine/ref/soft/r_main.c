@@ -624,7 +624,7 @@ static void R_DrawEntitiesOnList( void )
 
 	GL_SetRenderMode( kRenderNormal );
 	R_SetUpWorldTransform();
-	if( !FBitSet( RI.rvp.flags, RF_ONLY_CLIENTDRAW ))
+	if( !FBitSet( RI.rvp.flags, RF_ONLY_CLIENTDRAW ) && FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
 		R_DrawViewModel();
 	gEngfuncs.CL_ExtraUpdate();
 

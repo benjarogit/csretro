@@ -964,10 +964,13 @@ private:
 		m_characterModel = model;
 		char path[96];
 		snprintf(path, sizeof(path), "models/player/%s/%s.mdl", model, model);
-		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl",
-			ct ? 206.0f : 202.0f, ct ? 33 : 80);
+		// Same one-figure SetPreview as Team-CT right / Class guerilla (on-axis,
+		// worldWidth 65, seq 80 T / 33 CT). Do not invent a second yaw.
+		const float yaw = ct ? 206.0f : 202.0f;
+		const int seq = ct ? 33 : 80;
+		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl", yaw, seq);
 		m_character->SetWorldWidth(65.0f);
-		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s", m_team, model);
+		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s yaw=%.0f seq=%d", m_team, model, yaw, seq);
 	}
 
 	void BuildCharacterStage(bool randomize)

@@ -132,21 +132,22 @@ void FrameItem(const float mins[3], const float maxs[3], float *pitch, float *ya
 {
 	const float dx = maxs[0] - mins[0];
 	const float dy = maxs[1] - mins[1];
-	// GoldSrc w_*.mdl lie in XY (Z is a few units thick). The Class/Team
-	// camera looks along +X and would see that edge. The item pass uses the
-	// same RenderScene with view pitch 90 (look down -Z) at that silhouette.
-	// Yaw only spins the gun on the table so the long axis is horizontal.
-	*pitch = 0.0f;
-	*roll = 0.0f;
+	// Same Class/Team camera (look along +X). w_*.mdl lie in XY only a few
+	// units thick; rotate that plane onto the picture plane so the camera
+	// sees the side profile (barrel / mag / grip), not the 2-unit edge.
 	if (dx > dy)
 	{
+		*pitch = 0.0f;
 		*yaw = 90.0f;
+		*roll = 90.0f;
 		*frameW = std::max(4.0f, dx);
 		*frameH = std::max(4.0f, dy);
 	}
 	else
 	{
+		*pitch = 90.0f;
 		*yaw = 0.0f;
+		*roll = 0.0f;
 		*frameW = std::max(4.0f, dy);
 		*frameH = std::max(4.0f, dx);
 	}
@@ -179,6 +180,7 @@ void SetupStudio(cl_entity_t *ent, const char *path, int sequence, float pitch, 
 	ent->curstate.frame = 0.0f;
 	ent->curstate.framerate = 1.0f;
 	ent->curstate.effects |= EF_FULLBRIGHT;
+	ent->curstate.gaitsequence = 0;
 	ent->curstate.rendermode = kRenderNormal;
 	ent->curstate.renderamt = 255;
 	for (int i = 0; i < 4; ++i)
@@ -341,10 +343,6 @@ void CTeamModelPreview::Paint()
 			itemDist = std::max(8.0f, std::max(byWidth, byHeight));
 			break;
 		}
-		// Same pfnRenderScene as Class/Team. Player models stand along Z, so
-		// that pass looks along +X. World weapons lie in XY; look down -Z.
-		rvp.viewangles[0] = 90.0f;
-		rvp.vieworigin[2] = itemDist;
 	}
 	else
 		rvp.vieworigin[2] = -5.0f;
@@ -364,19 +362,13 @@ void CTeamModelPreview::Paint()
 		const float idleLift = m_item ? 0.0f : std::sin(now * 1.35f + phase) * 0.22f;
 		const float dist = m_item ? itemDist : std::max(distH, distW) * 1.04f;
 		const int studioIndex = m_independentPlayerState ? (3 - i) : (i + 1);
-		const float ox = m_item ? preview.shift[0] : dist;
+		const float ox = dist + preview.shift[0];
 		const float oy = m_item ? preview.shift[1] : preview.lateralOffset;
 		const float oz = m_item ? preview.shift[2] : idleLift;
 		SetupStudio(&players[i], preview.path, preview.sequence, preview.pitch,
 			preview.yaw + idleYaw, preview.roll, ox, oy, oz, m_animStart, studioIndex);
 		if (!m_item)
-		{
 			players[i].curstate.effects |= EF_CSRETRO_PREVIEW | EF_NOINTERP;
-			// One-figure stages (Team slots, Buy) must not share entity index 1
-			// with the live local player after spawn.
-			if (m_count == 1)
-				players[i].index = 0;
-		}
 		if (m_item && !players[i].model)
 		{
 			if (!m_logged)
@@ -394,8 +386,9 @@ void CTeamModelPreview::Paint()
 			players[i].curstate.rendercolor.g = 196;
 			players[i].curstate.rendercolor.b = 48;
 			if (!m_logged)
-				Menu_Con("CSRETRO_BUY_ITEM path=%s viewpitch=90 yaw=%.0f frame=%.1fx%.1f dist=%.1f",
-					preview.path, preview.yaw, preview.frameW, preview.frameH, dist);
+				Menu_Con("CSRETRO_BUY_ITEM path=%s pitch=%.0f yaw=%.0f roll=%.0f frame=%.1fx%.1f dist=%.1f",
+					preview.path, preview.pitch, preview.yaw, preview.roll, preview.frameW,
+					preview.frameH, dist);
 		}
 		// Items stay non-player. Characters keep player=true so p_* weapons
 		// bone-merge. Buy's dark stage must not disable that.

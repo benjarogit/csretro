@@ -930,7 +930,7 @@ static void R_DrawEntitiesOnList( void )
 
 	pglDisable( GL_BLEND );	// Trinity Render issues
 
-	if( !FBitSet( RI.rvp.flags, RF_ONLY_CLIENTDRAW ))
+	if( !FBitSet( RI.rvp.flags, RF_ONLY_CLIENTDRAW ) && FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
 		R_DrawViewModel();
 	gEngfuncs.CL_ExtraUpdate();
 

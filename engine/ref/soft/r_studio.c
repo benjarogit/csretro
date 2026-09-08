@@ -232,7 +232,7 @@ static qboolean R_StudioComputeBBox( vec3_t bbox[8] )
 			VectorCopy( p2, bbox[i] );
 	}
 
-	if( !bbox && R_CullModel( e, studio_mins, studio_maxs ))
+	if( !bbox && FBitSet( RI.rvp.flags, RF_DRAW_WORLD ) && R_CullModel( e, studio_mins, studio_maxs ))
 		return false;  // model culled
 	return true;           // visible
 }
@@ -2696,6 +2696,9 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 		m_pPlayerInfo = pfnPlayerInfo( m_nPlayerIndex );
 		m_pPlayerInfo->gaitsequence = 0;
 		m_pPlayerInfo->gaitframe = 0.0f;
+
+		if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
+			VectorCopy( RI.currententity->curstate.angles, RI.currententity->angles );
 
 		R_StudioSetUpTransform( RI.currententity );
 	}

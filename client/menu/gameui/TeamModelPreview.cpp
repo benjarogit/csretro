@@ -132,45 +132,36 @@ void FrameItem(const float mins[3], const float maxs[3], float *pitch, float *ya
 {
 	const float dx = maxs[0] - mins[0];
 	const float dy = maxs[1] - mins[1];
-	// GoldSrc w_*.mdl lie in XY (Z is a few units thick). Yaw-only shows the
-	// edge. Pitch 90 faces the silhouette at the camera; X-long guns need roll
-	// so the barrel stays horizontal in the card.
-	if (dy >= dx)
+	// GoldSrc w_*.mdl lie in XY (Z is a few units thick). The Class/Team
+	// camera looks along +X and would see that edge. The item pass uses the
+	// same RenderScene with view pitch 90 (look down -Z) at that silhouette.
+	// Yaw only spins the gun on the table so the long axis is horizontal.
+	*pitch = 0.0f;
+	*roll = 0.0f;
+	if (dx > dy)
 	{
-		*pitch = 90.0f;
-		*yaw = 0.0f;
-		*roll = 0.0f;
+		*yaw = 90.0f;
+		*frameW = std::max(4.0f, dx);
+		*frameH = std::max(4.0f, dy);
 	}
 	else
 	{
-		*pitch = 0.0f;
-		*yaw = 90.0f;
-		*roll = 90.0f;
+		*yaw = 0.0f;
+		*frameW = std::max(4.0f, dy);
+		*frameH = std::max(4.0f, dx);
 	}
+	const float center[3] = {
+		0.5f * (mins[0] + maxs[0]),
+		0.5f * (mins[1] + maxs[1]),
+		0.5f * (mins[2] + maxs[2]),
+	};
 	float axis[3][3];
 	EntityAxes(*pitch, *yaw, *roll, axis);
-	float minW[3] = { 1.0e9f, 1.0e9f, 1.0e9f };
-	float maxW[3] = { -1.0e9f, -1.0e9f, -1.0e9f };
-	for (int i = 0; i < 8; ++i)
-	{
-		const float p[3] = {
-			(i & 1) ? maxs[0] : mins[0],
-			(i & 2) ? maxs[1] : mins[1],
-			(i & 4) ? maxs[2] : mins[2],
-		};
-		float wpt[3];
-		RotatePoint(axis, p, wpt);
-		for (int a = 0; a < 3; ++a)
-		{
-			minW[a] = std::min(minW[a], wpt[a]);
-			maxW[a] = std::max(maxW[a], wpt[a]);
-		}
-	}
-	*frameW = std::max(4.0f, maxW[1] - minW[1]);
-	*frameH = std::max(4.0f, maxW[2] - minW[2]);
-	shift[0] = -0.5f * (minW[0] + maxW[0]);
-	shift[1] = -0.5f * (minW[1] + maxW[1]);
-	shift[2] = -0.5f * (minW[2] + maxW[2]);
+	float worldCenter[3];
+	RotatePoint(axis, center, worldCenter);
+	shift[0] = -worldCenter[0];
+	shift[1] = -worldCenter[1];
+	shift[2] = -worldCenter[2];
 }
 
 void SetupStudio(cl_entity_t *ent, const char *path, int sequence, float pitch, float yaw, float roll,
@@ -209,6 +200,18 @@ void SetupStudio(cl_entity_t *ent, const char *path, int sequence, float pitch, 
 	ent->angles[0] = ent->curstate.angles[0] = pitch;
 	ent->angles[1] = ent->curstate.angles[1] = yaw;
 	ent->angles[2] = ent->curstate.angles[2] = roll;
+	ent->latched.prevorigin[0] = ox;
+	ent->latched.prevorigin[1] = oy;
+	ent->latched.prevorigin[2] = oz;
+	ent->latched.prevangles[0] = pitch;
+	ent->latched.prevangles[1] = yaw;
+	ent->latched.prevangles[2] = roll;
+	ent->latched.prevanimtime = animStart;
+	ent->latched.sequencetime = animStart;
+	ent->latched.prevsequence = sequence;
+	ent->latched.prevframe = 0.0f;
+	ent->latched.prevseqblending[0] = 127;
+	ent->latched.prevseqblending[1] = 127;
 }
 } // namespace
 
@@ -319,8 +322,6 @@ void CTeamModelPreview::Paint()
 	rvp.fov_y = FovYFromX(w, h, rvp.fov_x);
 	if (rvp.fov_y <= 0.0f)
 		return;
-	if (!m_item)
-		rvp.vieworigin[2] = -5.0f;
 
 	if (m_animStart <= 0.0f && gGlobals)
 		m_animStart = gGlobals->time;
@@ -328,6 +329,26 @@ void CTeamModelPreview::Paint()
 	const float distH = DistanceForHeight(m_worldHeight, rvp.fov_y);
 	const float distW = DistanceForHeight(m_worldWidth, rvp.fov_x);
 	const float now = gGlobals ? gGlobals->time : 0.0f;
+	float itemDist = 0.0f;
+	if (m_item)
+	{
+		for (int i = 0; i < m_count; ++i)
+		{
+			if (!m_previews[i].visible)
+				continue;
+			const float byWidth = DistanceForHeight(m_previews[i].frameW / 0.84f, rvp.fov_x);
+			const float byHeight = DistanceForHeight(m_previews[i].frameH / 0.72f, rvp.fov_y);
+			itemDist = std::max(8.0f, std::max(byWidth, byHeight));
+			break;
+		}
+		// Same pfnRenderScene as Class/Team. Player models stand along Z, so
+		// that pass looks along +X. World weapons lie in XY; look down -Z.
+		rvp.viewangles[0] = 90.0f;
+		rvp.vieworigin[2] = itemDist;
+	}
+	else
+		rvp.vieworigin[2] = -5.0f;
+
 	gEng.pfnClearScene();
 	cl_entity_t players[kMaxPreviews];
 	cl_entity_t weapons[kMaxPreviews];
@@ -341,21 +362,21 @@ void CTeamModelPreview::Paint()
 		const float phase = static_cast<float>(i) * 0.73f;
 		const float idleYaw = m_item ? 0.0f : std::sin(now * 0.85f + phase) * 1.25f;
 		const float idleLift = m_item ? 0.0f : std::sin(now * 1.35f + phase) * 0.22f;
-		float dist = std::max(distH, distW) * 1.04f;
-		if (m_item)
-		{
-			const float byWidth = DistanceForHeight(preview.frameW / 0.84f, rvp.fov_x);
-			const float byHeight = DistanceForHeight(preview.frameH / 0.72f, rvp.fov_y);
-			dist = std::max(byWidth, byHeight);
-		}
+		const float dist = m_item ? itemDist : std::max(distH, distW) * 1.04f;
 		const int studioIndex = m_independentPlayerState ? (3 - i) : (i + 1);
-		const float ox = dist + (m_item ? preview.shift[0] : 0.0f);
-		const float oy = (m_item ? preview.shift[1] : preview.lateralOffset);
-		const float oz = (m_item ? preview.shift[2] : idleLift);
+		const float ox = m_item ? preview.shift[0] : dist;
+		const float oy = m_item ? preview.shift[1] : preview.lateralOffset;
+		const float oz = m_item ? preview.shift[2] : idleLift;
 		SetupStudio(&players[i], preview.path, preview.sequence, preview.pitch,
 			preview.yaw + idleYaw, preview.roll, ox, oy, oz, m_animStart, studioIndex);
 		if (!m_item)
+		{
 			players[i].curstate.effects |= EF_CSRETRO_PREVIEW | EF_NOINTERP;
+			// One-figure stages (Team slots, Buy) must not share entity index 1
+			// with the live local player after spawn.
+			if (m_count == 1)
+				players[i].index = 0;
+		}
 		if (m_item && !players[i].model)
 		{
 			if (!m_logged)
@@ -364,6 +385,8 @@ void CTeamModelPreview::Paint()
 		}
 		if (m_item)
 		{
+			players[i].index = 0;
+			players[i].curstate.number = 0;
 			players[i].curstate.effects |= EF_CSRETRO_ITEM;
 			players[i].curstate.rendermode = kRenderNormal;
 			players[i].curstate.renderamt = 255;
@@ -371,9 +394,8 @@ void CTeamModelPreview::Paint()
 			players[i].curstate.rendercolor.g = 196;
 			players[i].curstate.rendercolor.b = 48;
 			if (!m_logged)
-				Menu_Con("CSRETRO_BUY_ITEM path=%s pitch=%.0f yaw=%.0f roll=%.0f frame=%.1fx%.1f dist=%.1f",
-					preview.path, preview.pitch, preview.yaw, preview.roll,
-					preview.frameW, preview.frameH, dist);
+				Menu_Con("CSRETRO_BUY_ITEM path=%s viewpitch=90 yaw=%.0f frame=%.1fx%.1f dist=%.1f",
+					preview.path, preview.yaw, preview.frameW, preview.frameH, dist);
 		}
 		// Items stay non-player. Characters keep player=true so p_* weapons
 		// bone-merge. Buy's dark stage must not disable that.

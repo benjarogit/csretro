@@ -252,7 +252,7 @@ static qboolean R_StudioComputeBBox( vec3_t bbox[8] )
 		if( bbox ) VectorCopy( p2, bbox[i] );
 	}
 
-	if( !bbox && R_CullModel( e, studio_mins, studio_maxs ))
+	if( !bbox && FBitSet( RI.rvp.flags, RF_DRAW_WORLD ) && R_CullModel( e, studio_mins, studio_maxs ))
 		return false; // model culled
 	return true; // visible
 }
@@ -2130,7 +2130,12 @@ static void R_StudioDrawPoints( void )
 	// backface culling through TriAPI call
 	//
 	// see https://github.com/FWGS/xash3d-fwgs/issues/2517
-	if( glState.faceCull != GL_NONE )
+	if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
+	{
+		tr.fFlipViewModel = false;
+		GL_Cull( 0 );
+	}
+	else if( glState.faceCull != GL_NONE )
 	{
 		if( R_AllowFlipViewModel( RI.currententity ))
 		{
@@ -2197,6 +2202,9 @@ static void R_StudioDrawPoints( void )
 		r_stats.c_studio_polys += pmesh->numtris;
 		tr.blend = oldblend;
 	}
+
+	if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
+		GL_Cull( GL_FRONT );
 }
 
 /*
@@ -3095,6 +3103,9 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 		m_pPlayerInfo = pfnPlayerInfo( m_nPlayerIndex );
 		m_pPlayerInfo->gaitsequence = 0;
 		m_pPlayerInfo->gaitframe = 0.0f;
+
+		if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
+			VectorCopy( RI.currententity->curstate.angles, RI.currententity->angles );
 
 		R_StudioSetUpTransform( RI.currententity );
 	}

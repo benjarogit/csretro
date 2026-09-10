@@ -48,6 +48,7 @@ public:
 	static CGrenade *ShootTimed2(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity, float time, int iTeam, unsigned short usEvent) { return NULL; }
 	static CGrenade *ShootContact(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity) { return NULL; }
 	static CGrenade *ShootSmokeGrenade(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity, float time, unsigned short usEvent) { return NULL; }
+	static CGrenade *ShootFireGrenade(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity, int weaponId, unsigned short usEvent) { return NULL; }
 	static CGrenade *ShootSatchelCharge(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity) { return NULL; }
 #endif
 	static void UseSatchelCharges(entvars_t *pevOwner, SATCHELCODE code);
@@ -115,7 +116,7 @@ public:
 
 #define WEAPON_ALLWEAPONS (~(1 << WEAPON_SUIT))
 #define WEAPON_SUIT 31
-#define MAX_WEAPONS 32
+#define MAX_WEAPONS 64
 
 #define MAX_NORMAL_BATTERY 100
 
@@ -135,6 +136,8 @@ public:
 #define HEGRENADE_MAX_CARRY 1
 #define FLASHBANG_MAX_CARRY 2
 #define SMOKEGRENADE_MAX_CARRY 1
+#define MOLOTOV_MAX_CARRY 1
+#define INCGRENADE_MAX_CARRY 1
 #define C4_MAX_CARRY 1
 
 
@@ -276,6 +279,12 @@ public:
 	void KickBack(float up_base, float lateral_base, float up_modifier, float lateral_modifier, float up_max, float lateral_max, int direction_change);
 	void FireRemaining(int &shotsFired, float &shootTime, BOOL isGlock18);
 	bool HasSecondaryAttack(void);
+	bool IsGrenade(void) const;
+	static float GrenadeThrowStrengthFromButtons(int buttons);
+	BOOL CanHolsterGrenadeThrow(void) const;
+	bool CanCommitGrenadeThrow(void) const;
+	void UpdateGrenadeCookStrength(void);
+	void ComputeGrenadeThrow(Vector &vecSrc, Vector &vecThrow) const;
 	float GetNextAttackDelay(float delay);
 
 public:
@@ -701,11 +710,14 @@ public:
 	BOOL CanDeploy(void);
 	BOOL CanDrop(void) { return FALSE; }
 	BOOL Deploy(void);
+	BOOL CanHolster(void);
 	void Holster(int skiplocal);
 	float GetMaxSpeed(void) { return m_fMaxSpeed; }
 	int iItemSlot(void) { return WPNSLOT_GRENADE; }
 	void PrimaryAttack(void);
+	void SecondaryAttack(void);
 	void WeaponIdle(void);
+	void StartThrow(float strength);
 
 	BOOL UseDecrement(void)
 	{
@@ -824,7 +836,9 @@ public:
 	float GetMaxSpeed(void) { return m_fMaxSpeed; }
 	int iItemSlot(void) { return WPNSLOT_GRENADE; }
 	void PrimaryAttack(void);
+	void SecondaryAttack(void);
 	void WeaponIdle(void);
+	void StartThrow(float strength);
 
 	BOOL UseDecrement(void)
 	{
@@ -1193,11 +1207,14 @@ public:
 	BOOL CanDeploy(void);
 	BOOL CanDrop(void) { return FALSE; }
 	BOOL Deploy(void);
+	BOOL CanHolster(void);
 	void Holster(int skiplocal);
 	float GetMaxSpeed(void) { return m_fMaxSpeed; }
 	int iItemSlot(void) { return WPNSLOT_GRENADE; }
 	void PrimaryAttack(void);
+	void SecondaryAttack(void);
 	void WeaponIdle(void);
+	void StartThrow(float strength);
 
 	BOOL UseDecrement(void)
 	{
@@ -1210,6 +1227,72 @@ public:
 
 public:
 	unsigned short m_usCreateSmoke;
+};
+
+class CMolotov : public CBasePlayerWeapon
+{
+public:
+	void Spawn(void);
+	void Precache(void);
+	int GetItemInfo(ItemInfo *p);
+	BOOL CanDeploy(void);
+	BOOL CanDrop(void) { return FALSE; }
+	BOOL Deploy(void);
+	BOOL CanHolster(void);
+	void Holster(int skiplocal);
+	void ItemPostFrame(void);
+	float GetMaxSpeed(void) { return m_fMaxSpeed; }
+	int iItemSlot(void) { return WPNSLOT_GRENADE; }
+	void PrimaryAttack(void);
+	void SecondaryAttack(void);
+	void WeaponIdle(void);
+
+	BOOL UseDecrement(void)
+	{
+#ifdef CLIENT_WEAPONS
+		return TRUE;
+#else
+		return FALSE;
+#endif
+	}
+
+public:
+	void StartThrow(float strength);
+	unsigned short m_usCreateInferno;
+	bool m_bHeldIdle;
+};
+
+class CIncendiary : public CBasePlayerWeapon
+{
+public:
+	void Spawn(void);
+	void Precache(void);
+	int GetItemInfo(ItemInfo *p);
+	BOOL CanDeploy(void);
+	BOOL CanDrop(void) { return FALSE; }
+	BOOL Deploy(void);
+	BOOL CanHolster(void);
+	void Holster(int skiplocal);
+	void ItemPostFrame(void);
+	float GetMaxSpeed(void) { return m_fMaxSpeed; }
+	int iItemSlot(void) { return WPNSLOT_GRENADE; }
+	void PrimaryAttack(void);
+	void SecondaryAttack(void);
+	void WeaponIdle(void);
+
+	BOOL UseDecrement(void)
+	{
+#ifdef CLIENT_WEAPONS
+		return TRUE;
+#else
+		return FALSE;
+#endif
+	}
+
+public:
+	void StartThrow(float strength);
+	unsigned short m_usCreateInferno;
+	bool m_bHeldIdle;
 };
 
 class CTMP : public CBasePlayerWeapon

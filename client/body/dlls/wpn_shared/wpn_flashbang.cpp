@@ -34,6 +34,7 @@ void CFlashbang::Spawn(void)
 	m_iDefaultAmmo = FLASHBANG_DEFAULT_GIVE;
 	m_flStartThrow = 0;
 	m_flReleaseThrow = -1.0f;
+	m_flThrowStrength = 1.0f;
 
 	// get ready to fall down.
 	FallInit();
@@ -70,9 +71,15 @@ int CFlashbang::GetItemInfo(ItemInfo *p)
 BOOL CFlashbang::Deploy(void)
 {
 	m_flReleaseThrow = -1.0f;
+	m_flThrowStrength = 1.0f;
 	m_fMaxSpeed = FLASHBANG_MAX_SPEED;
 
 	return DefaultDeploy("models/v_flashbang.mdl", "models/p_flashbang.mdl", FLASHBANG_DRAW, "grenade", UseDecrement() != FALSE);
+}
+
+BOOL CFlashbang::CanHolster(void)
+{
+	return CanHolsterGrenadeThrow();
 }
 
 void CFlashbang::Holster(int skiplocal)
@@ -87,21 +94,37 @@ void CFlashbang::Holster(int skiplocal)
 
 	m_flStartThrow = 0;
 	m_flReleaseThrow = -1.0f;
+	m_flThrowStrength = 1.0f;
 }
 
 void CFlashbang::PrimaryAttack(void)
 {
+	StartThrow((m_pPlayer->pev->button & IN_ATTACK2) ? 0.5f : 1.0f);
+}
+
+void CFlashbang::SecondaryAttack(void)
+{
+	StartThrow((m_pPlayer->pev->button & IN_ATTACK) ? 0.5f : 0.0f);
+}
+
+void CFlashbang::StartThrow(float strength)
+{
 	if (!m_flStartThrow && m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] > 0)
 	{
+		m_flThrowStrength = strength;
 		m_flReleaseThrow = 0;
 		m_flStartThrow = gpGlobals->time;
 
 		SendWeaponAnim(FLASHBANG_PULLPIN, UseDecrement() != FALSE);
 		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + 0.5f;
-	}}
+	}
+}
 
 void CFlashbang::WeaponIdle(void)
 {
+	if (m_pPlayer->pev->button & (IN_ATTACK | IN_ATTACK2))
+		return;
+
 	if (m_flReleaseThrow == 0 && m_flStartThrow != 0.0f)
 		m_flReleaseThrow = gpGlobals->time;
 
@@ -110,24 +133,13 @@ void CFlashbang::WeaponIdle(void)
 
 	if (m_flStartThrow)
 	{
+		if (!CanCommitGrenadeThrow())
+			return;
+
 		m_pPlayer->Radio("%!MRAD_FIREINHOLE", "#Fire_in_the_hole");
 
-		Vector angThrow = m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle;
-
-		if (angThrow.x < 0)
-			angThrow.x = -10 + angThrow.x * ((90 - 10) / 90.0);
-		else
-			angThrow.x = -10 + angThrow.x * ((90 + 10) / 90.0);
-
-		float flVel = (90.0f - angThrow.x) * 6.0f;
-
-		if (flVel > 750.0f)
-			flVel = 750.0f;
-
-		UTIL_MakeVectors(angThrow);
-
-		Vector vecSrc = m_pPlayer->pev->origin + m_pPlayer->pev->view_ofs + gpGlobals->v_forward * 16;
-		Vector vecThrow = gpGlobals->v_forward * flVel + m_pPlayer->pev->velocity;
+		Vector vecSrc, vecThrow;
+		ComputeGrenadeThrow(vecSrc, vecThrow);
 
 		CGrenade::ShootTimed(m_pPlayer->pev, vecSrc, vecThrow, 1.5);
 

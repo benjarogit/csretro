@@ -25,7 +25,8 @@
 // HEGrenade		- HE Grenade
 // Flashbang		- Flashbang
 // SmokeGrenade		- Smoke Grenade
-// NightVision		- Nightvision goggles
+// Molotov		- Terrorist fire grenade
+// Incendiary		- Counter-Terrorist fire grenade
 
 PrimaryWeapon
 PrimaryAmmo
@@ -34,6 +35,7 @@ Armor
 HEGrenade
 Flashbang
 SmokeGrenade
+Molotov
+Incendiary
 SecondaryWeapon
 SecondaryAmmo
-NightVision

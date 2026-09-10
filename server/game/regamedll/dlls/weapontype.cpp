@@ -31,6 +31,8 @@ WeaponStruct g_weaponStruct[MAX_WEAPONS] =
 				// FIX: there is a bug, the cost of galil $2000 instead $2250
 
 	{ WEAPON_SHIELDGUN, SHIELDGUN_PRICE,    TERRORIST,      AUTOBUYCLASS_PRIMARY,   0                   },
+	{ WEAPON_MOLOTOV,   MOLOTOV_PRICE,      TERRORIST,      AUTOBUYCLASS_GRENADE,   AMMO_MOLOTOV_PRICE  },
+	{ WEAPON_INCGRENADE,INCGRENADE_PRICE,   CT,             AUTOBUYCLASS_GRENADE,   AMMO_INCGRENADE_PRICE },
 
 	{ 0, 0, 0, 0, 0 },
 	{ 0, 0, 0, 0, 0 },
@@ -73,7 +75,8 @@ AutoBuyInfoStruct g_autoBuyInfo[] =
 	{ AUTOBUYCLASS_GRENADE,                         "flash",    "weapon_flashbang"      },
 	{ AUTOBUYCLASS_GRENADE,                         "hegren",   "weapon_hegrenade"      },
 	{ AUTOBUYCLASS_GRENADE,                         "sgren",    "weapon_smokegrenade"   },
-	{ AUTOBUYCLASS_NIGHTVISION,                     "nvgs",     "nvgs"                  },
+	{ AUTOBUYCLASS_GRENADE,                         "molotov",  "weapon_molotov"        },
+	{ AUTOBUYCLASS_GRENADE,                         "incgrenade","weapon_incgrenade"    },
 	{ AUTOBUYCLASS_DEFUSER,                         "defuser",  "defuser"               },
 	{ AUTOBUYCLASS_NONE,                            nullptr,     nullptr                },
 };
@@ -113,6 +116,9 @@ WeaponAliasInfo g_weaponAliasInfo[] =
 	{ "none",       WEAPON_NONE         },
 	{ "grenade",    WEAPON_HEGRENADE    },
 	{ "hegrenade",  WEAPON_HEGRENADE    },
+	{ "molotov",    WEAPON_MOLOTOV      },
+	{ "incgrenade", WEAPON_INCGRENADE   },
+	{ "incendiary", WEAPON_INCGRENADE   },
 	{ "glock18",    WEAPON_GLOCK18      },
 	{ "elite",      WEAPON_ELITE        },
 	{ "fiveseven",  WEAPON_FIVESEVEN    },
@@ -201,6 +207,9 @@ WeaponClassAliasInfo g_weaponClassAliasInfo[] =
 	{ "p90",        WEAPONCLASS_SUBMACHINEGUN   },
 	{ "grenade",    WEAPONCLASS_GRENADE         },
 	{ "hegrenade",  WEAPONCLASS_GRENADE         },
+	{ "molotov",    WEAPONCLASS_GRENADE         },
+	{ "incgrenade", WEAPONCLASS_GRENADE         },
+	{ "incendiary", WEAPONCLASS_GRENADE         },
 	{ "glock18",    WEAPONCLASS_PISTOL          },
 	{ "elite",      WEAPONCLASS_PISTOL          },
 	{ "fiveseven",  WEAPONCLASS_PISTOL          },
@@ -257,6 +266,8 @@ WeaponInfoStruct g_weaponInfo_default[] =
 	{ WEAPON_HEGRENADE,     (WeaponCostType)HEGRENADE_PRICE,    AMMO_HEGRENADE_PRICE,    AMMO_HEGRENADE_BUY,    WEAPON_NOCLIP,      MAX_AMMO_HEGRENADE,     AMMO_HEGRENADE,     "weapon_hegrenade",    nullptr,           "HEGrenade"    },
 	{ WEAPON_SMOKEGRENADE,  (WeaponCostType)SMOKEGRENADE_PRICE, AMMO_SMOKEGRENADE_PRICE, AMMO_SMOKEGRENADE_BUY, WEAPON_NOCLIP,      MAX_AMMO_SMOKEGRENADE,  AMMO_SMOKEGRENADE,  "weapon_smokegrenade", nullptr,           "SmokeGrenade" },
 	{ WEAPON_FLASHBANG,     (WeaponCostType)FLASHBANG_PRICE,    AMMO_FLASHBANG_PRICE,    AMMO_FLASHBANG_BUY,    WEAPON_NOCLIP,      MAX_AMMO_FLASHBANG,     AMMO_FLASHBANG,     "weapon_flashbang",    nullptr,           "Flashbang"    },
+	{ WEAPON_MOLOTOV,       (WeaponCostType)MOLOTOV_PRICE,      AMMO_MOLOTOV_PRICE,      AMMO_MOLOTOV_BUY,      WEAPON_NOCLIP,      MAX_AMMO_MOLOTOV,       AMMO_MOLOTOV,       "weapon_molotov",      nullptr,           "Molotov"      },
+	{ WEAPON_INCGRENADE,    (WeaponCostType)INCGRENADE_PRICE,   AMMO_INCGRENADE_PRICE,   AMMO_INCGRENADE_BUY,   WEAPON_NOCLIP,      MAX_AMMO_INCGRENADE,    AMMO_INCGRENADE,    "weapon_incgrenade",   nullptr,           "Incgrenade"   },
 #endif
 
 	{ WEAPON_SHIELDGUN,      SHIELDGUN_PRICE,                   0,                       0,                     0,                  0,                      AMMO_NONE,          "weapon_shield",       nullptr,           nullptr        },
@@ -283,6 +294,8 @@ AmmoInfoStruct g_ammoInfo_default[] =
 	{ AMMO_HEGRENADE,    AMMO_HEGRENADE_PRICE,    AMMO_HEGRENADE_BUY,    MAX_AMMO_HEGRENADE,    nullptr,           "HEGrenade"    },
 	{ AMMO_SMOKEGRENADE, AMMO_SMOKEGRENADE_PRICE, AMMO_SMOKEGRENADE_BUY, MAX_AMMO_SMOKEGRENADE, nullptr,           "SmokeGrenade" },
 	{ AMMO_C4,           0,                       0,                     MAX_AMMO_C4,           nullptr,           "C4"           },
+	{ AMMO_MOLOTOV,      AMMO_MOLOTOV_PRICE,      AMMO_MOLOTOV_BUY,      MAX_AMMO_MOLOTOV,      nullptr,           "Molotov"      },
+	{ AMMO_INCGRENADE,   AMMO_INCGRENADE_PRICE,   AMMO_INCGRENADE_BUY,   MAX_AMMO_INCGRENADE,   nullptr,           "Incgrenade"   },
 };
 
 AmmoInfoStruct g_ammoInfo[ARRAYSIZE(g_ammoInfo_default)];
@@ -300,6 +313,8 @@ WeaponSlotInfo g_weaponSlotInfo_default[] = {
 	{ WEAPON_HEGRENADE,     GRENADE_SLOT,           "weapon_hegrenade"      },
 	{ WEAPON_SMOKEGRENADE,  GRENADE_SLOT,           "weapon_smokegrenade"   },
 	{ WEAPON_FLASHBANG,     GRENADE_SLOT,           "weapon_flashbang"      },
+	{ WEAPON_MOLOTOV,       GRENADE_SLOT,           "weapon_molotov"        },
+	{ WEAPON_INCGRENADE,    GRENADE_SLOT,           "weapon_incgrenade"     },
 	{ WEAPON_SCOUT,         PRIMARY_WEAPON_SLOT,    "weapon_scout"          },
 	{ WEAPON_XM1014,        PRIMARY_WEAPON_SLOT,    "weapon_xm1014"         },
 	{ WEAPON_MAC10,         PRIMARY_WEAPON_SLOT,    "weapon_mac10"          },
@@ -497,6 +512,8 @@ bool IsGrenadeWeapon(int id)
 	case WEAPON_HEGRENADE:
 	case WEAPON_FLASHBANG:
 	case WEAPON_SMOKEGRENADE:
+	case WEAPON_MOLOTOV:
+	case WEAPON_INCGRENADE:
 		return true;
 	default:
 		break;

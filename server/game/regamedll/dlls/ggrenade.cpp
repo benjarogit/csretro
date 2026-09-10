@@ -891,6 +891,12 @@ void CGrenade::Spawn()
 
 	pev->dmg = 30.0f;
 	m_fRegisteredSound = FALSE;
+	m_iFireWeaponId = 0;
+	m_bHasTouchedWorld = false;
+	m_bHasBouncedOffEnemy = false;
+	m_bEnemyBounceFuseExtensionUsed = false;
+	m_flFireAirFuse = 0;
+	m_flFireStillStart = 0;
 }
 
 NOXREF CGrenade *CGrenade::ShootContact(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity)
@@ -1622,6 +1628,328 @@ NOXREF void CGrenade::UseSatchelCharges(entvars_t *pevOwner, SATCHELCODE code)
 				}
 			}
 		}
+	}
+}
+
+CGrenade *CGrenade::ShootFireGrenade(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity, int weaponId, unsigned short usEvent)
+{
+	CGrenade *pGrenade = GetClassPtr<CCSGrenade>((CGrenade *)nullptr);
+	pGrenade->Spawn();
+
+	UTIL_SetOrigin(pGrenade->pev, vecStart);
+	pGrenade->pev->velocity = vecVelocity;
+	if (pevOwner)
+	{
+		pGrenade->pev->angles = pevOwner->angles;
+		pGrenade->pev->owner = ENT(pevOwner);
+	}
+	else
+	{
+		pGrenade->pev->owner = nullptr;
+	}
+
+	pGrenade->m_usEvent = usEvent;
+	pGrenade->m_iFireWeaponId = weaponId;
+	pGrenade->m_bHasTouchedWorld = false;
+	pGrenade->m_bHasBouncedOffEnemy = false;
+	pGrenade->m_bEnemyBounceFuseExtensionUsed = false;
+	pGrenade->m_flFireAirFuse = gpGlobals->time + INFERNO_AIR_FUSE;
+	pGrenade->m_flFireStillStart = 0;
+	pGrenade->pev->dmgtime = pGrenade->m_flFireAirFuse;
+
+	pGrenade->SetTouch(&CGrenade::FireGrenadeTouch);
+	pGrenade->SetThink(&CGrenade::FireGrenadeThink);
+	pGrenade->pev->nextthink = gpGlobals->time + 0.1f;
+	pGrenade->pev->sequence = RANDOM_LONG(3, 6);
+	pGrenade->pev->framerate = 1.0f;
+	pGrenade->pev->gravity = 0.5f;
+	pGrenade->pev->friction = 0.8f;
+	pGrenade->m_bJustBlew = true;
+	UTIL_SetSize(pGrenade->pev, Vector(-2.0f, -2.0f, -2.0f), Vector(2.0f, 2.0f, 2.0f));
+
+	if (weaponId == WEAPON_INCGRENADE)
+		SET_MODEL(ENT(pGrenade->pev), "models/w_incgrenade.mdl");
+	else
+		SET_MODEL(ENT(pGrenade->pev), "models/w_molotov.mdl");
+
+	pGrenade->pev->dmg = 2.0f;
+	return pGrenade;
+}
+
+void CGrenade::FireGrenadeIgnite(const Vector &origin)
+{
+	CInferno::CreateInferno(pev->owner ? VARS(pev->owner) : nullptr, origin, m_iFireWeaponId, m_usEvent);
+	UTIL_Remove(this);
+}
+
+void CGrenade::FireGrenadeBreak()
+{
+	EMIT_SOUND(ENT(pev), CHAN_WEAPON, "weapons/grenade/molotov_hit.wav", 0.6f, ATTN_NORM);
+	EMIT_SOUND(ENT(pev), CHAN_ITEM, "weapons/grenade/molotov_gibs.wav", 0.55f, ATTN_NORM);
+
+	const int broke = MODEL_INDEX("models/w_broke_molotov.mdl");
+	if (broke > 0)
+	{
+		MESSAGE_BEGIN(MSG_PVS, SVC_TEMPENTITY, pev->origin);
+			WRITE_BYTE(TE_BREAKMODEL);
+			WRITE_COORD(pev->origin.x);
+			WRITE_COORD(pev->origin.y);
+			WRITE_COORD(pev->origin.z);
+			WRITE_COORD(8.0f);
+			WRITE_COORD(8.0f);
+			WRITE_COORD(8.0f);
+			WRITE_COORD(pev->velocity.x * 0.25f);
+			WRITE_COORD(pev->velocity.y * 0.25f);
+			WRITE_COORD(pev->velocity.z * 0.15f);
+			WRITE_BYTE(12);
+			WRITE_SHORT(broke);
+			WRITE_BYTE(5);
+			WRITE_BYTE(20);
+			WRITE_BYTE(BREAK_GLASS);
+		MESSAGE_END();
+	}
+
+	UTIL_Remove(this);
+}
+
+bool CGrenade::FireGrenadeIsSky(const TraceResult &tr)
+{
+	if (UTIL_PointContents(tr.vecEndPos) == CONTENTS_SKY)
+		return true;
+
+	if (tr.flFraction >= 1.0f)
+		return false;
+
+	edict_t *hit = tr.pHit;
+	if (!hit || hit->free)
+		hit = INDEXENT(0);
+	if (!hit)
+		return false;
+
+	if (hit->v.solid != SOLID_BSP && hit->v.movetype != MOVETYPE_PUSH)
+		return false;
+
+	float rgfl1[3];
+	float rgfl2[3];
+	Vector start = tr.vecEndPos + tr.vecPlaneNormal * 4.0f;
+	Vector end = tr.vecEndPos - tr.vecPlaneNormal * 16.0f;
+	start.CopyToArray(rgfl1);
+	end.CopyToArray(rgfl2);
+
+	const char *tex = TRACE_TEXTURE(hit, rgfl1, rgfl2);
+	if (!tex || !tex[0])
+		return false;
+
+	while (*tex == '-' || *tex == '+' || *tex == '{' || *tex == '!' || *tex == '~' || *tex == ' ')
+		tex++;
+
+	return !Q_strnicmp(tex, "sky", 3);
+}
+
+void CGrenade::FireGrenadeWorldBounce(CBaseEntity *pOther)
+{
+	if (pOther && pOther->edict() == pev->owner)
+		return;
+
+	if (FClassnameIs(pOther->pev, "func_breakable") && pOther->pev->rendermode != kRenderNormal)
+	{
+		pev->velocity = pev->velocity * -2.0f;
+		return;
+	}
+
+	m_bHasTouchedWorld = true;
+	m_flFireStillStart = 0;
+
+	if (m_iBounceCount < 8)
+		EMIT_SOUND(ENT(pev), CHAN_WEAPON, "weapons/grenade/molotov_hit.wav", 0.35f, ATTN_NORM);
+
+	m_iBounceCount++;
+
+	if (pev->flags & FL_ONGROUND)
+		pev->velocity = pev->velocity * 0.8f;
+
+	pev->framerate = pev->velocity.Length() / 200.0f;
+	if (pev->framerate > 1.0f)
+		pev->framerate = 1.0f;
+	else if (pev->framerate < 0.5f)
+		pev->framerate = 0.0f;
+}
+
+bool CGrenade::FireGrenadeFindFloor(Vector &outOrigin, bool allowSettleSlope)
+{
+	if (UTIL_PointContents(pev->origin) == CONTENTS_SOLID)
+	{
+		pev->origin.z += 8.0f;
+		if (UTIL_PointContents(pev->origin) == CONTENTS_SOLID && pev->velocity.Length() > 1.0f)
+			pev->origin = pev->origin - pev->velocity.Normalize() * 8.0f;
+	}
+
+	const Vector offsets[] = {
+		Vector(0, 0, 0),
+		Vector(8, 0, 0),
+		Vector(-8, 0, 0),
+		Vector(0, 8, 0),
+		Vector(0, -8, 0),
+	};
+
+	TraceResult settle;
+	bool haveSettle = false;
+
+	for (const Vector &offset : offsets)
+	{
+		const Vector start = pev->origin + offset;
+		TraceResult tr;
+		UTIL_TraceLine(start + Vector(0, 0, 8.0f), start + Vector(0, 0, -INFERNO_AIR_TRANSFER), ignore_monsters, ENT(pev), &tr);
+		if (tr.fStartSolid)
+			UTIL_TraceLine(start + Vector(0, 0, 32.0f), start + Vector(0, 0, -INFERNO_AIR_TRANSFER), ignore_monsters, ENT(pev), &tr);
+
+		if (tr.flFraction >= 1.0f || FireGrenadeIsSky(tr) || CInferno::PointInActiveSmoke(tr.vecEndPos))
+			continue;
+
+		if (CInferno::IsWalkableNormal(tr.vecPlaneNormal))
+		{
+			outOrigin = tr.vecEndPos;
+			return true;
+		}
+
+		if (allowSettleSlope && tr.vecPlaneNormal.z >= INFERNO_SETTLE_SLOPE_MIN_Z)
+		{
+			settle = tr;
+			haveSettle = true;
+		}
+	}
+
+	if (haveSettle)
+	{
+		outOrigin = settle.vecEndPos;
+		return true;
+	}
+
+	return false;
+}
+
+bool CGrenade::FireGrenadeTryTransferIgnite(bool allowSettleSlope)
+{
+	Vector floor;
+	if (!FireGrenadeFindFloor(floor, allowSettleSlope))
+		return false;
+
+	FireGrenadeIgnite(floor);
+	return true;
+}
+
+void CGrenade::FireGrenadeTouch(CBaseEntity *pOther)
+{
+	if (!pOther)
+		return;
+
+	if (pev->waterlevel != 0)
+	{
+		FireGrenadeBreak();
+		return;
+	}
+
+	if (pOther->IsPlayer())
+	{
+		if (pOther->edict() != pev->owner)
+		{
+			const float impact = ((CBasePlayer *)pOther)->m_iKevlar != ARMOR_NONE ? 1.0f : 2.0f;
+			pOther->TakeDamage(pev, pev->owner ? VARS(pev->owner) : pev, impact, DMG_CLUB);
+			m_bHasBouncedOffEnemy = true;
+
+			if (!m_bHasTouchedWorld && !m_bEnemyBounceFuseExtensionUsed)
+			{
+				m_bEnemyBounceFuseExtensionUsed = true;
+				m_flFireAirFuse += INFERNO_FUSE_EXTENSION;
+				pev->dmgtime = m_flFireAirFuse;
+			}
+		}
+
+		FireGrenadeWorldBounce(pOther);
+		return;
+	}
+
+	if (FClassnameIs(pOther->pev, "func_ladder"))
+		return;
+
+	TraceResult tr;
+	Vector dir = pev->velocity.Length() > 1.0f ? pev->velocity.Normalize() : Vector(0, 0, -1);
+	UTIL_TraceLine(pev->origin - dir * 12.0f, pev->origin + dir * 24.0f, ignore_monsters, ENT(pev), &tr);
+
+	if (tr.flFraction < 1.0f)
+	{
+		m_bHasTouchedWorld = true;
+		if (FireGrenadeIsSky(tr))
+			return;
+
+		if (CInferno::IsWalkableNormal(tr.vecPlaneNormal) && !CInferno::PointInActiveSmoke(tr.vecEndPos))
+		{
+			FireGrenadeIgnite(tr.vecEndPos);
+			return;
+		}
+
+		// Wall/corner: ignite only if the floor is already under the nade,
+		// not if we are still flying over a corridor 128u below.
+		TraceResult down;
+		UTIL_TraceLine(pev->origin, pev->origin + Vector(0, 0, -INFERNO_NEAR_FLOOR), ignore_monsters, ENT(pev), &down);
+		if (down.flFraction < 1.0f && !FireGrenadeIsSky(down)
+			&& CInferno::IsWalkableNormal(down.vecPlaneNormal)
+			&& !CInferno::PointInActiveSmoke(down.vecEndPos))
+		{
+			FireGrenadeIgnite(down.vecEndPos);
+			return;
+		}
+	}
+
+	FireGrenadeWorldBounce(pOther);
+}
+
+void CGrenade::FireGrenadeThink()
+{
+#ifdef REGAMEDLL_FIXES
+	if (pev->velocity.IsLengthGreaterThan(g_psv_maxvelocity->value))
+		pev->velocity = pev->velocity.Normalize() * g_psv_maxvelocity->value;
+#endif
+
+	if (!IsInWorld())
+	{
+		UTIL_Remove(this);
+		return;
+	}
+
+	if (pev->waterlevel != 0 || UTIL_PointContents(pev->origin) == CONTENTS_SKY)
+	{
+		FireGrenadeBreak();
+		return;
+	}
+
+	if (pev->flags & FL_ONGROUND)
+	{
+		pev->velocity = pev->velocity * 0.95f;
+		if (FireGrenadeTryTransferIgnite(true))
+			return;
+	}
+
+	const float speed = pev->velocity.Length();
+	if (speed > INFERNO_STILL_SPEED)
+		m_flFireStillStart = 0;
+	else if (m_flFireStillStart == 0)
+		m_flFireStillStart = gpGlobals->time;
+
+	StudioFrameAdvance();
+	pev->nextthink = gpGlobals->time + 0.1f;
+
+	const bool stillLongEnough = m_flFireStillStart != 0 && (gpGlobals->time - m_flFireStillStart) >= INFERNO_STILL_TIME;
+	if (stillLongEnough)
+	{
+		if (FireGrenadeTryTransferIgnite(true))
+			return;
+	}
+
+	if (gpGlobals->time >= m_flFireAirFuse)
+	{
+		if (!FireGrenadeTryTransferIgnite(true))
+			FireGrenadeBreak();
 	}
 }
 

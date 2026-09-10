@@ -104,8 +104,6 @@ void CBasePlayer::OnDestroy()
 void CBasePlayer::SendItemStatus()
 {
 	int itemStatus = 0;
-	if (m_bHasNightVision)
-		itemStatus |= ITEM_STATUS_NIGHTVISION;
 
 	if (m_bHasDefuser)
 		itemStatus |= ITEM_STATUS_DEFUSER;
@@ -174,6 +172,8 @@ const char *GetCSModelName(int item_id)
 	case WEAPON_P228:         modelName = "models/w_p228.mdl"; break;
 	case WEAPON_SCOUT:        modelName = "models/w_scout.mdl"; break;
 	case WEAPON_HEGRENADE:    modelName = "models/w_hegrenade.mdl"; break;
+	case WEAPON_MOLOTOV:      modelName = "models/w_molotov.mdl"; break;
+	case WEAPON_INCGRENADE:   modelName = "models/w_incgrenade.mdl"; break;
 	case WEAPON_XM1014:       modelName = "models/w_xm1014.mdl"; break;
 	case WEAPON_C4:           modelName = "models/w_backpack.mdl"; break;
 	case WEAPON_MAC10:        modelName = "models/w_mac10.mdl"; break;
@@ -1210,7 +1210,7 @@ BOOL EXT_FUNC CBasePlayer::__API_HOOK(TakeDamage)(entvars_t *pevInflictor, entva
 
 	// Armor
 	// armor doesn't protect against fall or drown damage!
-	if (pev->armorvalue != 0.0f && !(bitsDamageType & (DMG_DROWN | DMG_FALL)) && IsArmored(m_LastHitGroup))
+	if (pev->armorvalue != 0.0f && !(bitsDamageType & (DMG_DROWN | DMG_FALL | DMG_BURN)) && IsArmored(m_LastHitGroup))
 	{
 		real_t flNew = flRatio * flDamage;
 		real_t flArmor = (flDamage - flNew) * flBonus;
@@ -1450,6 +1450,10 @@ void PackPlayerNade(CBasePlayer *pPlayer, CBasePlayerItem *pItem, bool packAmmo)
 			break;
 		case WEAPON_SMOKEGRENADE:
 			flOffset = -14.0f;
+			break;
+		case WEAPON_MOLOTOV:
+		case WEAPON_INCGRENADE:
+			flOffset = 14.0f;
 			break;
 		}
 
@@ -1756,7 +1760,7 @@ void EXT_FUNC CBasePlayer::__API_HOOK(GiveDefaultItems)()
 
 			if (weaponInfo) {
 				const auto iItemID = GetItemIdByWeaponId(weaponInfo->id);
-				if (iItemID != ITEM_NONE && !HasRestrictItem(iItemID, ITEM_TYPE_EQUIPPED) && IsGrenadeWeapon(iItemID)) {
+				if (iItemID != ITEM_NONE && !HasRestrictItem(iItemID, ITEM_TYPE_EQUIPPED) && IsGrenadeWeapon(weaponInfo->id)) {
 					GiveNamedItemEx(weaponInfo->entityName);
 				}
 			}
@@ -1849,6 +1853,12 @@ void EXT_FUNC CBasePlayer::__API_HOOK(RemoveAllItems)(BOOL removeSuit)
 	else
 		pev->weapons &= ~WEAPON_ALLWEAPONS;
 
+	if (CSPlayer())
+	{
+		CSPlayer()->m_iWeaponBits2 = 0;
+		CSPlayer()->m_iClientWeaponBits2 = -1;
+	}
+
 	for (i = 0; i < MAX_AMMO_SLOTS; i++)
 		m_rgAmmo[i] = 0;
 
@@ -1857,7 +1867,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(RemoveAllItems)(BOOL removeSuit)
 #ifdef REGAMEDLL_FIXES
 	m_iHideHUD |= HIDEHUD_WEAPONS;
 
-	m_bHasNightVision = false;
 	SendItemStatus();
 
 	ResetMaxSpeed();
@@ -2252,27 +2261,12 @@ void EXT_FUNC CBasePlayer::__API_HOOK(Killed)(entvars_t *pevAttacker, int iGib)
 		g_pGameRules->PlayerKilled(this, pevAttacker, GetLastInflictor());
 	}
 
-	MESSAGE_BEGIN(MSG_ONE, gmsgNVGToggle, nullptr, pev);
-		WRITE_BYTE(0);
-	MESSAGE_END();
-
-	m_bNightVisionOn = false;
-
 	for (int i = 1; i <= gpGlobals->maxClients; i++)
 	{
 		CBasePlayer *pObserver = UTIL_PlayerByIndex(i);
 
 		if (!UTIL_IsValidPlayer(pObserver))
 			continue;
-
-		if (pObserver->IsObservingPlayer(this))
-		{
-			MESSAGE_BEGIN(MSG_ONE, gmsgNVGToggle, nullptr, pObserver->pev);
-				WRITE_BYTE(0);
-			MESSAGE_END();
-
-			pObserver->m_bNightVisionOn = false;
-		}
 
 #ifdef REGAMEDLL_FIXES
 		if (pObserver->m_hObserverTarget == this)
@@ -2334,6 +2328,32 @@ void EXT_FUNC CBasePlayer::__API_HOOK(Killed)(entvars_t *pevAttacker, int iGib)
 #ifdef REGAMEDLL_FIXES
 				m_rgAmmo[m_pActiveItem->PrimaryAmmoIndex()]--;
 				pSmoke->m_flStartThrow = 0;
+#endif
+			}
+			break;
+		}
+		case WEAPON_MOLOTOV:
+		{
+			CMolotov *pMolotov = static_cast<CMolotov *>(m_pActiveItem);
+			if ((pev->button & IN_ATTACK) && m_rgAmmo[pMolotov->m_iPrimaryAmmoType])
+			{
+				ThrowGrenade(pMolotov, (pev->origin + pev->view_ofs), pev->angles, 0, pMolotov->m_usCreateInferno);
+#ifdef REGAMEDLL_FIXES
+				m_rgAmmo[m_pActiveItem->PrimaryAmmoIndex()]--;
+				pMolotov->m_flStartThrow = 0;
+#endif
+			}
+			break;
+		}
+		case WEAPON_INCGRENADE:
+		{
+			CIncendiary *pInc = static_cast<CIncendiary *>(m_pActiveItem);
+			if ((pev->button & IN_ATTACK) && m_rgAmmo[pInc->m_iPrimaryAmmoType])
+			{
+				ThrowGrenade(pInc, (pev->origin + pev->view_ofs), pev->angles, 0, pInc->m_usCreateInferno);
+#ifdef REGAMEDLL_FIXES
+				m_rgAmmo[m_pActiveItem->PrimaryAmmoIndex()]--;
+				pInc->m_flStartThrow = 0;
 #endif
 			}
 			break;
@@ -3314,6 +3334,9 @@ CGrenade *CBasePlayer::__API_HOOK(ThrowGrenade)(CBasePlayerWeapon *pWeapon, Vect
 	case WEAPON_HEGRENADE:    return CGrenade::ShootTimed2(pev, vecSrc, vecThrow, time, m_iTeam, usEvent);
 	case WEAPON_FLASHBANG:    return CGrenade::ShootTimed(pev, vecSrc, vecThrow, time);
 	case WEAPON_SMOKEGRENADE: return CGrenade::ShootSmokeGrenade(pev, vecSrc, vecThrow, time, usEvent);
+	case WEAPON_MOLOTOV:
+	case WEAPON_INCGRENADE:
+		return CGrenade::ShootFireGrenade(pev, vecSrc, vecThrow, pWeapon->m_iId, usEvent);
 	}
 
 	return nullptr;
@@ -5804,7 +5827,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(Spawn)()
 			m_rgAmmo[i] = 0;
 
 		m_bHasPrimary = false;
-		m_bHasNightVision = false;
 
 #ifdef REGAMEDLL_FIXES
 		m_iHideHUD |= HIDEHUD_WEAPONS;
@@ -5816,29 +5838,6 @@ void EXT_FUNC CBasePlayer::__API_HOOK(Spawn)()
 	{
 		for (i = 0; i < MAX_AMMO_SLOTS; i++)
 			m_rgAmmoLast[i] = -1;
-	}
-
-	MESSAGE_BEGIN(MSG_ONE, gmsgNVGToggle, nullptr, pev);
-		WRITE_BYTE(0);
-	MESSAGE_END();
-
-	m_bNightVisionOn = false;
-
-	for (i = 1; i <= gpGlobals->maxClients; i++)
-	{
-		CBasePlayer *pObserver = UTIL_PlayerByIndex(i);
-
-		if (!UTIL_IsValidPlayer(pObserver))
-			continue;
-
-		if (pObserver->IsObservingPlayer(this))
-		{
-			MESSAGE_BEGIN(MSG_ONE, gmsgNVGToggle, nullptr, pObserver->pev);
-				WRITE_BYTE(0);
-			MESSAGE_END();
-
-			pObserver->m_bNightVisionOn = false;
-		}
 	}
 
 	m_lastx = m_lasty = 0;
@@ -6199,6 +6198,44 @@ bool CBasePlayer::HasWeapons()
 	return false;
 }
 
+void CBasePlayer::SetWeaponBit(int id)
+{
+	if (id < 0)
+		return;
+	if (id < 32)
+		pev->weapons |= (1 << id);
+	else if (CSPlayer())
+		CSPlayer()->m_iWeaponBits2 |= (1 << (id - 32));
+}
+
+void CBasePlayer::ClearWeaponBit(int id)
+{
+	if (id < 0)
+		return;
+	if (id < 32)
+		pev->weapons &= ~(1 << id);
+	else if (CSPlayer())
+		CSPlayer()->m_iWeaponBits2 &= ~(1 << (id - 32));
+}
+
+bool CBasePlayer::HasWeaponBit(int id) const
+{
+	if (id < 0)
+		return false;
+	if (id < 32)
+		return (pev->weapons & (1 << id)) != 0;
+	if (!CSPlayer())
+		return false;
+	return (CSPlayer()->m_iWeaponBits2 & (1 << (id - 32))) != 0;
+}
+
+bool CBasePlayer::HasAnyWeaponBitExceptSuit() const
+{
+	if ((pev->weapons & ~(1 << WEAPON_SUIT)) != 0)
+		return true;
+	return CSPlayer() && CSPlayer()->m_iWeaponBits2 != 0;
+}
+
 NOXREF void CBasePlayer::SelectPrevItem(int iItem)
 {
 	;
@@ -6452,6 +6489,8 @@ void CBasePlayer::ForceClientDllUpdate()
 
 	m_iClientHealth = -1;
 	m_iClientBattery = -1;
+	if (CSPlayer())
+		CSPlayer()->m_iClientWeaponBits2 = -1;
 
 	m_fWeapon = FALSE;		// Force weapon send
 	m_fInitHUD = TRUE;		// Force HUD gmsgResetHUD message
@@ -7577,6 +7616,14 @@ void EXT_FUNC CBasePlayer::__API_HOOK(UpdateClientData)()
 		m_iTrain &= ~TRAIN_NEW;
 	}
 
+	if (CSPlayer() && gmsgWpnBits2 && CSPlayer()->m_iWeaponBits2 != CSPlayer()->m_iClientWeaponBits2)
+	{
+		MESSAGE_BEGIN(MSG_ONE, gmsgWpnBits2, nullptr, pev);
+			WRITE_LONG(CSPlayer()->m_iWeaponBits2);
+		MESSAGE_END();
+		CSPlayer()->m_iClientWeaponBits2 = CSPlayer()->m_iWeaponBits2;
+	}
+
 	SendAmmoUpdate();
 
 	// Update all the items
@@ -8193,11 +8240,11 @@ CBaseEntity *EXT_FUNC CBasePlayer::__API_HOOK(DropPlayerItem)(const char *pszIte
 		}
 
 		// take item off hud
-		pev->weapons &= ~(1 << pWeapon->m_iId);
+		ClearWeaponBit(pWeapon->m_iId);
 
 #ifdef REGAMEDLL_FIXES
 		// No more weapon
-		if ((pev->weapons & ~(1 << WEAPON_SUIT)) == 0) {
+		if (!HasAnyWeaponBitExceptSuit()) {
 			m_iHideHUD |= HIDEHUD_WEAPONS;
 		}
 #endif
@@ -9879,8 +9926,14 @@ void CBasePlayer::BuildRebuyStruct()
 	else
 		m_rebuyStruct.m_smokeGrenade = 0;
 
+	// Team-specific fire grenade. Keep both fields so a team change cannot
+	// accidentally rebuy the other side's grenade.
+	iAmmoIndex = GetAmmoIndex("Molotov");
+	m_rebuyStruct.m_molotov = iAmmoIndex != -1 ? m_rgAmmo[iAmmoIndex] : 0;
+	iAmmoIndex = GetAmmoIndex("Incgrenade");
+	m_rebuyStruct.m_incGrenade = iAmmoIndex != -1 ? m_rgAmmo[iAmmoIndex] : 0;
+
 	m_rebuyStruct.m_defuser = m_bHasDefuser;			// defuser
-	m_rebuyStruct.m_nightVision = m_bHasNightVision;	// night vision
 	m_rebuyStruct.m_armor = m_iKevlar;					// check for armor.
 }
 
@@ -9913,10 +9966,12 @@ void CBasePlayer::Rebuy()
 			RebuyFlashbang();
 		else if (!Q_stricmp(token, "smokegrenade"))
 			RebuySmokeGrenade();
+		else if (!Q_stricmp(token, "molotov"))
+			RebuyMolotov();
+		else if (!Q_stricmp(token, "incendiary"))
+			RebuyIncendiary();
 		else if (!Q_stricmp(token, "defuser"))
 			RebuyDefuser();
-		else if (!Q_stricmp(token, "nightvision"))
-			RebuyNightVision();
 		else if (!Q_stricmp(token, "armor"))
 			RebuyArmor();
 	}
@@ -10011,21 +10066,30 @@ void CBasePlayer::RebuySmokeGrenade()
 		ClientCommand("sgren");
 }
 
+void CBasePlayer::RebuyMolotov()
+{
+	if (m_iTeam != TERRORIST)
+		return;
+	const int ammo = GetAmmoIndex("Molotov");
+	if (ammo != -1 && m_rebuyStruct.m_molotov > m_rgAmmo[ammo])
+		ClientCommand("molotov");
+}
+
+void CBasePlayer::RebuyIncendiary()
+{
+	if (m_iTeam != CT)
+		return;
+	const int ammo = GetAmmoIndex("Incgrenade");
+	if (ammo != -1 && m_rebuyStruct.m_incGrenade > m_rgAmmo[ammo])
+		ClientCommand("incgrenade");
+}
+
 void CBasePlayer::RebuyDefuser()
 {
 	// If we don't have a defuser, and we want one, buy it!
 	if (m_rebuyStruct.m_defuser && !m_bHasDefuser)
 	{
 		ClientCommand("defuser");
-	}
-}
-
-void CBasePlayer::RebuyNightVision()
-{
-	// If we don't have night vision and we want one, buy it!
-	if (m_rebuyStruct.m_nightVision && !m_bHasNightVision)
-	{
-		ClientCommand("nvgs");
 	}
 }
 
@@ -10249,7 +10313,7 @@ void CBasePlayer::RemoveBomb()
 
 #ifdef REGAMEDLL_FIXES
 		// No more weapon
-		if ((pev->weapons & ~(1 << WEAPON_SUIT)) == 0) {
+		if (!HasAnyWeaponBitExceptSuit()) {
 			m_iHideHUD |= HIDEHUD_WEAPONS;
 		}
 #endif

@@ -365,6 +365,12 @@ int CHudMenu::MsgFunc_ShowMenu( const char *pszName, int iSize, void *pbuf )
 	if( !m_bitsValidSlots )
 	{
 		Close();
+		// ResetMenu/ShowMenu(0) is the server-authoritative close for team and
+		// appearance selection too. The legacy HUD used to close here while our
+		// VGUI overlay stayed alive and trapped input in the class menu.
+		Menu_EnsureExports();
+		if( g_pMenu )
+			g_pMenu->HideVGUIMenu();
 		return 1;
 	}
 
@@ -423,7 +429,14 @@ int CHudMenu::MsgFunc_VGUIMenu( const char *pszName, int iSize, void *pbuf )
 	Menu_EnsureExports();
 	if( g_pMenu )
 	{
-		g_pMenu->ShowVGUIMenu( menuType, m_bitsValidSlots, PlayerTeamNumber() );
+		// The class menu type comes from the server after HandleMenu_ChooseTeam;
+		// use it as the authoritative team instead of an optimistic click state.
+		int menuTeam = PlayerTeamNumber();
+		if( menuType == MENU_CLASS_T )
+			menuTeam = TEAM_TERRORIST;
+		else if( menuType == MENU_CLASS_CT )
+			menuTeam = TEAM_CT;
+		g_pMenu->ShowVGUIMenu( menuType, m_bitsValidSlots, menuTeam );
 		if( g_pMenu->IsActive() )
 		{
 			Close();

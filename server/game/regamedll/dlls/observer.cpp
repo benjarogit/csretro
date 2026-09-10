@@ -52,13 +52,11 @@ void UpdateClientEffects(CBasePlayer *pObserver, int oldMode)
 	bool clearProgress = false;
 	bool clearBlindness = false;
 	bool blindnessOk = (fadetoblack.value != FADETOBLACK_STAY);
-	bool clearNightvision = false;
 
 	if (pObserver->GetObserverMode() == OBS_IN_EYE)
 	{
 		clearProgress = true;
 		clearBlindness = true;
-		clearNightvision = true;
 
 		if (pObserver->m_hObserverTarget->IsPlayer())
 		{
@@ -101,16 +99,6 @@ void UpdateClientEffects(CBasePlayer *pObserver, int oldMode)
 					}
 				}
 
-				clearNightvision = false;
-
-				if (pPlayer->m_bNightVisionOn != pObserver->m_bNightVisionOn)
-				{
-					MESSAGE_BEGIN(MSG_ONE, gmsgNVGToggle, nullptr, pObserver->pev);
-						WRITE_BYTE(pPlayer->m_bNightVisionOn ? STATUS_NIGHTVISION_ON : STATUS_NIGHTVISION_OFF);
-					MESSAGE_END();
-
-					pObserver->m_bNightVisionOn = pPlayer->m_bNightVisionOn;
-				}
 			}
 		}
 	}
@@ -118,7 +106,6 @@ void UpdateClientEffects(CBasePlayer *pObserver, int oldMode)
 	{
 		clearProgress = true;
 		clearBlindness = true;
-		clearNightvision = true;
 	}
 
 	if (clearProgress)
@@ -127,14 +114,6 @@ void UpdateClientEffects(CBasePlayer *pObserver, int oldMode)
 	if (blindnessOk && clearBlindness)
 		UTIL_ScreenFade(pObserver, Vector(0, 0, 0), 0.001);
 
-	if (clearNightvision)
-	{
-		MESSAGE_BEGIN(MSG_ONE, gmsgNVGToggle, nullptr, pObserver->pev);
-			WRITE_BYTE(STATUS_NIGHTVISION_OFF);
-		MESSAGE_END();
-
-		pObserver->m_bNightVisionOn = false;
-	}
 }
 
 LINK_HOOK_CLASS_VOID_CHAIN(CBasePlayer, Observer_FindNextPlayer, (bool bReverse, const char *name), bReverse, name)

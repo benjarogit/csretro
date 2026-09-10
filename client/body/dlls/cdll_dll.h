@@ -15,7 +15,7 @@
 #ifndef CDLL_DLL_H
 #define CDLL_DLL_H
 
-#define MAX_WEAPONS 32
+#define MAX_WEAPONS 64
 #define MAX_WEAPON_SLOTS 5
 #define MAX_ITEM_TYPES 6
 #define MAX_ITEMS 4
@@ -103,7 +103,7 @@
 #define IUSER3_INBOMBZONE (1<<2)
 #define IUSER3_HOLDINGSHIELD (1<<3)
 
-#define ITEMSTATE_HASNIGHTVISION (1<<0)
+#define ITEMSTATE_UNUSED0 (1<<0)
 #define ITEMSTATE_HASDEFUSER (1<<1)
 
 #define PLAYER_DEAD (1<<0)

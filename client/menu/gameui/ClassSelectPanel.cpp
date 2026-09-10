@@ -559,6 +559,7 @@ private:
 	void CreateLineup()
 	{
 		m_lineup = new CTeamModelPreview(this, "ClassLineup");
+		m_lineup->SetIndependentPlayerState(true);
 		m_lineup->ClearPreviews(220.0f);
 		const ClassPreview *previews = Previews();
 		const char *weapon = m_type == MENU_CLASS_CT ? "models/p_m4a1.mdl" : "models/p_ak47.mdl";
@@ -655,6 +656,8 @@ public:
 		SetPaintBackgroundEnabled(true);
 		SetMouseInputEnabled(true);
 		SetKeyBoardInputEnabled(true);
+		SetZPos(50);
+		SetZPos(50);
 		if (scheme())
 		{
 			const HScheme client = scheme()->GetScheme("ClientScheme");
@@ -756,6 +759,9 @@ bool ClassSelect_Show(Panel *root, int menuType, int validSlots)
 	int w = 0, h = 0;
 	host->GetSize(w, h);
 	g_overlay->SetBounds(0, 0, w, h);
+	g_overlay->SetMouseInputEnabled(true);
+	g_overlay->SetKeyBoardInputEnabled(true);
+	g_overlay->SetZPos(50);
 	g_overlay->SetVisible(true);
 	g_overlay->MoveToFront();
 	g_panel->Open(validSlots);
@@ -768,15 +774,18 @@ bool ClassSelect_Show(Panel *root, int menuType, int validSlots)
 	return true;
 }
 
-void ClassSelect_Hide()
+void ClassSelect_Hide(bool restoreKeyDest)
 {
 	if (g_overlay && g_overlay->IsVisible())
 		Menu_Con("CSRETRO_CLASS_VGUI close");
 	if (g_panel)
 		g_panel->SetVisible(false);
 	if (g_overlay)
+	{
+		g_overlay->SetMouseInputEnabled(false);
 		g_overlay->SetVisible(false);
-	if (g_keyDestPushed && !gMenuVisible && !TeamSelect_IsActive() && !BuySelect_IsActive() &&
+	}
+	if (restoreKeyDest && g_keyDestPushed && !gMenuVisible && !TeamSelect_IsActive() && !BuySelect_IsActive() &&
 		!RadioSelect_IsActive())
 	{
 		if (gEng.pfnSetKeyDest)
@@ -950,7 +959,7 @@ void ClassSelect_GateTick()
 		++hold;
 		if (hold < 90)
 			return;
-		MenuEngine::ClientCmdNow("jointeam 2\n");
+		MenuEngine::ClientCmdNow("chooseteam\n");
 		Menu_Con("CSRETRO_CLASS_GATE_CT_REQUEST");
 		++step;
 		hold = 0;
@@ -958,6 +967,32 @@ void ClassSelect_GateTick()
 	}
 
 	if (step == 7)
+	{
+		++hold;
+		if (TeamSelect_IsActive())
+		{
+			if (hold == 30)
+			{
+				Menu_Con("CSRETRO_CLASS_GATE_TEAM_REOPEN active=1");
+				MenuEngine::ClientCmd("screenshot\n");
+			}
+			if (hold < 60)
+				return;
+			UI_KeyEvent('2', 1);
+			UI_KeyEvent('2', 0);
+			++step;
+			hold = 0;
+			return;
+		}
+		if (hold > 180)
+		{
+			failDone("team reopen fehlt");
+			return;
+		}
+		return;
+	}
+
+	if (step == 8)
 	{
 		++hold;
 		if (ClassSelect_IsActive() && g_panel && g_panel->MenuType() == MENU_CLASS_CT)
@@ -997,10 +1032,28 @@ void ClassSelect_GateTick()
 		return;
 	}
 
-	if (step == 8)
+	if (step == 9)
 	{
 		++hold;
-		if (hold < 20)
+		if (hold < 30)
+			return;
+		Menu_Con("CSRETRO_CLASS_GATE_SWITCH_DONE class=%d team=%d",
+			ClassSelect_IsActive() ? 1 : 0, TeamSelect_IsActive() ? 1 : 0);
+		if (ClassSelect_IsActive() || TeamSelect_IsActive())
+		{
+			failDone("switch menu haengt");
+			return;
+		}
+		MenuEngine::ClientCmd("screenshot\n");
+		++step;
+		hold = 0;
+		return;
+	}
+
+	if (step == 10)
+	{
+		++hold;
+		if (hold < 30)
 			return;
 		if (getenv("CSRETRO_GATE_GRACEFUL_QUIT"))
 			MenuEngine::ClientCmd("quit\n");

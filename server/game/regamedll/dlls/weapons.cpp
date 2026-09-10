@@ -374,6 +374,8 @@ void WeaponsPrecache()
 	UTIL_PrecacheOtherWeapon("weapon_flashbang");
 	UTIL_PrecacheOtherWeapon("weapon_hegrenade");
 	UTIL_PrecacheOtherWeapon("weapon_smokegrenade");
+	UTIL_PrecacheOtherWeapon("weapon_molotov");
+	UTIL_PrecacheOtherWeapon("weapon_incgrenade");
 	UTIL_PrecacheOtherWeapon("weapon_c4");
 	UTIL_PrecacheOtherWeapon("weapon_galil");
 	UTIL_PrecacheOtherWeapon("weapon_famas");
@@ -878,6 +880,70 @@ bool CBasePlayerWeapon::HasSecondaryAttack()
 	return true;
 }
 
+bool CBasePlayerWeapon::IsGrenade() const
+{
+	return IsGrenadeWeapon(m_iId);
+}
+
+float CBasePlayerWeapon::GrenadeThrowStrengthFromButtons(int buttons)
+{
+	if ((buttons & IN_ATTACK) && (buttons & IN_ATTACK2))
+		return 0.5f;
+	if (buttons & IN_ATTACK)
+		return 1.0f;
+	return 0.0f;
+}
+
+BOOL CBasePlayerWeapon::CanHolsterGrenadeThrow() const
+{
+	if (m_flStartThrow != 0 && m_pPlayer && !(m_pPlayer->pev->button & (IN_ATTACK | IN_ATTACK2)))
+		return FALSE;
+	return TRUE;
+}
+
+bool CBasePlayerWeapon::CanCommitGrenadeThrow() const
+{
+	if (!m_pPlayer)
+		return false;
+#ifdef REGAMEDLL_API
+	if (m_pPlayer->CSPlayer()->m_bCanShootOverride)
+		return true;
+#endif
+	if (!g_pGameRules->IsMultiplayer())
+		return true;
+	return m_pPlayer->m_bCanShoot && !g_pGameRules->IsFreezePeriod() && !m_pPlayer->m_bIsDefusing;
+}
+
+void CBasePlayerWeapon::UpdateGrenadeCookStrength()
+{
+	if (m_flStartThrow && m_pPlayer && (m_pPlayer->pev->button & (IN_ATTACK | IN_ATTACK2)))
+		m_flThrowStrength = GrenadeThrowStrengthFromButtons(m_pPlayer->pev->button);
+}
+
+void CBasePlayerWeapon::ComputeGrenadeThrow(Vector &vecSrc, Vector &vecThrow) const
+{
+	Vector angThrow = m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle;
+
+	if (angThrow.x < 0)
+		angThrow.x = -10 + angThrow.x * ((90 - 10) / 90.0);
+	else
+		angThrow.x = -10 + angThrow.x * ((90 + 10) / 90.0);
+
+	float flVel = (90.0f - angThrow.x) * 6.0f;
+	if (flVel > 750.0f)
+		flVel = 750.0f;
+	flVel *= 0.3f + 0.7f * m_flThrowStrength;
+
+	UTIL_MakeVectors(angThrow);
+
+	vecSrc = m_pPlayer->pev->origin + m_pPlayer->pev->view_ofs;
+	TraceResult tr;
+	UTIL_TraceLine(vecSrc, vecSrc + gpGlobals->v_forward * 22.0f, ignore_monsters, m_pPlayer->edict(), &tr);
+	vecSrc = tr.vecEndPos - gpGlobals->v_forward * 6.0f;
+	vecSrc.z -= 12.0f * (1.0f - m_flThrowStrength);
+	vecThrow = gpGlobals->v_forward * flVel + m_pPlayer->pev->velocity;
+}
+
 void CBasePlayerWeapon::HandleInfiniteAmmo()
 {
 	int nInfiniteAmmo = 0;
@@ -896,7 +962,7 @@ void CBasePlayerWeapon::HandleInfiniteAmmo()
 	else if ((nInfiniteAmmo == WPNMODE_INFINITE_BPAMMO
 #ifdef REGAMEDLL_API
 		&&
-		((m_pPlayer->CSPlayer()->m_iWeaponInfiniteIds & (1 << m_iId)) || (m_pPlayer->CSPlayer()->m_iWeaponInfiniteIds <= 0 && !IsGrenadeWeapon(m_iId)))
+		((m_iId < 32 && (m_pPlayer->CSPlayer()->m_iWeaponInfiniteIds & (1 << m_iId))) || (m_pPlayer->CSPlayer()->m_iWeaponInfiniteIds <= 0 && !IsGrenadeWeapon(m_iId)))
 #endif
 		)
 		|| (IsGrenadeWeapon(m_iId) && infiniteGrenades.value == 1.0f))
@@ -982,6 +1048,9 @@ void EXT_FUNC CBasePlayerWeapon::__API_HOOK(ItemPostFrame)()
 		m_fInReload = FALSE;
 	}
 
+	if (IsGrenade())
+		UpdateGrenadeCookStrength();
+
 	if ((usableButtons & IN_ATTACK2) && CanAttack(m_flNextSecondaryAttack, UTIL_WeaponTimeBase(), UseDecrement())
 #ifdef REGAMEDLL_FIXES
 		&& !m_pPlayer->m_bIsDefusing // In-line: I think it's fine to block secondary attack, when defusing. It's better then blocking speed resets in weapons.
@@ -1011,6 +1080,7 @@ void EXT_FUNC CBasePlayerWeapon::__API_HOOK(ItemPostFrame)()
 #ifdef REGAMEDLL_API
 			m_pPlayer->CSPlayer()->m_bCanShootOverride ||
 #endif
+			IsGrenade() ||
 			(m_pPlayer->m_bCanShoot && g_pGameRules->IsMultiplayer() && !g_pGameRules->IsFreezePeriod() && !m_pPlayer->m_bIsDefusing) || !g_pGameRules->IsMultiplayer())
 		{
 			// don't fire underwater
@@ -1141,10 +1211,10 @@ bool CBasePlayerItem::DestroyItem()
 				m_pPlayer->SetProgressBarTime(0);
 			}
 
-			m_pPlayer->pev->weapons &= ~(1 << m_iId);
+			m_pPlayer->ClearWeaponBit(m_iId);
 
 			// No more weapon
-			if ((m_pPlayer->pev->weapons & ~(1 << WEAPON_SUIT)) == 0) {
+			if (!m_pPlayer->HasAnyWeaponBitExceptSuit()) {
 				m_pPlayer->m_iHideHUD |= HIDEHUD_WEAPONS;
 			}
 
@@ -1244,7 +1314,7 @@ int CBasePlayerWeapon::AddDuplicate(CBasePlayerItem *pOriginal)
 int CBasePlayerWeapon::AddToPlayer(CBasePlayer *pPlayer)
 {
 	m_pPlayer = pPlayer;
-	pPlayer->pev->weapons |= (1 << m_iId);
+	pPlayer->SetWeaponBit(m_iId);
 
 	if (!m_iPrimaryAmmoType)
 	{
@@ -1856,7 +1926,7 @@ bool CWeaponBox::GiveAmmoToPlayer(CBasePlayer *pPlayer, CBasePlayerWeapon *pWeap
 		int iAmmoPickup = min(m_rgAmmo[iAmmoIndex], iMaxAmmo - iCurrentAmmo);
 		if (iAmmoPickup > 0)
 		{
-			if (iCurrentAmmo == 0 && !(pPlayer->pev->weapons & (1<<pWeapon->m_iId)) && (pWeapon->iFlags() & ITEM_FLAG_EXHAUSTIBLE))
+			if (iCurrentAmmo == 0 && !pPlayer->HasWeaponBit(pWeapon->m_iId) && (pWeapon->iFlags() & ITEM_FLAG_EXHAUSTIBLE))
 			{
 				if (m_rgAmmo[iAmmoIndex] > iMaxAmmo)
 				{
@@ -1983,7 +2053,7 @@ void CWeaponBox::Touch(CBaseEntity *pOther)
 			}
 
 #ifdef REGAMEDLL_ADD
-			if (pPlayer->HasRestrictItem((pItem->m_iId == WEAPON_SHIELDGUN) ? ITEM_SHIELDGUN : (ItemID)pItem->m_iId, ITEM_TYPE_TOUCHED))
+			if (pPlayer->HasRestrictItem(GetItemIdByWeaponId((WeaponIdType)pItem->m_iId), ITEM_TYPE_TOUCHED))
 				return;
 #endif
 

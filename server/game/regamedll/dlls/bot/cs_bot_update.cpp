@@ -487,7 +487,7 @@ void CCSBot::Update()
 		FireWeaponAtEnemy();
 	}
 
-	if (IsEndOfSafeTime() && IsUsingGrenade() && (IsWellPastSafe() || !IsUsingHEGrenade()) && !m_isWaitingToTossGrenade)
+	if (IsEndOfSafeTime() && IsUsingGrenade() && (IsWellPastSafe() || !(IsUsingHEGrenade() || IsUsingFireGrenade())) && !m_isWaitingToTossGrenade)
 	{
 		Vector target;
 		if (FindGrenadeTossPathTarget(&target))
@@ -500,7 +500,20 @@ void CCSBot::Update()
 	{
 		bool doToss = (m_isWaitingToTossGrenade && (m_tossGrenadeTimer.IsElapsed() || m_lookAtSpotState == LOOK_AT_SPOT));
 
-		if (doToss)
+		if (IsUsingGrenade() && m_isWaitingToTossGrenade)
+		{
+			CBasePlayerWeapon *pWeapon = GetActiveWeapon();
+			const bool cooking = pWeapon && pWeapon->m_flStartThrow != 0;
+			const bool pinReady = cooking && pWeapon->m_flTimeWeaponIdle <= UTIL_WeaponTimeBase();
+
+			// Hold through the pin, then stay released. A one-frame release
+			// followed by PrimaryAttack() again never threw the nade.
+			if (doToss && pinReady)
+				ClearPrimaryAttack();
+			else
+				PrimaryAttack();
+		}
+		else if (doToss)
 		{
 			ClearPrimaryAttack();
 			m_isWaitingToTossGrenade = false;

@@ -90,7 +90,6 @@ EXT_FUNC bool CCSPlayer::JoinTeam(TeamName team)
 			pPlayer->pev->velocity = g_vecZero;
 			pPlayer->pev->punchangle = g_vecZero;
 
-			pPlayer->m_bHasNightVision = false;
 			pPlayer->m_iHostagesKilled = 0;
 			pPlayer->m_fDeadTime = 0;
 			pPlayer->has_disconnected = false;
@@ -221,7 +220,7 @@ EXT_FUNC bool CCSPlayer::RemovePlayerItemEx(const char* pszItemName, bool bRemov
 			if (pItem == pPlayer->m_pActiveItem) {
 				((CBasePlayerWeapon *)pItem)->RetireWeapon();
 
-				if (pItem->CanHolster() && pItem != pPlayer->m_pActiveItem && !(pPlayer->pev->weapons &(1 << pItem->m_iId))) {
+				if (pItem->CanHolster() && pItem != pPlayer->m_pActiveItem && !pPlayer->HasWeaponBit(pItem->m_iId)) {
 					return true;
 				}
 			}

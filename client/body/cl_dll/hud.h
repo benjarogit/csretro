@@ -165,6 +165,7 @@ public:
 	void Reset(void);
 	void SetCrosshair( HSPRITE hSpr, wrect_t rect, int r, int g, int b );
 	void HideCrosshair();
+	int CurrentWeaponId(void) const { return m_pWeapon ? m_pWeapon->iId : 0; }
 
 	// replace engine's buggy crosshair
 	void DrawSpriteCrosshair();
@@ -870,26 +871,6 @@ private:
 //-----------------------------------------------------
 //
 
-class CHudNVG: public CHudBase
-{
-public:
-	int Init( void );
-	int Draw( float flTime );
-	void Reset( void );
-	CHudMsgFunc(NVGToggle);
-
-	CHudUserCmd(NVGAdjustUp);
-	CHudUserCmd(NVGAdjustDown);
-private:
-	int m_iAlpha;
-	cvar_t *cl_fancy_nvg;
-	dlight_t *m_pLight;
-};
-
-//
-//-----------------------------------------------------
-//
-
 class CHudScenario : public CHudBase
 {
 public:
@@ -1072,7 +1053,6 @@ public:
 	CHudRadio       m_Radio;
 	CHudProgressBar m_ProgressBar;
 	CHudSniperScope m_SniperScope;
-	CHudNVG         m_NVG;
 	CHudRadar       m_Radar;
 	CHudSpectatorGui m_SpectatorGui;
 	CHudScenario	m_Scenario;
@@ -1090,6 +1070,7 @@ public:
 	CHudMsgFunc(ServerName);
 
 	CHudMsgFunc(Fog);
+	CHudMsgFunc(WpnBits2);
 
 	// Screen information
 	SCREENINFO	m_scrinfo;
@@ -1098,7 +1079,18 @@ public:
 	SCREENINFO  m_truescrinfo;
 
 	int	m_iWeaponBits;
+	int	m_iWeaponBits2;
+	bool	m_bWeaponBits2Received;
 	int	m_fPlayerDead;
+
+	bool HasHudWeapon(int id) const
+	{
+		if (id < 0)
+			return false;
+		if (id < 32)
+			return (m_iWeaponBits & (1 << id)) != 0;
+		return (m_iWeaponBits2 & (1 << (id - 32))) != 0;
+	}
 	int m_iIntermission;
 	int m_iNoConsolePrint;
 

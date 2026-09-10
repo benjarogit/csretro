@@ -71,6 +71,7 @@ using FloatRef = float;
 #include "decals.h"
 #include "hltv.h"
 #include "cbase.h"
+#include "inferno.h"
 
 #include "sound.h"
 #include "basemonster.h"

@@ -839,7 +839,15 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 
 	extra_player_info_t *pExtra = g_PlayerExtraInfo + pplayer->number;
 
-	if( gHUD.cl_minmodels && gHUD.cl_minmodels->value )
+	// Menu previews deliberately borrow a valid player slot so p_* weapon models
+	// can bone-merge.  SetupPlayerModel() must not replace the explicit preview
+	// model with whichever network player currently owns that slot; that made the
+	// Team/Buy character change or turn into the wrong class after reopening UI.
+	if( ( m_pCurrentEntity->curstate.effects & EF_CSRETRO_PREVIEW ) != 0 )
+	{
+		m_pRenderModel = m_pCurrentEntity->model;
+	}
+	else if( gHUD.cl_minmodels && gHUD.cl_minmodels->value )
 	{
 		int team = pExtra->teamnumber;
 		if( team == TEAM_TERRORIST )

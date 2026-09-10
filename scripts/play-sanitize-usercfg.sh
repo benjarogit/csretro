@@ -36,7 +36,7 @@ csretro_play_seed_cs_defaults() {
 			if [[ -f "${overlay}" ]]; then
 				sed -n 's/^[[:space:]]*"\([^"]*\)"[[:space:]]*"\([^"]*\)".*/bind "\1" "\2"/p' "${overlay}"
 			fi
-		} | rg -v '^bind "ESCAPE" ' | awk '!seen[$0]++'
+		} | rg -v '^bind "ESCAPE" |"nightvision"' | awk '!seen[$0]++'
 		printf '%s\n' 'bind "ESCAPE" "cancelselect"'
 		printf '%s\n' 'cl_updaterate "102"'
 		printf '%s\n' 'cl_cmdrate "100"'
@@ -201,6 +201,11 @@ PY
 	fi
 
 	if [[ -f "${cs}/config.cfg" ]]; then
+		if rg -qi '^bind[[:space:]]+"[^"]+"[[:space:]]+"nightvision"' "${cs}/config.cfg"; then
+			sed -i '/^bind[[:space:]]*"[^"]*"[[:space:]]*"nightvision"/Id' "${cs}/config.cfg"
+			changed=1
+			echo "CSRETRO_PLAY_SANITIZE config.cfg (removed retired nightvision binding)"
+		fi
 		local net_st
 		net_st="$(csretro_play_upgrade_stock_net_rates "${cs}/config.cfg")"
 		if [[ "${net_st}" == "changed" ]]; then

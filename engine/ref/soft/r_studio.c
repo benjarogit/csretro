@@ -2134,7 +2134,8 @@ static model_t *R_StudioSetupPlayerModel( int index )
 
 	// A menu preview has already selected an explicit model on its entity. Do
 	// not replace it with the live player-info skin from the reused client slot.
-	if( !FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
+	if( !FBitSet( RI.rvp.flags, RF_DRAW_WORLD )
+		|| FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
 	{
 		if( state->model != RI.currententity->model )
 			state->model = RI.currententity->model;
@@ -2645,18 +2646,48 @@ R_StudioDrawPlayer
 
 ===============
 */
+static player_info_t s_csretroPreviewPlayerInfo;
+
+static qboolean R_StudioIsCsretroPreview( void )
+{
+	return ( RI.currententity && FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ));
+}
+
+static player_info_t *R_StudioPreviewSafePlayerInfo( int index )
+{
+	if( R_StudioIsCsretroPreview() )
+		return &s_csretroPreviewPlayerInfo;
+	return pfnPlayerInfo( index );
+}
+
 static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 {
 	int      m_nPlayerIndex;
 	alight_t lighting;
 	vec3_t   dir;
+	qboolean preview;
 
 	m_nPlayerIndex = pplayer->number - 1;
+	preview = R_StudioIsCsretroPreview();
 
-	if( m_nPlayerIndex < 0 || m_nPlayerIndex >= gp_cl->maxclients )
-		return 0;
+	if( preview )
+	{
+		if( !RI.currententity->model )
+			return 0;
+		RI.currentmodel = RI.currententity->model;
+		if( m_nPlayerIndex < 0 || m_nPlayerIndex >= gp_cl->maxclients )
+			m_nPlayerIndex = 0;
+	}
+	else
+	{
+		if( m_nPlayerIndex < 0 || m_nPlayerIndex >= gp_cl->maxclients )
+			return 0;
 
-	RI.currentmodel = R_StudioSetupPlayerModel( m_nPlayerIndex );
+		RI.currentmodel = R_StudioSetupPlayerModel( m_nPlayerIndex );
+		if( RI.currentmodel == NULL )
+			return 0;
+	}
+
 	if( RI.currentmodel == NULL )
 		return 0;
 
@@ -2665,7 +2696,7 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 	if( pplayer->gaitsequence && FBitSet( RI.rvp.flags, RF_DRAW_WORLD )
 		&& !FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
 	{
-		m_pPlayerInfo = pfnPlayerInfo( m_nPlayerIndex );
+		m_pPlayerInfo = R_StudioPreviewSafePlayerInfo( m_nPlayerIndex );
 		vec3_t orig_angles = Vec3( RI.currententity->angles );
 
 		R_StudioProcessGait( pplayer );
@@ -2687,9 +2718,12 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 		RI.currententity->latched.prevcontroller[2] = RI.currententity->curstate.controller[2];
 		RI.currententity->latched.prevcontroller[3] = RI.currententity->curstate.controller[3];
 
-		m_pPlayerInfo = pfnPlayerInfo( m_nPlayerIndex );
+		m_pPlayerInfo = R_StudioPreviewSafePlayerInfo( m_nPlayerIndex );
 		m_pPlayerInfo->gaitsequence = 0;
 		m_pPlayerInfo->gaitframe = 0.0f;
+		if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW )
+			|| !FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
+			m_pPlayerInfo->gaityaw = 0.0f;
 
 		if( !FBitSet( RI.rvp.flags, RF_DRAW_WORLD )
 			|| FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_PREVIEW ))
@@ -2711,7 +2745,7 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 			return 1;
 	}
 
-	m_pPlayerInfo = pfnPlayerInfo( m_nPlayerIndex );
+	m_pPlayerInfo = R_StudioPreviewSafePlayerInfo( m_nPlayerIndex );
 	R_StudioSetupBones( RI.currententity );
 	R_StudioSaveBones( );
 
@@ -2751,7 +2785,7 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 		// model and frame independant
 		R_StudioSetupLighting( &lighting );
 
-		m_pPlayerInfo = pfnPlayerInfo( m_nPlayerIndex );
+		m_pPlayerInfo = R_StudioPreviewSafePlayerInfo( m_nPlayerIndex );
 
 		// get remap colors
 		g_nTopColor = m_pPlayerInfo->topcolor;

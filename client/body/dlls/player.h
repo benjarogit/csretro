@@ -63,7 +63,6 @@
 #define DHF_IN_RESCUE_ZONE (1<<17)
 #define DHF_IN_ESCAPE_ZONE (1<<18)
 #define DHF_IN_VIPSAFETY_ZONE (1<<19)
-#define DHF_NIGHTVISION (1<<20)
 #define DHF_HOSTAGE_CTMOVE (1<<21)
 #define	DHF_SPEC_DUCK (1<<22)
 
@@ -199,7 +198,6 @@ typedef struct
 	int m_flashbang;
 	int m_smokeGrenade;
 	BOOL m_defuser;
-	BOOL m_nightVision;
 	int m_armor;
 }
 RebuyStruct;
@@ -411,7 +409,6 @@ public:
 	void RebuyFlashbang(void);
 	void RebuySmokeGrenade(void);
 	void RebuyDefuser(void);
-	void RebuyNightVision(void);
 	void RebuyArmor(void);
 
 public:
@@ -452,8 +449,6 @@ public:
 	int m_iModelName;
 	int m_iTeamKills;
 	int m_iIgnoreGlobalChat;
-	bool m_bHasNightVision;
-	bool m_bNightVisionOn;
 	Vector m_vRecentPath[20];
 	float m_flIdleCheckTime;
 	float m_flRadioTime;

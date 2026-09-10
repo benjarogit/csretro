@@ -49,9 +49,8 @@ enum BuyItemMenuSlot
 	MENU_SLOT_ITEM_FLASHGREN,
 	MENU_SLOT_ITEM_HEGREN,
 	MENU_SLOT_ITEM_SMOKEGREN,
-	MENU_SLOT_ITEM_NVG,
-	MENU_SLOT_ITEM_DEFUSEKIT,
-	MENU_SLOT_ITEM_SHIELD,
+	MENU_SLOT_ITEM_DEFUSEKIT = 7,
+	MENU_SLOT_ITEM_SHIELD = 8,
 };
 
 #define CS_NUM_SKIN				4
@@ -257,7 +256,6 @@ extern int gmsgStatusIcon;
 extern int gmsgBarTime;
 extern int gmsgReloadSound;
 extern int gmsgCrosshair;
-extern int gmsgNVGToggle;
 extern int gmsgRadar;
 extern int gmsgSpectator;
 extern int gmsgVGUIMenu;
@@ -294,3 +292,4 @@ extern int gmsgFog;
 extern int gmsgShowTimer;
 extern int gmsgAccount;
 extern int gmsgHealthInfo;
+extern int gmsgWpnBits2;

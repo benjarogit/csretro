@@ -33,7 +33,7 @@ class CBasePlayer;
 const float MAX_NORMAL_BATTERY    = 100.0f;
 const float MAX_DIST_RELOAD_SOUND = 512.0f;
 
-#define MAX_WEAPONS                 32
+#define MAX_WEAPONS                 64
 
 #define ITEM_FLAG_SELECTONEMPTY     		BIT(0)
 #define ITEM_FLAG_NOAUTORELOAD      		BIT(1)
@@ -194,6 +194,7 @@ public:
 	static CGrenade *ShootTimed2(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity, float time, int iTeam, unsigned short usEvent);
 	static CGrenade *ShootContact(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity);
 	static CGrenade *ShootSmokeGrenade(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity, float time, unsigned short usEvent);
+	static CGrenade *ShootFireGrenade(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity, int weaponId, unsigned short usEvent);
 	static CGrenade *ShootSatchelCharge(entvars_t *pevOwner, Vector vecStart, Vector vecVelocity);
 	static void UseSatchelCharges(entvars_t *pevOwner, SATCHELCODE code);
 public:
@@ -237,7 +238,16 @@ public:
 	void EXPORT DetonateUse(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value);
 	void EXPORT TumbleThink();
 	void EXPORT SG_TumbleThink();
+	void EXPORT FireGrenadeThink();
+	void EXPORT FireGrenadeTouch(CBaseEntity *pOther);
 	void EXPORT C4Think();
+
+	void FireGrenadeIgnite(const Vector &origin);
+	void FireGrenadeBreak();
+	bool FireGrenadeFindFloor(Vector &outOrigin, bool allowSettleSlope);
+	bool FireGrenadeTryTransferIgnite(bool allowSettleSlope = false);
+	bool FireGrenadeIsSky(const TraceResult &tr);
+	void FireGrenadeWorldBounce(CBaseEntity *pOther);
 
 public:
 	static TYPEDESCRIPTION m_SaveData[];
@@ -266,6 +276,12 @@ public:
 	Vector m_vSmokeDetonate;
 	int m_iBounceCount;
 	BOOL m_fRegisteredSound;
+	int m_iFireWeaponId;
+	bool m_bHasTouchedWorld;
+	bool m_bHasBouncedOffEnemy;
+	bool m_bEnemyBounceFuseExtensionUsed;
+	float m_flFireAirFuse;
+	float m_flFireStillStart;
 };
 
 // Items that the player has in their inventory that they can use
@@ -397,6 +413,12 @@ public:
 	float GetNextAttackDelay(float delay);
 	float GetNextAttackDelay2(float delay);
 	bool HasSecondaryAttack();
+	bool IsGrenade() const;
+	static float GrenadeThrowStrengthFromButtons(int buttons);
+	BOOL CanHolsterGrenadeThrow() const;
+	bool CanCommitGrenadeThrow() const;
+	void UpdateGrenadeCookStrength();
+	void ComputeGrenadeThrow(Vector &vecSrc, Vector &vecThrow) const;
 #ifndef REGAMEDLL_FIXES
 	BOOL IsPistol() { return (m_iId == WEAPON_USP || m_iId == WEAPON_GLOCK18 || m_iId == WEAPON_P228 || m_iId == WEAPON_DEAGLE || m_iId == WEAPON_ELITE || m_iId == WEAPON_FIVESEVEN); }
 #endif
@@ -975,9 +997,11 @@ public:
 	virtual BOOL CanDrop() { return FALSE; }
 	virtual BOOL Deploy();
 	virtual void Holster(int skiplocal);
+	virtual BOOL CanHolster() { return CanHolsterGrenadeThrow(); }
 	virtual float GetMaxSpeed() { return m_fMaxSpeed; }
 	virtual int iItemSlot() { return GRENADE_SLOT; }
 	virtual void PrimaryAttack();
+	virtual void SecondaryAttack();
 	virtual void WeaponIdle();
 	virtual BOOL UseDecrement()
 	{
@@ -990,6 +1014,9 @@ public:
 #ifndef REGAMEDLL_FIXES
 	virtual BOOL IsPistol() { return TRUE; } // TODO: why the object flashbang is IsPistol?
 #endif
+
+public:
+	void StartThrow(float strength);
 
 #ifdef REGAMEDLL_API
 	BOOL CanDeploy_OrigFunc();
@@ -1132,9 +1159,11 @@ public:
 	virtual BOOL CanDrop() { return FALSE; }
 	virtual BOOL Deploy();
 	virtual void Holster(int skiplocal);
+	virtual BOOL CanHolster() { return CanHolsterGrenadeThrow(); }
 	virtual float GetMaxSpeed() { return m_fMaxSpeed; }
 	virtual int iItemSlot() { return GRENADE_SLOT; }
 	virtual void PrimaryAttack();
+	virtual void SecondaryAttack();
 	virtual void WeaponIdle();
 	virtual BOOL UseDecrement()
 	{
@@ -1150,6 +1179,7 @@ public:
 #endif
 
 public:
+	void StartThrow(float strength);
 	unsigned short m_usCreateExplosion;
 };
 
@@ -1654,9 +1684,11 @@ public:
 	virtual BOOL CanDrop() { return FALSE; }
 	virtual BOOL Deploy();
 	virtual void Holster(int skiplocal);
+	virtual BOOL CanHolster() { return CanHolsterGrenadeThrow(); }
 	virtual float GetMaxSpeed() { return m_fMaxSpeed; }
 	virtual int iItemSlot() { return GRENADE_SLOT; }
 	virtual void PrimaryAttack();
+	virtual void SecondaryAttack();
 	virtual void WeaponIdle();
 	virtual BOOL UseDecrement()
 	{
@@ -1672,7 +1704,107 @@ public:
 #endif
 
 public:
+	void StartThrow(float strength);
 	unsigned short m_usCreateSmoke;
+};
+
+const float MOLOTOV_MAX_SPEED = 245.0f;
+const float INCGRENADE_MAX_SPEED = 245.0f;
+// Pullpin length (2008 v_molotov 50f@50fps, stock smoke/inc 41f@41fps).
+// Throw waits for this, then holds until attack is released (CS:GO ItemPostFrame).
+const float MOLOTOV_PIN_TIME = 1.0f;
+const float INCGRENADE_PIN_TIME = 0.8f;
+const float INCGRENADE_THROW_TIME = 1.2f;
+// 2008 v_molotov pullpin is 50 frames @ 50 fps; wick event is source frame 23.
+const float MOLOTOV_WICK_TIME = 23.0f / 50.0f;
+
+enum molotov_e
+{
+	MOLOTOV_IDLE,
+	MOLOTOV_PINPULL,
+	MOLOTOV_THROW,
+	MOLOTOV_DRAW,
+};
+
+enum incgrenade_e
+{
+	INCGRENADE_IDLE,
+	INCGRENADE_PINPULL,
+	INCGRENADE_THROW,
+	INCGRENADE_DRAW,
+};
+
+class CMolotov: public CBasePlayerWeapon
+{
+public:
+	virtual void Spawn();
+	virtual void Precache();
+	virtual int GetItemInfo(ItemInfo *p);
+	virtual BOOL CanDeploy();
+	virtual BOOL CanDrop() { return FALSE; }
+	virtual BOOL Deploy();
+	virtual BOOL CanHolster() { return CanHolsterGrenadeThrow(); }
+	virtual void Holster(int skiplocal);
+	virtual void ItemPostFrame();
+	virtual float GetMaxSpeed() { return m_fMaxSpeed; }
+	virtual int iItemSlot() { return GRENADE_SLOT; }
+	virtual void PrimaryAttack();
+	virtual void SecondaryAttack();
+	virtual void WeaponIdle();
+	virtual BOOL UseDecrement()
+	{
+	#ifdef CLIENT_WEAPONS
+		return TRUE;
+	#else
+		return FALSE;
+	#endif
+	}
+
+#ifdef REGAMEDLL_API
+	BOOL CanDeploy_OrigFunc();
+#endif
+
+public:
+	void StartThrow(float strength);
+	unsigned short m_usCreateInferno;
+	bool m_bCookLoop;
+	bool m_bHeldIdle;
+};
+
+class CIncendiary: public CBasePlayerWeapon
+{
+public:
+	virtual void Spawn();
+	virtual void Precache();
+	virtual int GetItemInfo(ItemInfo *p);
+	virtual BOOL CanDeploy();
+	virtual BOOL CanDrop() { return FALSE; }
+	virtual BOOL Deploy();
+	virtual BOOL CanHolster() { return CanHolsterGrenadeThrow(); }
+	virtual void Holster(int skiplocal);
+	virtual void ItemPostFrame();
+	virtual float GetMaxSpeed() { return m_fMaxSpeed; }
+	virtual int iItemSlot() { return GRENADE_SLOT; }
+	virtual void PrimaryAttack();
+	virtual void SecondaryAttack();
+	virtual void WeaponIdle();
+	virtual BOOL UseDecrement()
+	{
+	#ifdef CLIENT_WEAPONS
+		return TRUE;
+	#else
+		return FALSE;
+	#endif
+	}
+
+#ifdef REGAMEDLL_API
+	BOOL CanDeploy_OrigFunc();
+#endif
+
+public:
+	void StartThrow(float strength);
+	unsigned short m_usCreateInferno;
+	bool m_bHeldIdle;
 };
 
 

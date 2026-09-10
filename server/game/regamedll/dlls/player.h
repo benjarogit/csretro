@@ -239,7 +239,6 @@ enum TrackCommands
 	CMD_VOTEMAP,
 	CMD_LISTMAPS,
 	CMD_LISTPLAYERS,
-	CMD_NIGHTVISION,
 	COMMANDS_TO_TRACK,
 };
 
@@ -259,8 +258,9 @@ struct RebuyStruct
 	int m_heGrenade;
 	int m_flashbang;
 	int m_smokeGrenade;
+	int m_molotov;
+	int m_incGrenade;
 	int m_defuser;
-	int m_nightVision;
 	ArmorType m_armor;
 };
 
@@ -531,6 +531,10 @@ public:
 	bool HasPlayerItem(CBasePlayerItem *pCheckItem);
 	bool HasNamedPlayerItem(const char *pszItemName);
 	bool HasWeapons();
+	void SetWeaponBit(int id);
+	void ClearWeaponBit(int id);
+	bool HasWeaponBit(int id) const;
+	bool HasAnyWeaponBitExceptSuit() const;
 	void SelectPrevItem(int iItem);
 	void SelectNextItem(int iItem);
 	void SelectLastItem();
@@ -619,8 +623,9 @@ public:
 	void RebuyHEGrenade();
 	void RebuyFlashbang();
 	void RebuySmokeGrenade();
+	void RebuyMolotov();
+	void RebuyIncendiary();
 	void RebuyDefuser();
-	void RebuyNightVision();
 	void RebuyArmor();
 	void UpdateLocation(bool forceUpdate = false);
 	void SetObserverAutoDirector(bool val) { m_bObserverAutoDirector = val; }
@@ -751,8 +756,6 @@ public:
 	ModelName m_iModelName;
 	int m_iTeamKills;
 	IgnoreChatMsg m_iIgnoreGlobalChat;
-	bool m_bHasNightVision;
-	bool m_bNightVisionOn;
 	Vector m_vRecentPath[MAX_RECENT_PATH];
 	float m_flIdleCheckTime;
 	float m_flRadioTime;

@@ -34,6 +34,7 @@ void CSmokeGrenade::Spawn(void)
 	m_iDefaultAmmo = SMOKEGRENADE_DEFAULT_GIVE;
 	m_flStartThrow = 0;
 	m_flReleaseThrow = -1;
+	m_flThrowStrength = 1.0f;
 
 	// get ready to fall down.
 	FallInit();
@@ -71,9 +72,15 @@ int CSmokeGrenade::GetItemInfo(ItemInfo *p)
 BOOL CSmokeGrenade::Deploy()
 {
 	m_flReleaseThrow = -1;
+	m_flThrowStrength = 1.0f;
 	m_fMaxSpeed = SMOKEGRENADE_MAX_SPEED;
 
 	return DefaultDeploy("models/v_smokegrenade.mdl", "models/p_smokegrenade.mdl", SMOKEGRENADE_DRAW, "grenade", UseDecrement() != FALSE);
+}
+
+BOOL CSmokeGrenade::CanHolster()
+{
+	return CanHolsterGrenadeThrow();
 }
 
 void CSmokeGrenade::Holster(int skiplocal)
@@ -90,12 +97,24 @@ void CSmokeGrenade::Holster(int skiplocal)
 
 	m_flStartThrow = 0;
 	m_flReleaseThrow = -1;
+	m_flThrowStrength = 1.0f;
 }
 
 void CSmokeGrenade::PrimaryAttack()
 {
+	StartThrow((m_pPlayer->pev->button & IN_ATTACK2) ? 0.5f : 1.0f);
+}
+
+void CSmokeGrenade::SecondaryAttack()
+{
+	StartThrow((m_pPlayer->pev->button & IN_ATTACK) ? 0.5f : 0.0f);
+}
+
+void CSmokeGrenade::StartThrow(float strength)
+{
 	if (!m_flStartThrow && m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] > 0)
 	{
+		m_flThrowStrength = strength;
 		m_flReleaseThrow = 0;
 		m_flStartThrow = gpGlobals->time;
 
@@ -106,6 +125,9 @@ void CSmokeGrenade::PrimaryAttack()
 
 void CSmokeGrenade::WeaponIdle()
 {
+	if (m_pPlayer->pev->button & (IN_ATTACK | IN_ATTACK2))
+		return;
+
 	if (m_flReleaseThrow == 0)
 		m_flReleaseThrow = gpGlobals->time;
 
@@ -114,24 +136,13 @@ void CSmokeGrenade::WeaponIdle()
 
 	if (m_flStartThrow)
 	{
+		if (!CanCommitGrenadeThrow())
+			return;
+
 		m_pPlayer->Radio("%!MRAD_FIREINHOLE", "#Fire_in_the_hole");
 
-		Vector angThrow = m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle;
-
-		if (angThrow.x < 0)
-			angThrow.x = -10 + angThrow.x * ((90 - 10) / 90.0);
-		else
-			angThrow.x = -10 + angThrow.x * ((90 + 10) / 90.0);
-
-		float flVel = (90.0f - angThrow.x) * 6.0f;
-
-		if (flVel > 750.0f)
-			flVel = 750.0f;
-
-		UTIL_MakeVectors(angThrow);
-
-		Vector vecSrc = m_pPlayer->pev->origin + m_pPlayer->pev->view_ofs + gpGlobals->v_forward * 16.0f;
-		Vector vecThrow = gpGlobals->v_forward * flVel + m_pPlayer->pev->velocity;
+		Vector vecSrc, vecThrow;
+		ComputeGrenadeThrow(vecSrc, vecThrow);
 
 		CGrenade::ShootSmokeGrenade(m_pPlayer->pev, vecSrc, vecThrow, 1.5, m_usCreateSmoke);
 

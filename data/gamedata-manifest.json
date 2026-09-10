@@ -165,6 +165,9 @@
   ],
   "prune": [
     {"path": "platform/resource/linux_fonts", "why": "Steam-Linux-Fonts; CS Retro liefert csretro_fonts (Noto Sans, OFL-1.1). ignore verhindert Neuimport, prune raeumt aeltere Baeume auf."},
+    {"path": "cstrike/sound/items/equip_nvg.wav", "why": "Nightvision ist im CS-Retro-Fork vollstaendig stillgelegt; ungenutztes Kauf-Audio entfernen."},
+    {"path": "cstrike/sound/items/nvg_on.wav", "why": "Nightvision ist im CS-Retro-Fork vollstaendig stillgelegt; ungenutztes HUD-Audio entfernen."},
+    {"path": "cstrike/sound/items/nvg_off.wav", "why": "Nightvision ist im CS-Retro-Fork vollstaendig stillgelegt; ungenutztes HUD-Audio entfernen."},
     {"path": "cstrike/resource/background", "why": "Steam-CS-1.6-Menükacheln. Override legt danach csretro.png in denselben Ordner."},
     {"path": "cstrike/resource/BackgroundLayout.txt", "why": "Steam-Kachellayout; Menü sucht es nicht mehr."},
     {"path": "cstrike/resource/HD_BackgroundLayout.txt", "why": "Steam-HD-Kachellayout."},

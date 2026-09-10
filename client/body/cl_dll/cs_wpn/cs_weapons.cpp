@@ -63,7 +63,7 @@ globalvars_t  *gpGlobals;
 ItemInfo CBasePlayerItem::ItemInfoArray[MAX_WEAPONS];
 
 // Pool of client side entities/entvars_t
-static entvars_t	ev[ 32 ];
+static entvars_t	ev[ 48 ];
 static int			num_ents = 0;
 
 // The entity we'll use to represent the local client
@@ -72,7 +72,7 @@ static CBasePlayer	player;
 // Local version of game .dll global variables ( time, etc. )
 static globalvars_t	Globals = { };
 
-static CBasePlayerWeapon *g_pWpns[ 32 ];
+static CBasePlayerWeapon *g_pWpns[ MAX_WEAPONS ];
 
 
 // CS Weapon placeholder entities
@@ -101,6 +101,8 @@ static CSCOUT g_SCOUT;
 static CSG550 g_SG550;
 static CSG552 g_SG552;
 static CSmokeGrenade g_SmokeGrenade;
+static CMolotov g_Molotov;
+static CIncendiary g_Incendiary;
 static CTMP g_TMP;
 static CUMP45 g_UMP45;
 static CUSP g_USP;
@@ -304,6 +306,75 @@ bool CBasePlayerWeapon::HasSecondaryAttack()
 	}
 
 	return true;
+}
+
+bool CBasePlayerWeapon::IsGrenade() const
+{
+	switch (m_iId)
+	{
+	case WEAPON_HEGRENADE:
+	case WEAPON_FLASHBANG:
+	case WEAPON_SMOKEGRENADE:
+	case WEAPON_MOLOTOV:
+	case WEAPON_INCGRENADE:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+
+float CBasePlayerWeapon::GrenadeThrowStrengthFromButtons(int buttons)
+{
+	if ((buttons & IN_ATTACK) && (buttons & IN_ATTACK2))
+		return 0.5f;
+	if (buttons & IN_ATTACK)
+		return 1.0f;
+	return 0.0f;
+}
+
+BOOL CBasePlayerWeapon::CanHolsterGrenadeThrow() const
+{
+	if (m_flStartThrow != 0 && m_pPlayer && !(m_pPlayer->pev->button & (IN_ATTACK | IN_ATTACK2)))
+		return FALSE;
+	return TRUE;
+}
+
+bool CBasePlayerWeapon::CanCommitGrenadeThrow() const
+{
+	if (!m_pPlayer)
+		return false;
+	return m_pPlayer->m_bCanShoot;
+}
+
+void CBasePlayerWeapon::UpdateGrenadeCookStrength()
+{
+	if (m_flStartThrow && m_pPlayer && (m_pPlayer->pev->button & (IN_ATTACK | IN_ATTACK2)))
+		m_flThrowStrength = GrenadeThrowStrengthFromButtons(m_pPlayer->pev->button);
+}
+
+void CBasePlayerWeapon::ComputeGrenadeThrow(Vector &vecSrc, Vector &vecThrow) const
+{
+	Vector angThrow = m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle;
+
+	if (angThrow.x < 0)
+		angThrow.x = -10 + angThrow.x * ((90 - 10) / 90.0);
+	else
+		angThrow.x = -10 + angThrow.x * ((90 + 10) / 90.0);
+
+	float flVel = (90.0f - angThrow.x) * 6.0f;
+	if (flVel > 750.0f)
+		flVel = 750.0f;
+	flVel *= 0.3f + 0.7f * m_flThrowStrength;
+
+	UTIL_MakeVectors(angThrow);
+
+	vecSrc = m_pPlayer->pev->origin + m_pPlayer->pev->view_ofs;
+	TraceResult tr;
+	UTIL_TraceLine(vecSrc, vecSrc + gpGlobals->v_forward * 22.0f, ignore_monsters, m_pPlayer->edict(), &tr);
+	vecSrc = tr.vecEndPos - gpGlobals->v_forward * 6.0f;
+	vecSrc.z -= 12.0f * (1.0f - m_flThrowStrength);
+	vecThrow = gpGlobals->v_forward * flVel + m_pPlayer->pev->velocity;
 }
 
 void CBasePlayerWeapon::FireRemaining(int &shotsFired, float &shootTime, BOOL isGlock18)
@@ -522,6 +593,9 @@ void CBasePlayerWeapon::ItemPostFrame( void )
 		m_fInReload = FALSE;
 	}
 
+	if (IsGrenade())
+		UpdateGrenadeCookStrength();
+
 	if ((button & IN_ATTACK2) && m_flNextSecondaryAttack <= UTIL_WeaponTimeBase())
 	{
 		if (pszAmmo2() && !m_pPlayer->m_rgAmmo[m_iSecondaryAmmoType])
@@ -535,7 +609,7 @@ void CBasePlayerWeapon::ItemPostFrame( void )
 		if ((!m_iClip && pszAmmo1()) || (iMaxClip() == WEAPON_NOCLIP && !m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType]))
 			m_fFireOnEmpty = TRUE;
 
-		if (m_pPlayer->m_bCanShoot == true)
+		if (m_pPlayer->m_bCanShoot == true || IsGrenade())
 			PrimaryAttack();
 	}
 	else if (m_pPlayer->pev->button & IN_RELOAD && iMaxClip() != WEAPON_NOCLIP && !m_fInReload)
@@ -832,6 +906,8 @@ void HUD_InitClientWeapons( void )
 		HUD_PrepEntity( &g_AK47, &player);
 		HUD_PrepEntity( &g_Knife, &player);
 		HUD_PrepEntity( &g_P90, &player );
+		HUD_PrepEntity( &g_Molotov, &player );
+		HUD_PrepEntity( &g_Incendiary, &player );
 	}
 }
 
@@ -929,8 +1005,14 @@ void HUD_WeaponsPostThink( local_state_s *from, local_state_s *to, usercmd_t *cm
 	// Get current clock
 	gpGlobals->time = time;
 
-	// Fill in data based on selected weapon
-	switch ( from->client.m_iId )
+	// Stock CS delta.lst sent m_iId in 5 bits (0–31). IDs 32/33 wrap
+	// (molotov→0, inc→P228). CurWeapon is a full byte — trust the HUD.
+	int activeId = from->client.m_iId;
+	const int hudId = gHUD.m_Ammo.CurrentWeaponId();
+	if ((hudId == WEAPON_MOLOTOV || hudId == WEAPON_INCGRENADE) && activeId != hudId)
+		activeId = hudId;
+
+	switch ( activeId )
 	{
 		case WEAPON_P228:
 			pWeapon = &g_P228;
@@ -1048,6 +1130,14 @@ void HUD_WeaponsPostThink( local_state_s *from, local_state_s *to, usercmd_t *cm
 			pWeapon = &g_P90;
 			break;
 
+		case WEAPON_MOLOTOV:
+			pWeapon = &g_Molotov;
+			break;
+
+		case WEAPON_INCGRENADE:
+			pWeapon = &g_Incendiary;
+			break;
+
 		/*case WEAPON_NONE:
 			break;
 
@@ -1092,6 +1182,7 @@ void HUD_WeaponsPostThink( local_state_s *from, local_state_s *to, usercmd_t *cm
 		pCurrent->m_flNextPrimaryAttack	= pfrom->m_flNextPrimaryAttack;
 		pCurrent->m_flNextSecondaryAttack = pfrom->m_flNextSecondaryAttack;
 		pCurrent->m_flTimeWeaponIdle	= pfrom->m_flTimeWeaponIdle;
+		pCurrent->m_flThrowStrength		= pfrom->fuser1;
 		pCurrent->m_flStartThrow		= pfrom->fuser2;
 		pCurrent->m_flReleaseThrow		= pfrom->fuser3;
 		pCurrent->m_iSwing				= pfrom->iuser1;
@@ -1174,7 +1265,7 @@ void HUD_WeaponsPostThink( local_state_s *from, local_state_s *to, usercmd_t *cm
 	g_bInBombZone		= (flags & PLAYER_IN_BOMB_ZONE) != 0;
 
 	// Point to current weapon object
-	if ( from->client.m_iId )
+	if ( activeId )
 		player.m_pActiveItem = pWeapon;
 
 	// Don't go firing anything if we have died.
@@ -1192,13 +1283,16 @@ void HUD_WeaponsPostThink( local_state_s *from, local_state_s *to, usercmd_t *cm
 	}
 
 	// Assume that we are not going to switch weapons
-	to->client.m_iId					= from->client.m_iId;
+	to->client.m_iId					= activeId;
 
 	// Now see if we issued a changeweapon command ( and we're not dead )
 	if ( cmd->weaponselect && ( player.pev->deadflag != ( DEAD_DISCARDBODY + 1 ) ) )
 	{
 		// Switched to a different weapon?
-		if ( from->weapondata[ cmd->weaponselect ].m_iId == cmd->weaponselect )
+		if ( cmd->weaponselect > 0 && cmd->weaponselect < MAX_WEAPONS &&
+			( from->weapondata[ cmd->weaponselect ].m_iId == cmd->weaponselect
+				|| cmd->weaponselect == WEAPON_MOLOTOV
+				|| cmd->weaponselect == WEAPON_INCGRENADE ) )
 		{
 			CBasePlayerWeapon *pNew = g_pWpns[ cmd->weaponselect ];
 			if ( pNew && ( pNew != pWeapon ) )
@@ -1284,6 +1378,7 @@ void HUD_WeaponsPostThink( local_state_s *from, local_state_s *to, usercmd_t *cm
 		pto->m_fInReload				= pCurrent->m_fInReload;
 		pto->m_fInSpecialReload			= pCurrent->m_fInSpecialReload;
 		pto->m_flNextReload				= pCurrent->m_flNextReload;
+		pto->fuser1						= pCurrent->m_flThrowStrength;
 		pto->fuser2						= pCurrent->m_flStartThrow;
 		pto->fuser3						= pCurrent->m_flReleaseThrow;
 		pto->iuser1						= pCurrent->m_iSwing;

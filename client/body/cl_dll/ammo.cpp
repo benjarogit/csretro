@@ -226,8 +226,8 @@ WEAPON* WeaponsResource :: GetNextActivePos( int iSlot, int iSlotPos )
 		return NULL;
 
 	WEAPON *p = gWR.rgSlots[ iSlot ][ iSlotPos+1 ];
-	
-	if ( !p || !gWR.HasAmmo(p) )
+
+	if ( !p /*|| !gWR.HasAmmo(p)*/ )
 		return GetNextActivePos( iSlot, iSlotPos + 1 );
 
 	return p;
@@ -363,21 +363,22 @@ void CHudAmmo::Think(void)
 	if ( gHUD.m_fPlayerDead )
 		return;
 
-	if ( gHUD.m_iWeaponBits != gWR.iOldWeaponBits )
+	if ( gHUD.m_iWeaponBits != gWR.iOldWeaponBits || gHUD.m_iWeaponBits2 != gWR.iOldWeaponBits2 )
 	{
 		gWR.iOldWeaponBits = gHUD.m_iWeaponBits;
+		gWR.iOldWeaponBits2 = gHUD.m_iWeaponBits2;
 
-		for (int i = 0; i < MAX_WEAPONS-1; i++ )
+		for (int i = 0; i < MAX_WEAPONS; i++ )
 		{
 			WEAPON *p = gWR.GetWeapon(i);
 
-			if ( p )
+			if ( p && p->iId )
 			{
-				if ( gHUD.m_iWeaponBits & ( 1 << p->iId ) )
+				if ( gHUD.HasHudWeapon( p->iId ) )
 				{
 					gWR.PickupWeapon( p );
 				}
-				else
+				else if ( p->iId < 32 || gHUD.m_bWeaponBits2Received )
 				{
 					if( gHUD.GetGameType() != GAME_CZERODS )
 						gWR.DropWeapon( p );
@@ -448,10 +449,10 @@ void WeaponsResource :: SelectSlot( int iSlot, int fAdvance, int iDirection )
 	if ( gHUD.m_fPlayerDead || gHUD.m_iHideHUDDisplay & ( HIDEHUD_WEAPONS | HIDEHUD_ALL ) )
 		return;
 
-	if (!(gHUD.m_iWeaponBits & (1<<(WEAPON_SUIT)) ))
+	if (!gHUD.HasHudWeapon(WEAPON_SUIT))
 		return;
 
-	if ( ! ( gHUD.m_iWeaponBits & ~(1<<(WEAPON_SUIT)) ))
+	if (!(gHUD.m_iWeaponBits & ~(1 << WEAPON_SUIT)) && !gHUD.m_iWeaponBits2)
 		return;
 
 	WEAPON *p = NULL;
@@ -536,10 +537,9 @@ int CHudAmmo::MsgFunc_WeapPickup( const char *pszName, int iSize, void *pbuf )
 	// Add the weapon to the history
 	gHR.AddToHistory( HISTSLOT_WEAP, iIndex );
 
-	if( gHUD.GetGameType() == GAME_CZERODS )
-	{
-		gWR.PickupWeapon( iIndex );
-	}
+	WEAPON *wp = gWR.GetWeapon( iIndex );
+	if ( wp && wp->iId == iIndex )
+		gWR.PickupWeapon( wp );
 
 	return 1;
 }
@@ -675,7 +675,7 @@ int CHudAmmo::MsgFunc_WeaponList(const char *pszName, int iSize, void *pbuf )
 
 	Weapon.iSlot = reader.ReadChar();
 	Weapon.iSlotPos = reader.ReadChar();
-	Weapon.iId = reader.ReadChar();
+	Weapon.iId = reader.ReadByte();
 	Weapon.iFlags = reader.ReadByte();
 	Weapon.iClip = 0;
 
@@ -1313,6 +1313,8 @@ float CHudAmmo::GetCrosshairGap( int weaponId )
 	{
 	case WEAPON_P228:
 	case WEAPON_HEGRENADE:
+	case WEAPON_MOLOTOV:
+	case WEAPON_INCGRENADE:
 	case WEAPON_SMOKEGRENADE:
 	case WEAPON_FIVESEVEN:
 	case WEAPON_USP:
@@ -1798,12 +1800,6 @@ void CHudAmmo::CalcCrosshairDrawMode()
 	static float prevDrawMode = -1;
 	float drawMode = m_pClCrosshairTranslucent->value;
 	
-	if( gHUD.m_NVG.m_iFlags )
-	{
-		m_bAdditive = 0;
-		return;
-	}
-
 	if( drawMode == prevDrawMode )
 		return;
 	
@@ -1828,14 +1824,6 @@ void CHudAmmo::CalcCrosshairColor()
 {
 	static char prevColors[64] = { 0 };
 	const char *colors = m_pClCrosshairColor->string;
-
-	if( gHUD.m_NVG.m_iFlags )
-	{
-		m_R = 250;
-		m_G = 50;
-		m_B = 50;
-		return;
-	}
 
 	if( strncmp( prevColors, colors, 64 ) )
 	{

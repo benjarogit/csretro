@@ -147,17 +147,21 @@ float ItemScreenRoll(const char *path)
 		{"w_glock18.mdl", 180.0f}, {"w_usp.mdl", 210.0f},
 		{"w_p228.mdl", 195.0f}, {"w_deagle.mdl", 180.0f},
 		{"w_elite.mdl", 180.0f},
-		{"w_m3.mdl", -45.0f}, {"w_xm1014.mdl", 0.0f},
-		{"w_mac10.mdl", 0.0f}, {"w_mp5.mdl", 8.0f},
-		{"w_ump45.mdl", 20.0f}, {"w_p90.mdl", -45.0f},
-		{"w_galil.mdl", 18.0f}, {"w_ak47.mdl", -30.0f},
-		{"w_scout.mdl", 25.0f}, {"w_sg552.mdl", -45.0f},
-		{"w_awp.mdl", -20.0f}, {"w_g3sg1.mdl", -20.0f},
+		{"w_m3.mdl", 135.0f}, {"w_xm1014.mdl", 0.0f},
+		// MAC-10 needs the shared upside-down correction plus a clockwise
+		// quarter-turn; its stock sequence box is authored on the other axis.
+		{"w_mac10.mdl", 270.0f}, {"w_mp5.mdl", 8.0f},
+		{"w_ump45.mdl", 200.0f}, {"w_p90.mdl", 135.0f},
+		{"w_galil.mdl", 198.0f}, {"w_ak47.mdl", 150.0f},
+		{"w_scout.mdl", 205.0f}, {"w_sg552.mdl", 135.0f},
+		{"w_awp.mdl", 160.0f}, {"w_g3sg1.mdl", 160.0f},
 		{"w_famas.mdl", 18.0f}, {"w_m4a1.mdl", -30.0f},
 		{"w_aug.mdl", -45.0f}, {"w_sg550.mdl", -20.0f},
 		{"w_tmp.mdl", 0.0f}, {"w_fiveseven.mdl", 180.0f},
 		{"w_flashbang.mdl", -90.0f}, {"w_hegrenade.mdl", -90.0f},
-		{"w_smokegrenade.mdl", -90.0f},
+		{"w_smokegrenade.mdl", -90.0f}, {"w_molotov.mdl", -90.0f},
+		{"w_incgrenade.mdl", -90.0f},
+		{"w_kevlar.mdl", -90.0f}, {"w_assault.mdl", -90.0f},
 	};
 	for (const Roll &entry : rolls)
 		if (path && std::strstr(path, entry.stem))
@@ -177,11 +181,13 @@ void ApplyItemScreenRoll(const char *path, float *camRoll, float *frameW, float 
 	// axis and deliberately keep the already measured frame instead of shrinking
 	// the model a second time with a rotated axis-aligned box.
 	if (path && (std::strstr(path, "flashbang") || std::strstr(path, "hegrenade") ||
-		std::strstr(path, "smokegrenade")))
+		std::strstr(path, "smokegrenade") || std::strstr(path, "molotov") ||
+		std::strstr(path, "incgrenade") || std::strstr(path, "w_kevlar.mdl") ||
+		std::strstr(path, "w_assault.mdl")))
 	{
 		const float oldW = *frameW;
-		*frameW = *frameH * 0.95f;
-		*frameH = oldW * 0.95f;
+		*frameW = *frameH * 1.12f;
+		*frameH = oldW * 0.86f;
 	}
 	// A few stock world models have sequence boxes far larger than their visible
 	// mesh. They otherwise remain tiny despite correct centering and rotation.
@@ -391,7 +397,9 @@ void CTeamModelPreview::Paint()
 		const float idleYaw = m_item ? 0.0f : std::sin(now * 0.85f + phase) * 1.25f;
 		const float idleLift = m_item ? 0.0f : std::sin(now * 1.35f + phase) * 0.22f;
 		const float dist = m_item ? itemDist : std::max(distH, distW) * 1.04f;
-		const int studioIndex = m_independentPlayerState ? (3 - i) : (i + 1);
+		// Slot 1 is the live local player. Independent previews use 8+i so
+		// R_StudioDrawPlayer never reads that player's gait/model/info.
+		const int studioIndex = m_independentPlayerState ? (8 + i) : (i + 1);
 		const float ox = dist + preview.shift[0];
 		const float oy = m_item ? preview.shift[1] : preview.lateralOffset;
 		const float oz = m_item ? preview.shift[2] : idleLift;

@@ -47,7 +47,6 @@
 #define DHF_IN_RESCUE_ZONE    BIT(17)
 #define DHF_IN_ESCAPE_ZONE    BIT(18)
 #define DHF_IN_VIPSAFETY_ZONE BIT(19)
-#define DHF_NIGHTVISION       BIT(20)
 #define DHF_HOSTAGE_CTMOVE    BIT(21)
 #define DHF_SPEC_DUCK         BIT(22)
 

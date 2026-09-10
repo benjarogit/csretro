@@ -46,6 +46,8 @@ public:
 		m_flSpawnProtectionEndTime(0),
 		m_iWeaponInfiniteAmmo(0),
 		m_iWeaponInfiniteIds(0),
+		m_iWeaponBits2(0),
+		m_iClientWeaponBits2(-1),
 		m_bCanShootOverride(false),
 		m_bGameForcingRespawn(false),
 		m_bAutoBunnyHopping(false),
@@ -163,6 +165,8 @@ public:
 	Vector m_vecOldvAngle;
 	int m_iWeaponInfiniteAmmo;
 	int m_iWeaponInfiniteIds;
+	int m_iWeaponBits2;
+	int m_iClientWeaponBits2;
 	bool m_bCanShootOverride;
 	bool m_bGameForcingRespawn;
 	bool m_bAutoBunnyHopping;

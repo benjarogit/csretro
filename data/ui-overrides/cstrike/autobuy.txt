@@ -58,7 +58,6 @@
 // flash	- Flashbang
 // hegren	- HE Grenade
 // sgren	- Smoke Grenade
-// nvgs		- Nightvision
 // defuser	- Defusal Kit
 // shield	- Tactical Shield
 

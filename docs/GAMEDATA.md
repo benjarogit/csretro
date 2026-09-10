@@ -20,6 +20,8 @@ Steam-CS-1.6  (read-only)
 python3 ./scripts/bootstrap-gamedata.py
 python3 ./scripts/bootstrap-gamedata.py --status
 python3 ./scripts/bootstrap-gamedata.py --refresh   # nur wenn Steam CS 1.6 sich geändert hat
+./scripts/import-molotov-assets.sh                  # lokale Fire-Nade-Modelle/Sprites/Sounds, nicht im Git
+CSRETRO_SKIP_MOLOTOV_RETARGET=1 python3 ./scripts/build-fire-viewmodels.py # Incendiary bauen; intaktes Molotov behalten
 ```
 
 Manifest (versioniert, im Repo): `data/gamedata-manifest.json`  

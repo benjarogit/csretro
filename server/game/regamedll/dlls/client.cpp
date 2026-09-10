@@ -46,7 +46,6 @@ int gmsgStatusIcon = 0;
 int gmsgBarTime = 0;
 int gmsgReloadSound = 0;
 int gmsgCrosshair = 0;
-int gmsgNVGToggle = 0;
 int gmsgRadar = 0;
 int gmsgSpectator = 0;
 int gmsgVGUIMenu = 0;
@@ -83,6 +82,7 @@ int gmsgFog = 0;
 int gmsgShowTimer = 0;
 int gmsgAccount = 0;
 int gmsgHealthInfo = 0;
+int gmsgWpnBits2 = 0;
 bool g_bClientPrintEnable = true;
 
 char *sPlayerModelFiles[] =
@@ -190,7 +190,6 @@ void LinkUserMessages()
 	gmsgBarTime       = REG_USER_MSG("BarTime", 2);
 	gmsgReloadSound   = REG_USER_MSG("ReloadSound", 2);
 	gmsgCrosshair     = REG_USER_MSG("Crosshair", 1);
-	gmsgNVGToggle     = REG_USER_MSG("NVGToggle", 1);
 	gmsgRadar         = REG_USER_MSG("Radar", 7);
 	gmsgSpectator     = REG_USER_MSG("Spectator", 2);
 	gmsgVGUIMenu      = REG_USER_MSG("VGUIMenu", -1);
@@ -225,6 +224,7 @@ void LinkUserMessages()
 	gmsgFog           = REG_USER_MSG("Fog", 7);
 	gmsgShowTimer     = REG_USER_MSG("ShowTimer", 0);
 	gmsgHudTextArgs   = REG_USER_MSG("HudTextArgs", -1);
+	gmsgWpnBits2      = REG_USER_MSG("WpnBits2", 4);
 
 #ifdef BUILD_LATEST
 	gmsgAccount       = REG_USER_MSG("Account", 5);
@@ -661,7 +661,6 @@ void EXT_FUNC ClientPutInServer(edict_t *pEntity)
 	pPlayer->pev->fixangle = 1;
 	pPlayer->m_iModelName = MODEL_URBAN;
 	pPlayer->m_bContextHelp = true;
-	pPlayer->m_bHasNightVision = false;
 	pPlayer->m_iHostagesKilled = 0;
 	pPlayer->m_iMapVote = 0;
 	pPlayer->m_iCurrentKickVote = 0;
@@ -1469,39 +1468,6 @@ void EXT_FUNC __API_HOOK(BuyItem)(CBasePlayer *pPlayer, int iSlot)
 			}
 			break;
 		}
-		case MENU_SLOT_ITEM_NVG:
-		{
-#ifdef REGAMEDLL_ADD
-			if (pPlayer->HasRestrictItem(ITEM_NVG, ITEM_TYPE_BUYING))
-				return;
-#endif
-			if (pPlayer->m_bHasNightVision)
-			{
-				if (g_bClientPrintEnable)
-				{
-					ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Already_Have_One");
-				}
-
-				return;
-			}
-
-			if (pPlayer->m_iAccount >= NVG_PRICE)
-			{
-				if (!(pPlayer->m_flDisplayHistory & DHF_NIGHTVISION))
-				{
-					pPlayer->HintMessage("#Hint_use_nightvision");
-					pPlayer->m_flDisplayHistory |= DHF_NIGHTVISION;
-				}
-
-				EMIT_SOUND(ENT(pPlayer->pev), CHAN_ITEM, "items/equip_nvg.wav", VOL_NORM, ATTN_NORM);
-
-				bEnoughMoney = true;
-				pPlayer->m_bHasNightVision = true;
-				pPlayer->AddAccount(-NVG_PRICE, RT_PLAYER_BOUGHT_SOMETHING);
-				pPlayer->SendItemStatus();
-			}
-			break;
-		}
 		case MENU_SLOT_ITEM_DEFUSEKIT:
 		{
 #ifdef REGAMEDLL_ADD
@@ -1633,6 +1599,12 @@ LINK_HOOK_VOID_CHAIN(HandleMenu_ChooseAppearance, (CBasePlayer *pPlayer, int slo
 
 void EXT_FUNC __API_HOOK(HandleMenu_ChooseAppearance)(CBasePlayer *pPlayer, int slot)
 {
+	// Initial join advances PICKINGTEAM -> GETINTOGAME below. During a live
+	// chooseteam flow HandleMenu_ChooseTeam intentionally kills the player before
+	// this menu. Remember that distinct case so completing the required class
+	// choice does not strand the player dead in Free Chase until the next round.
+	const bool respawnAfterTeamChange = pPlayer->m_iJoiningState == JOINED
+		&& pPlayer->pev->deadflag != DEAD_NO;
 	int numSkins = AreRunningCZero() ? CZ_NUM_SKIN : CS_NUM_SKIN;
 
 	struct
@@ -1784,6 +1756,11 @@ void EXT_FUNC __API_HOOK(HandleMenu_ChooseAppearance)(CBasePlayer *pPlayer, int 
 			pPlayer->MakeVIP();
 		}
 	}
+
+	// m_bTeamChanged still enforces the normal one-change-per-round limit. This
+	// respawn only completes the already accepted switch after its class choice.
+	if (respawnAfterTeamChange && pPlayer->m_iTeam != UNASSIGNED && pPlayer->m_iTeam != SPECTATOR)
+		pPlayer->RoundRespawn();
 }
 
 LINK_HOOK_CHAIN(BOOL, HandleMenu_ChooseTeam, (CBasePlayer *pPlayer, int slot), pPlayer, slot)
@@ -2091,7 +2068,6 @@ BOOL EXT_FUNC __API_HOOK(HandleMenu_ChooseTeam)(CBasePlayer *pPlayer, int slot)
 		pPlayer->pev->deadflag = DEAD_DEAD;
 		pPlayer->pev->punchangle = g_vecZero;
 
-		pPlayer->m_bHasNightVision = false;
 		pPlayer->m_iHostagesKilled = 0;
 		pPlayer->m_fDeadTime = 0;
 		pPlayer->has_disconnected = false;
@@ -2434,8 +2410,80 @@ NOXREF int CountPlayersInServer()
 // Handles the special "buy" alias commands we're creating to accommodate the buy
 // scripts players use (now that we've rearranged the buy menus and broken the scripts)
 // ** Returns TRUE if we've handled the command **
+static void BuyFireGrenade(CBasePlayer *pPlayer, WeaponIdType weaponID)
+{
+	if (!pPlayer->CanPlayerBuy(true))
+		return;
+
+	const ItemID itemID = GetItemIdByWeaponId(weaponID);
+#ifdef REGAMEDLL_ADD
+	if (itemID != ITEM_NONE && pPlayer->HasRestrictItem(itemID, ITEM_TYPE_BUYING))
+		return;
+#endif
+
+	WeaponInfoStruct *info = GetWeaponInfo(weaponID);
+	if (!info || !info->entityName)
+		return;
+
+	if (pPlayer->HasWeaponBit(weaponID) || pPlayer->AmmoInventory(info->ammoType) >= MaxAmmoCarry(weaponID))
+	{
+		if (g_bClientPrintEnable)
+			ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Cannot_Carry_Anymore");
+		return;
+	}
+
+	if (pPlayer->m_iAccount < info->cost)
+	{
+		if (g_bClientPrintEnable)
+		{
+			ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Not_Enough_Money");
+			BlinkAccount(pPlayer);
+		}
+		return;
+	}
+
+	g_bItemCreatedByBuying = true;
+	pPlayer->GiveNamedItem(info->entityName);
+	g_bItemCreatedByBuying = false;
+	pPlayer->AddAccount(-info->cost, RT_PLAYER_BOUGHT_SOMETHING);
+
+	if (TheTutor)
+		TheTutor->OnEvent(EVENT_PLAYER_BOUGHT_SOMETHING, pPlayer);
+}
+
 BOOL HandleBuyAliasCommands(CBasePlayer *pPlayer, const char *pszCommand)
 {
+	// Fire nades are extra equipment, not BuyWeaponByWeaponID (that drops guns).
+	if (FStrEq(pszCommand, "molotov"))
+	{
+		if (pPlayer->m_iTeam != TERRORIST)
+		{
+			if (g_bClientPrintEnable)
+				ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Alias_Not_Avail", "Molotov");
+			pPlayer->BuildRebuyStruct();
+			return TRUE;
+		}
+
+		BuyFireGrenade(pPlayer, WEAPON_MOLOTOV);
+		pPlayer->BuildRebuyStruct();
+		return TRUE;
+	}
+
+	if (FStrEq(pszCommand, "incgrenade") || FStrEq(pszCommand, "incendiary"))
+	{
+		if (pPlayer->m_iTeam != CT)
+		{
+			if (g_bClientPrintEnable)
+				ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Alias_Not_Avail", "Incendiary");
+			pPlayer->BuildRebuyStruct();
+			return TRUE;
+		}
+
+		BuyFireGrenade(pPlayer, WEAPON_INCGRENADE);
+		pPlayer->BuildRebuyStruct();
+		return TRUE;
+	}
+
 	// Let them buy it if it's got a weapon data string.
 	BOOL bRetVal = FALSE;
 	const char *pszFailItem = nullptr;
@@ -2534,11 +2582,6 @@ BOOL HandleBuyAliasCommands(CBasePlayer *pPlayer, const char *pszCommand)
 		{
 			bRetVal = TRUE;
 			BuyItem(pPlayer, MENU_SLOT_ITEM_SMOKEGREN);
-		}
-		else if (FStrEq(pszCommand, "nvgs"))
-		{
-			bRetVal = TRUE;
-			BuyItem(pPlayer, MENU_SLOT_ITEM_NVG);
 		}
 		else if (FStrEq(pszCommand, "defuser"))
 		{
@@ -3407,76 +3450,7 @@ void EXT_FUNC InternalCommand(edict_t *pEntity, const char *pcmd, const char *pa
 		}
 		else if (pPlayer->pev->deadflag == DEAD_NO)
 		{
-			if (FStrEq(pcmd, "nightvision"))
-			{
-				if (gpGlobals->time >= pPlayer->m_flLastCommandTime[CMD_NIGHTVISION])
-				{
-					pPlayer->m_flLastCommandTime[CMD_NIGHTVISION] = gpGlobals->time + 0.3f;
-
-					if (!pPlayer->m_bHasNightVision)
-						return;
-
-					if (pPlayer->m_bNightVisionOn)
-					{
-						EMIT_SOUND(ENT(pPlayer->pev), CHAN_ITEM, "items/nvg_off.wav", RANDOM_FLOAT(0.92, 1), ATTN_NORM);
-
-						MESSAGE_BEGIN(MSG_ONE, gmsgNVGToggle, nullptr, pPlayer->pev);
-							WRITE_BYTE(0); // disable nightvision
-						MESSAGE_END();
-
-						pPlayer->m_bNightVisionOn = false;
-
-						for (int i = 1; i <= gpGlobals->maxClients; i++)
-						{
-							CBasePlayer *pObserver = UTIL_PlayerByIndex(i);
-
-							if (!UTIL_IsValidPlayer(pObserver))
-								continue;
-
-							if (pObserver->IsObservingPlayer(pPlayer))
-							{
-								EMIT_SOUND(ENT(pObserver->pev), CHAN_ITEM, "items/nvg_off.wav", RANDOM_FLOAT(0.92, 1), ATTN_NORM);
-
-								MESSAGE_BEGIN(MSG_ONE, gmsgNVGToggle, nullptr, pObserver->pev);
-									WRITE_BYTE(0); // disable nightvision
-								MESSAGE_END();
-
-								pObserver->m_bNightVisionOn = false;
-							}
-						}
-					}
-					else
-					{
-						EMIT_SOUND(ENT(pPlayer->pev), CHAN_ITEM, "items/nvg_on.wav", RANDOM_FLOAT(0.92, 1), ATTN_NORM);
-
-						MESSAGE_BEGIN(MSG_ONE, gmsgNVGToggle, nullptr, pPlayer->pev);
-							WRITE_BYTE(1); // enable nightvision
-						MESSAGE_END();
-
-						pPlayer->m_bNightVisionOn = true;
-
-						for (int i = 1; i <= gpGlobals->maxClients; i++)
-						{
-							CBasePlayer *pObserver = UTIL_PlayerByIndex(i);
-
-							if (!UTIL_IsValidPlayer(pObserver))
-								continue;
-
-							if (pObserver->IsObservingPlayer(pPlayer))
-							{
-								EMIT_SOUND(ENT(pObserver->pev), CHAN_ITEM, "items/nvg_on.wav", RANDOM_FLOAT(0.92, 1), ATTN_NORM);
-
-								MESSAGE_BEGIN(MSG_ONE, gmsgNVGToggle, nullptr, pObserver->pev);
-									WRITE_BYTE(1);  // enable nightvision
-								MESSAGE_END();
-
-								pObserver->m_bNightVisionOn = true;
-							}
-						}
-					}
-				}
-			}
-			else if (FStrEq(pcmd, "radio1"))
+			if (FStrEq(pcmd, "radio1"))
 			{
 				ShowMenu(pPlayer, (MENU_KEY_1 | MENU_KEY_2 | MENU_KEY_3 | MENU_KEY_4 | MENU_KEY_5 | MENU_KEY_6 | MENU_KEY_0), -1, FALSE, "#RadioA");
 				pPlayer->m_iMenu = Menu_Radio1;
@@ -3934,9 +3908,6 @@ void ClientPrecache()
 	PRECACHE_SOUND("radio/rounddraw.wav");
 	PRECACHE_SOUND("items/kevlar.wav");
 	PRECACHE_SOUND("items/ammopickup2.wav");
-	PRECACHE_SOUND("items/nvg_on.wav");
-	PRECACHE_SOUND("items/nvg_off.wav");
-	PRECACHE_SOUND("items/equip_nvg.wav");
 	PRECACHE_SOUND("weapons/c4_beep1.wav");
 	PRECACHE_SOUND("weapons/c4_beep2.wav");
 	PRECACHE_SOUND("weapons/c4_beep3.wav");
@@ -4921,6 +4892,7 @@ int EXT_FUNC GetWeaponData(edict_t *pEdict, struct weapon_data_s *info)
 					item->m_fInZoom = weapon->m_iShotsFired;
 					item->m_fAimedDamage = weapon->m_flLastFire;
 					item->m_iWeaponState = weapon->m_iWeaponState;
+					item->fuser1 = weapon->m_flThrowStrength;
 					item->fuser2 = weapon->m_flStartThrow;
 					item->fuser3 = weapon->m_flReleaseThrow;
 					item->iuser1 = weapon->m_iSwing;

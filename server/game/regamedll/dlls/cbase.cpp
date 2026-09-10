@@ -1594,7 +1594,7 @@ void OnFreeEntPrivateData(edict_t *pEnt)
 				if (IsGrenadeWeapon(pItem->m_iId) || pItem->m_iId == WEAPON_C4)
 					pOwner->m_rgAmmo[pItem->PrimaryAmmoIndex()] = 0;
 
-				pOwner->pev->weapons &= ~(1 << pItem->m_iId);
+				pOwner->ClearWeaponBit(pItem->m_iId);
 			}
 		}
 	}

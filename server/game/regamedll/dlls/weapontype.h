@@ -61,6 +61,9 @@ enum WeaponIdType
 	WEAPON_AK47,
 	WEAPON_KNIFE,
 	WEAPON_P90,
+	// 31 is WEAPON_SUIT in the pev->weapons bitfield. Fire nades live above that.
+	WEAPON_MOLOTOV = 32,
+	WEAPON_INCGRENADE = 33,
 	WEAPON_SHIELDGUN = 99
 };
 
@@ -79,7 +82,6 @@ enum AutoBuyClassType
 	AUTOBUYCLASS_SHOTGUN        = BIT(9),
 	AUTOBUYCLASS_MACHINEGUN     = BIT(10),
 	AUTOBUYCLASS_GRENADE        = BIT(11),
-	AUTOBUYCLASS_NIGHTVISION    = BIT(12),
 	AUTOBUYCLASS_SHIELD         = BIT(13),
 };
 
@@ -89,9 +91,10 @@ enum ItemCostType
 	FLASHBANG_PRICE     = 200,
 	HEGRENADE_PRICE     = 300,
 	SMOKEGRENADE_PRICE  = 300,
+	MOLOTOV_PRICE       = 400,
+	INCGRENADE_PRICE    = 500,
 	KEVLAR_PRICE        = 650,
 	HELMET_PRICE        = 350,
-	NVG_PRICE           = 1250,
 	DEFUSEKIT_PRICE     = 200,
 };
 
@@ -109,6 +112,8 @@ enum AmmoCostType
 	AMMO_FLASHBANG_PRICE    = FLASHBANG_PRICE,
 	AMMO_HEGRENADE_PRICE    = HEGRENADE_PRICE,
 	AMMO_SMOKEGRENADE_PRICE = SMOKEGRENADE_PRICE,
+	AMMO_MOLOTOV_PRICE      = MOLOTOV_PRICE,
+	AMMO_INCGRENADE_PRICE   = INCGRENADE_PRICE,
 };
 
 enum WeaponCostType
@@ -158,6 +163,8 @@ enum ClipGiveDefault
 	GLOCK18_DEFAULT_GIVE        = 20,
 	SCOUT_DEFAULT_GIVE          = 10,
 	HEGRENADE_DEFAULT_GIVE      = 1,
+	MOLOTOV_DEFAULT_GIVE        = 1,
+	INCGRENADE_DEFAULT_GIVE     = 1,
 	XM1014_DEFAULT_GIVE         = 7,
 	C4_DEFAULT_GIVE             = 1,
 	MAC10_DEFAULT_GIVE          = 30,
@@ -219,6 +226,8 @@ enum WeightWeapon
 	GLOCK18_WEIGHT      = 5,
 	SCOUT_WEIGHT        = 30,
 	HEGRENADE_WEIGHT    = 2,
+	MOLOTOV_WEIGHT      = 1,
+	INCGRENADE_WEIGHT   = 1,
 	XM1014_WEIGHT       = 20,
 	C4_WEIGHT           = 3,
 	MAC10_WEIGHT        = 25,
@@ -264,6 +273,8 @@ enum MaxAmmoType
 	MAX_AMMO_HEGRENADE    = 1,
 	MAX_AMMO_FLASHBANG    = 2,
 	MAX_AMMO_C4           = 1,
+	MAX_AMMO_MOLOTOV      = 1,
+	MAX_AMMO_INCGRENADE   = 1,
 };
 
 enum AmmoType
@@ -283,6 +294,8 @@ enum AmmoType
 	AMMO_HEGRENADE,
 	AMMO_SMOKEGRENADE,
 	AMMO_C4,
+	AMMO_MOLOTOV,
+	AMMO_INCGRENADE,
 
 	AMMO_MAX_TYPES
 };
@@ -316,6 +329,8 @@ enum AmmoBuyAmount
 	AMMO_FLASHBANG_BUY    = 1,
 	AMMO_HEGRENADE_BUY    = 1,
 	AMMO_SMOKEGRENADE_BUY = 1,
+	AMMO_MOLOTOV_BUY      = 1,
+	AMMO_INCGRENADE_BUY   = 1,
 };
 
 // custom
@@ -426,7 +441,7 @@ struct WeaponSlotInfo
 	const char *weaponName;
 };
 
-extern AutoBuyInfoStruct g_autoBuyInfo[35];
+extern AutoBuyInfoStruct g_autoBuyInfo[36];
 extern WeaponStruct g_weaponStruct[MAX_WEAPONS];
 
 // WeaponType

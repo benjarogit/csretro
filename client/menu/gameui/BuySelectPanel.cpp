@@ -209,24 +209,29 @@ bool IsShieldBuy(const char *cmd)
 	return cmd && !strcasecmp(cmd, "shield");
 }
 
+bool IsNvgBuy(const char *cmd)
+{
+	return cmd && (!strcasecmp(cmd, "nvgs") || !strcasecmp(cmd, "nightvision"));
+}
+
 class CBuySelectPanel;
 
 const char *BuyModel(const char *name)
 {
+	if (!name || !*name || IsNvgBuy(name))
+		return nullptr;
 	struct Entry { const char *alias; const char *model; };
 	static const Entry aliases[] = {
 		{"glock", "glock18"}, {"usp45", "usp"}, {"deserteagle", "deagle"},
 		{"fn57", "fiveseven"}, {"flash", "flashbang"}, {"hegren", "hegrenade"},
-		{"sgren", "smokegrenade"}, {"vest", "kevlar"}, {"vesthelm", "assault"},
+		{"sgren", "smokegrenade"}, {"molotov", "molotov"}, {"incgrenade", "incgrenade"},
+		{"vest", "kevlar"}, {"vesthelm", "assault"},
 		{"kevlarhelmet", "assault"}, {"kevlar_helmet", "assault"}, {"mp5navy", "mp5"},
 		{"elites", "elite"}, {"defuser", "thighpack"}, {"usp", "usp"},
 		{"deagle", "deagle"}
 	};
 	for (const Entry &entry : aliases)
 		if (!strcasecmp(name, entry.alias)) return entry.model;
-	// CS has no standalone night-vision model. Its named purchase card remains.
-	if (!strcasecmp(name, "nvgs") || !strcasecmp(name, "nvg") || !strcasecmp(name, "nightvision"))
-		return nullptr;
 	return name;
 }
 
@@ -235,7 +240,7 @@ const char *BuyDisplayName(const char *command)
 	struct Entry { const char *command; const char *label; };
 	static const Entry names[] = {
 		{"vest", "Kevlar Vest"}, {"vesthelm", "Kevlar+Helm"},
-		{"nvgs", "Nightvision"}, {"defuser", "Defuse Kit"},
+		{"defuser", "Defuse Kit"},
 		{"glock", "Glock-18"}, {"usp", "USP"}, {"p228", "P228"},
 		{"deagle", "Desert Eagle"}, {"elites", "Dual Elites"},
 		{"fn57", "Five-SeveN"}, {"m3", "M3"}, {"xm1014", "XM1014"},
@@ -246,6 +251,7 @@ const char *BuyDisplayName(const char *command)
 		{"aug", "AUG"}, {"awp", "AWP"}, {"g3sg1", "G3SG1"},
 		{"sg550", "SG 550"}, {"flash", "Flashbang"},
 		{"hegren", "HE Grenade"}, {"sgren", "Smoke"},
+		{"molotov", "Molotov"}, {"incgrenade", "Incendiary"},
 	};
 	if (!command)
 		return nullptr;
@@ -260,7 +266,7 @@ const char *CompactBuyDisplayName(const std::string &name)
 	struct Entry { const char *full; const char *compact; };
 	static const Entry names[] = {
 		{"Kevlar Vest", "Kevlar"}, {"Kevlar+Helm", "Kev+Helm"},
-		{"Nightvision", "NVGs"}, {"Desert Eagle", "Deagle"},
+		{"Desert Eagle", "Deagle"},
 		{"Dual Elites", "Elites"}, {"Flashbang", "Flash"},
 		{"HE Grenade", "HE Gren."},
 	};
@@ -378,6 +384,7 @@ public:
 		}
 		SetText("");
 		m_isWeaponCard = true;
+		m_cost = cost;
 		SetBuyModel(m_weaponImage, command);
 		char price[24];
 		std::snprintf(price, sizeof(price), "$%d", cost);
@@ -420,19 +427,25 @@ public:
 			m_number->SetBounds(pad, 3, numberW, labelH);
 			m_name->SetBounds(pad + numberW, 3, std::max(1, w - numberW - pad * 2), labelH);
 			m_price->SetBounds(std::max(pad, w - 72), h - priceH - 2, 68, priceH);
-			m_number->SetFgColor(Color(210, 210, 214, 170));
-			m_name->SetFgColor(InGameViewportLook::Text());
-			m_price->SetFgColor(InGameViewportLook::BuyGold());
+			const bool dim = Unaffordable();
+			m_number->SetFgColor(dim ? Color(168, 170, 174, 220) : Color(210, 210, 214, 220));
+			m_name->SetFgColor(dim ? InGameViewportLook::TextDim() : InGameViewportLook::Text());
+			m_price->SetFgColor(dim ? Color(196, 168, 64, 230) : InGameViewportLook::BuyGold());
 		}
 	}
 
 	void PaintBackground() override
 	{
-		if (m_isFooter)
-			return;
 		int w = 0, h = 0;
 		GetSize(w, h);
-		InGameViewportLook::PaintBuyCell(w, h, IsArmed() || IsDepressed());
+		if (m_isFooter)
+		{
+			if (w > 4 && h > 4)
+				InGameViewportLook::PaintRoundedRect(0, 0, w, h, std::min(4, h / 4),
+					(IsArmed() || IsDepressed()) ? Color(48, 42, 22, 230) : Color(28, 26, 20, 210));
+			return;
+		}
+		InGameViewportLook::PaintBuyCell(w, h, IsArmed() || IsDepressed(), Unaffordable());
 	}
 
 	void ApplySettings(KeyValues *inResourceData) override
@@ -459,13 +472,20 @@ private:
 	Label *m_price = nullptr;
 	bool m_isWeaponCard = false;
 	bool m_isFooter = false;
+	int m_cost = 0;
 	std::string m_productName;
+
+	bool Unaffordable() const
+	{
+		return m_isWeaponCard && m_cost > 0 && g_buyHud.money < m_cost;
+	}
 
 	void ApplyLook()
 	{
 		if (m_isFooter)
 		{
 			InGameViewportLook::StyleFooterButton(this, m_accent);
+			SetPaintBackgroundEnabled(true);
 			SetContentAlignment(Label::a_center);
 			SetTextInset(0, 0);
 			return;
@@ -473,14 +493,16 @@ private:
 		InGameViewportLook::StyleCardButton(this, InGameViewportLook::BuyGold());
 		SetContentAlignment(m_isWeaponCard ? Label::a_northwest : Label::a_west);
 		SetTextInset(m_isWeaponCard ? 0 : 12, m_isWeaponCard ? 0 : 0);
-		SetFgColor(InGameViewportLook::Text());
-		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::BuyCellArmed() : InGameViewportLook::BuyCell());
+		const bool dim = Unaffordable();
+		SetFgColor(dim ? InGameViewportLook::TextDim() : InGameViewportLook::Text());
+		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::BuyCellArmed() :
+			(dim ? InGameViewportLook::BuyCellDim() : InGameViewportLook::BuyCell()));
 		if (m_number)
-			m_number->SetFgColor(Color(210, 210, 214, 170));
+			m_number->SetFgColor(dim ? Color(168, 170, 174, 220) : Color(210, 210, 214, 220));
 		if (m_name)
-			m_name->SetFgColor(InGameViewportLook::Text());
+			m_name->SetFgColor(dim ? InGameViewportLook::TextDim() : InGameViewportLook::Text());
 		if (m_price)
-			m_price->SetFgColor(InGameViewportLook::BuyGold());
+			m_price->SetFgColor(dim ? Color(196, 168, 64, 230) : InGameViewportLook::BuyGold());
 	}
 };
 
@@ -972,10 +994,11 @@ private:
 			for (const ResField &field : Menu_LoadRes(path))
 			{
 				if (field.command.empty() || field.cost <= 0 || IsResCommand(field.command.c_str()) ||
-					IsShieldBuy(field.command.c_str()))
+					IsShieldBuy(field.command.c_str()) || IsNvgBuy(field.command.c_str()))
 					continue;
 				const bool grenade = !strcasecmp(field.command.c_str(), "flash") ||
-					!strcasecmp(field.command.c_str(), "hegren") || !strcasecmp(field.command.c_str(), "sgren");
+					!strcasecmp(field.command.c_str(), "hegren") || !strcasecmp(field.command.c_str(), "sgren") ||
+					!strcasecmp(field.command.c_str(), "molotov") || !strcasecmp(field.command.c_str(), "incgrenade");
 				if ((filter == 1 && !grenade) || (filter == 2 && grenade) || nextRow[column] >= 6)
 					continue;
 				char name[64];
@@ -1036,18 +1059,18 @@ private:
 				src = "env";
 			}
 		}
-		// The rendered local entity is authoritative: it is the class the player
-		// is actually using now. The remembered joinclass is only the transition
-		// fallback until the HUD has received that entity/model update.
-		if (!name && ClassStemForTeam(g_buyHud.model, ct))
-		{
-			name = g_buyHud.model;
-			src = "hud";
-		}
+		// A class chosen through this UI is exact and immediately authoritative.
+		// Playerinfo can lag behind (or briefly expose the team's default model)
+		// after joinclass and was therefore showing the wrong Buy character.
 		if (!name && ClassStemForTeam(g_buyClassModel, ct))
 		{
 			name = g_buyClassModel;
 			src = "joinclass";
+		}
+		if (!name && ClassStemForTeam(g_buyHud.model, ct))
+		{
+			name = g_buyHud.model;
+			src = "hud";
 		}
 		const char *fallback = ct ? "urban" : "terror";
 		const char *model = name ? name : fallback;
@@ -1076,6 +1099,7 @@ private:
 	{
 		(void)randomize;
 		m_character = new CTeamModelPreview(this, "BuyCharacter");
+		m_character->SetIndependentPlayerState(true);
 		m_character->SetMouseInputEnabled(false);
 		m_character->SetKeyBoardInputEnabled(false);
 		m_character->SetZPos(1);
@@ -1402,14 +1426,15 @@ private:
 					cancel = btn;
 				continue;
 			}
-			if (name && !strcasecmp(name, "shield"))
+			if (name && (!strcasecmp(name, "shield") || !strcasecmp(name, "nvgs") ||
+				!strcasecmp(name, "nightvision")))
 			{
 				btn->SetVisible(false);
 				continue;
 			}
 			if (KeyValues *kv = btn->GetCommand())
 			{
-				if (IsShieldBuy(kv->GetString("command", "")))
+				if (IsShieldBuy(kv->GetString("command", "")) || IsNvgBuy(kv->GetString("command", "")))
 				{
 					btn->SetVisible(false);
 					continue;
@@ -1498,6 +1523,8 @@ public:
 		SetPaintBackgroundEnabled(true);
 		SetMouseInputEnabled(true);
 		SetKeyBoardInputEnabled(true);
+		SetZPos(50);
+		SetZPos(50);
 		if (scheme())
 		{
 			const HScheme client = scheme()->GetScheme("ClientScheme");
@@ -1589,6 +1616,12 @@ bool BuySelect_Show(Panel *root, int menuType, int validSlots)
 	if (team != TEAM_TERRORIST && team != TEAM_CT)
 		team = TEAM_TERRORIST;
 
+	// The equipment resource and the character preview are team-specific.
+	// Reusing a panel created for the previous team kept showing Molotov to CTs
+	// (and could retain the previous team's player model).
+	if (g_panel && g_panel->Team() != team)
+		DestroyBuyUi();
+
 	if (!g_overlay)
 	{
 		if (!root)
@@ -1629,6 +1662,9 @@ bool BuySelect_Show(Panel *root, int menuType, int validSlots)
 	host->GetSize(w, h);
 	g_overlay->SetBounds(0, 0, w, h);
 	PauseBackdrop_Invalidate();
+	g_overlay->SetMouseInputEnabled(true);
+	g_overlay->SetKeyBoardInputEnabled(true);
+	g_overlay->SetZPos(50);
 	g_overlay->SetVisible(true);
 	g_overlay->MoveToFront();
 	g_panel->Open(validSlots);
@@ -1840,21 +1876,35 @@ void BuySelect_GateTick()
 			const int cancel = g_panel->LabelLooksLocalized("CancelButton") ? 1 : 0;
 			const int raw = g_panel->AnyRawToken() ? 1 : 0;
 			int shield = 0;
+			int molotov = 0;
+			int incendiary = 0;
+			int nightvision = 0;
 			if (Panel *card = g_panel->FindChildByName("shield"))
 				shield = card->IsVisible() ? 1 : 0;
-			for (int i = 0; i < g_panel->GetChildCount() && !shield; ++i)
+			for (int i = 0; i < g_panel->GetChildCount(); ++i)
 			{
 				auto *btn = dynamic_cast<Button *>(g_panel->GetChild(i));
 				if (!btn || !btn->IsVisible())
 					continue;
 				if (KeyValues *kv = btn->GetCommand())
-					if (IsShieldBuy(kv->GetString("command", "")))
+				{
+					const char *cmd = kv->GetString("command", "");
+					if (IsShieldBuy(cmd))
 						shield = 1;
+					if (!strcasecmp(cmd, "molotov"))
+						molotov = 1;
+					if (!strcasecmp(cmd, "incgrenade"))
+						incendiary = 1;
+					if (!strcasecmp(cmd, "nvgs") || !strcasecmp(cmd, "nightvision"))
+						nightvision = 1;
+				}
 			}
 			Menu_Con("CSRETRO_BUY_GATE_OPEN type=%d visible=1 main=1 buttons=%d title=%d "
-				 "pistols=%d shotguns=%d rifles=%d cancel=%d raw=%d team=%d shield=%d",
+				 "pistols=%d shotguns=%d rifles=%d cancel=%d raw=%d team=%d shield=%d "
+				 "molotov=%d incendiary=%d nightvision=%d",
 				g_panel->MenuType(), g_panel->VisibleButtonCount(), title, pistols,
-				shotguns, rifles, cancel, raw, g_panel->Team(), shield);
+				shotguns, rifles, cancel, raw, g_panel->Team(), shield,
+				molotov, incendiary, nightvision);
 			if (g_pVGuiLocalize)
 			{
 				const char *probes[] = {
@@ -1925,9 +1975,12 @@ void BuySelect_GateTick()
 		}
 		if (hold < 15)
 			return;
-		Menu_Con("CSRETRO_BUY_GATE_DIRECT command=glock main=%d",
+		const bool gateCt = std::getenv("CSRETRO_BUY_GATE_TEAM") &&
+			!strcasecmp(std::getenv("CSRETRO_BUY_GATE_TEAM"), "ct");
+		const char *sidearm = gateCt ? "usp" : "glock";
+		Menu_Con("CSRETRO_BUY_GATE_DIRECT command=%s main=%d", sidearm,
 			g_panel && g_panel->IsMainPage() ? 1 : 0);
-		g_panel->OnCommand("glock");
+		g_panel->OnCommand(sidearm);
 		++step;
 		hold = 0;
 		return;

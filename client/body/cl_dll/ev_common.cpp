@@ -48,6 +48,7 @@ void Game_HookEvents( void )
 	HOOK_EVENT( awp, FireAWP );
 	HOOK_EVENT( createexplo, CreateExplo );
 	HOOK_EVENT( createsmoke, CreateSmoke );
+	HOOK_EVENT( createinferno, CreateInferno );
 	HOOK_EVENT( deagle, FireDEAGLE );
 	HOOK_EVENT( decal_reset, DecalReset );
 	HOOK_EVENT( elite_left, FireEliteLeft );

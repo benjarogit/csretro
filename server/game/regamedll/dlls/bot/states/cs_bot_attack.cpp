@@ -163,7 +163,9 @@ void AttackState::OnUpdate(CCSBot *me)
 		if (pWeapon->m_iId == WEAPON_C4 ||
 			pWeapon->m_iId == WEAPON_HEGRENADE ||
 			pWeapon->m_iId == WEAPON_FLASHBANG ||
-			pWeapon->m_iId == WEAPON_SMOKEGRENADE)
+			pWeapon->m_iId == WEAPON_SMOKEGRENADE ||
+			pWeapon->m_iId == WEAPON_MOLOTOV ||
+			pWeapon->m_iId == WEAPON_INCGRENADE)
 		{
 			me->EquipBestWeapon();
 		}

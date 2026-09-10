@@ -73,6 +73,7 @@ DECLARE_EVENT(FireAUG);
 DECLARE_EVENT(FireAWP);
 DECLARE_EVENT(CreateExplo);
 DECLARE_EVENT(CreateSmoke);
+DECLARE_EVENT(CreateInferno);
 DECLARE_EVENT(FireDEAGLE);
 DECLARE_EVENT(DecalReset);
 DECLARE_EVENT(FireEliteLeft);
@@ -120,5 +121,6 @@ DECLARE_EVENT( GrenadeExplosion );
 }
 
 void Game_HookEvents( void );
+void EV_UpdateMolotovHeld( void );
 
 #endif

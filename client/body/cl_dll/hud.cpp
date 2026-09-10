@@ -297,6 +297,7 @@ void CHud :: Init( void )
 	gEngfuncs.pfnHookUserMsg( "Spectator", __MsgFunc_Spectator );
 
 	HOOK_MESSAGE( gHUD, Fog );
+	HOOK_MESSAGE( gHUD, WpnBits2 );
 
 	gEngfuncs.pfnHookUserMsg( "Rain", __MsgFunc_Rain );
 	gEngfuncs.pfnHookUserMsg( "Snow", __MsgFunc_Snow );
@@ -376,7 +377,6 @@ void CHud :: Init( void )
 
 	// fullscreen overlays
 	m_SniperScope.Init();
-	m_NVG.Init();
 
 	// Game HUD things
 	m_Ammo.Init();

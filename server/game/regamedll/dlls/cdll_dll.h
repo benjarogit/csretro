@@ -54,10 +54,7 @@ const int DEFAULT_FOV      = 90;	// the default field of view
 #define HUD_PRINTCENTER  4
 #define HUD_PRINTRADIO   5
 
-#define STATUS_NIGHTVISION_ON  1
-#define STATUS_NIGHTVISION_OFF 0
-
-#define ITEM_STATUS_NIGHTVISION BIT(0)
+#define ITEM_STATUS_UNUSED0     BIT(0)
 #define ITEM_STATUS_DEFUSER     BIT(1)
 
 #define SCORE_STATUS_NONE       0

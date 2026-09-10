@@ -283,6 +283,7 @@ public:
 	// Special stuff for grenades and knife.
 	float m_flStartThrow;
 	float m_flReleaseThrow;
+	float m_flThrowStrength;
 	int m_iSwing;
 
 	// client has left the game

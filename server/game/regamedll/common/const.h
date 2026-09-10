@@ -152,7 +152,6 @@
 #define EF_NOINTERP                 BIT(5)  // don't interpolate the next frame
 #define EF_LIGHT                    BIT(6)  // rocket flare glow sprite
 #define EF_NODRAW                   BIT(7)  // don't draw entity
-#define EF_NIGHTVISION              BIT(8)  // player nightvision
 #define EF_SNIPERLASER              BIT(9)  // sniper laser effect
 #define EF_FIBERCAMERA              BIT(10) // fiber camera
 #define EF_FORCEVISIBILITY          BIT(11) // force visibility

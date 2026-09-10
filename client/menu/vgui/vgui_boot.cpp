@@ -397,6 +397,13 @@ void VGuiXash_RunFrame()
 	ScoreboardHud_GateTick();
 	ServerBrowser_RunFrame();
 
+	if (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() || VGuiXash_IsBuySelectActive())
+	{
+		SpectatorHud_Hide();
+		if (gEng.pfnSetKeyDest)
+			gEng.pfnSetKeyDest(2);
+	}
+
 	// Workspace change: clamp saved/current bounds. Do not stomp back to 512×406.
 	if (g_options && g_options->IsVisible() && g_pVGuiSurface)
 	{
@@ -725,9 +732,10 @@ bool VGuiXash_ShowTeamSelect(int validSlots)
 		Menu_Con("CSRETRO_TEAM_VGUI fail — kein VGUI-Root");
 		return false;
 	}
-	ClassSelect_Hide();
+	ClassSelect_Hide(false);
 	BuySelect_Hide();
 	RadioSelect_Hide();
+	SpectatorHud_Hide();
 	return TeamSelect_Show(g_root, validSlots);
 }
 
@@ -746,9 +754,10 @@ bool VGuiXash_ShowClassSelect(int menuType, int validSlots)
 		Menu_Con("CSRETRO_CLASS_VGUI fail — kein VGUI-Root");
 		return false;
 	}
-	TeamSelect_Hide();
+	TeamSelect_Hide(false);
 	BuySelect_Hide();
 	RadioSelect_Hide();
+	SpectatorHud_Hide();
 	return ClassSelect_Show(g_root, menuType, validSlots);
 }
 
@@ -770,6 +779,7 @@ bool VGuiXash_ShowBuySelect(int menuType, int validSlots)
 	TeamSelect_Hide();
 	ClassSelect_Hide();
 	RadioSelect_Hide();
+	SpectatorHud_Hide();
 	return BuySelect_Show(g_root, menuType, validSlots);
 }
 

@@ -174,6 +174,14 @@ int CHud::MsgFunc_ServerName( const char *name, int size, void *buf )
 	return 1;
 }
 
+int CHud::MsgFunc_WpnBits2( const char *pszName, int iSize, void *pbuf )
+{
+	BufferReader reader( pszName, pbuf, iSize );
+	m_iWeaponBits2 = reader.ReadLong();
+	m_bWeaponBits2Received = true;
+	return 1;
+}
+
 int CHud::MsgFunc_Fog( const char *pszName, int iSize, void *pbuf )
 {
 	//int flags;

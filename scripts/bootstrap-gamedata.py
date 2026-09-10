@@ -513,6 +513,24 @@ def apply_ui_overrides(dest_root: Path) -> list[str]:
     return copied
 
 
+def widen_weapon_id_delta(dest_root: Path) -> list[str]:
+    """Stock CS delta.lst sends m_iId in 5 bits (0–31). Molotov/Inc are 32/33."""
+    rel = "cstrike/delta.lst"
+    path = dest_root / rel
+    if not path.is_file():
+        return []
+    text = path.read_text(encoding="utf-8", errors="strict")
+    patched, n = re.subn(
+        r"(DEFINE_DELTA\(\s*m_iId,\s*DT_INTEGER,\s*)5(,\s*1\.0\s*\))",
+        r"\g<1>6\2",
+        text,
+    )
+    if n == 0:
+        return []
+    path.write_text(patched, encoding="utf-8")
+    return [rel]
+
+
 def repair_cs_hud_sprite_count(dest_root: Path) -> list[str]:
     """Repair Steam's stale cstrike/sprites/hud.txt entry count.
 
@@ -733,6 +751,7 @@ def do_import(args: argparse.Namespace) -> int:
     pruned = prune_stale(dest_root, manifest)
     copied.extend(apply_ui_overrides(dest_root))
     copied.extend(patch_tracker_scheme_menu_item_height(dest_root))
+    copied.extend(widen_weapon_id_delta(dest_root))
     repaired = repair_cs_hud_sprite_count(dest_root)
     copied.extend(strip_tactical_shield_buy_titles(dest_root))
 

@@ -512,11 +512,11 @@ bool CCSBot::EquipGrenade(bool noSmoke)
 
 	if (HasGrenade())
 	{
-		CBasePlayerWeapon *pGrenade = static_cast<CBasePlayerWeapon *>(m_rgpPlayerItems[GRENADE_SLOT]);
-		if (pGrenade)
+		for (CBasePlayerItem *pItem = m_rgpPlayerItems[GRENADE_SLOT]; pItem; pItem = pItem->m_pNext)
 		{
+			CBasePlayerWeapon *pGrenade = static_cast<CBasePlayerWeapon *>(pItem);
 			if (noSmoke && pGrenade->m_iId == WEAPON_SMOKEGRENADE)
-				return false;
+				continue;
 
 			SelectItem(STRING(pGrenade->pev->classname));
 			return true;
@@ -556,7 +556,9 @@ bool CCSBot::IsUsingGrenade() const
 
 	if (pCurrentWeapon->m_iId == WEAPON_SMOKEGRENADE
 		|| pCurrentWeapon->m_iId == WEAPON_FLASHBANG
-		|| pCurrentWeapon->m_iId == WEAPON_HEGRENADE)
+		|| pCurrentWeapon->m_iId == WEAPON_HEGRENADE
+		|| pCurrentWeapon->m_iId == WEAPON_MOLOTOV
+		|| pCurrentWeapon->m_iId == WEAPON_INCGRENADE)
 		return true;
 
 	return false;
@@ -569,6 +571,15 @@ bool CCSBot::IsUsingHEGrenade() const
 		return true;
 
 	return false;
+}
+
+bool CCSBot::IsUsingFireGrenade() const
+{
+	CBasePlayerWeapon *pCurrentWeapon = GetActiveWeapon();
+	if (!pCurrentWeapon)
+		return false;
+
+	return pCurrentWeapon->m_iId == WEAPON_MOLOTOV || pCurrentWeapon->m_iId == WEAPON_INCGRENADE;
 }
 
 // Begin the process of throwing the grenade

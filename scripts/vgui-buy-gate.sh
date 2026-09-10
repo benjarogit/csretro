@@ -131,6 +131,10 @@ terminate_after_failure() {
 
 run_one() {
 	local W="$1" H="$2"
+	local SIDEARM="glock"
+	if [[ "${CSRETRO_BUY_GATE_TEAM:-}" == "ct" ]]; then
+		SIDEARM="usp"
+	fi
 	export CSRETRO_GAMESCOPE_W="${W}"
 	export CSRETRO_GAMESCOPE_H="${H}"
 	export CSRETRO_GAMESCOPE_LOG="${RUN}/gamescope-buy-${W}x${H}.log"
@@ -190,15 +194,24 @@ run_one() {
 		|| fail "Localization der Buy-Hauptseite fehlt ${W}x${H}"
 	rg -q 'CSRETRO_BUY_GATE_OPEN .*shield=0' "${ALL}" \
 		|| fail "Tactical-Shield-Karte noch im Buy-Raster ${W}x${H}"
+	rg -q 'CSRETRO_BUY_GATE_OPEN .*nightvision=0' "${ALL}" \
+		|| fail "Nightvision-Karte noch im Buy-Raster ${W}x${H}"
+	if [[ "${CSRETRO_BUY_GATE_TEAM:-}" == "ct" ]]; then
+		rg -q 'CSRETRO_BUY_GATE_OPEN .*team=2 .*molotov=0 incendiary=1 nightvision=0' "${ALL}" \
+			|| fail "CT-Raster enthält nicht exklusiv Incendiary ${W}x${H}"
+	else
+		rg -q 'CSRETRO_BUY_GATE_OPEN .*team=1 .*molotov=1 incendiary=0 nightvision=0' "${ALL}" \
+			|| fail "T-Raster enthält nicht exklusiv Molotov ${W}x${H}"
+	fi
 	rg -q 'CSRETRO_BUY_CANVAS .*model=1' "${ALL}" \
 		|| fail "Player-MDL auf dieser Auflösung ausgeblendet ${W}x${H}"
 	rg -q 'CSRETRO_BUY_GATE_ESC visible=0' "${ALL}" \
 		|| fail "ESC schließt das Buy-Menü nicht ${W}x${H}"
-	rg -q 'CSRETRO_BUY_GATE_DIRECT command=glock main=1' "${ALL}" \
+	rg -q "CSRETRO_BUY_GATE_DIRECT command=${SIDEARM} main=1" "${ALL}" \
 		|| fail "direkter Rasterkauf fehlt ${W}x${H}"
 	rg -q 'CSRETRO_BUY_GATE_PISTOL' "${ALL}" && fail "Gate öffnet alte Pistolen-Unterseite ${W}x${H}"
-	rg -q 'CSRETRO_BUY_CMD glock' "${ALL}" \
-		|| fail "Taste 1 sendet glock nicht ${W}x${H}"
+	rg -q "CSRETRO_BUY_CMD ${SIDEARM}" "${ALL}" \
+		|| fail "Taste 1 sendet ${SIDEARM} nicht ${W}x${H}"
 	rg -q 'CSRETRO_LOC_MISSING' "${ALL}" && {
 		rg 'CSRETRO_LOC_MISSING' "${ALL}" | head >&2
 		fail "fehlende Localization-Tokens ${W}x${H}"
@@ -208,10 +221,12 @@ run_one() {
 	rg -q '#Cstrike_Class_Info' "${ALL}" && fail "Roh-Token #Cstrike_Class_Info im Log ${W}x${H}"
 
 	mkdir -p "${SHOT_DIR}"
+	local SHOT_SIDE="t"
+	[[ "${CSRETRO_BUY_GATE_TEAM:-}" == "ct" ]] && SHOT_SIDE="ct"
 	find "${RUN}/cstrike" -maxdepth 2 \( -name '*.tga' -o -name '*.bmp' -o -name '*.png' \) \
 		-printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | while read -r _ shot; do
 		[[ -n "${shot}" ]] || continue
-		cp -a "${shot}" "${SHOT_DIR}/buy-${W}x${H}.${shot##*.}" 2>/dev/null || true
+		cp -a "${shot}" "${SHOT_DIR}/buy-${SHOT_SIDE}-${W}x${H}.${shot##*.}" 2>/dev/null || true
 	done
 
 	echo "BUY_GATE PASS ${W}x${H}"

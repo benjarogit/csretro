@@ -367,8 +367,6 @@ public:
 		if (!strncasecmp(command, "jointeam ", 9) || !strcasecmp(command, "spectate"))
 		{
 			Menu_Con("CSRETRO_TEAM_CMD %s", command);
-			if (!strncasecmp(command, "jointeam ", 9))
-				Menu_NotePlayerTeam(atoi(command + 9));
 			char buf[64];
 			snprintf(buf, sizeof(buf), "%s\n", command);
 			MenuEngine::ClientCmdNow(buf);
@@ -423,6 +421,8 @@ private:
 	{
 		m_tModel = new CTeamModelPreview(this, "TerrorModel");
 		m_ctModel = new CTeamModelPreview(this, "CTModel");
+		m_tModel->SetIndependentPlayerState(true);
+		m_ctModel->SetIndependentPlayerState(true);
 	}
 
 	void RandomizeTeamPreviews()
@@ -433,12 +433,16 @@ private:
 			"models/player/arctic/arctic.mdl",
 			"models/player/guerilla/guerilla.mdl",
 		};
+		// The single centered preview needs its own camera-facing calibration;
+		// class-lineup yaws also compensate for each model's lateral offset.
+		static const float terrorYaw = 150.0f;
 		static const char *const ctModels[] = {
 			"models/player/urban/urban.mdl",
 			"models/player/gsg9/gsg9.mdl",
 			"models/player/sas/sas.mdl",
 			"models/player/gign/gign.mdl",
 		};
+		static const float ctYaw = 202.0f;
 		const int oldT = m_tPreviewIndex;
 		const int oldCT = m_ctPreviewIndex;
 		if (m_tPreviewIndex < 0)
@@ -449,11 +453,10 @@ private:
 			m_ctPreviewIndex = gEng.pfnRandomLong(0, 3);
 		else
 			m_ctPreviewIndex = (m_ctPreviewIndex + gEng.pfnRandomLong(1, 3)) % 4;
-		// EF_CSRETRO_PREVIEW now preserves authored yaw on every open. The old
-		// 154-degree value only looked correct while a live player slot rewrote it;
-		// 202 is the stable front-facing T pose also used by the buy preview.
-		m_tModel->SetPreview(terrorModels[m_tPreviewIndex], "models/p_ak47.mdl", 202.0f, 80);
-		m_ctModel->SetPreview(ctModels[m_ctPreviewIndex], "models/p_m4a1.mdl", 206.0f, 33);
+		m_tModel->SetPreview(terrorModels[m_tPreviewIndex], "models/p_ak47.mdl",
+			terrorYaw, 80);
+		m_ctModel->SetPreview(ctModels[m_ctPreviewIndex], "models/p_m4a1.mdl",
+			ctYaw, 33);
 		m_tModel->SetWorldWidth(65.0f);
 		m_ctModel->SetWorldWidth(65.0f);
 		Menu_Con("CSRETRO_TEAM_RANDOM t=%d ct=%d changed=%d", m_tPreviewIndex,
@@ -887,6 +890,8 @@ public:
 		SetPaintBackgroundEnabled(true);
 		SetMouseInputEnabled(true);
 		SetKeyBoardInputEnabled(true);
+		SetZPos(50);
+		SetZPos(50);
 		if (scheme())
 		{
 			const HScheme client = scheme()->GetScheme("ClientScheme");
@@ -986,6 +991,9 @@ bool TeamSelect_Show(Panel *root, int validSlots)
 	host->GetSize(w, h);
 	g_overlay->SetBounds(0, 0, w, h);
 	PauseBackdrop_Invalidate();
+	g_overlay->SetMouseInputEnabled(true);
+	g_overlay->SetKeyBoardInputEnabled(true);
+	g_overlay->SetZPos(50);
 	g_overlay->SetVisible(true);
 	g_overlay->MoveToFront();
 	g_panel->Open(validSlots);
@@ -998,16 +1006,19 @@ bool TeamSelect_Show(Panel *root, int validSlots)
 	return true;
 }
 
-void TeamSelect_Hide()
+void TeamSelect_Hide(bool restoreKeyDest)
 {
 	if (g_overlay && g_overlay->IsVisible())
 		Menu_Con("CSRETRO_TEAM_VGUI close");
 	if (g_panel)
 		g_panel->SetVisible(false);
 	if (g_overlay)
+	{
+		g_overlay->SetMouseInputEnabled(false);
 		g_overlay->SetVisible(false);
+	}
 	PauseBackdrop_Invalidate();
-	if (g_keyDestPushed && !gMenuVisible && !ClassSelect_IsActive() && !BuySelect_IsActive() &&
+	if (restoreKeyDest && g_keyDestPushed && !gMenuVisible && !ClassSelect_IsActive() && !BuySelect_IsActive() &&
 		!RadioSelect_IsActive())
 	{
 		if (gEng.pfnSetKeyDest)

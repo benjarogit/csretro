@@ -259,7 +259,7 @@ COptionsSubKeyboard::ActionAvail COptionsSubKeyboard::ClassifyAction(const char 
 		return ActionAvail::Unavailable;
 
 	// Proven unavailable / no client command in CS Retro product path.
-	if (!strcasecmp(binding, "lookat"))
+	if (!strcasecmp(binding, "lookat") || !strcasecmp(binding, "nightvision"))
 		return ActionAvail::Unavailable;
 
 	// Compatibility: present in classic catalog, engine may no-op but still bindable.

@@ -12,17 +12,18 @@
 // Team-Wahl: CS:GO-Layout (Titel, Emblem, Modell, mittige Listen).
 namespace InGameViewportLook
 {
-inline Color OverlayBg() { return Color(0, 0, 0, 40); }
-inline Color Card() { return Color(16, 16, 18, 220); }
-inline Color CardArmed() { return Color(36, 36, 40, 240); }
+inline Color OverlayBg() { return Color(0, 0, 0, 110); }
+inline Color Card() { return Color(16, 16, 18, 236); }
+inline Color CardArmed() { return Color(36, 36, 40, 248); }
 inline Color Text() { return Color(240, 240, 240, 255); }
-inline Color TextDim() { return Color(190, 190, 190, 255); }
+inline Color TextDim() { return Color(210, 210, 212, 255); }
 inline Color Terror() { return Color(210, 170, 70, 255); }
 inline Color CT() { return Color(90, 170, 230, 255); }
 inline Color BuyGold() { return Color(232, 196, 52, 255); }
-inline Color BuyCell() { return Color(32, 34, 38, 222); }
-inline Color BuyCellArmed() { return Color(78, 80, 86, 242); }
-inline Color BuyPlate() { return Color(16, 17, 19, 196); }
+inline Color BuyCell() { return Color(28, 30, 34, 250); }
+inline Color BuyCellArmed() { return Color(72, 76, 84, 255); }
+inline Color BuyCellDim() { return Color(22, 23, 26, 250); }
+inline Color BuyPlate() { return Color(10, 11, 13, 242); }
 
 // In-game UI grows up to a comfortable 1440x810 workspace, then stays centered.
 // This is deliberately not a fixed 16:9 letterbox: 4:3 and ultrawide keep all
@@ -118,19 +119,19 @@ inline void PaintBuyPlate(int w, int h)
 
 inline void PaintBuyHeader(int w, int h)
 {
-	PaintRoundedRect(0, 0, w, h, std::min(4, h / 5), Color(31, 33, 36, 218));
+	PaintRoundedRect(0, 0, w, h, std::min(4, h / 5), Color(28, 30, 33, 240));
 }
 
-inline void PaintBuyCell(int w, int h, bool armed)
+inline void PaintBuyCell(int w, int h, bool armed, bool dim = false)
 {
 	if (!vgui2::surface() || w < 2 || h < 2)
 		return;
 	const int radius = std::max(3, std::min(5, h / 9));
-	const Color edge = armed ? Color(200, 200, 204, 160) :
-		Color(130, 134, 140, 110);
+	const Color edge = armed ? Color(214, 214, 218, 200) :
+		Color(150, 154, 160, 150);
 	PaintRoundedRect(0, 0, w, h, radius, edge);
 	PaintRoundedRect(1, 1, w - 1, h - 1, std::max(2, radius - 1),
-		armed ? BuyCellArmed() : BuyCell());
+		armed ? BuyCellArmed() : (dim ? BuyCellDim() : BuyCell()));
 }
 
 inline void PaintCardBackground(int w, int h, Color accent, bool armed)
@@ -180,7 +181,9 @@ inline void TeamEmblemMetrics(int sideW, int sideH, int &cx, int &cy, int &radiu
 inline void TeamModelViewport(int sideW, int sideH, int &x, int &y, int &w, int &h)
 {
 	x = 0;
-	y = sideH * 12 / 100;
+	// Keep both title rows clear. Player models intentionally extend above the
+	// emblem, but never into the team count as they did at 720/1080p.
+	y = sideH * 32 / 100;
 	w = sideW;
 	h = std::max(64, sideH - y);
 }
@@ -323,7 +326,7 @@ inline void PaintTeamBackdrop(int w, int h, bool blurred)
 {
 	if (!vgui2::surface() || w < 1 || h < 1)
 		return;
-	vgui2::surface()->DrawSetColor(0, 0, 0, blurred ? 28 : 80);
+	vgui2::surface()->DrawSetColor(0, 0, 0, blurred ? 88 : 120);
 	vgui2::surface()->DrawFilledRect(0, 0, w, h);
 	const int fade = std::max(36, h * 16 / 100);
 	for (int i = 0; i < fade; ++i)

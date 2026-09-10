@@ -14,6 +14,7 @@ void CFlashbang::Spawn()
 	m_iDefaultAmmo = FLASHBANG_DEFAULT_GIVE;
 	m_flStartThrow = 0;
 	m_flReleaseThrow = -1.0f;
+	m_flThrowStrength = 1.0f;
 
 	// Get ready to fall down
 	FallInit();
@@ -55,6 +56,7 @@ int CFlashbang::GetItemInfo(ItemInfo *p)
 BOOL CFlashbang::Deploy()
 {
 	m_flReleaseThrow = -1.0f;
+	m_flThrowStrength = 1.0f;
 	m_fMaxSpeed = FLASHBANG_MAX_SPEED;
 
 	return DefaultDeploy("models/v_flashbang.mdl", "models/p_flashbang.mdl", FLASHBANG_DRAW, "grenade", UseDecrement() != FALSE);
@@ -75,12 +77,24 @@ void CFlashbang::Holster(int skiplocal)
 
 	m_flStartThrow = 0;
 	m_flReleaseThrow = -1.0f;
+	m_flThrowStrength = 1.0f;
 }
 
 void CFlashbang::PrimaryAttack()
 {
+	StartThrow((m_pPlayer->pev->button & IN_ATTACK2) ? 0.5f : 1.0f);
+}
+
+void CFlashbang::SecondaryAttack()
+{
+	StartThrow((m_pPlayer->pev->button & IN_ATTACK) ? 0.5f : 0.0f);
+}
+
+void CFlashbang::StartThrow(float strength)
+{
 	if (!m_flStartThrow && m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] > 0)
 	{
+		m_flThrowStrength = strength;
 		m_flReleaseThrow = 0;
 		m_flStartThrow = gpGlobals->time;
 
@@ -91,6 +105,9 @@ void CFlashbang::PrimaryAttack()
 
 void CFlashbang::WeaponIdle()
 {
+	if (m_pPlayer->pev->button & (IN_ATTACK | IN_ATTACK2))
+		return;
+
 	if (m_flReleaseThrow == 0 && m_flStartThrow != 0.0f)
 		m_flReleaseThrow = gpGlobals->time;
 
@@ -99,24 +116,13 @@ void CFlashbang::WeaponIdle()
 
 	if (m_flStartThrow)
 	{
+		if (!CanCommitGrenadeThrow())
+			return;
+
 		m_pPlayer->Radio("%!MRAD_FIREINHOLE", "#Fire_in_the_hole");
 
-		Vector angThrow = m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle;
-
-		if (angThrow.x < 0)
-			angThrow.x = -10 + angThrow.x * ((90 - 10) / 90.0);
-		else
-			angThrow.x = -10 + angThrow.x * ((90 + 10) / 90.0);
-
-		real_t flVel = (90.0f - angThrow.x) * 6.0f;
-
-		if (flVel > 750.0f)
-			flVel = 750.0f;
-
-		UTIL_MakeVectors(angThrow);
-
-		Vector vecSrc = m_pPlayer->pev->origin + m_pPlayer->pev->view_ofs + gpGlobals->v_forward * 16;
-		Vector vecThrow = gpGlobals->v_forward * flVel + m_pPlayer->pev->velocity;
+		Vector vecSrc, vecThrow;
+		ComputeGrenadeThrow(vecSrc, vecThrow);
 
 		m_pPlayer->ThrowGrenade(this, vecSrc, vecThrow, 1.5);
 

@@ -38,6 +38,8 @@ LAN-Discovery bleibt sinnvoll: eigene CS-Retro-Server im lokalen Netz finden. Di
 
 Nicht Ref-A-ReGameDLL. Nicht der Upstream-CMake/SLN. Kein `CMAKE_POLICY_VERSION_MINIMUM=3.5`.
 
+Native Molotov/Incendiary: `docs/INFERNO.md`. Kein AMXX in der GameDLL.
+
 ## Listen- und Dedicated-Server
 
 Eine GameDLL, eine Spiellogik. Unterschied nur Host-Modus, Konfiguration, optionale Module.

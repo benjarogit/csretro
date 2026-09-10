@@ -186,6 +186,10 @@ run_one() {
 		|| fail "Localization der CT-Labels fehlt ${W}x${H}"
 	rg -q 'CSRETRO_CLASS_GATE_CT .*spetsnaz=0 preview=1' "${ALL}" \
 		|| fail "Spetsnaz auf CS-1.6 ${MAP} darf nicht sichtbar sein ${W}x${H}"
+	rg -q 'CSRETRO_CLASS_GATE_TEAM_REOPEN active=1' "${ALL}" \
+		|| fail "echtes chooseteam nach Spawn öffnet Team-VGUI nicht ${W}x${H}"
+	rg -q 'CSRETRO_CLASS_GATE_SWITCH_DONE class=0 team=0' "${ALL}" \
+		|| fail "Teamwechsel bleibt im Team-/Klassenmenü hängen ${W}x${H}"
 	for model in terror leet arctic guerilla; do
 		rg -q "CSRETRO_TEAM_MODEL path=models/player/${model}/${model}\\.mdl weapon=models/p_ak47\\.mdl player=1 weapon_index=[1-9][0-9]* .*scene=4" "${ALL}" \
 			|| fail "TER-Klassenmodell ${model} fehlt ${W}x${H}"

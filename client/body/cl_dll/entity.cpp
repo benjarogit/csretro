@@ -28,6 +28,7 @@
 #include "particleman_internal.h"
 
 extern vec3_t v_origin;
+void EV_UpdateMolotovHeld(void);
 
 int iOnTrain[MAX_PLAYERS];
 
@@ -214,7 +215,7 @@ void DLLEXPORT HUD_TxferPredictionData ( struct entity_state_s *ps, const struct
 	pcd->vuser3 = ppcd->vuser3;
 	pcd->vuser4 = ppcd->vuser4;
 
-	memcpy( wd, pwd, sizeof( weapon_data_t ) * 32 );
+	memcpy( wd, pwd, sizeof( weapon_data_t ) * MAX_WEAPONS );
 }
 
 /*
@@ -229,6 +230,7 @@ void DLLEXPORT HUD_CreateEntities( void )
 	// Add in any game specific objects
 
 	GetClientVoiceHud()->CreateEntities();
+	EV_UpdateMolotovHeld();
 }
 
 /*

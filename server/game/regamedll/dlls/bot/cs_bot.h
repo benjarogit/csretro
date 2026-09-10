@@ -643,6 +643,7 @@ public:
 
 	bool DoesActiveWeaponHaveSilencer() const;
 	bool IsUsingHEGrenade() const;
+	bool IsUsingFireGrenade() const;
 	void StartRapidFire();
 	void StopRapidFire();
 	bool IsRapidFiring() const;

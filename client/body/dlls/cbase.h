@@ -340,6 +340,7 @@ public:
 	int ammo_357sig;
 	float m_flStartThrow;
 	float m_flReleaseThrow;
+	float m_flThrowStrength;
 	int m_iSwing;
 	bool has_disconnected;
 };

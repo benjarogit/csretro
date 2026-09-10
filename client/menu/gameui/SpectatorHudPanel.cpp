@@ -1,5 +1,7 @@
 #include "SpectatorHudPanel.h"
 
+#include "BuySelectPanel.h"
+#include "ClassSelectPanel.h"
 #include "Controls/MenuEngine.h"
 #include "HudFrameLook.h"
 #include "InGameRoster.h"
@@ -351,7 +353,7 @@ void SpectatorHud_Set(const SpectatorHudState *state)
 		SpectatorHud_Hide();
 		return;
 	}
-	if (gMenuVisible)
+	if (gMenuVisible || TeamSelect_IsActive() || ClassSelect_IsActive() || BuySelect_IsActive())
 	{
 		if (g_panel)
 			g_panel->SetVisible(false);

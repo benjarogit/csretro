@@ -463,41 +463,28 @@ void BuyState::OnUpdate(CCSBot *me)
 			// buy a grenade if we wish, and we don't already have one
 			if (m_buyGrenade && !me->HasGrenade())
 			{
-				if (UTIL_IsTeamAllBots(me->m_iTeam))
-				{
-					// only allow Flashbangs if everyone on the team is a bot (dont want to blind our friendly humans)
-					float rnd = RANDOM_FLOAT(0, 100);
+				// Flash only if the whole team is bots (don't blind humans).
+				const bool allowFlash = UTIL_IsTeamAllBots(me->m_iTeam);
+				const float rnd = RANDOM_FLOAT(0, 100);
+				const float fireChance = allowFlash ? 55.0f : 45.0f;
 
-					if (rnd < 10.0f)
-					{
-						// smoke grenade
-						me->ClientCommand("sgren");
-					}
-					else if (rnd < 35.0f)
-					{
-						// flashbang
-						me->ClientCommand("flash");
-					}
-					else
-					{
-						// he grenade
-						me->ClientCommand("hegren");
-					}
-				}
+				if (rnd < 10.0f)
+					me->ClientCommand("sgren");
+				else if (allowFlash && rnd < 30.0f)
+					me->ClientCommand("flash");
+				else if (me->m_iTeam == TERRORIST && rnd < fireChance)
+					me->ClientCommand("molotov");
+				else if (me->m_iTeam == CT && rnd < fireChance)
+					me->ClientCommand("incgrenade");
 				else
-				{
-					if (RANDOM_FLOAT(0, 100) < 10.0f)
-					{
-						// smoke grenade
-						me->ClientCommand("sgren");
-					}
-					else
-					{
-						// he grenade
-						me->ClientCommand("hegren");
-					}
-				}
+					me->ClientCommand("hegren");
 			}
+
+			// Fire nades are extra inventory, same as a human buying molotov on top of HE.
+			if (me->m_iTeam == TERRORIST && !me->HasWeaponBit(WEAPON_MOLOTOV) && RANDOM_FLOAT(0, 100) < 40.0f)
+				me->ClientCommand("molotov");
+			else if (me->m_iTeam == CT && !me->HasWeaponBit(WEAPON_INCGRENADE) && RANDOM_FLOAT(0, 100) < 40.0f)
+				me->ClientCommand("incgrenade");
 
 			if (m_buyDefuseKit)
 			{

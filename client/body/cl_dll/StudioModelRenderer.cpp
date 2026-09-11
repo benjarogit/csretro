@@ -38,6 +38,7 @@
 #include "GameStudioModelRenderer.h"
 
 #include "event_api.h"
+#include "events.h"
 #include "pm_defs.h"
 
 #include "com_weapons.h"
@@ -917,6 +918,32 @@ int CStudioModelRenderer::StudioDrawModel(int flags)
 		StudioSetupBones();
 
 	StudioSaveBones();
+
+	if (bIsViewModel && m_pRenderModel && strstr(m_pRenderModel->name, "v_molotov"))
+	{
+		int wick = -1;
+		for (int i = 0; i < m_nCachedBones; i++)
+		{
+			if (!stricmp(m_nCachedBoneNames[i], "ragslave2"))
+			{
+				wick = i;
+				break;
+			}
+			if (wick < 0 && !stricmp(m_nCachedBoneNames[i], "ragslave1"))
+				wick = i;
+			if (wick < 0 && !stricmp(m_nCachedBoneNames[i], "ragboss"))
+				wick = i;
+		}
+		if (wick >= 0)
+		{
+			const float org[3] = {
+				m_rgCachedBoneTransform[wick][0][3],
+				m_rgCachedBoneTransform[wick][1][3],
+				m_rgCachedBoneTransform[wick][2][3]
+			};
+			EV_CaptureMolotovWickOrigin(org, m_pCurrentEntity);
+		}
+	}
 
 	if (flags & STUDIO_EVENTS)
 	{

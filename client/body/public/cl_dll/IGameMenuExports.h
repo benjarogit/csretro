@@ -109,6 +109,9 @@ public:
 
 	// Buy-Menü: echte Client-HUD-Werte statt eines beim Öffnen geratenen Timers.
 	virtual void  SetBuyHud( const BuyHudState *state ) = 0;
+
+	// Round restart / sv_restart: close the in-game developer console.
+	virtual void  CloseDeveloperConsole( void ) = 0;
 };
 
 #define GAMEMENUEXPORTS_INTERFACE_VERSION "GameMenuExports001"

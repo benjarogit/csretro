@@ -17,5 +17,7 @@ int BuySelect_MenuType();
 void BuySelect_GateTick();
 void BuySelect_AfterFrame();
 void BuySelect_RememberClass(const char *modelStem);
+// Shared with the live team preview. Returns nullptr before a class is known.
+const char *BuySelect_PlayerClass(bool ct);
 void BuySelect_SetHud(const BuyHudState *state);
 void BuySelect_Shutdown();

@@ -280,6 +280,7 @@ public:
 	void FireRemaining(int &shotsFired, float &shootTime, BOOL isGlock18);
 	bool HasSecondaryAttack(void);
 	bool IsGrenade(void) const;
+	bool CanStartGrenadePin(void) const;
 	static float GrenadeThrowStrengthFromButtons(int buttons);
 	BOOL CanHolsterGrenadeThrow(void) const;
 	bool CanCommitGrenadeThrow(void) const;

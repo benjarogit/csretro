@@ -453,6 +453,24 @@ private:
 			m_ctPreviewIndex = gEng.pfnRandomLong(0, 3);
 		else
 			m_ctPreviewIndex = (m_ctPreviewIndex + gEng.pfnRandomLong(1, 3)) % 4;
+		// Once joined, preserve the owner's class; only the other team's
+		// representative is random. Opening this menu must not erase joinclass.
+		static const char *const tStems[] = {"terror", "leet", "arctic", "guerilla"};
+		static const char *const ctStems[] = {"urban", "gsg9", "sas", "gign"};
+		int localTeam = 0;
+		const ScoreboardHudState &roster = InGameRoster_Get();
+		for (int i = 0; i < roster.playerCount && i < CSRETRO_SCOREBOARD_PLAYERS; ++i)
+			if (roster.players[i].thisPlayer)
+				localTeam = roster.players[i].team;
+		const char *ownT = localTeam == 1 ? BuySelect_PlayerClass(false) : nullptr;
+		const char *ownCT = localTeam == 2 ? BuySelect_PlayerClass(true) : nullptr;
+		for (int i = 0; i < 4; ++i)
+		{
+			if (ownT && !strcmp(ownT, tStems[i]))
+				m_tPreviewIndex = i;
+			if (ownCT && !strcmp(ownCT, ctStems[i]))
+				m_ctPreviewIndex = i;
+		}
 		m_tModel->SetPreview(terrorModels[m_tPreviewIndex], "models/p_ak47.mdl",
 			terrorYaw, 80);
 		m_ctModel->SetPreview(ctModels[m_ctPreviewIndex], "models/p_m4a1.mdl",
@@ -955,7 +973,6 @@ bool g_keyDestPushed = false;
 
 bool TeamSelect_Show(Panel *root, int validSlots)
 {
-	BuySelect_RememberClass(nullptr);
 	if (!g_overlay)
 	{
 		if (!root)
@@ -1021,8 +1038,7 @@ void TeamSelect_Hide(bool restoreKeyDest)
 	if (restoreKeyDest && g_keyDestPushed && !gMenuVisible && !ClassSelect_IsActive() && !BuySelect_IsActive() &&
 		!RadioSelect_IsActive())
 	{
-		if (gEng.pfnSetKeyDest)
-			gEng.pfnSetKeyDest(KEY_DEST_GAME);
+		MenuEngine::RestoreGameKeyDest();
 		g_keyDestPushed = false;
 	}
 }

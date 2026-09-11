@@ -2,11 +2,19 @@
 
 #include "../../src/menu_priv.h"
 #include "../../vgui/xash_key_contract.h"
+#include "keydefs.h"
 
+#ifndef KEY_DEST_GAME
+#define KEY_DEST_GAME 1
+#endif
+
+#include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <string>
 #include <strings.h>
+#include <vector>
 
 namespace MenuEngine
 {
@@ -75,6 +83,39 @@ void SetKeyDest(int destination)
 {
 	if (gEng.pfnSetKeyDest)
 		gEng.pfnSetKeyDest(destination);
+}
+
+namespace
+{
+bool s_pendingGameKeyDest = false;
+
+bool Mouse1PhysicallyDown()
+{
+	return gEng.pfnKeyIsDown && gEng.pfnKeyIsDown(K_MOUSE1);
+}
+} // namespace
+
+void RestoreGameKeyDest()
+{
+	if (Mouse1PhysicallyDown())
+	{
+		s_pendingGameKeyDest = true;
+		Menu_Con("CSRETRO_INPUT defer_game_dest mouse1_down");
+		return;
+	}
+	s_pendingGameKeyDest = false;
+	SetKeyDest(KEY_DEST_GAME);
+}
+
+void PollPendingGameKeyDest()
+{
+	if (!s_pendingGameKeyDest)
+		return;
+	if (Mouse1PhysicallyDown())
+		return;
+	s_pendingGameKeyDest = false;
+	Menu_Con("CSRETRO_INPUT restore_game_dest");
+	SetKeyDest(KEY_DEST_GAME);
 }
 
 bool IsKeyDown(const char *keyName, bool &isDown)
@@ -195,5 +236,46 @@ void EnableTextInput(bool enable)
 	if (!HasExtendedEngfuncs())
 		return;
 	gExtEng.pfnEnableTextInput(enable ? 1 : 0);
+}
+
+void CollectConsoleCompletions(const char *prefix, std::vector<std::string> *names)
+{
+	if (!names)
+		return;
+	names->clear();
+	if (!prefix || !*prefix)
+		return;
+	if (std::strchr(prefix, ' '))
+		return;
+	if (!gExtEngReady || !gExtEng.pfnGetFirstCmdFunctionHandle || !gExtEng.pfnGetNextCmdFunctionHandle ||
+		!gExtEng.pfnGetCmdFunctionName)
+		return;
+
+	const size_t prefixLen = std::strlen(prefix);
+	auto prefixMatch = [prefix, prefixLen](const char *name) -> bool {
+		if (!name || !*name)
+			return false;
+		return strncasecmp(name, prefix, prefixLen) == 0;
+	};
+
+	for (void *cmd = gExtEng.pfnGetFirstCmdFunctionHandle(); cmd;
+		 cmd = gExtEng.pfnGetNextCmdFunctionHandle(cmd))
+	{
+		const char *name = gExtEng.pfnGetCmdFunctionName(cmd);
+		if (prefixMatch(name))
+			names->emplace_back(name);
+	}
+
+	if (gExtEng.pfnGetFirstCvarPtr)
+	{
+		for (cvar_t *cv = gExtEng.pfnGetFirstCvarPtr(); cv; cv = cv->next)
+		{
+			if (prefixMatch(cv->name))
+				names->emplace_back(cv->name);
+		}
+	}
+
+	std::sort(names->begin(), names->end());
+	names->erase(std::unique(names->begin(), names->end()), names->end());
 }
 } // namespace MenuEngine

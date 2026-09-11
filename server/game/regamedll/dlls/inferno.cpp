@@ -3,12 +3,46 @@
 namespace
 {
 const InfernoConfig kMolotovConfig = {
-	40.0f, 0.20f, 7.0f, 150.0f, 1.0f, INFERNO_MAX_FLAMES, 42.0f, 4, 45.0f
+	32.0f, 0.20f, 7.0f, 150.0f, 1.0f, INFERNO_MAX_FLAMES, 42.0f, 4, 45.0f
 };
 
 const InfernoConfig kIncendiaryConfig = {
-	40.0f, 0.20f, 5.5f, 110.0f, 10.0f, INFERNO_MAX_FLAMES, 42.0f, 4, 45.0f
+	32.0f, 0.20f, 5.5f, 110.0f, 10.0f, INFERNO_MAX_FLAMES, 42.0f, 4, 45.0f
 };
+
+int g_iMolotovGroundSpr;
+int g_iIncGroundSpr;
+
+void InfernoTempSprite(const Vector &origin, int modelIndex, int scaleTenths)
+{
+	if (modelIndex <= 0)
+		return;
+	MESSAGE_BEGIN(MSG_PVS, SVC_TEMPENTITY, origin);
+		WRITE_BYTE(TE_SPRITE);
+		WRITE_COORD(origin.x);
+		WRITE_COORD(origin.y);
+		WRITE_COORD(origin.z + 2.0f);
+		WRITE_SHORT(modelIndex);
+		WRITE_BYTE(scaleTenths);
+		WRITE_BYTE(180);
+	MESSAGE_END();
+}
+
+void InfernoTempLight(const Vector &origin)
+{
+	MESSAGE_BEGIN(MSG_PVS, SVC_TEMPENTITY, origin);
+		WRITE_BYTE(TE_DLIGHT);
+		WRITE_COORD(origin.x);
+		WRITE_COORD(origin.y);
+		WRITE_COORD(origin.z + 8.0f);
+		WRITE_BYTE(16);
+		WRITE_BYTE(255);
+		WRITE_BYTE(110);
+		WRITE_BYTE(35);
+		WRITE_BYTE(10);
+		WRITE_BYTE(12);
+	MESSAGE_END();
+}
 }
 
 bool Inferno_IsActiveSmokeGrenade(CGrenade *pGrenade)
@@ -85,8 +119,8 @@ void CInferno::Precache()
 	PRECACHE_SOUND("weapons/grenade/molotov_idle_loop.wav");
 	PRECACHE_SOUND("weapons/grenade/molotov_hit.wav");
 	PRECACHE_SOUND("weapons/grenade/molotov_gibs.wav");
-	PRECACHE_MODEL("sprites/grenade/molotov_fire_ground.spr");
-	PRECACHE_MODEL("sprites/grenade/incendiary_fire_ground.spr");
+	g_iMolotovGroundSpr = PRECACHE_MODEL("sprites/grenade/molotov_fire_ground.spr");
+	g_iIncGroundSpr = PRECACHE_MODEL("sprites/grenade/incendiary_fire_ground.spr");
 	PRECACHE_MODEL("sprites/grenade/molotov_fire_column.spr");
 }
 
@@ -136,8 +170,21 @@ void CInferno::Playback(int mode, const Vector &origin)
 	if (!m_usEvent)
 		return;
 
-	PLAYBACK_EVENT_FULL(FEV_RELIABLE, nullptr, m_usEvent, 0, (float *)&origin, (float *)&g_vecZero,
-		m_flExpireTime - gpGlobals->time, m_config.flameLifetime, mode, m_iWeaponId, FALSE, FALSE);
+	Vector eventOrigin = origin;
+	PLAYBACK_EVENT_FULL(FEV_RELIABLE | FEV_GLOBAL, edict(), m_usEvent, 0,
+		(float *)&eventOrigin, (float *)&g_vecZero,
+		Q_max(m_flExpireTime - gpGlobals->time, 0.1f), m_config.flameLifetime,
+		mode, m_iWeaponId, FALSE, FALSE);
+
+	// GoldSrc tempents as a visible floor mark even if the client event is dropped.
+	if (mode != INFERNO_EV_EXTINGUISH)
+	{
+		const int spr = (m_iWeaponId == WEAPON_INCGRENADE && g_iIncGroundSpr > 0)
+			? g_iIncGroundSpr : g_iMolotovGroundSpr;
+		InfernoTempSprite(origin, spr, mode == INFERNO_EV_START ? 10 : 7);
+		if (mode == INFERNO_EV_START)
+			InfernoTempLight(origin);
+	}
 }
 
 void CInferno::Extinguish()
@@ -272,9 +319,8 @@ bool CInferno::NodeCanBurnPlayer(const InfernoNode &node, CBasePlayer *pPlayer) 
 void CInferno::DamageTick()
 {
 	const float age = gpGlobals->time - m_flSpawnTime;
-	int tickDamage = 1 + (int)(age / m_config.damageInterval);
-	if (tickDamage > 8)
-		tickDamage = 8;
+	const float tickDamage = Q_min(1.0f + (float)(int)(age / m_config.damageInterval),
+		m_config.damagePerSecond * m_config.damageInterval);
 
 	CBaseEntity *pEntity = nullptr;
 	while ((pEntity = UTIL_FindEntityByClassname(pEntity, "player")))

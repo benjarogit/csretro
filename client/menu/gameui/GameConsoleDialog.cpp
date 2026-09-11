@@ -4,12 +4,13 @@
 #include "../vgui/window_geometry.h"
 
 #include "KeyValues.h"
-#include "vgui/IInput.h"
+#include "vgui/IInputInternal.h"
 #include "vgui/IScheme.h"
 #include "vgui/ISurfaceNext.h"
 #include "vgui/KeyCode.h"
 #include "vgui_controls/Button.h"
 #include "vgui_controls/Frame.h"
+#include "vgui_controls/Panel.h"
 #include "vgui_controls/RichText.h"
 #include "vgui_controls/TextEntry.h"
 
@@ -17,6 +18,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <strings.h>
 #include <string>
 #include <vector>
 
@@ -30,6 +32,7 @@ constexpr int kPreferredWide = 560;
 constexpr int kPreferredTall = 400;
 constexpr int kMinimumWide = 420;
 constexpr int kMinimumTall = 240;
+constexpr int kMaxCompletionMenu = 8;
 
 class CGameConsoleDialog;
 CGameConsoleDialog *g_dialog = nullptr;
@@ -44,6 +47,31 @@ bool ConsoleDebugEnabled()
 
 void RestoreInputAfterClose();
 
+bool TokenStartsCommand(const char *line, const char *cmd)
+{
+	if (!line || !cmd || !*cmd)
+		return false;
+	const size_t n = std::strlen(cmd);
+	if (strncasecmp(line, cmd, n) != 0)
+		return false;
+	const unsigned char next = static_cast<unsigned char>(line[n]);
+	return next == '\0' || std::isspace(next);
+}
+
+bool CommandClosesConsole(const char *line)
+{
+	static const char *const kClose[] = {
+		"sv_restart", "sv_restartround", "restart", "_restart",
+		"map", "changelevel", "reconnect", "disconnect", "quit", "exit",
+	};
+	for (const char *cmd : kClose)
+	{
+		if (TokenStartsCommand(line, cmd))
+			return true;
+	}
+	return false;
+}
+
 class CConsoleEntry final : public TextEntry
 {
 	DECLARE_CLASS_SIMPLE_OVERRIDE(CConsoleEntry, TextEntry);
@@ -57,6 +85,18 @@ public:
 
 	void OnKeyCodeTyped(KeyCode code) override
 	{
+		if (code == KEY_TAB)
+		{
+			const bool reverse = input() &&
+				(input()->IsKeyDown(KEY_LSHIFT) || input()->IsKeyDown(KEY_RSHIFT));
+			PostMessage(GetParent(), new KeyValues("ConsoleComplete", "reverse", reverse ? 1 : 0));
+			return;
+		}
+		if (code == KEY_ENTER || code == KEY_PAD_ENTER)
+		{
+			PostMessage(GetParent(), new KeyValues("TextNewLine"));
+			return;
+		}
 		if (code == KEY_UP || code == KEY_DOWN)
 		{
 			PostMessage(GetParent(), new KeyValues("ConsoleHistory", "direction", code == KEY_UP ? -1 : 1));
@@ -89,6 +129,70 @@ Color ColorForCode(char code, const Color &fallback)
 	}
 }
 
+// Suggestions must not steal focus. vgui Menu is a popup that RequestFocus()
+// and eats Enter/typing — that made the console unusable after the first match.
+class CSuggestionList final : public Panel
+{
+	DECLARE_CLASS_SIMPLE_OVERRIDE(CSuggestionList, Panel);
+
+public:
+	CSuggestionList(Panel *parent, const char *name) : BaseClass(parent, name)
+	{
+		SetPaintBackgroundEnabled(true);
+		SetPaintBorderEnabled(false);
+		SetKeyBoardInputEnabled(false);
+		SetMouseInputEnabled(true);
+		SetVisible(false);
+		SetZPos(80);
+	}
+
+	void ApplySchemeSettings(IScheme *scheme) override
+	{
+		BaseClass::ApplySchemeSettings(scheme);
+		SetBgColor(scheme->GetColor("Menu.BgColor", Color(22, 26, 22, 240)));
+		SetFgColor(scheme->GetColor("Menu.TextColor", Color(216, 222, 211, 255)));
+		m_armedBg = scheme->GetColor("Menu.ArmedBgColor", Color(70, 80, 55, 255));
+		m_text = scheme->GetColor("Menu.TextColor", Color(216, 222, 211, 255));
+		m_armedText = scheme->GetColor("Menu.ArmedTextColor", Color(255, 255, 255, 255));
+	}
+
+	void SetNames(const std::vector<std::string> &names, int selected)
+	{
+		while (GetChildCount() > 0)
+			delete GetChild(0);
+		const int shown = std::min(static_cast<int>(names.size()), kMaxCompletionMenu);
+		constexpr int rowH = 20;
+		for (int i = 0; i < shown; ++i)
+		{
+			auto *btn = new Button(this, "Suggest", names[static_cast<size_t>(i)].c_str(), this,
+				names[static_cast<size_t>(i)].c_str());
+			btn->SetKeyBoardInputEnabled(false);
+			btn->SetMouseInputEnabled(true);
+			btn->SetContentAlignment(Label::a_west);
+			btn->SetPaintBackgroundEnabled(true);
+			btn->SetBgColor(i == selected ? m_armedBg : GetBgColor());
+			btn->SetFgColor(i == selected ? m_armedText : m_text);
+			btn->SetBounds(0, i * rowH, std::max(1, GetWide()), rowH);
+		}
+		SetTall(std::max(1, shown * rowH));
+		SetVisible(shown > 0);
+	}
+
+	void OnCommand(const char *command) override
+	{
+		if (!command || !*command)
+			return;
+		KeyValues *kv = new KeyValues("CompletionCommand");
+		kv->SetString("command", command);
+		PostActionSignal(kv);
+	}
+
+private:
+	Color m_armedBg{70, 80, 55, 255};
+	Color m_text{216, 222, 211, 255};
+	Color m_armedText{255, 255, 255, 255};
+};
+
 class CGameConsoleDialog : public Frame
 {
 	DECLARE_CLASS_SIMPLE_OVERRIDE(CGameConsoleDialog, Frame);
@@ -111,6 +215,9 @@ public:
 		m_entry->AddActionSignalTarget(this);
 
 		m_submit = new Button(this, "ConsoleSubmit", "#GameUI_Submit", this, "submit");
+
+		m_completionMenu = new CSuggestionList(this, "CompletionList");
+		m_completionMenu->AddActionSignalTarget(this);
 	}
 
 	void Append(const char *text)
@@ -161,6 +268,7 @@ public:
 		Activate();
 		MoveToFront();
 		m_entry->RequestFocus();
+		RebuildCompletions();
 	}
 
 protected:
@@ -190,6 +298,7 @@ protected:
 			std::max(1, contentWide - buttonWide - gap), rowTall);
 		m_submit->SetBounds(x + margin + contentWide - buttonWide,
 			y + margin + historyTall + gap, buttonWide, rowTall);
+		PlaceCompletionMenu();
 	}
 
 	void OnCommand(const char *command) override
@@ -204,6 +313,7 @@ protected:
 
 	void OnClose() override
 	{
+		HideCompletions();
 		SaveGeometry();
 		BaseClass::OnClose();
 		if (!g_shuttingDown)
@@ -211,15 +321,38 @@ protected:
 	}
 
 	MESSAGE_FUNC(OnTextNewLine, "TextNewLine") { Submit(); }
+	MESSAGE_FUNC(OnTextChanged, "TextChanged")
+	{
+		if (m_ignoreTextChanged)
+			return;
+		m_autoComplete = false;
+		m_nextCompletion = 0;
+		RebuildCompletions();
+	}
 	MESSAGE_FUNC(OnConsoleClose, "ConsoleClose") { GameConsole_Hide(); }
 	MESSAGE_FUNC_INT(OnConsoleHistory, "ConsoleHistory", direction)
 	{
+		HideCompletions();
 		NavigateHistory(direction);
+	}
+	MESSAGE_FUNC_INT(OnConsoleComplete, "ConsoleComplete", reverse)
+	{
+		CycleCompletion(reverse != 0);
+	}
+	MESSAGE_FUNC_PARAMS(OnCompletionCommand, "CompletionCommand", kv)
+	{
+		if (!kv)
+			return;
+		const char *command = kv->GetString("command", "");
+		if (!command || !*command)
+			return;
+		ApplyCompletion(command);
 	}
 
 private:
 	void Submit()
 	{
+		HideCompletions();
 		char text[1024];
 		m_entry->GetText(text, sizeof(text));
 		char *begin = text;
@@ -240,11 +373,14 @@ private:
 		echo += begin;
 		echo.push_back('\n');
 		MenuEngine::ConsolePrint(echo.c_str());
+		const bool closeAfter = CommandClosesConsole(begin);
 		std::string command(begin);
 		command.push_back('\n');
 		MenuEngine::ClientCmdNow(command.c_str());
 		m_entry->SetText("");
 		m_entry->RequestFocus();
+		if (closeAfter)
+			GameConsole_Hide();
 	}
 
 	void NavigateHistory(int direction)
@@ -274,6 +410,95 @@ private:
 		m_entry->GotoTextEnd();
 	}
 
+	void RebuildCompletions()
+	{
+		char text[1024];
+		m_entry->GetText(text, sizeof(text));
+		char *begin = text;
+		while (*begin && std::isspace(static_cast<unsigned char>(*begin)))
+			++begin;
+		MenuEngine::CollectConsoleCompletions(begin, &m_completions);
+		RefreshCompletionMenu();
+	}
+
+	void RefreshCompletionMenu()
+	{
+		if (!m_completionMenu)
+			return;
+		if (m_completions.empty())
+		{
+			m_completionMenu->SetVisible(false);
+			return;
+		}
+
+		// GoldSrc: TAB completes in the entry. A visible list still eats clicks
+		// and looks like a second UI; keep matches for TAB only.
+		m_completionMenu->SetVisible(false);
+		if (m_entry)
+			m_entry->RequestFocus();
+	}
+
+	void PlaceCompletionMenu()
+	{
+		if (!m_completionMenu || !m_entry)
+			return;
+		int ex = 0, ey = 0, ew = 0, eh = 0;
+		m_entry->GetBounds(ex, ey, ew, eh);
+		m_completionMenu->SetPos(ex, ey + eh);
+		m_completionMenu->SetWide(std::max(ew, 180));
+	}
+
+	void HideCompletions()
+	{
+		m_autoComplete = false;
+		m_nextCompletion = 0;
+		if (m_completionMenu)
+			m_completionMenu->SetVisible(false);
+	}
+
+	void CycleCompletion(bool reverse)
+	{
+		if (m_completions.empty())
+			RebuildCompletions();
+		if (m_completions.empty())
+			return;
+
+		const int n = static_cast<int>(m_completions.size());
+		if (!m_autoComplete)
+		{
+			m_autoComplete = true;
+			m_nextCompletion = reverse ? n - 1 : 0;
+		}
+		else if (reverse)
+		{
+			--m_nextCompletion;
+			if (m_nextCompletion < 0)
+				m_nextCompletion = n - 1;
+		}
+		else
+		{
+			++m_nextCompletion;
+			if (m_nextCompletion >= n)
+				m_nextCompletion = 0;
+		}
+
+		ApplyCompletion(m_completions[static_cast<size_t>(m_nextCompletion)].c_str());
+	}
+
+	void ApplyCompletion(const char *name)
+	{
+		if (!name || !*name)
+			return;
+		std::string filled(name);
+		if (filled.find(' ') == std::string::npos)
+			filled.push_back(' ');
+		m_ignoreTextChanged = true;
+		m_entry->SetText(filled.c_str());
+		m_entry->GotoTextEnd();
+		m_ignoreTextChanged = false;
+		m_entry->RequestFocus();
+	}
+
 	void SaveGeometry()
 	{
 		int x = 0, y = 0, w = 0, h = 0;
@@ -284,10 +509,15 @@ private:
 	RichText *m_historyView = nullptr;
 	CConsoleEntry *m_entry = nullptr;
 	Button *m_submit = nullptr;
+	CSuggestionList *m_completionMenu = nullptr;
 	Color m_printColor{216, 222, 211, 255};
 	std::vector<std::string> m_commandHistory;
+	std::vector<std::string> m_completions;
 	size_t m_historyPosition = 0;
 	std::string m_draft;
+	bool m_autoComplete = false;
+	bool m_ignoreTextChanged = false;
+	int m_nextCompletion = 0;
 };
 
 void RestoreInputAfterClose()
@@ -358,8 +588,8 @@ bool GameConsole_Toggle()
 
 	g_returnToMenu = gMenuVisible;
 	MenuEngine::SetKeyDest(2); // key_menu routes input through VGUI2
-	// The extended MenuAPI deliberately leaves SDL text input under the menu's
-	// control.  Enable it only while this TextEntry owns keyboard input.
+	// Overlay, not a full menu: UI_IsVisible stays false so the world/HUD keep
+	// rendering. Keys still go to VGUI because dest is key_menu.
 	MenuEngine::EnableTextInput(true);
 	g_dialog->ActivateConsole();
 	if (ConsoleDebugEnabled())

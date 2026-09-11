@@ -324,6 +324,17 @@ bool CBasePlayerWeapon::IsGrenade() const
 	return false;
 }
 
+bool CBasePlayerWeapon::CanStartGrenadePin() const
+{
+	if (!IsGrenade() || m_flStartThrow != 0.0f || !m_pPlayer)
+		return false;
+
+	if (m_iPrimaryAmmoType < 0)
+		return false;
+
+	return m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] > 0;
+}
+
 float CBasePlayerWeapon::GrenadeThrowStrengthFromButtons(int buttons)
 {
 	if ((buttons & IN_ATTACK) && (buttons & IN_ATTACK2))
@@ -436,6 +447,8 @@ BOOL CBasePlayerWeapon :: DefaultDeploy( const char *szViewModel, const char *sz
 	SendWeaponAnim( iAnim, skiplocal );
 
 	m_pPlayer->m_flNextAttack = 0.75f;
+	if (IsGrenade())
+		m_flNextPrimaryAttack = m_flNextSecondaryAttack = -0.001f;
 	m_flTimeWeaponIdle = 1.5f;
 	return TRUE;
 }
@@ -596,7 +609,9 @@ void CBasePlayerWeapon::ItemPostFrame( void )
 	if (IsGrenade())
 		UpdateGrenadeCookStrength();
 
-	if ((button & IN_ATTACK2) && m_flNextSecondaryAttack <= UTIL_WeaponTimeBase())
+	const bool grenadePin = CanStartGrenadePin();
+
+	if ((button & IN_ATTACK2) && (grenadePin || m_flNextSecondaryAttack <= UTIL_WeaponTimeBase()))
 	{
 		if (pszAmmo2() && !m_pPlayer->m_rgAmmo[m_iSecondaryAmmoType])
 			m_fFireOnEmpty = TRUE;
@@ -604,7 +619,7 @@ void CBasePlayerWeapon::ItemPostFrame( void )
 		SecondaryAttack();
 		m_pPlayer->pev->button &= ~IN_ATTACK2;
 	}
-	else if ((m_pPlayer->pev->button & IN_ATTACK) && m_flNextPrimaryAttack <= UTIL_WeaponTimeBase())
+	else if ((m_pPlayer->pev->button & IN_ATTACK) && (grenadePin || m_flNextPrimaryAttack <= UTIL_WeaponTimeBase()))
 	{
 		if ((!m_iClip && pszAmmo1()) || (iMaxClip() == WEAPON_NOCLIP && !m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType]))
 			m_fFireOnEmpty = TRUE;
@@ -1276,7 +1291,7 @@ void HUD_WeaponsPostThink( local_state_s *from, local_state_s *to, usercmd_t *cm
 		if( g_bHoldingKnife && pWeapon->m_iClientWeaponState &&
 				player.pev->button & IN_FORWARD )
 			player.m_flNextAttack = 0;
-		else if( player.m_flNextAttack <= 0 )
+		else if( pWeapon && ( player.m_flNextAttack <= 0 || pWeapon->IsGrenade() ) )
 		{
 			pWeapon->ItemPostFrame();
 		}
@@ -1343,8 +1358,12 @@ void HUD_WeaponsPostThink( local_state_s *from, local_state_s *to, usercmd_t *cm
 	// Make sure that weapon animation matches what the game .dll is telling us
 	//  over the wire ( fixes some animation glitches )
 	if ( g_runfuncs && ( HUD_GetWeaponAnim() != to->client.weaponanim ) )
-		// Force a fixed anim down to viewmodel
-		HUD_SendWeaponAnim( to->client.weaponanim, to->client.m_iId, 2, 1 );
+	{
+		// Stock CS passes body 2. Grenade viewmodels use body 0 (Zippo/rag
+		// groups). Forcing 2 hides the prepared nade.
+		const int body = (pWeapon && pWeapon->IsGrenade()) ? 0 : 2;
+		HUD_SendWeaponAnim( to->client.weaponanim, to->client.m_iId, body, 1 );
+	}
 
 	if (pWeapon->m_iPrimaryAmmoType < MAX_AMMO_TYPES)
 	{

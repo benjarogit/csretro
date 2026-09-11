@@ -211,10 +211,18 @@ GlyphEntry *EnsureGlyph(HFont font, uint32_t codepoint)
 	FT_GlyphSlot slot = fi->face->glyph;
 	const int bearingX = slot->bitmap_left;
 	const int bearingY = slot->bitmap_top;
-	const int advance = static_cast<int>(slot->advance.x >> 6);
-	const int a = static_cast<int>(slot->metrics.horiBearingX >> 6);
-	const int b = static_cast<int>(slot->metrics.width >> 6);
-	const int c = advance - a - b;
+	int advance = static_cast<int>(slot->advance.x >> 6);
+	int a = static_cast<int>(slot->metrics.horiBearingX >> 6);
+	int b = static_cast<int>(slot->metrics.width >> 6);
+	int c = advance - a - b;
+	// A zero-advance space collapses "BUY TIME" into BUYTIME on every label.
+	if( codepoint == 32u && advance < std::max( 3, fi->tall / 4 ))
+	{
+		advance = std::max( 3, fi->tall / 4 );
+		a = 0;
+		b = advance;
+		c = 0;
+	}
 
 	GlyphEntry entry;
 	entry.bearingX = bearingX;

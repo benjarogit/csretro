@@ -10,7 +10,7 @@
 #define INCGRENADE_PIN_TIME 0.8f
 #endif
 #ifndef INCGRENADE_THROW_TIME
-#define INCGRENADE_THROW_TIME 1.2f
+#define INCGRENADE_THROW_TIME 0.75f
 #endif
 
 enum incgrenade_e
@@ -92,7 +92,8 @@ void CIncendiary::ItemPostFrame(void)
 
 		if (!m_bHeldIdle && m_flTimeWeaponIdle <= UTIL_WeaponTimeBase())
 		{
-			SendWeaponAnim(INCGRENADE_IDLE, UseDecrement() != FALSE);
+			// Keep the last pinpull frame (pin out, spoon held). Idle is the
+			// rest pose and looks like nothing is prepared.
 			m_bHeldIdle = true;
 		}
 	}
@@ -159,7 +160,7 @@ void CIncendiary::WeaponIdle(void)
 		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + INCGRENADE_THROW_TIME;
 
 		if (--m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] <= 0)
-			m_flTimeWeaponIdle = m_flNextSecondaryAttack = m_flNextPrimaryAttack = GetNextAttackDelay(INCGRENADE_THROW_TIME);
+			m_flTimeWeaponIdle = m_flNextSecondaryAttack = m_flNextPrimaryAttack = GetNextAttackDelay(0.5f);
 	}
 	else if (m_flReleaseThrow > 0)
 	{

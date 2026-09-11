@@ -93,18 +93,21 @@ struct ClassPreview
 	int sequence;
 };
 
+// Official CS 1.6 slots, left → right. Camera looks +X, so +Y is screen-left.
+// Negative laterals put the model on the right; the previous signs mirrored
+// Phoenix onto Guerrilla's card (and Elite Crew onto Arctic).
 const ClassPreview kTerPreviews[] = {
-	{"terror", "models/player/terror/terror.mdl", 158.0f, -78.0f, 80},
-	{"leet", "models/player/leet/leet.mdl", 169.0f, -26.0f, 80},
-	{"arctic", "models/player/arctic/arctic.mdl", 191.0f, 26.0f, 80},
-	{"guerilla", "models/player/guerilla/guerilla.mdl", 202.0f, 78.0f, 80},
+	{"terror", "models/player/terror/terror.mdl", 158.0f, 78.0f, 80},
+	{"leet", "models/player/leet/leet.mdl", 169.0f, 26.0f, 80},
+	{"arctic", "models/player/arctic/arctic.mdl", 191.0f, -26.0f, 80},
+	{"guerilla", "models/player/guerilla/guerilla.mdl", 202.0f, -78.0f, 80},
 };
 
 const ClassPreview kCtPreviews[] = {
-	{"urban", "models/player/urban/urban.mdl", 158.0f, -78.0f, 33},
-	{"gsg9", "models/player/gsg9/gsg9.mdl", 169.0f, -26.0f, 33},
-	{"sas", "models/player/sas/sas.mdl", 191.0f, 26.0f, 33},
-	{"gign", "models/player/gign/gign.mdl", 202.0f, 78.0f, 33},
+	{"urban", "models/player/urban/urban.mdl", 158.0f, 78.0f, 33},
+	{"gsg9", "models/player/gsg9/gsg9.mdl", 169.0f, 26.0f, 33},
+	{"sas", "models/player/sas/sas.mdl", 191.0f, -26.0f, 33},
+	{"gign", "models/player/gign/gign.mdl", 202.0f, -78.0f, 33},
 };
 
 class CClassSelectPanel;
@@ -788,8 +791,7 @@ void ClassSelect_Hide(bool restoreKeyDest)
 	if (restoreKeyDest && g_keyDestPushed && !gMenuVisible && !TeamSelect_IsActive() && !BuySelect_IsActive() &&
 		!RadioSelect_IsActive())
 	{
-		if (gEng.pfnSetKeyDest)
-			gEng.pfnSetKeyDest(KEY_DEST_GAME);
+		MenuEngine::RestoreGameKeyDest();
 		g_keyDestPushed = false;
 	}
 }

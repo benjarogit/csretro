@@ -46,6 +46,7 @@ public:
 	void SetSpectatorHud(const SpectatorHudState *state) override { SpectatorHud_Set(state); }
 	void SetScoreboardHud(const ScoreboardHudState *state) override { ScoreboardHud_Set(state); }
 	void SetBuyHud(const BuyHudState *state) override { BuySelect_SetHud(state); }
+	void CloseDeveloperConsole(void) override { VGuiXash_HideConsole(); }
 	void ShowVGUIMenu(int menuType, int param1, int param2) override
 	{
 		Menu_NotePlayerTeam(param2);

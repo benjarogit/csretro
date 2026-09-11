@@ -15,16 +15,19 @@ const int kInfernoMagic = 0x1F10;
 // elapsed time from the held attack input.
 const float kMolotovWickDelay = 23.0f / 50.0f;
 
-Vector g_infernoExtinguishOrigin;
 float g_infernoExtinguishUntil;
-bool g_infernoExtinguishAll;
+int g_infernoExtinguishId;
+
+Vector g_molotovWickOrigin;
+float g_molotovWickTime;
+bool g_molotovWickValid;
 
 void InfernoThink(tempent_s *te, float frametime, float currenttime)
 {
 	if (g_infernoExtinguishUntil > currenttime)
 	{
-		if (g_infernoExtinguishAll ||
-			(te->entity.origin - g_infernoExtinguishOrigin).Length() < 180.0f)
+		if (te->entity.curstate.iuser3 == g_infernoExtinguishId &&
+			te->entity.curstate.fuser4 <= g_infernoExtinguishUntil - 0.25f)
 		{
 			te->die = currenttime;
 			return;
@@ -48,7 +51,22 @@ void InfernoThink(tempent_s *te, float frametime, float currenttime)
 	EV_CS16Client_KillEveryRound(te, frametime, currenttime);
 }
 
-void SpawnInfernoSprite(const Vector &origin, int weaponId, float remaining, float lifetime, bool column)
+model_s *LoadInfernoSprite(const char *path, int *modelIndex)
+{
+	int index = 0;
+	model_s *model = gEngfuncs.CL_LoadModel(path, &index);
+	if (!model)
+	{
+		const int sprite = gEngfuncs.pfnSPR_Load(path);
+		model = (model_s *)gEngfuncs.GetSpritePointer(sprite);
+		index = 0;
+	}
+	if (modelIndex)
+		*modelIndex = index;
+	return model;
+}
+
+void SpawnInfernoSprite(const Vector &origin, int weaponId, float remaining, float lifetime, bool column, int infernoId)
 {
 	const char *path = "sprites/grenade/molotov_fire_ground.spr";
 	if (weaponId == WEAPON_INCGRENADE)
@@ -56,15 +74,36 @@ void SpawnInfernoSprite(const Vector &origin, int weaponId, float remaining, flo
 	if (column)
 		path = "sprites/grenade/molotov_fire_column.spr";
 
-	const int sprite = gEngfuncs.pfnSPR_Load(path);
-	const model_t *model = gEngfuncs.GetSpritePointer(sprite);
+	int modelIndex = 0;
+	model_s *model = LoadInfernoSprite(path, &modelIndex);
+	if (!model && weaponId == WEAPON_INCGRENADE)
+	{
+		path = "sprites/grenade/molotov_fire_ground.spr";
+		model = LoadInfernoSprite(path, &modelIndex);
+	}
+	if (!model && column)
+	{
+		path = "sprites/grenade/molotov_fire_ground.spr";
+		model = LoadInfernoSprite(path, &modelIndex);
+	}
 	if (!model)
+	{
+		gEngfuncs.Con_DPrintf("CSRETRO_INFERNO_RENDER missing sprite=%s weapon=%d\n", path, weaponId);
 		return;
+	}
 
 	Vector org = origin;
-	TEMPENTITY *pTemp = gEngfuncs.pEfxAPI->CL_TempEntAlloc(org, (model_s *)model);
+	org.z += column ? 8.0f : 2.0f;
+	// High-priority so tracers/sparks cannot steal the tent pool and leave
+	// a damaging inferno with no fire on screen.
+	TEMPENTITY *pTemp = gEngfuncs.pEfxAPI->CL_TempEntAllocHigh(org, model);
 	if (!pTemp)
+		pTemp = gEngfuncs.pEfxAPI->CL_TempEntAlloc(org, model);
+	if (!pTemp)
+	{
+		gEngfuncs.Con_DPrintf("CSRETRO_INFERNO_RENDER pool_full weapon=%d\n", weaponId);
 		return;
+	}
 
 	pTemp->flags |= (FTENT_SPRANIMATE | FTENT_SPRANIMATELOOP | FTENT_CLIENTCUSTOM | FTENT_PERSIST);
 	pTemp->flags &= ~FTENT_NOMODEL;
@@ -72,19 +111,42 @@ void SpawnInfernoSprite(const Vector &origin, int weaponId, float remaining, flo
 	const float spriteLifetime = column ? (remaining < 0.8f ? remaining : 0.8f) : remaining;
 	pTemp->die = gEngfuncs.GetClientTime() + spriteLifetime;
 	pTemp->frameMax = model->numframes > 1 ? model->numframes - 1 : 0;
+	pTemp->entity.curstate.modelindex = modelIndex;
 	pTemp->entity.curstate.framerate = 12.0f;
 	pTemp->entity.curstate.rendermode = kRenderTransAdd;
 	pTemp->entity.curstate.renderamt = column ? 190 : 150;
 	// Source sprites are 176x80 (ground) and 112x232 (column). Keep the
 	// vertical sheet low enough to read as floor fire instead of a fire wall.
-	pTemp->entity.curstate.scale = column ? 0.35f : 0.45f;
+	pTemp->entity.curstate.scale = column ? 0.4f : 0.7f;
 	pTemp->entity.curstate.fuser1 = gEngfuncs.GetClientTime() + spriteLifetime;
 	pTemp->entity.curstate.fuser2 = column ? 0.8f : lifetime;
+	// KillEveryRound compares this timestamp with the last round reset.
+	// Leaving it at zero killed new fire immediately after the first reset.
+	pTemp->entity.curstate.fuser4 = gEngfuncs.GetClientTime();
 	pTemp->entity.curstate.iuser1 = kInfernoMagic;
 	pTemp->entity.curstate.iuser2 = weaponId;
-	if (column)
-		pTemp->entity.origin.z += 8.0f;
+	pTemp->entity.curstate.iuser3 = infernoId;
 }
+}
+
+void EV_CaptureMolotovWickOrigin(const float origin[3], cl_entity_s *entity)
+{
+	if (!origin)
+		return;
+	g_molotovWickOrigin[0] = origin[0];
+	g_molotovWickOrigin[1] = origin[1];
+	g_molotovWickOrigin[2] = origin[2];
+	g_molotovWickTime = gEngfuncs.GetClientTime();
+	g_molotovWickValid = true;
+	if (entity)
+	{
+		for (int i = 0; i < 4; ++i)
+		{
+			entity->attachment[i][0] = origin[0];
+			entity->attachment[i][1] = origin[1];
+			entity->attachment[i][2] = origin[2];
+		}
+	}
 }
 
 void EV_UpdateMolotovHeld()
@@ -106,9 +168,6 @@ void EV_UpdateMolotovHeld()
 		s_ignited = true;
 	s_wasHeld = held;
 
-	// ItemPostFrame switches to the idle sequence while attack remains held.
-	// The input state is the reliable lifecycle here: view-model sequences may
-	// already have advanced by the time HUD_CreateEntities runs.
 	if (!held)
 		s_ignited = false;
 	const bool lit = s_ignited;
@@ -125,14 +184,16 @@ void EV_UpdateMolotovHeld()
 		return;
 	}
 
-	// View-model attachments are filled by the studio draw, after
-	// HUD_CreateEntities. Reading them here returns the previous frame in a
-	// different transform and can put the flame meters away. Anchor the wick
-	// in view space at the bottle neck instead.
-	Vector angles, forward, right, up;
-	gEngfuncs.GetViewAngles(angles);
-	AngleVectors(angles, forward, right, up);
-	Vector org = Vector(v_origin) + forward * 20.0f + right * 8.0f + up * 1.1f;
+	Vector org;
+	if (g_molotovWickValid && (now - g_molotovWickTime) <= 0.08f)
+		org = g_molotovWickOrigin;
+	else
+	{
+		Vector angles, forward, right, up;
+		gEngfuncs.GetViewAngles(angles);
+		AngleVectors(angles, forward, right, up);
+		org = Vector(v_origin) + forward * 16.0f + right * 5.5f + up * 1.6f;
+	}
 
 	if (!s_wick)
 	{
@@ -141,7 +202,9 @@ void EV_UpdateMolotovHeld()
 		if (!model)
 			return;
 
-		s_wick = gEngfuncs.pEfxAPI->CL_TempEntAlloc(org, (model_s *)model);
+		s_wick = gEngfuncs.pEfxAPI->CL_TempEntAllocHigh(org, (model_s *)model);
+		if (!s_wick)
+			s_wick = gEngfuncs.pEfxAPI->CL_TempEntAlloc(org, (model_s *)model);
 		if (!s_wick)
 			return;
 
@@ -151,7 +214,7 @@ void EV_UpdateMolotovHeld()
 		s_wick->entity.curstate.framerate = 16.0f;
 		s_wick->entity.curstate.rendermode = kRenderTransAdd;
 		s_wick->entity.curstate.renderamt = 220;
-		s_wick->entity.curstate.scale = 0.014f;
+		s_wick->entity.curstate.scale = 0.04f;
 		s_wick->frameMax = model->numframes > 1 ? model->numframes - 1 : 0;
 	}
 
@@ -163,21 +226,23 @@ void EV_CreateInferno(event_args_s *args)
 {
 	const int mode = args->iparam1;
 	const int weaponId = args->iparam2;
+	if (mode == kInfernoEvStart)
+		gEngfuncs.Con_DPrintf("CSRETRO_INFERNO_EVENT start weapon=%d origin=%.1f,%.1f,%.1f\n",
+			weaponId, args->origin[0], args->origin[1], args->origin[2]);
 	const float remaining = args->fparam1 > 0.1f ? args->fparam1 : 1.0f;
 	const float lifetime = args->fparam2 > 0.1f ? args->fparam2 : remaining;
 
 	if (mode == kInfernoEvExtinguish)
 	{
-		g_infernoExtinguishOrigin = args->origin;
 		g_infernoExtinguishUntil = gEngfuncs.GetClientTime() + 0.25f;
-		g_infernoExtinguishAll = true;
+		// Expiration/smoke affects this inferno, not every fire on the map.
+		g_infernoExtinguishId = args->entindex;
 		return;
 	}
 
-	g_infernoExtinguishAll = false;
-	SpawnInfernoSprite(args->origin, weaponId, remaining, lifetime, false);
+	SpawnInfernoSprite(args->origin, weaponId, remaining, lifetime, false, args->entindex);
 	// One short ignition plume; spread nodes add only low ground fire. Spawning
 	// a full-height column for every node turns the inferno into a bright wall.
 	if (mode == kInfernoEvStart)
-		SpawnInfernoSprite(args->origin, weaponId, remaining, lifetime, true);
+		SpawnInfernoSprite(args->origin, weaponId, remaining, lifetime, true, args->entindex);
 }

@@ -7,6 +7,7 @@
 #include "../gameui/TeamSelectPanel.h"
 #include "../gameui/ClassSelectPanel.h"
 #include "../gameui/BuySelectPanel.h"
+#include "../gameui/Controls/MenuEngine.h"
 #include "../gameui/RadioSelectPanel.h"
 #include "../gameui/SpectatorHudPanel.h"
 #include "../gameui/ScoreboardHudPanel.h"
@@ -382,6 +383,7 @@ void VGuiXash_RunFrame()
 		}
 	}
 	g_pVGui->RunFrame();
+	MenuEngine::PollPendingGameKeyDest();
 	MainMenu_SyncDialogVisibility();
 	if (getenv("CSRETRO_OPTIONS_VIDEO_GATE") && g_options)
 		OptionsVideo_RunInputGate(g_options);

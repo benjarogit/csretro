@@ -28,7 +28,6 @@
 #include "particleman_internal.h"
 
 extern vec3_t v_origin;
-void EV_UpdateMolotovHeld(void);
 
 int iOnTrain[MAX_PLAYERS];
 
@@ -230,7 +229,6 @@ void DLLEXPORT HUD_CreateEntities( void )
 	// Add in any game specific objects
 
 	GetClientVoiceHud()->CreateEntities();
-	EV_UpdateMolotovHeld();
 }
 
 /*

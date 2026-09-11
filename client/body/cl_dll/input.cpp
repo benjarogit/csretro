@@ -368,17 +368,33 @@ Return 1 to allow engine to process the key, otherwise, act on it as needed
 */
 int DLLEXPORT HUD_Key_Event( int down, int keynum, const char *pszCurrentBinding )
 {
+	static bool s_swallowOverlayMouseUp = false;
+	const bool mouse = ( keynum >= K_MOUSE1 && keynum <= K_MOUSE5 );
+
 	if( g_pMenu && g_pMenu->IsActive() && !g_pMenu->IsMainMenuActive() )
 	{
 		const bool slotKey = ( keynum == K_ESCAPE || ( keynum >= '0' && keynum <= '9' ) );
-		const bool mouse = ( keynum >= K_MOUSE1 && keynum <= K_MOUSE5 );
 		const bool modal = g_pMenu->IsModalInGame();
 		if( modal || slotKey )
 			g_pMenu->Key( keynum, down );
 		if( down && slotKey )
 			return 0;
 		if( modal && down && mouse )
+		{
+			// Buy/Team/Class close on this down. Keep the matching up from
+			// becoming -attack, otherwise the next click never pins a nade.
+			s_swallowOverlayMouseUp = true;
+			gEngfuncs.Con_DPrintf("CSRETRO_ATTACK modal_consumed key=%d\n", keynum);
 			return 0;
+		}
+	}
+
+	if( !down && mouse && s_swallowOverlayMouseUp )
+	{
+		s_swallowOverlayMouseUp = false;
+		gEngfuncs.Con_DPrintf("CSRETRO_ATTACK leftover_up_swallowed key=%d weapon=%d\n",
+			keynum, HUD_GetWeapon());
+		return 0;
 	}
 
 	if( down && keynum == K_ESCAPE && gHUD.m_Menu.HandleEscape() )
@@ -499,12 +515,16 @@ void IN_GraphUp(void) {KeyUp(&in_graph);}
 void IN_AttackDown(void)
 {
 	KeyDown( &in_attack );
+	gEngfuncs.Con_DPrintf("CSRETRO_ATTACK down weapon=%d time=%.3f state=%d pending=%d\n",
+		HUD_GetWeapon(), gEngfuncs.GetClientTime(), in_attack.state, g_weaponselect);
 	gHUD.m_Spectator.HandleButtonsDown( IN_ATTACK );
 }
 
 void IN_AttackUp(void)
 {
 	KeyUp( &in_attack );
+	gEngfuncs.Con_DPrintf("CSRETRO_ATTACK up weapon=%d time=%.3f state=%d\n",
+		HUD_GetWeapon(), gEngfuncs.GetClientTime(), in_attack.state);
 	in_cancel = 0;
 }
 

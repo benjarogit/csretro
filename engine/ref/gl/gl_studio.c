@@ -3067,8 +3067,20 @@ static qboolean R_StudioIsCsretroPreview( void )
 static player_info_t *R_StudioPreviewSafePlayerInfo( int index )
 {
 	if( R_StudioIsCsretroPreview() )
+	{
+		memset( &s_csretroPreviewPlayerInfo, 0, sizeof( s_csretroPreviewPlayerInfo ));
 		return &s_csretroPreviewPlayerInfo;
+	}
 	return pfnPlayerInfo( index );
+}
+
+static entity_state_t *R_StudioPlayerStateForDraw( cl_entity_t *e )
+{
+	if( FBitSet( e->curstate.effects, EF_CSRETRO_PREVIEW ))
+		return &e->curstate;
+	if( !FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
+		return &e->curstate;
+	return R_StudioGetPlayerState( e->index - 1 );
 }
 
 static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
@@ -3078,14 +3090,22 @@ static int R_StudioDrawPlayer( int flags, entity_state_t *pplayer )
 
 	int m_nPlayerIndex = pplayer->number - 1;
 	const qboolean preview = R_StudioIsCsretroPreview();
+	const qboolean menuPass = !FBitSet( RI.rvp.flags, RF_DRAW_WORLD );
 
-	if( preview )
+	if( preview || menuPass )
 	{
 		if( !RI.currententity->model )
 			return 0;
+		// The preceding world view may leave the viewmodel mirror enabled.
+		// SetupTransform consumes it BEFORE DrawPoints resets it: the first
+		// menu character was mirrored after spawn, while the second was not.
+		tr.fFlipViewModel = false;
 		RI.currentmodel = RI.currententity->model;
 		if( m_nPlayerIndex < 0 || m_nPlayerIndex >= gp_cl->maxclients )
 			m_nPlayerIndex = 0;
+		// Do not bone-merge the p_* weapon onto the live player's cached pose.
+		g_studio.cached_numbones = 0;
+		VectorCopy( RI.currententity->curstate.angles, RI.currententity->angles );
 	}
 	else
 	{
@@ -3333,20 +3353,20 @@ static void R_StudioDrawModelInternal( cl_entity_t *e, int flags )
 	if( !FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
 	{
 		if( e->player )
-			R_StudioDrawPlayer( flags, &e->curstate );
+			R_StudioDrawPlayer( flags, R_StudioPlayerStateForDraw( e ));
 		else R_StudioDrawModel( flags );
 	}
 	else if( unlikely( r_studio_builtin_renderer.value ))
 	{
 		if( e->player )
-			R_StudioDrawPlayer( flags, R_StudioGetPlayerState( e->index - 1 ));
+			R_StudioDrawPlayer( flags, R_StudioPlayerStateForDraw( e ));
 		else R_StudioDrawModel( flags );
 	}
 	else
 	{
 		// select the properly method
 		if( e->player )
-			pStudioDraw->StudioDrawPlayer( flags, R_StudioGetPlayerState( e->index - 1 ));
+			pStudioDraw->StudioDrawPlayer( flags, R_StudioPlayerStateForDraw( e ));
 		else pStudioDraw->StudioDrawModel( flags );
 	}
 }

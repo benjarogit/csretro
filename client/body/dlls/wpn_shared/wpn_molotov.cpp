@@ -90,7 +90,8 @@ void CMolotov::ItemPostFrame(void)
 
 		if (!m_bHeldIdle && m_flTimeWeaponIdle <= UTIL_WeaponTimeBase())
 		{
-			SendWeaponAnim(MOLOTOV_IDLE, UseDecrement() != FALSE);
+			// Keep the last pullpin frame (lit rag + open Zippo). Idle is the
+			// unlit rest pose and extinguishes the wick visually.
 			m_bHeldIdle = true;
 		}
 	}

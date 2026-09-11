@@ -234,6 +234,13 @@ typedef struct ui_extendedfuncs_s {
 	// engine tries to keep this rect visible, when the on-screen keyboard covers the screen
 	// must be called before pfnEnableTextInput( true ), empty rect means the whole screen
 	void (*pfnSetTextInputRect)( int x, int y, int w, int h );
+
+	// Console TAB-complete. Appended so older menus keep working (they stop
+	// copying at pfnSetTextInputRect). Null when the engine is older than this header.
+	void *(*pfnGetFirstCmdFunctionHandle)( void );
+	void *(*pfnGetNextCmdFunctionHandle)( void *cmd );
+	const char *(*pfnGetCmdFunctionName)( void *cmd );
+	cvar_t *(*pfnGetFirstCvarPtr)( void );
 } ui_extendedfuncs_t;
 
 // deprecated export from old engine

@@ -217,6 +217,7 @@ void IN_Move( float frametime, usercmd_t *cmd )
 void DLLEXPORT IN_MouseEvent( int mstate )
 {
 	static int mouse_oldbuttonstate;
+	gEngfuncs.Con_DPrintf("CSRETRO_MOUSE state=%d previous=%d\n", mstate, mouse_oldbuttonstate);
 	// perform button actions
 	for( int i = 0; i < 5; i++ )
 	{

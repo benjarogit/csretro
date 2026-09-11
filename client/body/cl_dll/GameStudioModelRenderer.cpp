@@ -321,7 +321,8 @@ void CGameStudioModelRenderer::StudioSetupBones(void)
 
 	pbones = (mstudiobone_t *)((byte *)m_pStudioHeader + m_pStudioHeader->boneindex);
 
-	if (m_pPlayerInfo && (m_pCurrentEntity->curstate.sequence < ANIM_FIRST_DEATH_SEQUENCE || m_pCurrentEntity->curstate.sequence > ANIM_LAST_DEATH_SEQUENCE) && (m_pCurrentEntity->curstate.sequence < ANIM_FIRST_EMOTION_SEQUENCE || m_pCurrentEntity->curstate.sequence > ANIM_LAST_EMOTION_SEQUENCE) && m_pCurrentEntity->curstate.sequence != ANIM_SWIM_1 && m_pCurrentEntity->curstate.sequence != ANIM_SWIM_2)
+	const bool previewBones = m_pCurrentEntity && (m_pCurrentEntity->curstate.effects & EF_CSRETRO_PREVIEW) != 0;
+	if (m_pPlayerInfo && !previewBones && m_pPlayerInfo->gaitsequence != 0 && (m_pCurrentEntity->curstate.sequence < ANIM_FIRST_DEATH_SEQUENCE || m_pCurrentEntity->curstate.sequence > ANIM_LAST_DEATH_SEQUENCE) && (m_pCurrentEntity->curstate.sequence < ANIM_FIRST_EMOTION_SEQUENCE || m_pCurrentEntity->curstate.sequence > ANIM_LAST_EMOTION_SEQUENCE) && m_pCurrentEntity->curstate.sequence != ANIM_SWIM_1 && m_pCurrentEntity->curstate.sequence != ANIM_SWIM_2)
 	{
 		int copy = 1;
 
@@ -766,7 +767,9 @@ int CGameStudioModelRenderer::StudioDrawPlayer(int flags, entity_state_t *pplaye
 
 	m_pplayer = pplayer;
 
-	if (m_bLocal && IEngineStudio.GetCurrentEntity() == gEngfuncs.GetLocalPlayer())
+	if (m_bLocal && IEngineStudio.GetCurrentEntity() == gEngfuncs.GetLocalPlayer()
+		&& IEngineStudio.GetCurrentEntity()
+		&& (IEngineStudio.GetCurrentEntity()->curstate.effects & EF_CSRETRO_PREVIEW) == 0)
 		isLocalPlayer = true;
 
 	if (isLocalPlayer)
@@ -821,15 +824,24 @@ bool WeaponHasAttachments(entity_state_t *pplayer)
 
 int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplayer)
 {
+	static player_info_t s_previewInfo;
+
 	m_pCurrentEntity = IEngineStudio.GetCurrentEntity();
 
 	IEngineStudio.GetTimes(&m_nFrameCount, &m_clTime, &m_clOldTime);
 	IEngineStudio.GetViewInfo(m_vRenderOrigin, m_vUp, m_vRight, m_vNormal);
 	IEngineStudio.GetAliasScale(&m_fSoftwareXScale, &m_fSoftwareYScale);
 
+	const bool preview = m_pCurrentEntity && (m_pCurrentEntity->curstate.effects & EF_CSRETRO_PREVIEW) != 0;
+
 	m_nPlayerIndex = pplayer->number - 1;
 
-	if (m_nPlayerIndex < 0 || m_nPlayerIndex >= gEngfuncs.GetMaxClients())
+	if (preview)
+	{
+		if (m_nPlayerIndex < 0 || m_nPlayerIndex >= gEngfuncs.GetMaxClients())
+			m_nPlayerIndex = 0;
+	}
+	else if (m_nPlayerIndex < 0 || m_nPlayerIndex >= gEngfuncs.GetMaxClients())
 		return 0;
 
 	/*m_pRenderModel = IEngineStudio.SetupPlayerModel(m_nPlayerIndex);
@@ -900,7 +912,7 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 	if (pplayer->gaitsequence >= m_pStudioHeader->numseq)
 		pplayer->gaitsequence = 0;
 
-	if (pplayer->gaitsequence)
+	if (pplayer->gaitsequence && !preview)
 	{
 		vec3_t orig_angles(m_pCurrentEntity->angles);
 		m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
@@ -924,20 +936,19 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 		m_pCurrentEntity->latched.prevcontroller[2] = m_pCurrentEntity->curstate.controller[2];
 		m_pCurrentEntity->latched.prevcontroller[3] = m_pCurrentEntity->curstate.controller[3];
 
-		m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
-		if(( m_pCurrentEntity->curstate.effects & EF_CSRETRO_PREVIEW ) != 0 )
+		if (preview)
 		{
-			// A menu preview borrows only the valid player slot required by the
-			// studio weaponmodel merge. Its authored yaw/blends must not be
-			// replaced by movement state from the live network player in that slot.
-			// StudioSetupBones also reads gaitframe even for gait sequence zero;
-			// clear it so a stale live-player frame cannot twist the preview pelvis.
+			memset(static_cast<void *>(&s_previewInfo), 0, sizeof(s_previewInfo));
+			m_pPlayerInfo = &s_previewInfo;
 			m_pPlayerInfo->gaitsequence = 0;
 			m_pPlayerInfo->gaitframe = 0.0f;
+			m_pPlayerInfo->gaityaw = 0.0f;
+			m_pCurrentEntity->angles = m_pCurrentEntity->curstate.angles;
 			StudioSetUpTransform( 0 );
 		}
 		else
 		{
+			m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
 			CalculatePitchBlend(pplayer);
 			CalculateYawBlend(pplayer);
 
@@ -955,7 +966,15 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 			return 1;
 	}
 
-	m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
+	if (preview)
+	{
+		m_pPlayerInfo = &s_previewInfo;
+		m_pPlayerInfo->gaitsequence = 0;
+		m_pPlayerInfo->gaitframe = 0.0f;
+		m_pPlayerInfo->gaityaw = 0.0f;
+	}
+	else
+		m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
 
 	StudioSetupBones();
 	StudioSaveBones();
@@ -986,7 +1005,10 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 		IEngineStudio.StudioEntityLight(&lighting);
 		IEngineStudio.StudioSetupLighting(&lighting);
 
-		m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
+		if (preview)
+			m_pPlayerInfo = &s_previewInfo;
+		else
+			m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
 		m_nTopColor = m_pPlayerInfo->topcolor;
 
 		if (m_nTopColor < 0)

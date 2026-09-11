@@ -885,6 +885,17 @@ bool CBasePlayerWeapon::IsGrenade() const
 	return IsGrenadeWeapon(m_iId);
 }
 
+bool CBasePlayerWeapon::CanStartGrenadePin() const
+{
+	if (!IsGrenade() || m_flStartThrow != 0.0f || !m_pPlayer)
+		return false;
+
+	if (m_iPrimaryAmmoType < 0)
+		return false;
+
+	return m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] > 0;
+}
+
 float CBasePlayerWeapon::GrenadeThrowStrengthFromButtons(int buttons)
 {
 	if ((buttons & IN_ATTACK) && (buttons & IN_ATTACK2))
@@ -1051,7 +1062,11 @@ void EXT_FUNC CBasePlayerWeapon::__API_HOOK(ItemPostFrame)()
 	if (IsGrenade())
 		UpdateGrenadeCookStrength();
 
-	if ((usableButtons & IN_ATTACK2) && CanAttack(m_flNextSecondaryAttack, UTIL_WeaponTimeBase(), UseDecrement())
+	// Pin on the first press even during deploy / leftover gun fire delay.
+	// Throw still waits on pin time + CanCommitGrenadeThrow().
+	const bool grenadePin = CanStartGrenadePin();
+
+	if ((usableButtons & IN_ATTACK2) && (grenadePin || CanAttack(m_flNextSecondaryAttack, UTIL_WeaponTimeBase(), UseDecrement()))
 #ifdef REGAMEDLL_FIXES
 		&& !m_pPlayer->m_bIsDefusing // In-line: I think it's fine to block secondary attack, when defusing. It's better then blocking speed resets in weapons.
 #endif
@@ -1065,7 +1080,7 @@ void EXT_FUNC CBasePlayerWeapon::__API_HOOK(ItemPostFrame)()
 		SecondaryAttack();
 		m_pPlayer->pev->button &= ~IN_ATTACK2;
 	}
-	else if ((m_pPlayer->pev->button & IN_ATTACK) && CanAttack(m_flNextPrimaryAttack, UTIL_WeaponTimeBase(), UseDecrement()))
+	else if ((m_pPlayer->pev->button & IN_ATTACK) && (grenadePin || CanAttack(m_flNextPrimaryAttack, UTIL_WeaponTimeBase(), UseDecrement())))
 	{
 		if ((m_iClip == 0 && pszAmmo1()) || (iMaxClip() == WEAPON_NOCLIP && !m_pPlayer->m_rgAmmo[PrimaryAmmoIndex()]))
 		{
@@ -1497,6 +1512,12 @@ BOOL EXT_FUNC CBasePlayerWeapon::__API_HOOK(DefaultDeploy)(char *szViewModel, ch
 	SendWeaponAnim(iAnim, skiplocal);
 
 	m_pPlayer->m_flNextAttack = 0.75f;
+	if (IsGrenade())
+	{
+		// Do not inherit the previous gun's fire delay. Pin is also allowed
+		// while player NextAttack is still counting (see ItemPostFrame).
+		m_flNextPrimaryAttack = m_flNextSecondaryAttack = -0.001f;
+	}
 	m_flTimeWeaponIdle = 1.5f;
 	m_flLastFireTime = 0.0f;
 	m_flDecreaseShotsFired = gpGlobals->time;

@@ -18,7 +18,7 @@ MENU="${CSRETRO_MENU_SO:-${ROOT}/build/client-cmake/menu/menu_amd64.so}"
 MAP="${CSRETRO_FIRE_MAP:-de_dust}"
 W="${CSRETRO_FIRE_W:-1280}"
 H="${CSRETRO_FIRE_H:-720}"
-SHOT_DIR="${ROOT}/build/fire-shots"
+SHOT_DIR="${CSRETRO_FIRE_SHOT_DIR:-${ROOT}/build/fire-shots}"
 TEAM="${CSRETRO_FIRE_TEAM:-t}"
 if [[ "${TEAM}" == "ct" ]]; then
 	TEAM_KEY=2
@@ -46,6 +46,10 @@ csretro_gate_isolate_begin "fire-grenade" || fail "isolate"
 csretro_gate_isolate_stage_runtime
 RUN="${CSRETRO_RUN_DIR}"
 mkdir -p "${SHOT_DIR}"
+if [[ -n "${CSRETRO_FIRE_VIEWMODEL:-}" ]]; then
+	mkdir -p "${RUN}/cstrike/models"
+	cp "${CSRETRO_FIRE_VIEWMODEL}" "${RUN}/cstrike/models/v_${GRENADE_CMD}.mdl"
+fi
 
 apply_cfg() {
 	local target="$1"
@@ -62,6 +66,16 @@ apply_cfg() {
 		echo "bind \"F6\" \"${GRENADE_CMD}; weapon_${GRENADE_CMD}\""
 		echo 'bind "F7" "+attack"'
 		echo 'bind "F8" "-attack"'
+		echo 'bind "F9" "chooseteam"'
+		echo 'bind "F10" "buy"'
+		echo 'bind "F11" "slot4"'
+		echo 'bind "F12" "sv_restart 1"'
+		echo 'bind "MWHEELDOWN" "invnext"'
+		echo 'bind "MOUSE1" "+attack"'
+		if [[ "${CSRETRO_FIRE_SLOT:-0}" == 1 ]]; then
+			echo 'hud_fastswitch 1'
+			echo "bind \"F6\" \"hegren; ${GRENADE_CMD}; weapon_knife\""
+		fi
 		echo 'echo CSRETRO_FIRE_GATE_CFG'
 	} >"${target}"
 }
@@ -111,24 +125,75 @@ done
 [[ -n "${WID}" ]] || fail "Spielfenster fehlt"
 
 sleep 2
+import -window "${WID}" "${SHOT_DIR}/${SHOT_TAG}-team-initial.png"
 xdotool key --window "${WID}" "${TEAM_KEY}" >/dev/null 2>&1
 sleep 1
-xdotool key --window "${WID}" 1 >/dev/null 2>&1
+xdotool key --window "${WID}" "${CSRETRO_FIRE_CLASS:-1}" >/dev/null 2>&1
 sleep 2
-xdotool key --window "${WID}" F6 >/dev/null 2>&1
+if [[ "${CSRETRO_FIRE_RESTART:-0}" == 1 ]]; then
+	xdotool key --window "${WID}" F12 >/dev/null 2>&1
+	sleep 4
+fi
+if [[ "${CSRETRO_FIRE_BUY_MOUSE:-0}" == 1 ]]; then
+	xdotool key --window "${WID}" F10 >/dev/null 2>&1
+	sleep 1
+	xdotool windowfocus --sync "${WID}"
+	xdotool mousemove --window "${WID}" 688 384
+	sleep 0.5
+	xdotool click 1
+	sleep 0.5
+	xdotool key --window "${WID}" F11 >/dev/null 2>&1
+else
+	xdotool key --window "${WID}" F6 >/dev/null 2>&1
+fi
+if [[ "${CSRETRO_FIRE_SLOT:-0}" == 1 ]]; then
+	sleep 1
+	if [[ "${CSRETRO_FIRE_WHEEL:-0}" == 1 ]]; then
+		xdotool windowfocus --sync "${WID}"
+		sleep 0.3
+		xdotool click 5
+	else
+		xdotool key --window "${WID}" F11 >/dev/null 2>&1
+	fi
+	sleep 0.5
+	if [[ "${CSRETRO_FIRE_WHEEL:-0}" == 1 ]]; then
+		xdotool click 5
+	else
+		xdotool key --window "${WID}" F11 >/dev/null 2>&1
+	fi
+fi
 sleep 0.25
 import -window "${WID}" "${SHOT_DIR}/${SHOT_TAG}-deploy.png"
 sleep 0.75
-xdotool keydown --window "${WID}" F7 >/dev/null 2>&1
-sleep 0.40
+if [[ "${CSRETRO_FIRE_MOUSE:-0}" == 1 ]]; then
+	xdotool windowfocus --sync "${WID}"
+	xdotool mousedown 1
+else
+	xdotool keydown --window "${WID}" F7 >/dev/null 2>&1
+fi
+sleep "${CSRETRO_FIRE_PIN_CAPTURE_DELAY:-0.40}"
 import -window "${WID}" "${SHOT_DIR}/${SHOT_TAG}-pinpull.png"
-sleep 0.45
+sleep "${CSRETRO_FIRE_HOLD_CAPTURE_DELAY:-0.45}"
 import -window "${WID}" "${SHOT_DIR}/${SHOT_TAG}-held.png"
-xdotool keyup --window "${WID}" F7 >/dev/null 2>&1 || true
-xdotool key --window "${WID}" F8 >/dev/null 2>&1 || true
+if [[ "${CSRETRO_FIRE_MOUSE:-0}" == 1 ]]; then
+	xdotool mouseup 1
+else
+	xdotool keyup --window "${WID}" F7 >/dev/null 2>&1 || true
+	xdotool key --window "${WID}" F8 >/dev/null 2>&1 || true
+fi
 sleep 0.18
 import -window "${WID}" "${SHOT_DIR}/${SHOT_TAG}-throw.png"
 sleep 2.32
 import -window "${WID}" "${SHOT_DIR}/${SHOT_TAG}-after-throw.png"
 
-echo "FIRE_GRENADE_GATE PASS team=${TEAM} deploy/pin/held/throw/after=${SHOT_DIR}/${SHOT_TAG}-*.png"
+xdotool key --window "${WID}" F10 >/dev/null 2>&1
+sleep 1
+import -window "${WID}" "${SHOT_DIR}/${SHOT_TAG}-buy-live.png"
+xdotool key --window "${WID}" Escape >/dev/null 2>&1
+sleep 0.5
+xdotool key --window "${WID}" F9 >/dev/null 2>&1
+sleep 1
+import -window "${WID}" "${SHOT_DIR}/${SHOT_TAG}-team-live.png"
+
+# Capturing images is not a gameplay or visual assertion.
+echo "FIRE_GRENADE_GATE CAPTURED team=${TEAM} images=${SHOT_DIR}/${SHOT_TAG}-*.png (inspect before accepting)"

@@ -217,7 +217,7 @@ void SetupStudio(cl_entity_t *ent, const char *path, int sequence, float pitch, 
 	ent->curstate.sequence = sequence;
 	ent->curstate.scale = 1.0f;
 	ent->curstate.frame = 0.0f;
-	ent->curstate.framerate = 1.0f;
+	ent->curstate.framerate = 0.0f;
 	ent->curstate.effects |= EF_FULLBRIGHT;
 	ent->curstate.gaitsequence = 0;
 	ent->curstate.rendermode = kRenderNormal;
@@ -381,7 +381,14 @@ void CTeamModelPreview::Paint()
 		rvp.viewangles[2] = m_previews[0].camRoll;
 	}
 	else
+	{
+		rvp.vieworigin[0] = 0.0f;
+		rvp.vieworigin[1] = 0.0f;
 		rvp.vieworigin[2] = -5.0f;
+		rvp.viewangles[0] = 0.0f;
+		rvp.viewangles[1] = 0.0f;
+		rvp.viewangles[2] = 0.0f;
+	}
 
 	gEng.pfnClearScene();
 	cl_entity_t players[kMaxPreviews];
@@ -397,9 +404,10 @@ void CTeamModelPreview::Paint()
 		const float idleYaw = m_item ? 0.0f : std::sin(now * 0.85f + phase) * 1.25f;
 		const float idleLift = m_item ? 0.0f : std::sin(now * 1.35f + phase) * 0.22f;
 		const float dist = m_item ? itemDist : std::max(distH, distW) * 1.04f;
-		// Slot 1 is the live local player. Independent previews use 8+i so
-		// R_StudioDrawPlayer never reads that player's gait/model/info.
-		const int studioIndex = m_independentPlayerState ? (8 + i) : (i + 1);
+		// Indices 8+ collide with networked players (slot 8 is often a bot:
+		// Phoenix caption + Arctic mesh). Stay past maxclients so
+		// SetupPlayerModel cannot substitute another player's skin.
+		const int studioIndex = m_independentPlayerState ? (64 + i) : (i + 1);
 		const float ox = dist + preview.shift[0];
 		const float oy = m_item ? preview.shift[1] : preview.lateralOffset;
 		const float oz = m_item ? preview.shift[2] : idleLift;

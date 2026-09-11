@@ -122,5 +122,6 @@ DECLARE_EVENT( GrenadeExplosion );
 
 void Game_HookEvents( void );
 void EV_UpdateMolotovHeld( void );
+void EV_CaptureMolotovWickOrigin( const float origin[3], struct cl_entity_s *entity );
 
 #endif

@@ -1,0 +1,63 @@
+# Copied from languagelawyer/cs16-client (molotov branch) on 2026-09-11.
+# Applied to a local fnky/studiomdl checkout at 90a285ae — not a submodule.
+diff --git a/Makefile b/Makefile
+index 928f737..e7749be 100644
+--- a/Makefile
++++ b/Makefile
+@@ -95,5 +95,5 @@ studiomdl.log: $(COMMON_SOURCES) $(addprefix studiomdl$(PATHSEP), $(STUDIOMDL_SO
+ 
+ $(BIN_DIR)/studiomdl$(EXE): $(STUDIOMDL_OBJECTS)
+-	$(CC) $(OPTS) $(STUDIOMDL_OBJECTS) $(STUDIOMDL_COMMON_OBJECTS) -o $@
++	$(CC) $(OPTS) $(STUDIOMDL_OBJECTS) $(STUDIOMDL_COMMON_OBJECTS) -o $@ -lm
+ 
+ $(BUILD_DIR)/%.o : src/%.c
+diff --git a/src/write.c b/src/write.c
+index df60798..8963ef2 100644
+--- a/src/write.c
++++ b/src/write.c
+@@ -3,6 +3,7 @@
+ #pragma warning( disable : 4305 )
+ 
+-#include <stdio.h>
+-#include <stdlib.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <stdint.h>
+ #include <sys/stat.h>
+ #include "cmdlib.h"
+@@ -21,5 +22,5 @@ studiohdr_t *phdr;
+ studioseqhdr_t *pseqhdr;
+ 
+-#define ALIGN( a ) a = (byte *)((int)((byte *)a + 3) & ~ 3)
++#define ALIGN( a ) a = (byte *)((uintptr_t)((byte *)a + 3) & ~(uintptr_t)3)
+ void WriteBoneInfo( )
+ {
+@@ -361,5 +362,5 @@ void WriteModel( )
+ 	mstudiomesh_t	*pmesh;
+ 	s_trianglevert_t *psrctri;
+-	int				cur;
++	byte			*cur;
+ 	int				total_tris = 0;
+ 	int				total_strips = 0;
+@@ -383,5 +384,5 @@ void WriteModel( )
+ 	ALIGN( pData );
+ 
+-	cur = (int)pData;
++	cur = pData;
+ 	for (i = 0; i < nummodels; i++) 
+ 	{
+@@ -451,5 +452,5 @@ void WriteModel( )
+ 		}
+ 		printf("vertices  %6d bytes (%d vertices, %d normals)\n", pData - cur, model[i]->numverts, model[i]->numnorms);
+-		cur = (int)pData;
++		cur = pData;
+ 
+ 		// save mesh info
+@@ -488,5 +489,5 @@ void WriteModel( )
+ 		}
+ 		printf("mesh      %6d bytes (%d tris, %d strips)\n", pData - cur, total_tris, total_strips);
+-		cur = (int)pData;
++		cur = pData;
+ 	}	
+ }
+ 

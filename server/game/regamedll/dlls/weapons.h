@@ -414,6 +414,7 @@ public:
 	float GetNextAttackDelay2(float delay);
 	bool HasSecondaryAttack();
 	bool IsGrenade() const;
+	bool CanStartGrenadePin() const;
 	static float GrenadeThrowStrengthFromButtons(int buttons);
 	BOOL CanHolsterGrenadeThrow() const;
 	bool CanCommitGrenadeThrow() const;
@@ -1710,11 +1711,13 @@ public:
 
 const float MOLOTOV_MAX_SPEED = 245.0f;
 const float INCGRENADE_MAX_SPEED = 245.0f;
-// Pullpin length (2008 v_molotov 50f@50fps, stock smoke/inc 41f@41fps).
+// Pullpin length (2008 v_molotov 50f@50fps, stock smoke/inc 24f@30fps).
 // Throw waits for this, then holds until attack is released (CS:GO ItemPostFrame).
 const float MOLOTOV_PIN_TIME = 1.0f;
 const float INCGRENADE_PIN_TIME = 0.8f;
-const float INCGRENADE_THROW_TIME = 1.2f;
+// Viewmodel throw is 36f@30fps (1.2 s). Idle-wait after commit matches HE/smoke
+// (0.75 s, last nade 0.5 s). Waiting the full clip replayed DRAW — extra left arm.
+const float INCGRENADE_THROW_TIME = 0.75f;
 // 2008 v_molotov pullpin is 50 frames @ 50 fps; wick event is source frame 23.
 const float MOLOTOV_WICK_TIME = 23.0f / 50.0f;
 

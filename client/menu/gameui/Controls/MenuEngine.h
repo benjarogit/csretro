@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 // Thin Xash MenuAPI wrappers for NextClient GameUI controls.
 namespace MenuEngine
 {
@@ -11,6 +14,10 @@ void ClientCmd(const char *cmd);
 void ClientCmdNow(const char *cmd);
 void ConsolePrint(const char *text);
 void SetKeyDest(int destination);
+// Restore gameplay input only after the overlay click's mouse button is up.
+// Grabbing the mouse while MOUSE1 is still down eats the next +attack (grenade pin).
+void RestoreGameKeyDest();
+void PollPendingGameKeyDest();
 bool IsKeyDown(const char *keyName, bool &isDown);
 const char *GetModeString(int modeIndex);
 
@@ -25,4 +32,7 @@ int KeyNameToKeynum(const char *name);
 // Extended MenuAPI — controls SDL text input (printables as Key_Event vs Char).
 void EnableTextInput(bool enable);
 bool HasExtendedEngfuncs();
+
+// Console TAB-complete. Prefix of the first token; empty if the line already has a space.
+void CollectConsoleCompletions(const char *prefix, std::vector<std::string> *names);
 } // namespace MenuEngine

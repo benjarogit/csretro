@@ -2088,6 +2088,11 @@ void Con_DrawVersion( void )
 
 	if( cls.key_dest == key_menu )
 	{
+		// In-game overlays (buy/team/class/console) use key_menu with
+		// UI_IsVisible false. The version string is desktop-menu chrome.
+		if( cls.state == ca_active && !UI_IsVisible( ))
+			return;
+
 		Q_snprintf( curbuild, sizeof( curbuild ),
 			"v%i/" XASH_VERSION " (%s-%s build %i)", PROTOCOL_VERSION, Q_buildos(), Q_buildarch(), Q_buildnum( ));
 	}

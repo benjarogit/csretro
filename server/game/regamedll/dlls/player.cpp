@@ -351,6 +351,16 @@ void CBasePlayer::SetPlayerModel(BOOL HasC4)
 		model = "urban";
 
 	SetClientUserInfoModel(infobuffer, model);
+
+	// Stock CS left the edict on models/player.mdl and remapped from userinfo.
+	// Xash buy/preview and some world draws use the edict model — keep it on
+	// the chosen class so Elite Crew is leet.mdl, not Phoenix.
+	if (model && model[0] && m_iTeam != UNASSIGNED && m_iTeam != SPECTATOR)
+	{
+		char modelPath[128];
+		Q_snprintf(modelPath, sizeof(modelPath), "models/player/%s/%s.mdl", model, model);
+		SetNewPlayerModel(modelPath);
+	}
 }
 
 CBasePlayer *CBasePlayer::GetNextRadioRecipient(CBasePlayer *pStartPlayer)
@@ -1180,7 +1190,13 @@ BOOL EXT_FUNC CBasePlayer::__API_HOOK(TakeDamage)(entvars_t *pevInflictor, entva
 			}
 		}
 
-		if (!ShouldDoLargeFlinch(m_LastHitGroup, iGunType))
+		if (bitsDamageType & DMG_BURN)
+		{
+			// Inferno ticks every 0.2s. GoldSrc tagging/flinch would hitch
+			// movement on each tick (stocken-Schaden-stocken). Fire slows nobody.
+			m_flVelocityModifier = 1.0f;
+		}
+		else if (!ShouldDoLargeFlinch(m_LastHitGroup, iGunType))
 		{
 			TakeDamageImpulse(pAttack, 0.0f, 0.5f);
 
@@ -7200,14 +7216,25 @@ void CBasePlayer::ItemPostFrame()
 	if (m_pTank)
 		return;
 
+	CBasePlayerWeapon *activeWeapon = nullptr;
+	if (m_pActiveItem)
+		activeWeapon = (CBasePlayerWeapon *)m_pActiveItem->GetWeaponPtr();
+	const bool grenade = activeWeapon && activeWeapon->IsGrenade();
+
 #ifdef CLIENT_WEAPONS
-	if (m_flNextAttack > 0)
+	const bool attackBlocked = (m_flNextAttack > 0);
 #else
-	if (gpGlobals->time < m_flNextAttack)
+	const bool attackBlocked = (gpGlobals->time < m_flNextAttack);
 #endif
+
+	// Deploy sets NextAttack to 0.75s. Guns must wait; grenade pin is CS2-like
+	// and must accept the first +attack immediately. Throw still waits on
+	// CanCommitGrenadeThrow().
+	if (attackBlocked && !grenade)
 		return;
 
-	ImpulseCommands();
+	if (!attackBlocked)
+		ImpulseCommands();
 
 	if (m_pActiveItem)
 		m_pActiveItem->ItemPostFrame();

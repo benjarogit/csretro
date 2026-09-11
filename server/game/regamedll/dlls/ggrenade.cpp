@@ -622,9 +622,12 @@ void CGrenade::__API_HOOK(SG_Detonate)()
 
 	PLAYBACK_EVENT_FULL(flags, nullptr, m_usEvent, 0, m_vSmokeDetonate, (float *)&g_vecZero, 0, 0, 0, 1, m_bLightSmoke, FALSE);
 
-	pev->velocity.x = RANDOM_FLOAT(-175, 175);
-	pev->velocity.y = RANDOM_FLOAT(-175, 175);
-	pev->velocity.z = RANDOM_FLOAT(250, 350);
+	// Do not hop the world model through walls while the cloud plays. Hide it
+	// immediately — CS:GO drops the projectile when smoke starts.
+	pev->velocity = g_vecZero;
+	pev->movetype = MOVETYPE_NONE;
+	pev->solid = SOLID_NOT;
+	pev->effects |= EF_NODRAW;
 
 	pev->nextthink = gpGlobals->time + 0.1f;
 	SetThink(&CGrenade::SG_Smoke);
@@ -861,10 +864,18 @@ void CGrenade::SG_TumbleThink()
 	}
 #endif
 
+	if (UTIL_PointContents(pev->origin) != CONTENTS_SOLID)
+		m_vSmokeDetonate = pev->origin;
+
 	if (pev->dmgtime <= gpGlobals->time)
 	{
 		if (pev->flags & FL_ONGROUND)
 		{
+			if (UTIL_PointContents(pev->origin) == CONTENTS_SOLID &&
+				m_vSmokeDetonate != g_vecZero)
+			{
+				UTIL_SetOrigin(pev, m_vSmokeDetonate);
+			}
 			SetThink(&CGrenade::SG_Detonate);
 		}
 	}
@@ -1375,6 +1386,7 @@ CGrenade *CGrenade::__API_HOOK(ShootSmokeGrenade)(entvars_t *pevOwner, VectorRef
 
 	pGrenade->pev->sequence = RANDOM_LONG(3, 6);
 	pGrenade->pev->framerate = 1.0f;
+	pGrenade->m_vSmokeDetonate = vecStart;
 	pGrenade->m_bJustBlew = true;
 	pGrenade->pev->gravity = 0.5f;
 	pGrenade->pev->friction = 0.8f;

@@ -2,6 +2,7 @@
 
 #include "keydefs.h"
 #include "../vgui/vgui_boot.h"
+#include "../gameui/Controls/MenuEngine.h"
 #include "../gameui/OptionsKeyboardGate.h"
 #include "../vgui/menu_runtime_info.h"
 
@@ -81,7 +82,9 @@ void Menu_Con(const char *fmt, ...)
 	fputs(buf, stderr);
 	fputc('\n', stderr);
 	fflush(stderr);
-	if (MenuConToEngine() && gEng.Con_Printf)
+	// Play sessions must capture CSRETRO_* in play.log. Gates already force
+	// every line through the engine; owner play.sh does not set those envs.
+	if (gEng.Con_Printf && (MenuConToEngine() || !std::strncmp(buf, "CSRETRO_", 8)))
 		gEng.Con_Printf("%s\n", buf);
 }
 
@@ -608,8 +611,7 @@ void UI_Redraw(float)
 			else
 				Menu_DrawBackground();
 		}
-		else if (InGame() && (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() ||
-			VGuiXash_IsBuySelectActive()))
+		else if (InGame() && (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive()))
 		{
 			PauseBackdrop_Paint();
 		}
@@ -634,6 +636,9 @@ void UI_Redraw(float)
 
 void UI_KeyEvent(int key, int down)
 {
+	if (!down && (key == K_MOUSE1 || key == K_MOUSE2))
+		MenuEngine::PollPendingGameKeyDest();
+
 	if (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() ||
 		VGuiXash_IsBuySelectActive())
 	{
@@ -760,6 +765,7 @@ void UI_SetActiveMenu(int active)
 		VGuiXash_HideRadioSelect();
 		VGuiXash_HideSpectatorHud();
 		VGuiXash_HideScoreboardHud();
+		VGuiXash_HideConsole();
 		if (getenv("CSRETRO_V1POC"))
 			VGuiXash_ShowPocDialog();
 		else
@@ -814,7 +820,10 @@ int UI_MouseInRect(void)
 
 int UI_IsVisible(void)
 {
-	return (gMenuVisible || VGuiXash_IsConsoleActive()) ? 1 : 0;
+	// In-game developer console is an overlay, not a full menu. Returning 1
+	// here skips V_RenderView (ui_renderworld defaults off), freezes the
+	// camera, and leaves HUD sprites drawing without a 3D frame.
+	return gMenuVisible ? 1 : 0;
 }
 
 int UI_CreditsActive(void)

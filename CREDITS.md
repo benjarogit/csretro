@@ -105,6 +105,7 @@ sowie alle weiteren signifikanten Contributors des Projekts.
 
 ## Weitere Referenzen
 
+- [languagelawyer/cs16-client molotov](https://github.com/languagelawyer/cs16-client/tree/molotov) und [ReGameDLL_CS molotov](https://github.com/languagelawyer/ReGameDLL_CS/tree/molotov) — GoldSrc-Molotov-Experiment. Übernommen: sichtbare Inferno-Tempents. **Nicht** deren Viewmodels (Zippo/Fire-Pack bleiben). `docs/UPSTREAM.md`
 - [FuryBaM/cs16-goldsrc-client](https://github.com/FuryBaM/cs16-goldsrc-client) — Ref B, bedingte Menü-Referenz
 - [YaPB](https://github.com/yapb/yapb) (jeefo und Contributors) — beobachtet als Bot-Quelle; noch nicht vendort
 - ZBot in ReGameDLL — mitvendort, später mit YaPB und weiteren vergleichen

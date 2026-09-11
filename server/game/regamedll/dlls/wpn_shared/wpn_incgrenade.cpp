@@ -85,7 +85,8 @@ void CIncendiary::ItemPostFrame()
 
 		if (!m_bHeldIdle && m_flTimeWeaponIdle <= UTIL_WeaponTimeBase())
 		{
-			SendWeaponAnim(INCGRENADE_IDLE, UseDecrement() != FALSE);
+			// Keep the last pinpull frame (pin out, spoon held). Idle is the
+			// rest pose and looks like nothing is prepared.
 			m_bHeldIdle = true;
 		}
 	}
@@ -146,7 +147,7 @@ void CIncendiary::WeaponIdle()
 		m_flTimeWeaponIdle = UTIL_WeaponTimeBase() + INCGRENADE_THROW_TIME;
 
 		if (--m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] <= 0)
-			m_flTimeWeaponIdle = m_flNextSecondaryAttack = m_flNextPrimaryAttack = GetNextAttackDelay(INCGRENADE_THROW_TIME);
+			m_flTimeWeaponIdle = m_flNextSecondaryAttack = m_flNextPrimaryAttack = GetNextAttackDelay(0.5);
 	}
 	else if (m_flReleaseThrow > 0)
 	{

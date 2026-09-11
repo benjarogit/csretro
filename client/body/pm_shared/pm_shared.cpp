@@ -2494,7 +2494,8 @@ void PM_Jump()
 		pmove->velocity[2] *= flRatio;
 	}
 
-	pmove->fuser2 = 1315.789429;
+	// Keep in lockstep with GameDLL pm_shared: short landing hitch, not 1.32 s.
+	pmove->fuser2 = 450.0;
 
 	// Decay it for simulation
 	PM_FixupGravityVelocity();

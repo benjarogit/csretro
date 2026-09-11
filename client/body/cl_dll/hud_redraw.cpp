@@ -111,17 +111,18 @@ int CHud :: Redraw( float flTime, int intermission )
 		const char *modelSrc = nullptr;
 		if (cl_entity_t *local = gEngfuncs.GetLocalPlayer())
 		{
-			// ReGameDLL initially assigns the team's default entity model while the
-			// selected class lives in player info/userinfo (for example leet after
-			// joinclass 2). Prefer that authoritative class name; the raw entity MDL
-			// is only a fallback for clients which do not expose player info yet.
-			hud_player_info_t info = {};
-			GetPlayerInfo(local->index, &info);
-			if (info.model && info.model[0])
-				modelSrc = info.model;
-			if (!modelSrc && gEngfuncs.LocalPlayerInfo_ValueForKey)
+			// Userinfo "model" is the class they spawned as (leet, guerilla, …).
+			// GetPlayerInfo.model can still be the team-default edict skin.
+			if (gEngfuncs.LocalPlayerInfo_ValueForKey)
 				modelSrc = gEngfuncs.LocalPlayerInfo_ValueForKey("model");
-			if (!modelSrc && local->model && local->model->name[0])
+			if (!modelSrc || !modelSrc[0])
+			{
+				hud_player_info_t info = {};
+				GetPlayerInfo(local->index, &info);
+				if (info.model && info.model[0])
+					modelSrc = info.model;
+			}
+			if ((!modelSrc || !modelSrc[0]) && local->model && local->model->name[0])
 				modelSrc = local->model->name;
 		}
 		if (!modelSrc && gEngfuncs.LocalPlayerInfo_ValueForKey)

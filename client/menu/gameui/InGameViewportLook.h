@@ -23,7 +23,7 @@ inline Color BuyGold() { return Color(232, 196, 52, 255); }
 inline Color BuyCell() { return Color(28, 30, 34, 250); }
 inline Color BuyCellArmed() { return Color(72, 76, 84, 255); }
 inline Color BuyCellDim() { return Color(22, 23, 26, 250); }
-inline Color BuyPlate() { return Color(10, 11, 13, 242); }
+inline Color BuyPlate() { return Color(10, 10, 12, 0); }
 
 // In-game UI grows up to a comfortable 1440x810 workspace, then stays centered.
 // This is deliberately not a fixed 16:9 letterbox: 4:3 and ultrawide keep all
@@ -69,7 +69,7 @@ inline void StyleFooterButton(vgui2::Button *btn, Color accent)
 	btn->SetDefaultBorder(nullptr);
 	btn->SetDepressedBorder(nullptr);
 	btn->SetKeyFocusBorder(nullptr);
-	btn->SetContentAlignment(vgui2::Label::a_east);
+	btn->SetContentAlignment(vgui2::Label::a_center);
 	btn->SetButtonActivationType(vgui2::Button::ACTIVATE_ONPRESSED);
 }
 

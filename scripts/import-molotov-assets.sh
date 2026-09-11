@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Copy Molotov/Incendiary models, sprites and sounds into local gamedata/.
 # Does not vendor AMXX, delta.lst or anything into git.
+#
+# After the RAR/Zippo copies, viewmodels stay as imported. Do not rebuild them
+# onto HE hands unless CSRETRO_HE_HANDS=1 (owner: keep Zippo / Fire-Pack).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -88,6 +91,18 @@ if [[ -f "${VIEW_ZIP}" ]]; then
 	rm -rf "${VIEW_TMP}"
 fi
 
+# Owner-selected green bottle / lighter skin. Binary comparison confirms the
+# same mesh, skeleton and four sequences as the 2008 viewmodel above.
+SKIN_RAR="${CSRETRO_MOLOTOV_SKIN:-/home/benny/Downloads/grenades_09_2.rar}"
+if [[ -f "${SKIN_RAR}" ]]; then
+	SKIN_TMP="$(mktemp -d)"
+	unrar x -inul "${SKIN_RAR}" 'cstrike/models/v_hegrenade.mdl' "${SKIN_TMP}/"
+	if [[ -f "${SKIN_TMP}/cstrike/models/v_hegrenade.mdl" ]]; then
+		cp -f "${SKIN_TMP}/cstrike/models/v_hegrenade.mdl" "${CSTRIKE}/models/v_molotov.mdl"
+		echo "Molotov-Viewmodel-Skin aus ${SKIN_RAR}; Animationsrig unverändert."
+	fi
+fi
+
 if [[ -f "${CSTRIKE}/sound/weapons/pinpull.wav" && ! -f "${CSTRIKE}/sound/weapons/molotov_light.wav" ]]; then
 	cp -f "${CSTRIKE}/sound/weapons/pinpull.wav" "${CSTRIKE}/sound/weapons/molotov_light.wav"
 fi
@@ -146,6 +161,38 @@ if n:
     print(f"delta.lst: m_iId auf 6 Bit ({n} Felder).")
 PY
 fi
+
+# Optional languagelawyer HE-hands rebuild. Owner: Zippo / Fire-Pack stay.
+# Only with CSRETRO_HE_HANDS=1.
+rebuild_he_hands() {
+	local mdldec="${CSRETRO_MDLDEC:-${ROOT}/build/tools/mdldec}"
+	local studiomdl="${CSRETRO_STUDIOMDL:-${ROOT}/build/tools/studiomdl/build/bin-x86_64/studiomdl}"
+	local activities="${CSRETRO_ACTIVITIES:-${ROOT}/build/tools/activities.txt}"
+	if [[ "${CSRETRO_HE_HANDS:-0}" == "0" ]]; then
+		echo "Viewmodels unverändert (Zippo/Fire-Pack). CSRETRO_HE_HANDS=1 wäre der languagelawyer-Rebuild."
+		return 0
+	fi
+	if [[ ! -x "${mdldec}" || ! -x "${studiomdl}" || ! -f "${activities}" ]]; then
+		echo "HE-Hände-Rebuild übersprungen: mdldec/studiomdl/activities.txt fehlen unter build/tools/." >&2
+		return 0
+	fi
+	python3 "${ROOT}/scripts/build_molotov_models.py" \
+		--game-dir "${CSTRIKE}" \
+		--mdldec "${mdldec}" \
+		--studiomdl "${studiomdl}" \
+		--activities "${activities}" \
+		--output-dir "${CSTRIKE}/models" \
+		--force
+	python3 "${ROOT}/scripts/build_incgrenade_viewmodel.py" \
+		--game-dir "${CSTRIKE}" \
+		--mdldec "${mdldec}" \
+		--studiomdl "${studiomdl}" \
+		--activities "${activities}" \
+		--output-dir "${CSTRIKE}/models" \
+		--force
+}
+
+rebuild_he_hands
 
 echo "Molotov/Incendiary-Assets nach ${CSTRIKE} kopiert (nicht committen)."
 echo "Kein AMXX. delta.lst: nur m_iId 5→6 Bit für IDs 32/33."

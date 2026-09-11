@@ -1747,7 +1747,20 @@ void EXT_FUNC __API_HOOK(HandleMenu_ChooseAppearance)(CBasePlayer *pPlayer, int 
 	pPlayer->m_iModelName = appearance.model_id;
 
 	pPlayer->SetClientUserInfoModel(GET_INFO_BUFFER(pPlayer->edict()), appearance.model_name);
-	pPlayer->SetNewPlayerModel(sPlayerModelFiles[appearance.model_name_index]);
+	// Stock CS always SET_MODEL'd the team default (terror/urban) and let the
+	// client remap from userinfo. Xash buy/preview and some world draws use the
+	// entity model — without this, Guerrilla still looks like Phoenix.
+	{
+		char modelPath[128];
+		if (appearance.model_name && Q_strstr(appearance.model_name, ".mdl"))
+			Q_strncpy(modelPath, appearance.model_name, sizeof(modelPath) - 1);
+		else if (appearance.model_name && appearance.model_name[0])
+			Q_snprintf(modelPath, sizeof(modelPath), "models/player/%s/%s.mdl", appearance.model_name, appearance.model_name);
+		else
+			Q_strncpy(modelPath, sPlayerModelFiles[appearance.model_name_index], sizeof(modelPath) - 1);
+		modelPath[sizeof(modelPath) - 1] = '\0';
+		pPlayer->SetNewPlayerModel(modelPath);
+	}
 
 	if (CSGameRules()->m_bMapHasVIPSafetyZone)
 	{

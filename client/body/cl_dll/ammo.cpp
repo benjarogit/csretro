@@ -51,6 +51,31 @@ int g_weaponselect = 0;
 int g_weaponselect_frames = 0;
 int g_iShotsFired;
 
+static bool HudWeaponIsGrenade(int id)
+{
+	switch (id)
+	{
+	case WEAPON_HEGRENADE:
+	case WEAPON_FLASHBANG:
+	case WEAPON_SMOKEGRENADE:
+	case WEAPON_MOLOTOV:
+	case WEAPON_INCGRENADE:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+
+static void EquipHudWeapon(WEAPON *p)
+{
+	if (!p || p == (WEAPON *)1)
+		return;
+	ServerCmd(p->szName);
+	g_weaponselect = p->iId;
+	g_weaponselect_frames = 3;
+}
+
 void WeaponsResource :: LoadAllWeaponSprites( void )
 {
 	for( int i = 0; i < MAX_WEAPONS; i++ )
@@ -390,9 +415,29 @@ void CHudAmmo::Think(void)
 	if (!gpActiveSel)
 		return;
 
+	// A direct weapon command/server switch may already have equipped the
+	// highlighted item. Do not consume its first attack to select it again.
+	if (gpActiveSel == m_pWeapon)
+	{
+		gpLastSel = gpActiveSel;
+		gpActiveSel = NULL;
+		return;
+	}
+
+	// HE/Flash/Smoke/Molotov/Inc: M1 is the pin, never a hidden confirm.
+	if (gpActiveSel != (WEAPON *)1 && HudWeaponIsGrenade(gpActiveSel->iId))
+	{
+		EquipHudWeapon(gpActiveSel);
+		gpLastSel = gpActiveSel;
+		gpActiveSel = NULL;
+		return;
+	}
+
 	// has the player selected one?
 	if (gHUD.m_iKeyBits & IN_ATTACK)
 	{
+		gEngfuncs.Con_DPrintf("CSRETRO_ATTACK selection_consumed selected=%d current=%d\n",
+			gpActiveSel == (WEAPON *)1 ? -1 : gpActiveSel->iId, m_pWeapon ? m_pWeapon->iId : 0);
 		if (gpActiveSel != (WEAPON *)1)
 		{
 			ServerCmd(gpActiveSel->szName);
@@ -457,24 +502,14 @@ void WeaponsResource :: SelectSlot( int iSlot, int fAdvance, int iDirection )
 
 	WEAPON *p = NULL;
 	bool fastSwitch = gHUD.m_Ammo.m_pHud_FastSwitch->value != 0.0f;
+	if (fastSwitch && gHUD.m_Ammo.m_pWeapon && gHUD.m_Ammo.m_pWeapon->iSlot == iSlot)
+		gpActiveSel = gHUD.m_Ammo.m_pWeapon;
 
 	if ( (gpActiveSel == NULL) || (gpActiveSel == (WEAPON *)1) || (iSlot != gpActiveSel->iSlot) )
 	{
 		PlaySound( "common/wpn_hudon.wav", 1 );
 		p = GetFirstPos( iSlot );
 
-		if ( p && fastSwitch ) // check for fast weapon switch mode
-		{
-			// if fast weapon switch is on, then weapons can be selected in a single keypress
-			// but only if there is only one item in the bucket
-			WEAPON *p2 = GetNextActivePos( p->iSlot, p->iSlotPos );
-			if ( !p2 )
-			{	// only one active item in bucket, so change directly to weapon
-				ServerCmd( p->szName );
-				g_weaponselect = p->iId;
-				return;
-			}
-		}
 	}
 	else
 	{
@@ -486,6 +521,17 @@ void WeaponsResource :: SelectSlot( int iSlot, int fAdvance, int iDirection )
 	}
 
 	
+	// Fast switch must also work for a bucket containing several grenades.
+	// Repeated slot presses cycle equipped weapons; M1 belongs to the weapon,
+	// not to a hidden confirmation step. hud_fastswitch=0 keeps the old menu
+	// for guns only — every grenade equips on the slot/wheel press.
+	if (p && (fastSwitch || HudWeaponIsGrenade(p->iId)))
+	{
+		EquipHudWeapon(p);
+		gpActiveSel = NULL;
+		return;
+	}
+
 	if ( !p )  // no selection found
 	{
 		// just display the weapon list, unless fastswitch is on just ignore it
@@ -928,6 +974,12 @@ void CHudAmmo::UserCmd_NextWeapon(void)
 				if ( wsp /*&& gWR.HasAmmo(wsp)*/ )
 				{
 					gpActiveSel = wsp;
+					if (m_pHud_FastSwitch->value != 0.0f || HudWeaponIsGrenade(wsp->iId))
+					{
+						EquipHudWeapon(wsp);
+						gEngfuncs.Con_DPrintf("CSRETRO_WEAPON_SELECT next %s\n", wsp->szName);
+						gpActiveSel = NULL;
+					}
 					return;
 				}
 			}
@@ -969,6 +1021,12 @@ void CHudAmmo::UserCmd_PrevWeapon(void)
 				if ( wsp /*&& gWR.HasAmmo(wsp)*/ )
 				{
 					gpActiveSel = wsp;
+					if (m_pHud_FastSwitch->value != 0.0f || HudWeaponIsGrenade(wsp->iId))
+					{
+						EquipHudWeapon(wsp);
+						gEngfuncs.Con_DPrintf("CSRETRO_WEAPON_SELECT prev %s\n", wsp->szName);
+						gpActiveSel = NULL;
+					}
 					return;
 				}
 			}

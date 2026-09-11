@@ -67,6 +67,23 @@ bool ClassStemForTeam(const char *stem, bool ct)
 	return false;
 }
 
+const char *TeamDefaultStem(bool ct)
+{
+	return ct ? "urban" : "terror";
+}
+
+// Buy is one large figure on the RIGHT of the panel. Team T yaw 150 is the
+// LEFT showcase looking inward; the same yaw on the right shows Phoenix's
+// back (brown jacket ≈ Guerrilla). Right-side inward facing is 202 for both
+// teams — the CT team camera and the rightmost class-lineup card. Do not
+// reuse class-lineup yaws (158/169/191) or the left-side team T yaw.
+void BuyCameraForClass(const char *stem, bool ct, float *yaw, int *seq)
+{
+	(void)stem;
+	*yaw = 202.0f;
+	*seq = ct ? 33 : 80;
+}
+
 struct SlotBind
 {
 	const char *name;
@@ -345,7 +362,8 @@ public:
 		m_number->SetVisible(false);
 		m_number->SetZPos(2);
 		m_name = new Label(this, "ItemName", "");
-		m_name->SetContentAlignment(Label::a_west);
+		// Reference: shortcut at upper left, product name at upper right.
+		m_name->SetContentAlignment(Label::a_east);
 		m_name->SetMouseInputEnabled(false);
 		m_name->SetPaintBackgroundEnabled(false);
 		m_name->SetVisible(false);
@@ -429,7 +447,7 @@ public:
 			m_price->SetBounds(std::max(pad, w - 72), h - priceH - 2, 68, priceH);
 			const bool dim = Unaffordable();
 			m_number->SetFgColor(dim ? Color(168, 170, 174, 220) : Color(210, 210, 214, 220));
-			m_name->SetFgColor(dim ? InGameViewportLook::TextDim() : InGameViewportLook::Text());
+			m_name->SetFgColor(dim ? InGameViewportLook::TextDim() : InGameViewportLook::BuyGold());
 			m_price->SetFgColor(dim ? Color(196, 168, 64, 230) : InGameViewportLook::BuyGold());
 		}
 	}
@@ -439,12 +457,7 @@ public:
 		int w = 0, h = 0;
 		GetSize(w, h);
 		if (m_isFooter)
-		{
-			if (w > 4 && h > 4)
-				InGameViewportLook::PaintRoundedRect(0, 0, w, h, std::min(4, h / 4),
-					(IsArmed() || IsDepressed()) ? Color(48, 42, 22, 230) : Color(28, 26, 20, 210));
 			return;
-		}
 		InGameViewportLook::PaintBuyCell(w, h, IsArmed() || IsDepressed(), Unaffordable());
 	}
 
@@ -485,7 +498,7 @@ private:
 		if (m_isFooter)
 		{
 			InGameViewportLook::StyleFooterButton(this, m_accent);
-			SetPaintBackgroundEnabled(true);
+			SetPaintBackgroundEnabled(false);
 			SetContentAlignment(Label::a_center);
 			SetTextInset(0, 0);
 			return;
@@ -500,7 +513,7 @@ private:
 		if (m_number)
 			m_number->SetFgColor(dim ? Color(168, 170, 174, 220) : Color(210, 210, 214, 220));
 		if (m_name)
-			m_name->SetFgColor(dim ? InGameViewportLook::TextDim() : InGameViewportLook::Text());
+			m_name->SetFgColor(dim ? InGameViewportLook::TextDim() : InGameViewportLook::BuyGold());
 		if (m_price)
 			m_price->SetFgColor(dim ? Color(196, 168, 64, 230) : InGameViewportLook::BuyGold());
 	}
@@ -534,6 +547,7 @@ public:
 		m_overview.clear();
 		std::fill(std::begin(m_overviewTitles), std::end(m_overviewTitles), nullptr);
 		m_character = nullptr;
+		m_classCaption = nullptr;
 		m_plate = nullptr;
 		m_money = nullptr;
 		while (GetChildCount() > 0)
@@ -615,6 +629,8 @@ public:
 	{
 		BaseClass::OnThink();
 		UpdateRuntimeChrome();
+		if (IsVisible() && m_character)
+			ApplyOwnClassPreview();
 	}
 
 	void LayoutFamily()
@@ -945,6 +961,7 @@ private:
 	int m_pendingSlots = 0;
 	bool m_pending = false;
 	CTeamModelPreview *m_character = nullptr;
+	Label *m_classCaption = nullptr;
 	Panel *m_plate = nullptr;
 	Label *m_money = nullptr;
 	std::string m_characterModel;
@@ -1059,37 +1076,36 @@ private:
 				src = "env";
 			}
 		}
-		// A class chosen through this UI is exact and immediately authoritative.
-		// Playerinfo can lag behind (or briefly expose the team's default model)
-		// after joinclass and was therefore showing the wrong Buy character.
-		if (!name && ClassStemForTeam(g_buyClassModel, ct))
+		const char *remembered = ClassStemForTeam(g_buyClassModel, ct) ? g_buyClassModel : nullptr;
+		const char *hud = ClassStemForTeam(g_buyHud.model, ct) ? g_buyHud.model : nullptr;
+		const char *teamDefault = TeamDefaultStem(ct);
+		(void)teamDefault;
+		// What they clicked in class select is the figure. HUD userinfo can
+		// be another player's skin (or lag) and must not replace that.
+		if (!name && remembered)
 		{
-			name = g_buyClassModel;
+			name = remembered;
 			src = "joinclass";
 		}
-		if (!name && ClassStemForTeam(g_buyHud.model, ct))
+		else if (!name && hud)
 		{
-			name = g_buyHud.model;
+			name = hud;
 			src = "hud";
 		}
-		const char *fallback = ct ? "urban" : "terror";
-		const char *model = name ? name : fallback;
-		if (m_characterModel == model)
+		const char *model = name ? name : teamDefault;
+		if (!m_characterModel.empty() && m_characterModel == model)
 			return;
+		float yaw = 0.0f;
+		int seq = 0;
+		BuyCameraForClass(model, ct, &yaw, &seq);
 		m_characterModel = model;
 		char path[96];
 		snprintf(path, sizeof(path), "models/player/%s/%s.mdl", model, model);
-		// Same one-figure player/weapon path as Team/Class; only the Buy camera
-		// frames it closer to match the supplied composition.
-		const float yaw = ct ? 206.0f : 202.0f;
-		const int seq = ct ? 33 : 80;
-		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl", yaw, seq,
-			ct ? 4.0f : 0.0f);
-		// The reference devotes roughly the full stage height to the character.
-		// Width is the limiting camera axis in this wide viewport, so framing only
-		// by height leaves the real player MDL visibly too small.
-		m_character->SetWorldWidth(44.0f);
-		m_character->SetWorldHeight(60.0f);
+		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl", yaw, seq);
+		m_character->SetWorldWidth(65.0f);
+		m_character->SetWorldHeight(82.0f);
+		if (m_classCaption)
+			m_classCaption->SetVisible(false);
 		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s src=%s remember=%s hud=%s yaw=%.0f seq=%d",
 			m_team, model, src, g_buyClassModel[0] ? g_buyClassModel : "-",
 			g_buyHud.model[0] ? g_buyHud.model : "-", yaw, seq);
@@ -1103,6 +1119,13 @@ private:
 		m_character->SetMouseInputEnabled(false);
 		m_character->SetKeyBoardInputEnabled(false);
 		m_character->SetZPos(1);
+		m_classCaption = new Label(this, "BuyClassName", "");
+		m_classCaption->SetContentAlignment(Label::a_center);
+		m_classCaption->SetPaintBackgroundEnabled(false);
+		m_classCaption->SetFgColor(InGameViewportLook::BuyGold());
+		m_classCaption->SetMouseInputEnabled(false);
+		m_classCaption->SetKeyBoardInputEnabled(false);
+		m_classCaption->SetZPos(2);
 		m_characterModel.clear();
 		ApplyOwnClassPreview();
 	}
@@ -1288,6 +1311,8 @@ private:
 			}
 			m_money->SetFgColor(InGameViewportLook::BuyGold());
 		}
+		if (m_classCaption)
+			m_classCaption->SetFgColor(InGameViewportLook::BuyGold());
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
 			// The CS:GO-style character is composited directly over the dimmed
@@ -1312,13 +1337,13 @@ private:
 		// 4:3 stage more fully there; the 1.0 cap keeps 1280+ layouts from growing.
 		const float scale = std::max(0.5f, std::min(1.0f,
 			std::min(static_cast<float>(w) / 1066.6667f, static_cast<float>(h) / 720.0f)));
-		const int stageW = std::min(w - 16, static_cast<int>(980.0f * scale));
-		const int stageH = std::min(h - 16, static_cast<int>(600.0f * scale));
+		const int stageW = std::min(w - 16, static_cast<int>(1100.0f * scale));
+		const int stageH = std::min(h - 24, static_cast<int>(640.0f * scale));
 		const int stageX = (w - stageW) / 2;
 		const int stageY = (h - stageH) / 2;
 		const int footerGap = std::max(4, static_cast<int>(6.0f * scale));
 		const int plateX = stageX;
-		const int plateW = std::min(stageW, static_cast<int>(600.0f * scale));
+		const int plateW = std::min(stageW, static_cast<int>(560.0f * scale));
 		const int titleY = stageY + static_cast<int>(82.0f * scale);
 		const int titleH = std::max(22, static_cast<int>(26.0f * scale));
 		const int headerY = titleY + titleH;
@@ -1343,12 +1368,15 @@ private:
 		}
 		if (auto *title = FindChildByName("Title"))
 			title->SetBounds(plateX, titleY, plateW, titleH);
+		if (auto *autoBuy = dynamic_cast<Button *>(FindChildByName("AutobuyButton")))
+			autoBuy->SetText("[F3]  AUTO BUY");
+		if (auto *rebuy = dynamic_cast<Button *>(FindChildByName("RebuyButton")))
+			rebuy->SetText("[F4]  RE-BUY PREVIOUS");
+		if (auto *cancel = dynamic_cast<Button *>(FindChildByName("CancelButton")))
+			cancel->SetText("[ESCAPE]  BACK");
 		HideSteamCategoryChrome();
 		if (m_plate)
-		{
-			m_plate->SetVisible(true);
-			m_plate->SetBounds(plateX, titleY, plateW, gridBottom - titleY + std::max(4, static_cast<int>(6.0f * scale)));
-		}
+			m_plate->SetVisible(false);
 		for (int col = 0; col < 5; ++col)
 		{
 			if (m_overviewTitles[col])
@@ -1357,38 +1385,61 @@ private:
 		for (const OverviewCard &card : m_overview)
 			card.button->SetBounds(colX[card.column],
 				gridY + card.row * (cellH + rowGap), colW[card.column], cellH);
+		if (m_money)
+			m_money->SetBounds(std::max(24, w * 4 / 100), h - std::max(48, static_cast<int>(56.0f * scale)),
+				std::max(140, static_cast<int>(200.0f * scale)), std::max(36, static_cast<int>(44.0f * scale)));
+
+		struct FooterSpec
+		{
+			const char *name;
+			int baseW;
+		};
+		const FooterSpec specs[] = {
+			{"RebuyButton", 250},
+			{"AutobuyButton", 190},
+			{"CancelButton", 180},
+		};
+		std::vector<Panel *> bottom;
+		std::vector<int> bottomW;
+		for (const FooterSpec &spec : specs)
+		{
+			if (Panel *p = FindChildByName(spec.name))
+			{
+				if (!p->IsVisible())
+					continue;
+				bottom.push_back(p);
+				bottomW.push_back(std::max(140, static_cast<int>(spec.baseW * scale)));
+			}
+		}
+		const int bh = std::max(22, static_cast<int>(26.0f * scale));
+		const int by = std::min(h - bh - std::max(12, static_cast<int>(16.0f * scale)),
+			stageY + static_cast<int>(575.0f * scale));
+		if (!bottom.empty())
+		{
+			int totalW = footerGap * static_cast<int>(bottom.size() - 1);
+			for (int width : bottomW)
+				totalW += width;
+			int x = stageX + (stageW - totalW) / 2;
+			for (size_t i = 0; i < bottom.size(); ++i)
+			{
+				bottom[i]->SetBounds(x, by, bottomW[i], bh);
+				x += bottomW[i] + footerGap;
+			}
+		}
 		if (m_character)
 		{
 			m_character->SetVisible(true);
-			const int charGap = std::max(6, static_cast<int>(8.0f * scale));
+			const int charGap = std::max(10, static_cast<int>(16.0f * scale));
 			const int charX = plateX + plateW + charGap;
-			const int charRight = stageX + stageW - std::max(18, static_cast<int>(35.0f * scale));
+			const int charRight = stageX + stageW - std::max(8, static_cast<int>(12.0f * scale));
 			const int charW = charRight - charX;
-			const int charY = stageY + static_cast<int>(40.0f * scale);
-			const int charBottom = stageY + static_cast<int>(580.0f * scale);
+			const int charY = stageY + static_cast<int>(8.0f * scale);
+			const int charBottom = by - std::max(8, static_cast<int>(10.0f * scale));
 			m_character->SetBounds(charX, charY, std::max(1, charW),
 				std::max(1, charBottom - charY));
+			if (m_classCaption)
+				m_classCaption->SetVisible(false);
 		}
-		if (m_money)
-			m_money->SetBounds(std::max(18, w * 3 / 100), h - std::max(70, static_cast<int>(100.0f * scale)),
-				std::max(120, static_cast<int>(180.0f * scale)), std::max(36, static_cast<int>(50.0f * scale)));
-
-		std::vector<Panel *> bottom;
-		for (const char *name : {"AutobuyButton", "RebuyButton", "CancelButton"})
-		{
-			if (Panel *p = FindChildByName(name))
-				if (p->IsVisible())
-					bottom.push_back(p);
-		}
-		if (bottom.empty())
-			return;
-		const int by = stageY + static_cast<int>(575.0f * scale);
-		const int bh = std::max(28, static_cast<int>(32.0f * scale));
-		const int bw = std::max(110, static_cast<int>(145.0f * scale));
-		const int totalW = bw * static_cast<int>(bottom.size()) + footerGap * static_cast<int>(bottom.size() - 1);
-		const int startX = stageX + (stageW - totalW) / 2;
-		for (size_t i = 0; i < bottom.size(); ++i)
-			bottom[i]->SetBounds(startX + static_cast<int>(i) * (bw + footerGap), by, bw, bh);
 	}
 
 	void RelayoutWeaponList()
@@ -1481,6 +1532,8 @@ private:
 				m_character->SetVisible(true);
 				m_character->SetBounds(infoX, titleY, std::max(1, infoW), std::max(1, infoH));
 			}
+			if (m_classCaption)
+				m_classCaption->SetVisible(false);
 		}
 		if (m_money)
 			m_money->SetBounds(std::max(18, w * 3 / 100),
@@ -1546,12 +1599,11 @@ public:
 	{
 		int w = 0, h = 0;
 		GetSize(w, h);
-		InGameViewportLook::PaintTeamBackdrop(w, h, PauseBackdrop_IsBlurred());
-		if (surface())
-		{
-			surface()->DrawSetColor(0, 0, 0, 90);
-			surface()->DrawFilledRect(0, 0, w, h);
-		}
+		if (!surface())
+			return;
+		// CS:GO buy: the live map stays sharp. Only a light veil.
+		surface()->DrawSetColor(0, 0, 0, 48);
+		surface()->DrawFilledRect(0, 0, w, h);
 	}
 
 	void PerformLayout() override
@@ -1691,8 +1743,7 @@ void BuySelect_Hide()
 	if (g_keyDestPushed && !gMenuVisible && !TeamSelect_IsActive() && !ClassSelect_IsActive() &&
 		!RadioSelect_IsActive())
 	{
-		if (gEng.pfnSetKeyDest)
-			gEng.pfnSetKeyDest(KEY_DEST_GAME);
+		MenuEngine::RestoreGameKeyDest();
 		g_keyDestPushed = false;
 	}
 }
@@ -1714,6 +1765,8 @@ int BuySelect_MenuType()
 
 void BuySelect_Shutdown()
 {
+	g_buyClassModel[0] = '\0';
+	g_buyHud = {};
 	g_overlay = nullptr;
 	g_panel = nullptr;
 	g_host = nullptr;
@@ -1741,12 +1794,29 @@ void BuySelect_RememberClass(const char *modelStem)
 		g_panel->SyncCharacterFromHud();
 }
 
+const char *BuySelect_PlayerClass(bool ct)
+{
+	if (ClassStemForTeam(g_buyClassModel, ct))
+		return g_buyClassModel;
+	if (ClassStemForTeam(g_buyHud.model, ct))
+		return g_buyHud.model;
+	return nullptr;
+}
+
 void BuySelect_SetHud(const BuyHudState *state)
 {
 	if (!state)
 		return;
 	const bool modelChanged = std::strcmp(g_buyHud.model, state->model) != 0;
 	g_buyHud = *state;
+	if (g_panel)
+	{
+		const bool ct = g_panel->Team() == TEAM_CT;
+		// Phoenix/SEAL stems are also the team defaults. HUD userinfo can
+		// still be another slot's skin (Arctic bot). Never replace joinclass.
+		if (!g_buyClassModel[0] && ClassStemForTeam(g_buyHud.model, ct))
+			BuySelect_RememberClass(g_buyHud.model);
+	}
 	if (modelChanged && g_panel && g_panel->IsVisible())
 		g_panel->SyncCharacterFromHud();
 }

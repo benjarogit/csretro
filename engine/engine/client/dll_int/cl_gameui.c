@@ -1337,6 +1337,26 @@ static int pfnIsCvarReadOnly( const char *name )
 	return FBitSet( cv->flags, FCVAR_READ_ONLY ) ? 1 : 0;
 }
 
+static void *pfnGetFirstCmdFunctionHandle( void )
+{
+	return Cmd_GetFirstFunctionHandle();
+}
+
+static void *pfnGetNextCmdFunctionHandle( void *cmd )
+{
+	return Cmd_GetNextFunctionHandle( (struct cmd_s *)cmd );
+}
+
+static const char *pfnGetCmdFunctionName( void *cmd )
+{
+	return cmd ? Cmd_GetName( (struct cmd_s *)cmd ) : "";
+}
+
+static cvar_t *pfnGetFirstCvarPtr( void )
+{
+	return Cvar_GetList();
+}
+
 static ui_extendedfuncs_t gExtendedfuncs =
 {
 	pfnEnableTextInput,
@@ -1354,6 +1374,10 @@ static ui_extendedfuncs_t gExtendedfuncs =
 	pfnGetModInfo,
 	pfnIsCvarReadOnly,
 	pfnSetTextInputRect,
+	pfnGetFirstCmdFunctionHandle,
+	pfnGetNextCmdFunctionHandle,
+	pfnGetCmdFunctionName,
+	pfnGetFirstCvarPtr,
 };
 
 void UI_UnloadProgs( void )

@@ -16,8 +16,8 @@ Ein Screenshot oder erfolgreicher Compile-Test bedeutet nicht, dass das gesamte 
 
 ## Aktuell bekannte Einschränkungen
 
-- Erster M1-Druck bei Granaten wird in bestimmten Abläufen nicht wirksam.
-- Incendiary-Feuer kann laut Spielberichten unsichtbar bleiben, obwohl Schaden entsteht.
+- Erster M1-Druck bei Granaten wird in bestimmten Abläufen nicht wirksam ([#3](https://github.com/benjarogit/csretro/issues/3)).
+- Incendiary-Feuer kann laut Spielberichten unsichtbar bleiben, obwohl Schaden entsteht ([#2](https://github.com/benjarogit/csretro/issues/2)). Movement-Replay fehlt noch ([#1](https://github.com/benjarogit/csretro/issues/1)).
 - Viewmodels, Halte-/Wurfanimationen und das Bewegungsgefühl benötigen weitere Prüfung.
 - Kaufmenü-Abstände, Lesbarkeit und Gegenstandsdarstellung sind noch nicht endgültig.
 - Konsole und HUD wurden mit Darstellungs-/Bedienproblemen gemeldet.

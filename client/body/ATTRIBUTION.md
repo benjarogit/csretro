@@ -8,4 +8,4 @@ Dieser Baum ist der CS-Retro-Client-Unterbau, nicht ein zweiter Client und nicht
 `refs/a-cs16-client/` bleibt die unberührte Referenz.
 
 Was fehlt gegenüber Ref A (bewusst): YaPB, ReGameDLL, mainui/mainui_cpp, `public/steam/`, restliches Ref-A-`engine/`.
-Manifest: `docs/ROLLEN.md`.
+Rollen: `docs/architecture.de.md`, `client/ROLE.md`.

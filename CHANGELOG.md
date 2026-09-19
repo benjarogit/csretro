@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.1.7 — 2026-09-19
+
+### Architecture / Dokumentation
+
+- PrimeXT comparison tree pinned for a fresh clone: tag `continious`, SHA `46fb05b41e58ed887718649e1720313baaac9a35` (2026-08-23). Restore via `git clone` + SHA checkout into gitignored `refs/primext/` — no submodule, no vendor refresh.
+- PX1 research and port matrix in `docs/research/px1-primext.md`. PX2 remains the render-API bridge only (issue #4). No PrimeXT product import in this release.
+
+Diese Version enthält keinen Renderer- oder Gameplay-Code.  
+This release contains no renderer or gameplay code.
+
 ## 0.1.6 — 2026-09-19
 
 ### Gameplay

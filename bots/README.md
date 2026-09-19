@@ -4,4 +4,4 @@ Platzhalter für die spätere CS-Retro-Bot-Implementierung. Noch leer — absich
 
 Produktiv ist heute der **ReGameDLL-ZBot** in `server/game/`, unverändert.
 
-Zielbild, Quellen und Pflichtfunktionen des künftigen „CS Retro Bot“: **`docs/BOTS.md`**.
+Zielbild: Bots bleiben in der GameDLL; siehe `docs/architecture.de.md`. `docs/BOTS.md` existiert nicht mehr.

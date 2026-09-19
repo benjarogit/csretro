@@ -50,6 +50,9 @@ __pycache__/
 # Lokale Abguck-Dumps (nicht Runtime, nicht Vendor — docs/UPSTREAM.md)
 /TEMP_EXTRA/
 
+# PrimeXT-Vergleichsbaum (PX1-Pin, nicht Produkt-Vendor)
+/refs/primext/
+
 # Runtime-/Backup-Junk
 gamescope.log
 *.sdkorig

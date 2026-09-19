@@ -34,12 +34,12 @@ Already present: `R_StudioGetPlayerState` requires `currententity` (`dccfaf3`).
 [SNMetamorph/PrimeXT](https://github.com/SNMetamorph/PrimeXT) is the primary technical upstream for the client renderer, materials, lighting, post-FX and ImGui tools. It is **not** an engine replacement and not a second `client.so`.
 
 - Product code lives in CS Retro paths and may be rewritten.
-- `refs/primext/` is the planned, not-built comparison tree (PX1). No vendor pin yet.
-- First productive integration is PX2, after the movement gate passes.
+- `refs/primext/` is the not-built comparison tree (gitignored). PX1 pin: tag `continious`, SHA `46fb05b41e58ed887718649e1720313baaac9a35` (2026-08-23). No submodule/vcpkg fetch. Not `latest`.
+- First productive integration is PX2: render-API bridge only. See `docs/research/px1-primext.md` and issue #4.
 - Updates: understand the fix → find our implementation → take it in CS Retro form.
 - Record provenance and license per port before public source or builds.
 
-The earlier “watch PrimeXT only” decision is **replaced**.
+The earlier “watch PrimeXT only” decision is **replaced**. PrimeXT PhysX is not taken for PX2/PX3.
 
 ## Selective integration
 

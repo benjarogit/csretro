@@ -16,8 +16,8 @@ A screenshot or successful compile does not establish that the whole game works 
 
 ## Known limitations
 
-- The first M1 press does not take effect in some grenade sequences.
-- Incendiary flames have been reported invisible while damage still occurs.
+- The first M1 press does not take effect in some grenade sequences ([#3](https://github.com/benjarogit/csretro/issues/3)).
+- Incendiary flames have been reported invisible while damage still occurs ([#2](https://github.com/benjarogit/csretro/issues/2)). Movement replay is still missing ([#1](https://github.com/benjarogit/csretro/issues/1)).
 - Viewmodels, hold/throw animations and movement feel need further checking.
 - Buy-menu spacing, readability and item presentation are not final.
 - Console and HUD presentation/interaction problems have been reported.

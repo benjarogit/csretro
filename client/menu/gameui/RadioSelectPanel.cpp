@@ -3,6 +3,7 @@
 #include "BuySelectPanel.h"
 #include "ClassSelectPanel.h"
 #include "Controls/MenuEngine.h"
+#include "InGameUi.h"
 #include "TeamSelectPanel.h"
 
 #include <vgui/ILocalize.h>
@@ -253,7 +254,7 @@ public:
 	{
 		BaseClass::ApplySchemeSettings(pScheme);
 		// Kein ClientScheme-Orange, kein Tracker-Frame. titles.txt: \y Titel, \w Zeilen.
-		SetBgColor(Color(0, 0, 0, 170));
+		SetBgColor(Color(0, 0, 0, 0));
 		SetBorder(nullptr);
 		StyleButtons();
 	}
@@ -264,10 +265,9 @@ public:
 		GetSize(w, h);
 		if (!surface() || w < 1 || h < 1)
 			return;
-		surface()->DrawSetColor(8, 8, 10, 218);
-		surface()->DrawFilledRect(0, 0, w, h);
-		surface()->DrawSetColor(218, 174, 54, 230);
-		surface()->DrawFilledRect(0, 0, w, 2);
+		InGameUi::PaintRoundedRect(0, 0, w, h, 4, InGameUi::Card());
+		surface()->DrawSetColor(InGameUi::Gold());
+		surface()->DrawFilledRect(8, 0, w - 8, 2);
 	}
 
 	void PerformLayout() override
@@ -358,11 +358,11 @@ private:
 
 	void StyleButtons()
 	{
-		const Color title(255, 210, 64, 255);
-		const Color fg(255, 255, 255, 255);
-		const Color armed(255, 210, 64, 255);
+		const Color title = InGameUi::Gold();
+		const Color fg = InGameUi::Text();
+		const Color armed = InGameUi::Gold();
 		const Color bg(0, 0, 0, 0);
-		const Color hover(218, 174, 54, 52);
+		const Color hover(232, 196, 52, 48);
 
 		auto style = [&](Button *btn) {
 			if (!btn)
@@ -440,7 +440,7 @@ private:
 
 	void LogOpen()
 	{
-		Menu_Con("CSRETRO_RADIO_VGUI open type=%d groups=1 slots=%d buttons=%d",
+		Menu_Con("CSRETRO_RADIO_UI open type=%d groups=1 slots=%d buttons=%d",
 			m_type, m_slots, VisibleButtonCount());
 	}
 };

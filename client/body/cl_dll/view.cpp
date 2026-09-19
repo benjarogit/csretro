@@ -7,6 +7,7 @@
 
 // view/refresh setup functions
 
+#include <cmath>
 #include <string.h>
 
 #include "hud.h"
@@ -172,17 +173,26 @@ float V_CalcBob ( struct ref_params_s *pparams )
 
 	lasttime = pparams->time;
 
+	if ( !cl_bobcycle || cl_bobcycle->value <= 0.0f )
+		return 0.0f;
+
 	bobtime += pparams->frametime;
 	cycle = bobtime - (int)( bobtime / cl_bobcycle->value ) * cl_bobcycle->value;
 	cycle /= cl_bobcycle->value;
+	if ( !( cycle >= 0.0f && cycle < 1.0f ) )
+		cycle = 0.0f;
 
-	if ( cycle < cl_bobup->value )
+	const float bobup = cl_bobup ? cl_bobup->value : 0.5f;
+	if ( bobup > 0.0f && bobup < 1.0f )
 	{
-		cycle = M_PI * cycle / cl_bobup->value;
+		if ( cycle < bobup )
+			cycle = M_PI * cycle / bobup;
+		else
+			cycle = M_PI + M_PI * ( cycle - bobup ) / ( 1.0 - bobup );
 	}
 	else
 	{
-		cycle = M_PI + M_PI * ( cycle - cl_bobup->value )/( 1.0 - cl_bobup->value );
+		cycle = M_PI * cycle;
 	}
 
 	// bob is proportional to simulated velocity in the xy plane
@@ -192,6 +202,8 @@ float V_CalcBob ( struct ref_params_s *pparams )
 
 	bob = sqrt( vel[0] * vel[0] + vel[1] * vel[1] ) * cl_bob->value;
 	bob = bob * 0.3 + bob * 0.7 * sin(cycle);
+	if ( !std::isfinite( bob ) )
+		bob = 0.0f;
 	bob = min( bob, 4.0f );
 	bob = max( bob, -7.0f );
 	return bob;
@@ -717,6 +729,8 @@ void V_CalcNormalRefdef ( struct ref_params_s *pparams )
 	VectorCopy ( pparams->simorg, pparams->vieworg );
 	pparams->vieworg[2] += ( bob );
 	VectorAdd( pparams->vieworg, pparams->viewheight, pparams->vieworg );
+	if ( !std::isfinite( pparams->vieworg[0] ) || !std::isfinite( pparams->vieworg[1] ) || !std::isfinite( pparams->vieworg[2] ) )
+		VectorCopy( pparams->simorg, pparams->vieworg );
 
 	if( pparams->health <= 0 )
 	{

@@ -1,4 +1,5 @@
 #include "precompiled.h"
+#include "buy_system.h"
 
 DLL_FUNCTIONS gFunctionTable =
 {
@@ -1020,6 +1021,9 @@ LINK_HOOK_CLASS_VOID_CHAIN(CBaseEntity, FireBullets, (ULONG cShots, VectorRef ve
 
 void CBaseEntity::__API_HOOK(FireBullets)(ULONG cShots, VectorRef vecSrc, VectorRef vecDirShooting, VectorRef vecSpread, float flDistance, int iBulletType, int iTracerFreq, int iDamage, entvars_t *pevAttacker)
 {
+	if (IsPlayer())
+		Buy_OnWeaponFired(static_cast<CBasePlayer *>(this));
+
 	static int tracerCount;
 	int tracer;
 
@@ -1267,6 +1271,9 @@ LINK_HOOK_CLASS_CHAIN(VectorRef, CBaseEntity, FireBullets3, (VectorRef vecSrc, V
 // This version is used by Players, uses the random seed generator to sync client and server side shots.
 VectorRef CBaseEntity::__API_HOOK(FireBullets3)(VectorRef vecSrc, VectorRef vecDirShooting, float vecSpread, float flDistance, int iPenetration, int iBulletType, int iDamage, float flRangeModifier, entvars_t *pevAttacker, bool bPistol, int shared_rand)
 {
+	if (IsPlayer())
+		Buy_OnWeaponFired(static_cast<CBasePlayer *>(this));
+
 	static Vector vecRet;
 
 	int iOriginalPenetration = iPenetration;

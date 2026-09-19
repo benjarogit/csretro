@@ -1,4 +1,5 @@
 #include "precompiled.h"
+#include "buy_system.h"
 
 int gmsgWeapPickup = 0;
 int gmsgHudText = 0;
@@ -37,6 +38,7 @@ int gmsgSetFOV = 0;
 int gmsgShowMenu = 0;
 int gmsgSendAudio = 0;
 int gmsgRoundTime = 0;
+int gmsgWarmup = 0;
 int gmsgMoney = 0;
 int gmsgBlinkAcct = 0;
 int gmsgArmorType = 0;
@@ -81,6 +83,7 @@ int gmsgBrass = 0;
 int gmsgFog = 0;
 int gmsgShowTimer = 0;
 int gmsgAccount = 0;
+int gmsgBuyEco = 0;
 int gmsgHealthInfo = 0;
 int gmsgWpnBits2 = 0;
 bool g_bClientPrintEnable = true;
@@ -181,6 +184,7 @@ void LinkUserMessages()
 	gmsgAmmoX         = REG_USER_MSG("AmmoX", 2);
 	gmsgSendAudio     = REG_USER_MSG("SendAudio", -1);
 	gmsgRoundTime     = REG_USER_MSG("RoundTime", 2);
+	gmsgWarmup        = REG_USER_MSG("Warmup", 5);
 	gmsgMoney         = REG_USER_MSG("Money", 5);
 	gmsgArmorType     = REG_USER_MSG("ArmorType", 1);
 	gmsgBlinkAcct     = REG_USER_MSG("BlinkAcct", 1);
@@ -225,6 +229,7 @@ void LinkUserMessages()
 	gmsgShowTimer     = REG_USER_MSG("ShowTimer", 0);
 	gmsgHudTextArgs   = REG_USER_MSG("HudTextArgs", -1);
 	gmsgWpnBits2      = REG_USER_MSG("WpnBits2", 4);
+	gmsgBuyEco        = REG_USER_MSG("BuyEco", -1);
 
 #ifdef BUILD_LATEST
 	gmsgAccount       = REG_USER_MSG("Account", 5);
@@ -401,6 +406,9 @@ LINK_HOOK_VOID_CHAIN(ShowVGUIMenu, (CBasePlayer *pPlayer, int MenuType, int BitM
 
 void EXT_FUNC __API_HOOK(ShowVGUIMenu)(CBasePlayer *pPlayer, int MenuType, int BitMask, char *szOldMenu)
 {
+	if (MenuType >= VGUI_Menu_Buy && MenuType <= VGUI_Menu_Buy_Item)
+		Buy_SendEco(pPlayer);
+
 #ifdef REGAMEDLL_ADD
 	if (CSGameRules()->ShouldSkipShowMenu()) {
 		CSGameRules()->MarkShowMenuSkipped();
@@ -828,6 +836,15 @@ void Host_Say(edict_t *pEntity, BOOL teamonly)
 		return;
 	}
 
+	if (CSGameRules() && CSGameRules()->IsWarmup()
+		&& (!Q_stricmp(p, "ready") || !Q_stricmp(p, "unready")))
+	{
+		const bool ready = !Q_stricmp(p, "ready");
+		CSGameRules()->SetPlayerReady(pPlayer, ready);
+		ClientPrint(pPlayer->pev, HUD_PRINTTALK, ready ? "You are ready.\n" : "You are not ready.\n");
+		return;
+	}
+
 	Q_StripUnprintableAndSpace(p);
 
 	if (Q_strlen(p) <= 0)
@@ -1136,6 +1153,8 @@ bool CanBuyThis(CBasePlayer *pPlayer, int iWeapon)
 
 	if (pPlayer->m_rgpPlayerItems[PRIMARY_WEAPON_SLOT] && pPlayer->m_rgpPlayerItems[PRIMARY_WEAPON_SLOT]->m_iId == iWeapon)
 	{
+		if (Buy_TryRefundWeapon(pPlayer, iWeapon))
+			return false;
 		if (g_bClientPrintEnable)
 		{
 			ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Cstrike_Already_Own_Weapon");
@@ -1146,6 +1165,8 @@ bool CanBuyThis(CBasePlayer *pPlayer, int iWeapon)
 
 	if (pPlayer->m_rgpPlayerItems[PISTOL_SLOT] && pPlayer->m_rgpPlayerItems[PISTOL_SLOT]->m_iId == iWeapon)
 	{
+		if (Buy_TryRefundWeapon(pPlayer, iWeapon))
+			return false;
 		if (g_bClientPrintEnable)
 		{
 			ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Cstrike_Already_Own_Weapon");
@@ -1155,6 +1176,16 @@ bool CanBuyThis(CBasePlayer *pPlayer, int iWeapon)
 	}
 
 	if (!CanBuyWeaponByMaptype(pPlayer->m_iTeam, (WeaponIdType)iWeapon, CSGameRules()->m_bMapHasVIPSafetyZone == TRUE))
+	{
+		if (g_bClientPrintEnable)
+		{
+			ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Cannot_Buy_This");
+		}
+
+		return false;
+	}
+
+	if (!Buy_InLoadout(pPlayer, iWeapon))
 	{
 		if (g_bClientPrintEnable)
 		{
@@ -1315,6 +1346,8 @@ void EXT_FUNC __API_HOOK(BuyItem)(CBasePlayer *pPlayer, int iSlot)
 #endif
 			if (bFullArmor)
 			{
+				if (Buy_TryRefundItem(pPlayer, BUYITEM_VEST) || Buy_TryRefundItem(pPlayer, BUYITEM_VESTHELM))
+					return;
 				if (g_bClientPrintEnable)
 				{
 					ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Already_Have_Kevlar");
@@ -1403,6 +1436,8 @@ void EXT_FUNC __API_HOOK(BuyItem)(CBasePlayer *pPlayer, int iSlot)
 #endif
 			if (pPlayer->AmmoInventory(AMMO_FLASHBANG) >= MaxAmmoCarry(WEAPON_FLASHBANG))
 			{
+				if (Buy_TryRefundWeapon(pPlayer, WEAPON_FLASHBANG))
+					return;
 				if (g_bClientPrintEnable)
 				{
 					ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Cannot_Carry_Anymore");
@@ -1428,6 +1463,8 @@ void EXT_FUNC __API_HOOK(BuyItem)(CBasePlayer *pPlayer, int iSlot)
 #endif
 			if (pPlayer->AmmoInventory(AMMO_HEGRENADE) >= MaxAmmoCarry(WEAPON_HEGRENADE))
 			{
+				if (Buy_TryRefundWeapon(pPlayer, WEAPON_HEGRENADE))
+					return;
 				if (g_bClientPrintEnable)
 				{
 					ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Cannot_Carry_Anymore");
@@ -1452,6 +1489,8 @@ void EXT_FUNC __API_HOOK(BuyItem)(CBasePlayer *pPlayer, int iSlot)
 #endif
 			if (pPlayer->AmmoInventory(AMMO_SMOKEGRENADE) >= MaxAmmoCarry(WEAPON_SMOKEGRENADE))
 			{
+				if (Buy_TryRefundWeapon(pPlayer, WEAPON_SMOKEGRENADE))
+					return;
 				if (g_bClientPrintEnable)
 				{
 					ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Cannot_Carry_Anymore");
@@ -1526,6 +1565,19 @@ void EXT_FUNC __API_HOOK(BuyItem)(CBasePlayer *pPlayer, int iSlot)
 		g_bItemCreatedByBuying = false;
 
 		pPlayer->AddAccount(-iItemPrice, RT_PLAYER_BOUGHT_SOMETHING);
+		BuyItemKind kind = BUYITEM_WEAPON;
+		int wid = 0;
+		switch (iSlot)
+		{
+		case MENU_SLOT_ITEM_VEST: kind = BUYITEM_VEST; break;
+		case MENU_SLOT_ITEM_VESTHELM: kind = BUYITEM_VESTHELM; break;
+		case MENU_SLOT_ITEM_DEFUSEKIT: kind = BUYITEM_DEFUSE; break;
+		case MENU_SLOT_ITEM_FLASHGREN: wid = WEAPON_FLASHBANG; break;
+		case MENU_SLOT_ITEM_HEGREN: wid = WEAPON_HEGRENADE; break;
+		case MENU_SLOT_ITEM_SMOKEGREN: wid = WEAPON_SMOKEGRENADE; break;
+		default: break;
+		}
+		Buy_Record(pPlayer, kind, wid, iItemPrice);
 	}
 
 	if (TheTutor)
@@ -1575,6 +1627,8 @@ CBaseEntity *EXT_FUNC __API_HOOK(BuyWeaponByWeaponID)(CBasePlayer *pPlayer, Weap
 
 	auto pEntity = pPlayer->GiveNamedItem(info->entityName);
 	pPlayer->AddAccount(-info->cost, RT_PLAYER_BOUGHT_SOMETHING);
+	Buy_FillMaxAmmo(pPlayer, pEntity);
+	Buy_Record(pPlayer, BUYITEM_WEAPON, weaponID, info->cost);
 
 #ifdef REGAMEDLL_ADD
 	if (refill_bpammo_weapons.value > 1)
@@ -2438,8 +2492,15 @@ static void BuyFireGrenade(CBasePlayer *pPlayer, WeaponIdType weaponID)
 	if (!info || !info->entityName)
 		return;
 
-	if (pPlayer->HasWeaponBit(weaponID) || pPlayer->AmmoInventory(info->ammoType) >= MaxAmmoCarry(weaponID))
+	int ammoSlot = info->ammoName1 ? CBasePlayer::GetAmmoIndex(info->ammoName1) : -1;
+	if (ammoSlot < 0)
+		ammoSlot = info->ammoType;
+	const int have = ammoSlot >= 0 ? pPlayer->AmmoInventory(ammoSlot) : 0;
+	const bool hasItem = pPlayer->CSPlayer() && pPlayer->CSPlayer()->GetItemById(weaponID);
+	if (hasItem || have >= MaxAmmoCarry(weaponID))
 	{
+		if (Buy_TryRefundWeapon(pPlayer, weaponID))
+			return;
 		if (g_bClientPrintEnable)
 			ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "#Cannot_Carry_Anymore");
 		return;
@@ -2459,6 +2520,7 @@ static void BuyFireGrenade(CBasePlayer *pPlayer, WeaponIdType weaponID)
 	pPlayer->GiveNamedItem(info->entityName);
 	g_bItemCreatedByBuying = false;
 	pPlayer->AddAccount(-info->cost, RT_PLAYER_BOUGHT_SOMETHING);
+	Buy_Record(pPlayer, BUYITEM_WEAPON, weaponID, info->cost);
 
 	if (TheTutor)
 		TheTutor->OnEvent(EVENT_PLAYER_BOUGHT_SOMETHING, pPlayer);
@@ -2466,6 +2528,28 @@ static void BuyFireGrenade(CBasePlayer *pPlayer, WeaponIdType weaponID)
 
 BOOL HandleBuyAliasCommands(CBasePlayer *pPlayer, const char *pszCommand)
 {
+	if (FStrEq(pszCommand, "refundall"))
+	{
+		Buy_RefundAll(pPlayer);
+		return TRUE;
+	}
+	if (!Q_strnicmp(pszCommand, "midtier", 7) && pszCommand[7] >= '1' && pszCommand[7] <= '5' && pszCommand[8] == '\0')
+	{
+		BuyWeaponByWeaponID(pPlayer, static_cast<WeaponIdType>(Buy_LoadoutWeapon(pPlayer, false, pszCommand[7] - '0')));
+		return TRUE;
+	}
+	if (!Q_strnicmp(pszCommand, "rifle", 5) && pszCommand[5] >= '1' && pszCommand[5] <= '5' && pszCommand[6] == '\0')
+	{
+		BuyWeaponByWeaponID(pPlayer, static_cast<WeaponIdType>(Buy_LoadoutWeapon(pPlayer, true, pszCommand[5] - '0')));
+		return TRUE;
+	}
+	if (FStrEq(pszCommand, "vest") && (Buy_TryRefundItem(pPlayer, BUYITEM_VEST) || Buy_TryRefundItem(pPlayer, BUYITEM_VESTHELM)))
+		return TRUE;
+	if (FStrEq(pszCommand, "vesthelm") && Buy_TryRefundItem(pPlayer, BUYITEM_VESTHELM))
+		return TRUE;
+	if (FStrEq(pszCommand, "defuser") && Buy_TryRefundItem(pPlayer, BUYITEM_DEFUSE))
+		return TRUE;
+
 	// Fire nades are extra equipment, not BuyWeaponByWeaponID (that drops guns).
 	if (FStrEq(pszCommand, "molotov"))
 	{
@@ -2533,42 +2617,10 @@ BOOL HandleBuyAliasCommands(CBasePlayer *pPlayer, const char *pszCommand)
 	else
 	{
 		// primary ammo
-		if (FStrEq(pszCommand, "primammo"))
+		if (FStrEq(pszCommand, "primammo") || FStrEq(pszCommand, "secammo"))
 		{
 			bRetVal = TRUE;
-
-			// Buy as much primary ammo as possible
-			// Blink money only if player doesn't have enough for the
-			// first clip
-			if (BuyAmmo(pPlayer, PRIMARY_WEAPON_SLOT, true))
-			{
-				while (BuyAmmo(pPlayer, PRIMARY_WEAPON_SLOT, false))
-					;
-
-				if (TheTutor)
-				{
-					TheTutor->OnEvent(EVENT_PLAYER_BOUGHT_SOMETHING, pPlayer);
-				}
-			}
-		}
-		// secondary ammo
-		else if (FStrEq(pszCommand, "secammo"))
-		{
-			bRetVal = TRUE;
-
-			// Buy as much secondary ammo as possible
-			// Blink money only if player doesn't have enough for the
-			// first clip
-			if (BuyAmmo(pPlayer, PISTOL_SLOT, true))
-			{
-				while (BuyAmmo(pPlayer, PISTOL_SLOT, false))
-					;
-
-				if (TheTutor)
-				{
-					TheTutor->OnEvent(EVENT_PLAYER_BOUGHT_SOMETHING, pPlayer);
-				}
-			}
+			return TRUE;
 		}
 		// equipment
 		else if (FStrEq(pszCommand, "vest"))
@@ -2866,6 +2918,18 @@ void EXT_FUNC InternalCommand(edict_t *pEntity, const char *pcmd, const char *pa
 				CSGameRules()->ProcessMapVote(pPlayer, iVoteID);
 			}
 		}
+	}
+	else if (FStrEq(pcmd, "ready") || FStrEq(pcmd, "unready"))
+	{
+		if (!CSGameRules() || !CSGameRules()->IsWarmup())
+		{
+			ClientPrint(pPlayer->pev, HUD_PRINTCONSOLE, "Warmup is not active.\n");
+			return;
+		}
+		const bool ready = FStrEq(pcmd, "ready");
+		CSGameRules()->SetPlayerReady(pPlayer, ready);
+		ClientPrint(pPlayer->pev, HUD_PRINTCONSOLE, ready ? "You are ready.\n" : "You are not ready.\n");
+		return;
 	}
 	else if (FStrEq(pcmd, "timeleft"))
 	{
@@ -3344,7 +3408,52 @@ void EXT_FUNC InternalCommand(edict_t *pEntity, const char *pcmd, const char *pa
 			pPlayer->Observer_FindNextPlayer(false, parg1);
 		}
 	}
-#ifdef REGAMEDLL_FIXES
+	else if (FStrEq(pcmd, "cl_setloadout"))
+	{
+		const char *aliases[10];
+		if (CMD_ARGC_() >= 11)
+		{
+			for (int i = 0; i < 10; ++i)
+				aliases[i] = CMD_ARGV_(i + 1);
+			Buy_SetLoadoutFromAliases(pPlayer, aliases, 10);
+		}
+		Buy_EnsureLoadout(pPlayer);
+		Buy_SendEco(pPlayer);
+	}
+	else if (FStrEq(pcmd, "cl_loadout_swap"))
+	{
+		const char *kind = CMD_ARGV_(1);
+		const char *alias = CMD_ARGV_(2);
+		if (kind && alias)
+			Buy_SwapReserve(pPlayer, !Q_stricmp(kind, "rifle"), AliasToWeaponID(alias));
+		Buy_SendEco(pPlayer);
+	}
+	else if (FStrEq(pcmd, "buydrop"))
+	{
+		const char *alias = CMD_ARGV_(1);
+		if (alias && alias[0] && pPlayer->CanPlayerBuy(true))
+		{
+			auto *cs = pPlayer->CSPlayer();
+			const int before = cs ? cs->m_nPurchases : 0;
+			const int moneyBefore = pPlayer->m_iAccount;
+			HandleBuyAliasCommands(pPlayer, alias);
+			if (cs && cs->m_nPurchases > before && pPlayer->m_iAccount < moneyBefore)
+			{
+				WeaponIdType id = WEAPON_NONE;
+				BuyAliasToWeaponID(alias, id);
+				WeaponInfoStruct *info = GetWeaponInfo(id);
+				if (info && info->entityName)
+				{
+					Buy_OnGrenadeThrown(pPlayer, id);
+					pPlayer->DropPlayerItem(info->entityName);
+				}
+			}
+		}
+	}
+	else if (FStrEq(pcmd, "buy_ground"))
+	{
+		Buy_PickupGround(pPlayer, Q_atoi(CMD_ARGV_(1)));
+	}
 	else if (FStrEq(pcmd, "cl_setautobuy"))
 	{
 		if (pPlayer->pev->deadflag != DEAD_NO && pPlayer->m_autoBuyString[0] != '\0')
@@ -3383,7 +3492,6 @@ void EXT_FUNC InternalCommand(edict_t *pEntity, const char *pcmd, const char *pa
 			}
 		}
 	}
-#endif
 
 #ifdef REGAMEDLL_ADD
 	// Request from client for the given version of player movement control, if any
@@ -3919,6 +4027,14 @@ void ClientPrecache()
 	PRECACHE_SOUND("radio/com_go.wav");
 	PRECACHE_SOUND("radio/rescued.wav");
 	PRECACHE_SOUND("radio/rounddraw.wav");
+	PRECACHE_SOUND("announcer/prepareforbattle.wav");
+	PRECACHE_SOUND("announcer/5.wav");
+	PRECACHE_SOUND("announcer/4.wav");
+	PRECACHE_SOUND("announcer/3.wav");
+	PRECACHE_SOUND("announcer/2.wav");
+	PRECACHE_SOUND("announcer/1.wav");
+	PRECACHE_SOUND("announcer/begin.wav");
+	PRECACHE_SOUND("announcer/1minuteremains.wav");
 	PRECACHE_SOUND("items/kevlar.wav");
 	PRECACHE_SOUND("items/ammopickup2.wav");
 	PRECACHE_SOUND("weapons/c4_beep1.wav");

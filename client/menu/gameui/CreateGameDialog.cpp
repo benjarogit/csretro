@@ -68,6 +68,8 @@ bool CCreateGameDialog::HasPages() const
 
 void CCreateGameDialog::Activate()
 {
+	if (m_pServerPage)
+		m_pServerPage->OnResetData();
 	BaseClass::Activate();
 	Menu_Con("CSRETRO_CREATE_VISIBLE %d", IsVisible() ? 1 : 0);
 }

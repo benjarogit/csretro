@@ -26,8 +26,12 @@ cvar_t infiniteAmmo          = { "mp_infinite_ammo", "0", FCVAR_SERVER, 0.0f, nu
 cvar_t infiniteGrenades      = { "mp_infinite_grenades", "0", FCVAR_SERVER, 0.0f, nullptr };
 cvar_t allowmonsters         = { "mp_allowmonsters", "0", FCVAR_SERVER, 0.0f, nullptr };
 cvar_t roundtime             = { "mp_roundtime", "5", FCVAR_SERVER, 0.0f, nullptr };
-cvar_t buytime               = { "mp_buytime", "1.5", FCVAR_SERVER, 0.0f, nullptr };
-cvar_t freezetime            = { "mp_freezetime", "6", FCVAR_SERVER, 0.0f, nullptr };
+cvar_t buytime               = { "mp_buytime", "0.3333", FCVAR_SERVER, 0.0f, nullptr };
+cvar_t freezetime            = { "mp_freezetime", "15", FCVAR_SERVER, 0.0f, nullptr };
+cvar_t announcer_countdown   = { "mp_announcer_countdown", "1", FCVAR_SERVER, 1.0f, nullptr };
+cvar_t announcer_minute      = { "mp_announcer_minute", "1", FCVAR_SERVER, 1.0f, nullptr };
+cvar_t announcer_warmup      = { "mp_warmup", "0", FCVAR_SERVER, 0.0f, nullptr };
+cvar_t announcer_warmup_limit = { "mp_warmup_limit", "180", FCVAR_SERVER, 180.0f, nullptr };
 cvar_t c4timer               = { "mp_c4timer", "45", FCVAR_SERVER, 0.0f, nullptr };
 cvar_t ghostfrequency        = { "mp_ghostfrequency", "0.1", FCVAR_SERVER, 0.0f, nullptr };
 cvar_t autokick              = { "mp_autokick", "1", FCVAR_SERVER, 0.0f, nullptr };
@@ -295,6 +299,10 @@ void EXT_FUNC GameDLLInit()
 	CVAR_REGISTER(&roundtime);
 	CVAR_REGISTER(&buytime);
 	CVAR_REGISTER(&freezetime);
+	CVAR_REGISTER(&announcer_countdown);
+	CVAR_REGISTER(&announcer_minute);
+	CVAR_REGISTER(&announcer_warmup);
+	CVAR_REGISTER(&announcer_warmup_limit);
 	CVAR_REGISTER(&c4timer);
 
 #ifndef REGAMEDLL_FIXES

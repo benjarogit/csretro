@@ -93,6 +93,7 @@ set(CSRETRO_GAMEDLL_SOURCES
     "${G}/dlls/vehicle.cpp"
     "${G}/dlls/weapons.cpp"
     "${G}/dlls/weapontype.cpp"
+    "${G}/dlls/buy_system.cpp"
     "${G}/dlls/world.cpp"
     "${G}/dlls/API/CAPI_Impl.cpp"
     "${G}/dlls/API/CSEntity.cpp"

@@ -16,11 +16,17 @@
 #include FT_SIZES_H
 
 #include "Color.h"
+#include "FileSystem.h"
 #include "tier1/interface.h"
 #include "vgui/IPanel.h"
 #include "vgui_internal.h"
 
 #include "../src/menu_priv.h"
+
+namespace vgui2
+{
+extern IFileSystem *g_pFullFileSystem;
+}
 
 using namespace vgui2;
 
@@ -212,28 +218,32 @@ GlyphEntry *EnsureGlyph(HFont font, uint32_t codepoint)
 	const int bearingX = slot->bitmap_left;
 	const int bearingY = slot->bitmap_top;
 	int advance = static_cast<int>(slot->advance.x >> 6);
-	int a = static_cast<int>(slot->metrics.horiBearingX >> 6);
-	int b = static_cast<int>(slot->metrics.width >> 6);
-	int c = advance - a - b;
-	// A zero-advance space collapses "BUY TIME" into BUYTIME on every label.
-	if( codepoint == 32u && advance < std::max( 3, fi->tall / 4 ))
+	const int gw = static_cast<int>(slot->bitmap.width);
+	const int gh = static_cast<int>(slot->bitmap.rows);
+	if (codepoint == 32u)
 	{
-		advance = std::max( 3, fi->tall / 4 );
-		a = 0;
-		b = advance;
-		c = 0;
+		// Labels use GetCharacterWidth / ABC, not just DrawUnicodeChar. A 0–2 px
+		// space turns "Buy Time Remaining" into BuytimeRemaining.
+		advance = std::max(advance, std::max(8, fi->tall * 55 / 100));
 	}
+	else
+	{
+		const int ink = bearingX + gw + 2;
+		if (advance < ink)
+			advance = ink;
+		if (fi->tall <= 16)
+			advance += 1;
+	}
+	if (advance < 1)
+		advance = 1;
 
 	GlyphEntry entry;
 	entry.bearingX = bearingX;
 	entry.bearingY = bearingY;
 	entry.advance = advance;
-	entry.a = a;
-	entry.b = b;
-	entry.c = c;
-
-	const int gw = static_cast<int>(slot->bitmap.width);
-	const int gh = static_cast<int>(slot->bitmap.rows);
+	entry.a = 0;
+	entry.b = advance;
+	entry.c = 0;
 	entry.width = gw;
 	entry.height = gh;
 
@@ -552,14 +562,38 @@ void CSurfaceXash::DrawSetTextureFile(int id, const char *filename, int, bool fo
 
 	const int flags = PIC_NOMIPMAP | PIC_HAS_ALPHA | PIC_NOFLIP_TGA;
 	HIMAGE pic = 0;
+	auto tryLoad = [&](const char *name) -> HIMAGE {
+		if (!name || !name[0] || !gEng.pfnPIC_Load)
+			return 0;
+		HIMAGE loaded = gEng.pfnPIC_Load(name, nullptr, 0, flags);
+		if (loaded)
+			return loaded;
+		if (!g_pFullFileSystem)
+			return 0;
+		FileHandle_t file = g_pFullFileSystem->Open(name, "rb", "GAME");
+		if (!file)
+			return 0;
+		const unsigned int size = g_pFullFileSystem->Size(file);
+		if (size == 0 || size > 8 * 1024 * 1024)
+		{
+			g_pFullFileSystem->Close(file);
+			return 0;
+		}
+		std::vector<unsigned char> bytes(size);
+		const int got = g_pFullFileSystem->Read(bytes.data(), static_cast<int>(size), file);
+		g_pFullFileSystem->Close(file);
+		if (got <= 0)
+			return 0;
+		return gEng.pfnPIC_Load(name, bytes.data(), got, flags);
+	};
 	if (gEng.pfnPIC_Load)
 	{
-		pic = gEng.pfnPIC_Load(filename, nullptr, 0, flags);
+		pic = tryLoad(filename);
 		if (!pic)
 		{
 			char withTga[256];
 			std::snprintf(withTga, sizeof(withTga), "%s.tga", filename);
-			pic = gEng.pfnPIC_Load(withTga, nullptr, 0, flags);
+			pic = tryLoad(withTga);
 		}
 	}
 	t.pic = pic;

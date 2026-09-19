@@ -176,14 +176,15 @@ void CInferno::Playback(int mode, const Vector &origin)
 		Q_max(m_flExpireTime - gpGlobals->time, 0.1f), m_config.flameLifetime,
 		mode, m_iWeaponId, FALSE, FALSE);
 
-	// GoldSrc tempents as a visible floor mark even if the client event is dropped.
-	if (mode != INFERNO_EV_EXTINGUISH)
+	// GoldSrc floor mark only on ignition. Per-node TE_SPRITE plus the
+	// reliable event doubled the tent load; Incendiary's 10x spread then
+	// filled the pool and left damage without visible fire.
+	if (mode == INFERNO_EV_START)
 	{
 		const int spr = (m_iWeaponId == WEAPON_INCGRENADE && g_iIncGroundSpr > 0)
 			? g_iIncGroundSpr : g_iMolotovGroundSpr;
-		InfernoTempSprite(origin, spr, mode == INFERNO_EV_START ? 10 : 7);
-		if (mode == INFERNO_EV_START)
-			InfernoTempLight(origin);
+		InfernoTempSprite(origin, spr, 10);
+		InfernoTempLight(origin);
 	}
 }
 

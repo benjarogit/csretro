@@ -2,7 +2,7 @@
 
 #include "BuySelectPanel.h"
 #include "Controls/MenuEngine.h"
-#include "InGameViewportLook.h"
+#include "InGameUi.h"
 #include "RadioSelectPanel.h"
 #include "TeamModelPreview.h"
 #include "TeamSelectPanel.h"
@@ -97,17 +97,17 @@ struct ClassPreview
 // Negative laterals put the model on the right; the previous signs mirrored
 // Phoenix onto Guerrilla's card (and Elite Crew onto Arctic).
 const ClassPreview kTerPreviews[] = {
-	{"terror", "models/player/terror/terror.mdl", 158.0f, 78.0f, 80},
-	{"leet", "models/player/leet/leet.mdl", 169.0f, 26.0f, 80},
-	{"arctic", "models/player/arctic/arctic.mdl", 191.0f, -26.0f, 80},
-	{"guerilla", "models/player/guerilla/guerilla.mdl", 202.0f, -78.0f, 80},
+	{"terror", "models/player/terror/terror.mdl", 158.0f, 70.0f, 80},
+	{"leet", "models/player/leet/leet.mdl", 169.0f, 23.0f, 80},
+	{"arctic", "models/player/arctic/arctic.mdl", 191.0f, -23.0f, 80},
+	{"guerilla", "models/player/guerilla/guerilla.mdl", 202.0f, -70.0f, 80},
 };
 
 const ClassPreview kCtPreviews[] = {
-	{"urban", "models/player/urban/urban.mdl", 158.0f, 78.0f, 33},
-	{"gsg9", "models/player/gsg9/gsg9.mdl", 169.0f, 26.0f, 33},
-	{"sas", "models/player/sas/sas.mdl", 191.0f, -26.0f, 33},
-	{"gign", "models/player/gign/gign.mdl", 202.0f, -78.0f, 33},
+	{"urban", "models/player/urban/urban.mdl", 158.0f, 70.0f, 33},
+	{"gsg9", "models/player/gsg9/gsg9.mdl", 169.0f, 23.0f, 33},
+	{"sas", "models/player/sas/sas.mdl", 191.0f, -23.0f, 33},
+	{"gign", "models/player/gign/gign.mdl", 202.0f, -70.0f, 33},
 };
 
 class CClassSelectPanel;
@@ -139,6 +139,7 @@ public:
 	}
 
 	void SetLineupCard(bool lineup) { m_lineupCard = lineup; ApplyLook(); }
+	void SetFooter(bool footer) { m_footer = footer; ApplyLook(); }
 	void SetAccent(Color accent)
 	{
 		m_accent = accent;
@@ -165,35 +166,41 @@ public:
 		{
 			if (!surface())
 				return;
-			const bool active = IsArmed() || IsDepressed();
-			if (active)
+			if (IsArmed() || IsDepressed())
 			{
 				surface()->DrawSetColor(m_accent.r(), m_accent.g(), m_accent.b(), 28);
 				surface()->DrawFilledRect(0, 0, w, h);
 			}
-			surface()->DrawSetColor(m_accent.r(), m_accent.g(), m_accent.b(), active ? 230 : 70);
-			surface()->DrawFilledRect(0, 0, w, active ? 3 : 1);
-			surface()->DrawFilledRect(0, h - (active ? 3 : 1), w, h);
 			return;
 		}
-		InGameViewportLook::PaintCardBackground(w, h, m_accent, IsArmed() || IsDepressed());
+		if (m_footer)
+			return;
+		InGameUi::PaintCardBackground(w, h, m_accent, IsArmed() || IsDepressed());
 	}
 
 private:
-	Color m_accent = InGameViewportLook::Text();
+	Color m_accent = InGameUi::Text();
 	bool m_lineupCard = false;
+	bool m_footer = false;
 
 	void ApplyLook()
 	{
-		InGameViewportLook::StyleCardButton(this, m_accent);
+		if (m_footer)
+		{
+			InGameUi::StyleFooterButton(this, m_accent);
+			SetContentAlignment(Label::a_east);
+			SetFgColor((IsArmed() || IsDepressed()) ? InGameUi::Text() : m_accent);
+			return;
+		}
+		InGameUi::StyleCardButton(this, m_accent);
 		SetPaintBackgroundEnabled(true);
 		SetPaintBorderEnabled(false);
 		SetBorder(nullptr);
 		SetContentAlignment(m_lineupCard ? Label::a_north : Label::a_west);
 		SetTextInset(m_lineupCard ? 0 : 16, m_lineupCard ? 12 : 0);
-		SetFgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::Text() : m_accent);
+		SetFgColor((IsArmed() || IsDepressed()) ? InGameUi::Text() : m_accent);
 		SetBgColor(m_lineupCard ? Color(0, 0, 0, 0)
-			: ((IsArmed() || IsDepressed()) ? InGameViewportLook::CardArmed() : InGameViewportLook::Card()));
+			: ((IsArmed() || IsDepressed()) ? InGameUi::CardArmed() : InGameUi::Card()));
 	}
 };
 
@@ -351,7 +358,13 @@ public:
 		return text[0] == L'#' || wcsstr(text, L"Cstrike_") != nullptr;
 	}
 
-	bool HasPreview() const { return m_lineup && m_lineup->IsVisible() && m_lineup->PreviewCount() == 4; }
+	bool HasPreview() const
+	{
+		for (auto *model : m_classModels)
+			if (!model || !model->IsVisible() || model->PreviewCount() != 1)
+				return false;
+		return true;
+	}
 
 	Panel *CreateControlByName(const char *controlName) override
 	{
@@ -422,6 +435,7 @@ private:
 	int m_type = MENU_CLASS_T;
 	int m_slots = 0;
 	CTeamModelPreview *m_lineup = nullptr;
+	CTeamModelPreview *m_classModels[4]{};
 
 	const SlotBind *Binds() const
 	{
@@ -519,8 +533,8 @@ private:
 
 	void StyleButtons()
 	{
-		const Color accent = (m_type == MENU_CLASS_CT) ? InGameViewportLook::CT()
-							      : InGameViewportLook::Terror();
+		const Color accent = (m_type == MENU_CLASS_CT) ? InGameUi::CT()
+							      : InGameUi::Terror();
 		for (int i = 0; i < GetChildCount(); ++i)
 		{
 			auto *btn = dynamic_cast<Button *>(GetChild(i));
@@ -528,13 +542,17 @@ private:
 				continue;
 			if (auto *look = dynamic_cast<CClassHoverButton *>(btn))
 			{
-				look->SetLineupCard(StandardClassIndex(btn->GetName()) >= 0);
-				look->SetAccent(accent);
+				const char *name = btn->GetName();
+				const bool footer = name && (!strcasecmp(name, "autoselect_t") ||
+					!strcasecmp(name, "autoselect_ct") || !strcasecmp(name, "CancelButton"));
+				look->SetLineupCard(StandardClassIndex(name) >= 0);
+				look->SetFooter(footer);
+				look->SetAccent(footer ? InGameUi::TextDim() : accent);
 			}
 			else
-				InGameViewportLook::StyleCardButton(btn, accent);
+				InGameUi::StyleCardButton(btn, accent);
 		}
-		InGameViewportLook::StyleTitle(dynamic_cast<Label *>(FindChildByName("joinClass")));
+		InGameUi::StyleTitle(dynamic_cast<Label *>(FindChildByName("joinClass")));
 		if (auto *info = dynamic_cast<Label *>(FindChildByName("classInfoLabel")))
 			info->SetVisible(false);
 		if (Panel *box = FindChildByName("ClassInfo"))
@@ -561,16 +579,23 @@ private:
 
 	void CreateLineup()
 	{
-		m_lineup = new CTeamModelPreview(this, "ClassLineup");
-		m_lineup->SetIndependentPlayerState(true);
-		m_lineup->ClearPreviews(220.0f);
 		const ClassPreview *previews = Previews();
 		const char *weapon = m_type == MENU_CLASS_CT ? "models/p_m4a1.mdl" : "models/p_ak47.mdl";
 		for (int i = 0; i < 4; ++i)
 		{
-			m_lineup->AddPreview(previews[i].model, weapon, previews[i].yaw,
-				previews[i].sequence, previews[i].lateral);
+			char name[32];
+			snprintf(name, sizeof(name), "ClassLineup%d", i);
+			auto *model = m_classModels[i] = new CTeamModelPreview(this, name);
+			model->SetIndependentPlayerState(true);
+			model->SetPreview(previews[i].model, weapon, previews[i].yaw, previews[i].sequence);
+			model->SetWorldWidth(48.0f);
+			model->SetWorldHeight(80.0f);
+			model->SetCameraHeight(-2.0f);
+			model->SetMouseInputEnabled(false);
+			model->SetKeyBoardInputEnabled(false);
+			model->SetZPos(-1);
 		}
+		m_lineup = m_classModels[0];
 		m_lineup->SetMouseInputEnabled(false);
 		m_lineup->SetKeyBoardInputEnabled(false);
 		m_lineup->SetZPos(-1);
@@ -584,7 +609,7 @@ private:
 		for (int i = 0; i < 4; ++i)
 		{
 			Panel *button = FindChildByName(previews[i].button);
-			m_lineup->SetPreviewVisible(i, button && button->IsVisible());
+			m_classModels[i]->SetVisible(button && button->IsVisible());
 		}
 	}
 
@@ -594,38 +619,48 @@ private:
 		GetSize(w, h);
 		if (w < 200 || h < 160)
 			return;
-		const int pad = w * 5 / 100;
-		const int gap = std::max(4, w / 160);
-		const int titleH = std::max(28, h * 8 / 100);
+		const int pad = w * 3 / 100;
+		const int gap = std::max(8, w / 80);
+		const int titleH = std::max(22, h * 5 / 100);
+		const int titleY = std::max(8, h * 4 / 100);
 		if (auto *title = FindChildByName("joinClass"))
 		{
-			title->SetBounds(pad, h * 4 / 100, w - pad * 2, titleH);
+			title->SetBounds(pad, titleY, w - pad * 2, titleH);
 			if (auto *lab = dynamic_cast<Label *>(title))
 				lab->SetContentAlignment(Label::a_center);
 		}
 
-		const int stageY = h * 13 / 100;
-		const int footerY = h * 85 / 100;
+		const int footerH = std::max(22, h * 4 / 100);
+		const int footerY = h - footerH - std::max(10, h * 3 / 100);
+		const int nameH = std::max(20, h * 4 / 100);
+		const int figureH = std::max(120, h * 60 / 100);
+		const int stackH = nameH + figureH;
+		const int bandTop = titleY + titleH + std::max(8, h * 2 / 100);
+		const int bandBottom = footerY - std::max(8, h * 2 / 100);
+		const int avail = std::max(stackH, bandBottom - bandTop);
+		const int stackY = bandTop + std::max(0, (avail - stackH) / 2);
 		const int stageW = w - pad * 2;
-		const int stageH = footerY - stageY;
-		if (m_lineup)
-		{
-			m_lineup->SetBounds(pad, stageY, stageW, stageH);
-			m_lineup->SetZPos(-1);
-		}
+		const int lineupY = stackY + nameH;
 		const ClassPreview *previews = Previews();
 		const int cardW = (stageW - gap * 3) / 4;
 		for (int i = 0; i < 4; ++i)
 		{
+			if (m_classModels[i])
+				m_classModels[i]->SetBounds(pad + i * (cardW + gap), lineupY, cardW, figureH);
 			if (Panel *button = FindChildByName(previews[i].button))
-				button->SetBounds(pad + i * (cardW + gap), stageY, cardW, stageH);
+				button->SetBounds(pad + i * (cardW + gap), stackY, cardW, stackH);
 		}
-		const int footerH = std::max(30, h * 7 / 100);
-		const int footerW = std::max(150, w * 18 / 100);
-		if (Panel *autoSelect = FindChildByName(m_type == MENU_CLASS_CT ? "autoselect_ct" : "autoselect_t"))
-			autoSelect->SetBounds(w - pad - footerW * 2 - gap, footerY + gap, footerW, footerH);
-		if (Panel *cancel = FindChildByName("CancelButton"))
-			cancel->SetBounds(w - pad - footerW, footerY + gap, footerW, footerH);
+		const int footerW = std::max(108, w * 11 / 100);
+		if (auto *autoSelect = dynamic_cast<Button *>(FindChildByName(m_type == MENU_CLASS_CT ? "autoselect_ct" : "autoselect_t")))
+		{
+			autoSelect->SetText("AUTO SELECT");
+			autoSelect->SetBounds(w - pad - footerW * 2 - gap, footerY, footerW, footerH);
+		}
+		if (auto *cancel = dynamic_cast<Button *>(FindChildByName("CancelButton")))
+		{
+			cancel->SetText("CANCEL");
+			cancel->SetBounds(w - pad - footerW, footerY, footerW, footerH);
+		}
 		if (Panel *info = FindChildByName("ClassInfo"))
 			info->SetVisible(false);
 		if (Panel *lab = FindChildByName("classInfoLabel"))
@@ -644,7 +679,7 @@ private:
 		Menu_Con("CSRetro-VGUI: %s (%d)", ResForType(m_type), m_type);
 		Menu_Con("CSRETRO_CLASS_VGUI open type=%d slots=%d buttons=%d skin5=%d auto=%d cancel=%d lineup=%d static=0",
 			m_type, m_slots, VisibleButtonCount(), skin5, autoselect, cancel,
-			m_lineup ? m_lineup->PreviewCount() : 0);
+			m_lineup ? 4 : 0);
 	}
 };
 
@@ -675,7 +710,14 @@ public:
 		SetPaintBackgroundEnabled(true);
 		SetPaintBorderEnabled(false);
 		SetBorder(nullptr);
-		SetBgColor(InGameViewportLook::OverlayBg());
+		SetBgColor(Color(0, 0, 0, 0));
+	}
+
+	void PaintBackground() override
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		InGameUi::PaintSelectVeil(w, h);
 	}
 
 	void PerformLayout() override

@@ -35,4 +35,7 @@ bool HasExtendedEngfuncs();
 
 // Console TAB-complete. Prefix of the first token; empty if the line already has a space.
 void CollectConsoleCompletions(const char *prefix, std::vector<std::string> *names);
+
+// F12 — warmup ready, not weapon slots 1/2.
+bool SendWarmupReadyKey(int xashKey, bool down);
 } // namespace MenuEngine

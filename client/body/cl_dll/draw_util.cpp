@@ -143,7 +143,20 @@ int DrawUtils::DrawHudString( int xpos, int ypos, int iMaxX, const char *str, in
 		if ( next > iMaxX && iMaxX > 0 )
 			return xpos;
 
-		xpos += TextMessageDrawChar( xpos, ypos, ( unsigned char )*szIt, r, g, b, scale );
+		const unsigned char drawCh = static_cast<unsigned char>(*szIt);
+		int adv = 0;
+		if ( scale > 0.01f && gEngfuncs.pfnDrawScaledCharacter )
+		{
+			gEngfuncs.pfnDrawScaledCharacter( xpos, ypos, drawCh, r, g, b, scale );
+			adv = static_cast<int>( gHUD.GetCharWidth( uch ? uch : drawCh ) * scale + 0.5f );
+		}
+		else
+			adv = TextMessageDrawChar( xpos, ypos, drawCh, r, g, b, scale );
+		if ( *szIt == ' ' && adv < 4 )
+			adv = static_cast<int>( gHUD.GetCharWidth( ' ' ) * ( scale > 0.01f ? scale : 1.0f ) );
+		if ( adv < 1 )
+			adv = 1;
+		xpos += adv;
 	}
 
 	return xpos;

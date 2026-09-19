@@ -1,6 +1,8 @@
 # Build
 /build/
 /out/
+/site/
+/.venv-docs/
 /.cache/
 engine/build/
 CMakeUserPresets.json

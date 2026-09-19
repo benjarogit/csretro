@@ -412,6 +412,11 @@ void GameUI_InGameKey(int key, int down)
 			VGuiXash_RadioActivateSlot(10);
 		return;
 	}
+	if (VGuiXash_IsConsoleActive())
+	{
+		VGuiXash_Key(key, down);
+		return;
+	}
 	if (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() ||
 		VGuiXash_IsBuySelectActive())
 	{
@@ -639,6 +644,13 @@ void UI_KeyEvent(int key, int down)
 	if (!down && (key == K_MOUSE1 || key == K_MOUSE2))
 		MenuEngine::PollPendingGameKeyDest();
 
+	if (VGuiXash_IsConsoleActive())
+	{
+		VGuiXash_Key(key, down);
+		if (down && key == K_ESCAPE)
+			VGuiXash_HideConsole();
+		return;
+	}
 	if (VGuiXash_IsTeamSelectActive() || VGuiXash_IsClassSelectActive() ||
 		VGuiXash_IsBuySelectActive())
 	{
@@ -809,7 +821,7 @@ void UI_ShowCursor(int)
 
 void UI_CharEvent(int key)
 {
-	if (VGuiXash_IsUiActive())
+	if (VGuiXash_IsConsoleActive() || VGuiXash_IsUiActive())
 		VGuiXash_Char(key);
 }
 

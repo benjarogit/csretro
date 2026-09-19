@@ -141,6 +141,8 @@ void CCreateGameServerPage::UpdateBotControls()
 
 void CCreateGameServerPage::OnResetData()
 {
+	LoadMapList();
+
 	const ServerProfile &p = gProfile;
 
 	if (m_pMapList)

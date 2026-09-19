@@ -12,6 +12,10 @@ void GameConsole_Shutdown();
 bool GameConsole_Toggle();
 void GameConsole_Hide();
 bool GameConsole_IsActive();
+void GameConsole_FocusEntry();
+void GameConsole_FeedKey(int vguiKeyCode, bool down);
+void GameConsole_FeedChar(wchar_t ch);
+void GameConsole_HandleRawKey(int xashKey, bool down);
 void GameConsole_Print(const char *text);
 void GameConsole_Clear();
 

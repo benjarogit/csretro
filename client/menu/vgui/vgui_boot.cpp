@@ -405,6 +405,8 @@ void VGuiXash_RunFrame()
 		if (gEng.pfnSetKeyDest)
 			gEng.pfnSetKeyDest(2);
 	}
+	if (VGuiXash_IsConsoleActive())
+		GameConsole_FocusEntry();
 
 	// Workspace change: clamp saved/current bounds. Do not stomp back to 512×406.
 	if (g_options && g_options->IsVisible() && g_pVGuiSurface)
@@ -933,6 +935,13 @@ void VGuiXash_Key(int key, int down)
 	}
 
 	vgui2::KeyCode code = KeyCode_VirtualKeyToVGUI(key);
+	if (VGuiXash_IsConsoleActive())
+	{
+		GameConsole_HandleRawKey(key, down);
+		return;
+	}
+	if (MenuEngine::SendWarmupReadyKey(key, down))
+		return;
 	if (code == vgui2::KEY_NONE)
 		return;
 	// PoC proof: TAB/BACKSPACE even when a child (TextEntry) holds focus.

@@ -1,4 +1,5 @@
 #include "MenuEngine.h"
+#include "../GameConsoleDialog.h"
 
 #include "../../src/menu_priv.h"
 #include "../../vgui/xash_key_contract.h"
@@ -97,6 +98,8 @@ bool Mouse1PhysicallyDown()
 
 void RestoreGameKeyDest()
 {
+	if (GameConsole_IsActive())
+		return;
 	if (Mouse1PhysicallyDown())
 	{
 		s_pendingGameKeyDest = true;
@@ -277,5 +280,13 @@ void CollectConsoleCompletions(const char *prefix, std::vector<std::string> *nam
 
 	std::sort(names->begin(), names->end());
 	names->erase(std::unique(names->begin(), names->end()), names->end());
+}
+
+bool SendWarmupReadyKey(int xashKey, bool down)
+{
+	if (!down || xashKey != K_F12)
+		return false;
+	ClientCmdNow("ready\n");
+	return true;
 }
 } // namespace MenuEngine

@@ -366,7 +366,7 @@ pfnGetPlayerState
 */
 static entity_state_t *R_StudioGetPlayerState( int index )
 {
-	if( !FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
+	if( !FBitSet( RI.rvp.flags, RF_DRAW_WORLD ) && RI.currententity )
 		return &RI.currententity->curstate;
 
 	return gEngfuncs.pfnGetPlayerState( index );
@@ -538,7 +538,10 @@ static void R_StudioSetUpTransform( cl_entity_t *e )
 	if( e->player )
 		angles[PITCH] = 0.0f;
 
-	Matrix3x4_CreateFromEntity( g_studio.rotationmatrix, angles, origin, 1.0f );
+	{
+		const float scale = ( e->curstate.scale > 0.01f ) ? e->curstate.scale : 1.0f;
+		Matrix3x4_CreateFromEntity( g_studio.rotationmatrix, angles, origin, scale );
+	}
 
 	if( tr.fFlipViewModel )
 	{
@@ -1566,7 +1569,14 @@ static void R_StudioSetColorBegin( short *ptricmds, vec3_t *pstudionorms )
 
 	color[3] = tr.blend * 255;
 
-	R_LightLambert( g_studio.lightpos[ptricmds[0]], pstudionorms[ptricmds[1]], lv, color );
+	if( FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
+	{
+		color[0] = 232;
+		color[1] = 196;
+		color[2] = 52;
+	}
+	else
+		R_LightLambert( g_studio.lightpos[ptricmds[0]], pstudionorms[ptricmds[1]], lv, color );
 	TriColor4ub( color[0], color[1], color[2], color[3] );
 }
 
@@ -1610,6 +1620,12 @@ static void R_StudioSetupSkin( studiohdr_t *ptexturehdr, int index )
 	mstudiotexture_t *ptexture = NULL;
 
 	if( FBitSet( g_nForceFaceFlags, STUDIO_NF_CHROME ))
+	{
+		GL_Bind( XASH_TEXTURE0, tr.whiteTexture );
+		return;
+	}
+
+	if( RI.currententity && FBitSet( RI.currententity->curstate.effects, EF_CSRETRO_ITEM ))
 	{
 		GL_Bind( XASH_TEXTURE0, tr.whiteTexture );
 		return;

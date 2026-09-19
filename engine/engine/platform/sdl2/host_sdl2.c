@@ -82,6 +82,7 @@ static void SDLash_KeyEvent( SDL_KeyboardEvent key )
 		case SDL_SCANCODE_GRAVE: keynum = '`'; break;
 		case SDL_SCANCODE_0: keynum = '0'; break;
 		case SDL_SCANCODE_BACKSLASH: keynum = '\\'; break;
+		case SDL_SCANCODE_NONUSBACKSLASH: keynum = '<'; break;
 		case SDL_SCANCODE_LEFTBRACKET: keynum = '['; break;
 		case SDL_SCANCODE_RIGHTBRACKET: keynum = ']'; break;
 		case SDL_SCANCODE_EQUALS: keynum = '='; break;

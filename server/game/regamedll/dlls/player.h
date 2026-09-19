@@ -614,7 +614,7 @@ public:
 	void ParseAutoBuyString(const char *string, bool &boughtPrimary, bool &boughtSecondary);
 	AutoBuyInfoStruct *GetAutoBuyCommandInfo(const char *command);
 	void InitRebuyData(const char *str);
-	void BuildRebuyStruct();
+	void BuildRebuyStruct(bool replaceConsumables = false);
 	void Rebuy();
 	void RebuyPrimaryWeapon();
 	void RebuyPrimaryAmmo();

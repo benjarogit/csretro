@@ -128,6 +128,7 @@ sleep 2
 import -window "${WID}" "${SHOT_DIR}/${SHOT_TAG}-team-initial.png"
 xdotool key --window "${WID}" "${TEAM_KEY}" >/dev/null 2>&1
 sleep 1
+import -window "${WID}" "${SHOT_DIR}/${SHOT_TAG}-class.png"
 xdotool key --window "${WID}" "${CSRETRO_FIRE_CLASS:-1}" >/dev/null 2>&1
 sleep 2
 if [[ "${CSRETRO_FIRE_RESTART:-0}" == 1 ]]; then

@@ -4,7 +4,7 @@
 #include "ClassSelectPanel.h"
 #include "Controls/MenuEngine.h"
 #include "InGameRoster.h"
-#include "InGameViewportLook.h"
+#include "InGameUi.h"
 #include "TeamModelPreview.h"
 #include "RadioSelectPanel.h"
 
@@ -46,6 +46,19 @@ namespace
 {
 const char kResource[] = "resource/UI/Teammenu.res";
 
+class CTeamRosterBadge : public Label
+{
+public:
+	CTeamRosterBadge(Panel *parent, const char *name) : Label(parent, name, "") {}
+	void PaintBackground() override
+	{
+		surface()->DrawSetColor(15, 19, 23, 220);
+		surface()->DrawFilledRect(0, 0, GetWide(), GetTall());
+		surface()->DrawSetColor(150, 155, 150, 90);
+		surface()->DrawOutlinedRect(0, 0, GetWide(), GetTall());
+	}
+};
+
 class CTeamLookButton : public Button
 {
 	DECLARE_CLASS_SIMPLE_OVERRIDE(CTeamLookButton, Button);
@@ -83,41 +96,15 @@ public:
 		GetSize(w, h);
 		const bool active = IsArmed() || IsDepressed();
 		if (m_footer)
-		{
-			const int iconX = std::max(6, w - (m_footer == 1 ? 100 : 132));
-			const int iconY = std::max(3, (h - 10) / 2);
-			vgui2::surface()->DrawSetColor(m_accent);
-			if (m_footer == 1)
-			{
-				vgui2::surface()->DrawOutlinedRect(iconX, iconY + 1, iconX + 12, iconY + 9);
-				vgui2::surface()->DrawFilledRect(iconX + 12, iconY + 3, iconX + 15, iconY + 7);
-			}
-			else if (m_footer == 2)
-			{
-				vgui2::surface()->DrawLine(iconX + 2, iconY + 6, iconX + 4, iconY + 2);
-				vgui2::surface()->DrawLine(iconX + 4, iconY + 2, iconX + 9, iconY);
-				vgui2::surface()->DrawLine(iconX + 9, iconY, iconX + 13, iconY + 3);
-				vgui2::surface()->DrawLine(iconX + 13, iconY + 3, iconX + 13, iconY + 6);
-				vgui2::surface()->DrawLine(iconX + 13, iconY + 6, iconX + 10, iconY + 10);
-				vgui2::surface()->DrawLine(iconX + 10, iconY + 10, iconX + 5, iconY + 10);
-				vgui2::surface()->DrawLine(iconX + 5, iconY + 10, iconX + 2, iconY + 7);
-				vgui2::surface()->DrawFilledRect(iconX + 10, iconY + 1, iconX + 15, iconY + 5);
-			}
-			if (active)
-			{
-				vgui2::surface()->DrawSetColor(m_accent.r(), m_accent.g(), m_accent.b(), 40);
-				vgui2::surface()->DrawFilledRect(0, h - 2, w, h);
-			}
 			return;
-		}
 		if (!m_teamChoice)
 		{
-			InGameViewportLook::PaintCardBackground(w, h, m_accent, active);
+			InGameUi::PaintCardBackground(w, h, m_accent, active);
 			return;
 		}
 		int cx = 0, cy = 0, radius = 0;
-		InGameViewportLook::TeamEmblemMetrics(w, h, cx, cy, radius);
-		InGameViewportLook::PaintEmblem(m_teamChoice, cx, cy, radius, m_accent, active);
+		InGameUi::TeamEmblemMetrics(w, h, cx, cy, radius);
+		InGameUi::PaintEmblem(m_teamChoice, cx, cy, radius, m_accent, active, std::max(4, radius / 18));
 	}
 
 	void Paint() override
@@ -128,7 +115,7 @@ public:
 	}
 
 private:
-	Color m_accent = InGameViewportLook::Text();
+	Color m_accent = InGameUi::Text();
 	int m_teamChoice = 0;
 	int m_footer = 0;
 
@@ -136,14 +123,14 @@ private:
 	{
 		if (m_footer)
 		{
-			InGameViewportLook::StyleFooterButton(this, m_accent);
+			InGameUi::StyleFooterButton(this, m_accent);
 			SetPaintBackgroundEnabled(true);
-			SetFgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::Text() : m_accent);
+			SetFgColor((IsArmed() || IsDepressed()) ? InGameUi::Text() : m_accent);
 			return;
 		}
-		InGameViewportLook::StyleCardButton(this, m_accent);
-		SetFgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::Text() : m_accent);
-		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::CardArmed() : InGameViewportLook::Card());
+		InGameUi::StyleCardButton(this, m_accent);
+		SetFgColor((IsArmed() || IsDepressed()) ? InGameUi::Text() : m_accent);
+		SetBgColor((IsArmed() || IsDepressed()) ? InGameUi::CardArmed() : InGameUi::Card());
 	}
 };
 
@@ -229,6 +216,7 @@ public:
 			return;
 		m_nextRosterRefresh = now + 0.25f;
 		RefreshRoster();
+		RelayoutVisibleButtons();
 	}
 
 	bool HasTeamButtons()
@@ -414,8 +402,13 @@ private:
 	Label *m_ctCount = nullptr;
 	Label *m_tPlayers[kRosterRows]{};
 	Label *m_ctPlayers[kRosterRows]{};
+	Label *m_tAvatars[kRosterRows]{};
+	Label *m_ctAvatars[kRosterRows]{};
 	int m_tPreviewIndex = -1;
 	int m_ctPreviewIndex = -1;
+	vgui2::HFont m_titleFont = INVALID_FONT;
+	vgui2::HFont m_rowFont = INVALID_FONT;
+	int m_fontHeight = 0;
 
 	void CreateTeamPreviews()
 	{
@@ -475,8 +468,12 @@ private:
 			terrorYaw, 80);
 		m_ctModel->SetPreview(ctModels[m_ctPreviewIndex], "models/p_m4a1.mdl",
 			ctYaw, 33);
-		m_tModel->SetWorldWidth(65.0f);
-		m_ctModel->SetWorldWidth(65.0f);
+		m_tModel->SetWorldWidth(44.0f);
+		m_tModel->SetWorldHeight(70.0f);
+		m_tModel->SetCameraHeight(-2.0f);
+		m_ctModel->SetWorldWidth(44.0f);
+		m_ctModel->SetWorldHeight(70.0f);
+		m_ctModel->SetCameraHeight(-2.0f);
 		Menu_Con("CSRETRO_TEAM_RANDOM t=%d ct=%d changed=%d", m_tPreviewIndex,
 			m_ctPreviewIndex, oldT >= 0 && oldCT >= 0 && oldT != m_tPreviewIndex && oldCT != m_ctPreviewIndex ? 1 : 0);
 	}
@@ -517,7 +514,7 @@ private:
 			{
 				char name[32];
 				snprintf(name, sizeof(name), "%s%d", prefix, i);
-				rows[i] = new Label(this, name, "");
+				rows[i] = strstr(prefix, "Avatar") ? new CTeamRosterBadge(this, name) : new Label(this, name, "");
 				MuteLabel(rows[i]);
 				rows[i]->SetContentAlignment(namesEast ? Label::a_east : Label::a_west);
 				rows[i]->SetTextInset(8, 0);
@@ -526,27 +523,32 @@ private:
 		};
 		make("TRoster", m_tPlayers, true);
 		make("CTRoster", m_ctPlayers, false);
+		make("TRosterAvatar", m_tAvatars, false);
+		make("CTRosterAvatar", m_ctAvatars, false);
+		for (int i = 0; i < kRosterRows; ++i)
+			for (Label *avatar : {m_tAvatars[i], m_ctAvatars[i]})
+			{
+				avatar->SetContentAlignment(Label::a_center);
+				avatar->SetTextInset(0, 0);
+				avatar->SetPaintBackgroundEnabled(true);
+				avatar->SetBgColor(Color(15, 19, 23, 210));
+			}
 	}
 
 	void StyleRosterLabel(Label *lab, Color color, bool title)
 	{
 		if (!lab)
 			return;
-		IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
-		vgui2::HFont font = INVALID_FONT;
-		if (sch)
+		const int height = std::max(480, GetTall());
+		if (m_fontHeight != height)
 		{
-			if (title)
-			{
-				font = sch->GetFont("Title", IsProportional());
-				if (font == INVALID_FONT)
-					font = sch->GetFont("Default", IsProportional());
-			}
-			if (font == INVALID_FONT)
-				font = sch->GetFont("Default", IsProportional());
+			if (m_titleFont == INVALID_FONT) m_titleFont = surface()->CreateFont();
+			if (m_rowFont == INVALID_FONT) m_rowFont = surface()->CreateFont();
+			surface()->AddGlyphSetToFont(m_titleFont, "Noto Sans", std::max(16, height * 28 / 1000), 800, 0, 0, 0x010, 0, 0xFFFF);
+			surface()->AddGlyphSetToFont(m_rowFont, "Noto Sans", std::max(12, height * 20 / 1000), 500, 0, 0, 0x010, 0, 0xFFFF);
+			m_fontHeight = height;
 		}
-		if (font != INVALID_FONT)
-			lab->SetFont(font);
+		lab->SetFont(title ? m_titleFont : m_rowFont);
 		lab->SetFgColor(color);
 		lab->SetPaintBackgroundEnabled(false);
 	}
@@ -576,13 +578,15 @@ private:
 				m_tPlayers[i]->SetVisible(false);
 			if (m_ctPlayers[i])
 				m_ctPlayers[i]->SetVisible(false);
+			m_tAvatars[i]->SetVisible(false);
+			m_ctAvatars[i]->SetVisible(false);
 		}
 		for (int i = 0; i < s.playerCount && i < CSRETRO_SCOREBOARD_PLAYERS; ++i)
 		{
 			const ScoreboardPlayerRow &row = s.players[i];
 			Label **target = nullptr;
 			int *count = nullptr;
-			Color accent = InGameViewportLook::Text();
+			Color accent = InGameUi::Text();
 			if (row.team == 1)
 			{
 				if (row.bot)
@@ -593,7 +597,7 @@ private:
 				{
 					target = m_tPlayers;
 					count = &m_rosterT;
-					accent = InGameViewportLook::Terror();
+					accent = InGameUi::Terror();
 				}
 			}
 			else if (row.team == 2)
@@ -606,20 +610,27 @@ private:
 				{
 					target = m_ctPlayers;
 					count = &m_rosterCT;
-					accent = InGameViewportLook::CT();
+					accent = InGameUi::CT();
 				}
 			}
 			if (!target || !count || !target[*count])
 				continue;
 			target[*count]->SetText(row.name);
-			StyleRosterLabel(target[*count], row.dead ? InGameViewportLook::TextDim() : accent, false);
+			StyleRosterLabel(target[*count], row.dead ? InGameUi::TextDim() : accent, false);
 			target[*count]->SetVisible(true);
+			// The roster protocol has no avatar URL/Steam ID. Use honest local
+			// placeholders, never fabricated player portraits or network requests.
+			Label *avatar = row.team == 1 ? m_tAvatars[*count] : m_ctAvatars[*count];
+			avatar->SetText(row.bot ? "BOT" : "?");
+			StyleRosterLabel(avatar, accent, false);
+			avatar->SetPaintBackgroundEnabled(true);
+			avatar->SetVisible(true);
 			++*count;
 		}
-		WriteTeamMeta(m_tCount, tHumans, tBots, InGameViewportLook::TextDim());
-		WriteTeamMeta(m_ctCount, ctHumans, ctBots, InGameViewportLook::TextDim());
-		StyleRosterLabel(m_tTitle, InGameViewportLook::Terror(), true);
-		StyleRosterLabel(m_ctTitle, InGameViewportLook::Text(), true);
+		WriteTeamMeta(m_tCount, tHumans, tBots, InGameUi::TextDim());
+		WriteTeamMeta(m_ctCount, ctHumans, ctBots, InGameUi::TextDim());
+		StyleRosterLabel(m_tTitle, InGameUi::Terror(), true);
+		StyleRosterLabel(m_ctTitle, InGameUi::Text(), true);
 	}
 
 	void LayoutPreview(CTeamModelPreview *model, int originX, int originY, int sideW, int sideH)
@@ -627,7 +638,7 @@ private:
 		if (!model)
 			return;
 		int sx = 0, sy = 0, sw = 0, sh = 0;
-		InGameViewportLook::TeamModelViewport(sideW, sideH, sx, sy, sw, sh);
+		InGameUi::TeamModelViewport(sideW, sideH, sx, sy, sw, sh);
 		model->SetBounds(originX + sx, originY + sy, sw, sh);
 		model->SetVisible(true);
 	}
@@ -667,14 +678,14 @@ private:
 			if (!btn)
 				continue;
 			const char *name = btn->GetName();
-			Color accent = InGameViewportLook::Text();
+			Color accent = InGameUi::Text();
 			if (name && !strcasecmp(name, "terbutton"))
-				accent = InGameViewportLook::Terror();
+				accent = InGameUi::Terror();
 			else if (name && !strcasecmp(name, "ctbutton"))
-				accent = InGameViewportLook::CT();
+				accent = InGameUi::CT();
 			else if (name && (!strcasecmp(name, "autobutton") || !strcasecmp(name, "specbutton") ||
 				!strcasecmp(name, "vipbutton") || !strcasecmp(name, "CancelButton")))
-				accent = InGameViewportLook::TextDim();
+				accent = InGameUi::TextDim();
 			const bool footer = name && (!strcasecmp(name, "autobutton") || !strcasecmp(name, "specbutton") ||
 				!strcasecmp(name, "vipbutton") || !strcasecmp(name, "CancelButton"));
 			if (auto *look = dynamic_cast<CTeamLookButton *>(btn))
@@ -686,15 +697,15 @@ private:
 					(name && !strcasecmp(name, "autobutton") ? 2 : (footer ? 3 : 0)));
 			}
 			else if (footer)
-				InGameViewportLook::StyleFooterButton(btn, accent);
+				InGameUi::StyleFooterButton(btn, accent);
 			else
-				InGameViewportLook::StyleCardButton(btn, accent);
+				InGameUi::StyleCardButton(btn, accent);
 			btn->SetContentAlignment(footer ? Label::a_east : Label::a_center);
 			btn->SetTextInset(0, 0);
 			if (footer)
 			{
 				IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
-				vgui2::HFont font = sch ? sch->GetFont("Title", IsProportional()) : INVALID_FONT;
+				vgui2::HFont font = m_rowFont != INVALID_FONT ? m_rowFont : (sch ? sch->GetFont("Default", IsProportional()) : INVALID_FONT);
 				if (font != INVALID_FONT)
 					btn->SetFont(font);
 			}
@@ -712,10 +723,10 @@ private:
 			info->SetVisible(false);
 			info->SetPaintBackgroundEnabled(false);
 		}
-		StyleRosterLabel(m_tTitle, InGameViewportLook::Terror(), true);
-		StyleRosterLabel(m_ctTitle, InGameViewportLook::Text(), true);
-		StyleRosterLabel(m_tCount, InGameViewportLook::TextDim(), false);
-		StyleRosterLabel(m_ctCount, InGameViewportLook::TextDim(), false);
+		StyleRosterLabel(m_tTitle, InGameUi::Terror(), true);
+		StyleRosterLabel(m_ctTitle, InGameUi::Text(), true);
+		StyleRosterLabel(m_tCount, InGameUi::TextDim(), false);
+		StyleRosterLabel(m_ctCount, InGameUi::TextDim(), false);
 	}
 
 	void RelayoutVisibleButtons()
@@ -733,9 +744,9 @@ private:
 				child->SetVisible(false);
 		}
 		int stageX = 0, stageY = 0, stageW = 0, stageH = 0;
-		InGameViewportLook::TeamStage(w, h, stageX, stageY, stageW, stageH);
-		const int col = stageW * 40 / 100;
-		const int sideInset = stageW * 6 / 100;
+		InGameUi::TeamStage(w, h, stageX, stageY, stageW, stageH);
+		const int col = stageW * 30 / 100;
+		const int sideInset = stageW * 12 / 100;
 		const int tX = stageX + sideInset;
 		const int ctX = stageX + stageW - sideInset - col;
 		if (Panel *t = FindChildByName("terbutton"))
@@ -749,11 +760,14 @@ private:
 
 		int tCx = 0, tCy = 0, tR = 0;
 		int ctCx = 0, ctCy = 0, ctR = 0;
-		InGameViewportLook::TeamEmblemMetrics(col, stageH, tCx, tCy, tR);
-		InGameViewportLook::TeamEmblemMetrics(col, stageH, ctCx, ctCy, ctR);
-		const int titleH = std::max(24, stageH * 7 / 100);
-		const int metaH = std::max(16, stageH * 4 / 100);
-		const int titleY = stageY + std::max(8, stageH * 14 / 100);
+		InGameUi::TeamEmblemMetrics(col, stageH, tCx, tCy, tR);
+		InGameUi::TeamEmblemMetrics(col, stageH, ctCx, ctCy, ctR);
+		const int titleH = std::max(22, stageH * 4 / 100);
+		const int metaH = std::max(16, stageH * 25 / 1000);
+		const int titleGap = std::max(6, stageH * 1 / 100);
+		int titleY = stageY + stageH * 20 / 100;
+		if (titleY < stageY + 8)
+			titleY = stageY + 8;
 		if (m_tTitle)
 			m_tTitle->SetBounds(tX, titleY, col, titleH);
 		if (m_tCount)
@@ -763,23 +777,27 @@ private:
 		if (m_ctCount)
 			m_ctCount->SetBounds(ctX, titleY + titleH, col, metaH);
 
-		const int listLeft = tX + tCx + tR + 12;
-		const int listRight = ctX + ctCx - ctR - 12;
+		const int listLeft = stageX + stageW * 40 / 100;
+		const int listRight = stageX + stageW * 60 / 100;
 		const int listW = std::max(80, listRight - listLeft);
-		const int listTop = stageY + std::max(titleY + titleH + metaH + 8, tCy - tR);
-		const int listH = std::max(64, (tR * 2) - 8);
-		const int colW = std::max(40, listW / 2 - 8);
-		const int rowH = std::max(16, listH / kRosterRows);
+		const int listTop = titleY + titleH + metaH + titleGap;
+		const int listH = stageH * 57 / 100;
+		const int colW = std::max(40, listW / 2 - 12);
+		const int rows = std::max(7, std::max(m_rosterT, m_rosterCT));
+		const int rowH = std::max(16, std::min(stageH * 7 / 100, listH / rows));
+		const int avatarSize = std::max(12, rowH - 8);
 		for (int i = 0; i < kRosterRows; ++i)
 		{
 			if (m_tPlayers[i])
-				m_tPlayers[i]->SetBounds(listLeft, listTop + i * rowH, colW, rowH);
+				m_tPlayers[i]->SetBounds(listLeft, listTop + i * rowH, colW - avatarSize - 4, rowH);
 			if (m_ctPlayers[i])
-				m_ctPlayers[i]->SetBounds(listLeft + listW - colW, listTop + i * rowH, colW, rowH);
+				m_ctPlayers[i]->SetBounds(listRight - colW + avatarSize + 4, listTop + i * rowH, colW - avatarSize - 4, rowH);
+			m_tAvatars[i]->SetBounds(listLeft + colW - avatarSize, listTop + i * rowH + 4, avatarSize, avatarSize);
+			m_ctAvatars[i]->SetBounds(listRight - colW, listTop + i * rowH + 4, avatarSize, avatarSize);
 		}
 
-		const int footerH = std::max(28, stageH * 6 / 100);
-		const int footerW = std::max(138, stageW * 14 / 100);
+		const int footerH = std::max(22, stageH * 4 / 100);
+		const int footerW = std::max(108, stageW * 11 / 100);
 		int fx = stageX + stageW - 20;
 		const int fy = stageY + stageH - footerH - std::max(12, stageH * 2 / 100);
 		for (const char *name : {"autobutton", "specbutton", "vipbutton", "CancelButton"})
@@ -805,20 +823,11 @@ private:
 	void Paint() override
 	{
 		BaseClass::Paint();
-		int w = 0, h = 0;
-		GetSize(w, h);
-		if (!vgui2::surface() || w < 8)
-			return;
-		int sx = 0, sy = 0, sw = 0, sh = 0;
-		InGameViewportLook::TeamStage(w, h, sx, sy, sw, sh);
-		const int mid = sx + sw / 2;
-		vgui2::surface()->DrawSetColor(255, 255, 255, 36);
-		vgui2::surface()->DrawFilledRect(mid, sy + sh * 16 / 100, mid + 1, sy + sh * 84 / 100);
-		const int footerTop = sy + sh - std::max(62, sh * 10 / 100);
-		vgui2::surface()->DrawSetColor(0, 0, 0, 70);
-		vgui2::surface()->DrawFilledRect(0, footerTop, w, h);
-		vgui2::surface()->DrawSetColor(255, 255, 255, 28);
-		vgui2::surface()->DrawFilledRect(0, footerTop, w, footerTop + 1);
+		const int w = GetWide(), h = GetTall();
+		surface()->DrawSetColor(12, 14, 16, 125);
+		surface()->DrawFilledRect(0, h * 91 / 100, w, h);
+		surface()->DrawSetColor(220, 225, 225, 28);
+		surface()->DrawFilledRect(0, h * 91 / 100, w, h * 91 / 100 + 1);
 	}
 
 	void LoadMapBriefing()
@@ -829,8 +838,8 @@ private:
 		info->SetPanelInteractive(false);
 		info->SetUnusedScrollbarInvisible(true);
 		IScheme *sch = GetScheme() ? scheme()->GetIScheme(GetScheme()) : nullptr;
-		info->SetFgColor(InGameViewportLook::TextDim());
-		info->SetBgColor(InGameViewportLook::Card());
+		info->SetFgColor(InGameUi::TextDim());
+		info->SetBgColor(InGameUi::Card());
 		if (vgui2::HFont font = sch ? sch->GetFont("Default", IsProportional()) : INVALID_FONT)
 		{
 			if (font != INVALID_FONT)
@@ -889,7 +898,7 @@ private:
 		Menu_Con("CSRETRO_TEAM_VGUI open slots=%d t=%d ct=%d auto=%d vip=%d spec=%d cancel=%d tplayers=%d ctplayers=%d",
 			m_slots, t, ct, autoas, vip, spec, cancel, m_rosterT, m_rosterCT);
 		int stageX = 0, stageY = 0, stageW = 0, stageH = 0;
-		InGameViewportLook::TeamStage(GetWide(), GetTall(), stageX, stageY, stageW, stageH);
+		InGameUi::TeamStage(GetWide(), GetTall(), stageX, stageY, stageW, stageH);
 		Menu_Con("CSRETRO_TEAM_CANVAS view=%dx%d canvas=%d,%d %dx%d capped=%d",
 			GetWide(), GetTall(), stageX, stageY, stageW, stageH,
 			(stageW < GetWide() * 9 / 10 || stageH < GetTall() * 9 / 10) ? 1 : 0);
@@ -924,14 +933,14 @@ public:
 		SetPaintBackgroundEnabled(true);
 		SetPaintBorderEnabled(false);
 		SetBorder(nullptr);
-		SetBgColor(InGameViewportLook::OverlayBg());
+		SetBgColor(Color(0, 0, 0, 0));
 	}
 
 	void PaintBackground() override
 	{
 		int w = 0, h = 0;
 		GetSize(w, h);
-		InGameViewportLook::PaintTeamBackdrop(w, h, PauseBackdrop_IsBlurred());
+		InGameUi::PaintSelectVeil(w, h);
 	}
 
 	void PerformLayout() override

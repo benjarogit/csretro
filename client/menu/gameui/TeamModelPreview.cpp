@@ -90,14 +90,78 @@ void StudioPoint(float pitch, float yaw, const float in[3], float out[3])
 	out[2] = (-sp) * in[0] + (cp) * in[2];
 }
 
-void FrameItem(const float mins[3], const float maxs[3], float *pitch, float *yaw, float *roll,
-	float *camRoll, float *frameW, float *frameH, float shift[3])
+bool PathHasStem(const char *path, const char *stem)
 {
-	*pitch = 90.0f;
-	*yaw = 0.0f;
-	*roll = 0.0f;
-	*camRoll = 0.0f;
+	return path && stem && std::strstr(path, stem);
+}
 
+// One row per w_*.mdl. fill = card occupancy, zoom = closer if > 1.
+// contain = fit both axes (nades/gear). Guns use width only.
+struct BuyItemLook
+{
+	const char *stem;
+	float roll;
+	float fill;
+	float zoom;
+	bool upright;
+	bool contain;
+};
+
+const BuyItemLook *LookupBuyItem(const char *path)
+{
+	static const BuyItemLook kLooks[] = {
+		// Equipment — width-fit. Contain on a 2.20 card kept the vest a postage stamp.
+		{"w_kevlar.mdl", 0.0f, 0.74f, 1.00f, false, false},
+		{"w_assault.mdl", 0.0f, 0.74f, 1.00f, false, false},
+		{"w_thighpack.mdl", 0.0f, 0.70f, 1.00f, false, true},
+		// Glock side profile is already correct; 0.50 left it half the USP.
+		{"w_glock18.mdl", 180.0f, 0.72f, 1.00f, false, false},
+		{"w_usp.mdl", 210.0f, 0.74f, 1.08f, false, false},
+		{"w_p228.mdl", 195.0f, 0.76f, 1.00f, false, false},
+		{"w_deagle.mdl", 180.0f, 0.78f, 1.00f, false, false},
+		{"w_elite.mdl", 180.0f, 0.82f, 1.00f, false, false},
+		{"w_fiveseven.mdl", 180.0f, 0.74f, 1.00f, false, false},
+		// Mid — MAC-10 side profile; others already readable.
+		{"w_mac10.mdl", 180.0f, 0.84f, 1.00f, false, true},
+		{"w_mp5.mdl", 8.0f, 0.88f, 1.00f, false, false},
+		{"w_ump45.mdl", 200.0f, 0.88f, 1.00f, false, false},
+		{"w_p90.mdl", 135.0f, 0.88f, 1.00f, false, false},
+		{"w_tmp.mdl", 0.0f, 0.86f, 1.00f, false, false},
+		{"w_m3.mdl", 135.0f, 0.88f, 1.00f, false, false},
+		{"w_xm1014.mdl", 0.0f, 0.90f, 1.00f, false, false},
+		{"w_m249.mdl", 180.0f, 0.88f, 1.00f, false, false},
+		// Rifles — Benny rolls stay.
+		{"w_galil.mdl", 198.0f, 0.88f, 1.18f, false, false},
+		{"w_ak47.mdl", 160.0f, 0.90f, 1.00f, false, false},
+		{"w_scout.mdl", 205.0f, 0.90f, 1.00f, false, false},
+		{"w_awp.mdl", 160.0f, 0.90f, 1.00f, false, false},
+		{"w_g3sg1.mdl", 160.0f, 0.90f, 1.00f, false, false},
+		{"w_sg552.mdl", 135.0f, 0.90f, 1.00f, false, false},
+		{"w_famas.mdl", 18.0f, 0.88f, 1.00f, false, false},
+		{"w_m4a1.mdl", -30.0f, 0.88f, 1.00f, false, false},
+		{"w_aug.mdl", -45.0f, 0.88f, 1.00f, false, false},
+		{"w_sg550.mdl", -20.0f, 0.88f, 1.00f, false, false},
+		// Nades — each can/bottle, not one shared close-up.
+		{"w_flashbang.mdl", 0.0f, 0.56f, 1.00f, true, true},
+		{"w_hegrenade.mdl", 25.0f, 0.58f, 1.00f, true, true},
+		{"w_smokegrenade.mdl", 0.0f, 0.54f, 1.00f, true, true},
+		{"w_molotov.mdl", 0.0f, 0.52f, 1.00f, true, true},
+		{"w_incgrenade.mdl", 0.0f, 0.50f, 1.00f, true, true},
+	};
+	for (const BuyItemLook &look : kLooks)
+	{
+		if (PathHasStem(path, look.stem))
+			return &look;
+	}
+	return nullptr;
+}
+
+void MeasureItem(const float mins[3], const float maxs[3], float pitch, float yaw, float camRoll,
+	float *frameW, float *frameH, float shift[3])
+{
+	const float cr = Deg2Rad(camRoll);
+	const float c = std::cos(cr);
+	const float s = std::sin(cr);
 	float xMin = 1.0e9f, xMax = -1.0e9f;
 	float yMin = 1.0e9f, yMax = -1.0e9f;
 	float zMin = 1.0e9f, zMax = -1.0e9f;
@@ -109,99 +173,38 @@ void FrameItem(const float mins[3], const float maxs[3], float *pitch, float *ya
 			(i & 4) ? maxs[2] : mins[2]
 		};
 		float out[3];
-		StudioPoint(*pitch, *yaw, in, out);
+		StudioPoint(pitch, yaw, in, out);
+		const float y = out[1] * c - out[2] * s;
+		const float z = out[1] * s + out[2] * c;
 		xMin = std::min(xMin, out[0]);
 		xMax = std::max(xMax, out[0]);
-		yMin = std::min(yMin, out[1]);
-		yMax = std::max(yMax, out[1]);
-		zMin = std::min(zMin, out[2]);
-		zMax = std::max(zMax, out[2]);
+		yMin = std::min(yMin, y);
+		yMax = std::max(yMax, y);
+		zMin = std::min(zMin, z);
+		zMax = std::max(zMax, z);
 	}
-	const float yExt = std::max(0.1f, yMax - yMin);
-	const float zExt = std::max(0.1f, zMax - zMin);
-	if (zExt > yExt)
-	{
-		*camRoll = 90.0f;
-		*frameW = zExt;
-		*frameH = yExt;
-	}
-	else
-	{
-		*frameW = yExt;
-		*frameH = zExt;
-	}
+	*frameW = std::max(0.1f, yMax - yMin);
+	*frameH = std::max(0.1f, zMax - zMin);
 	shift[0] = -0.5f * (xMin + xMax);
 	shift[1] = -0.5f * (yMin + yMax);
 	shift[2] = -0.5f * (zMin + zMax);
 }
 
-float ItemScreenRoll(const char *path)
+void FrameItem(const float mins[3], const float maxs[3], float *pitch, float *yaw, float *roll,
+	float *camRoll, float *frameW, float *frameH, float shift[3], bool upright, float extraRoll)
 {
-	// The stock w_*.mdl files do not share one authored orientation. Their
-	// sequence boxes describe only an axis-aligned envelope, so they cannot tell
-	// whether a pistol grip points up or how far a rifle mesh is diagonal inside
-	// that envelope. These small per-asset corrections keep the real MDLs while
-	// presenting the same readable, horizontal inventory profile as the reference.
-	struct Roll { const char *stem; float degrees; };
-	static const Roll rolls[] = {
-		{"w_glock18.mdl", 180.0f}, {"w_usp.mdl", 210.0f},
-		{"w_p228.mdl", 195.0f}, {"w_deagle.mdl", 180.0f},
-		{"w_elite.mdl", 180.0f},
-		{"w_m3.mdl", 135.0f}, {"w_xm1014.mdl", 0.0f},
-		// MAC-10 needs the shared upside-down correction plus a clockwise
-		// quarter-turn; its stock sequence box is authored on the other axis.
-		{"w_mac10.mdl", 270.0f}, {"w_mp5.mdl", 8.0f},
-		{"w_ump45.mdl", 200.0f}, {"w_p90.mdl", 135.0f},
-		{"w_galil.mdl", 198.0f}, {"w_ak47.mdl", 150.0f},
-		{"w_scout.mdl", 205.0f}, {"w_sg552.mdl", 135.0f},
-		{"w_awp.mdl", 160.0f}, {"w_g3sg1.mdl", 160.0f},
-		{"w_famas.mdl", 18.0f}, {"w_m4a1.mdl", -30.0f},
-		{"w_aug.mdl", -45.0f}, {"w_sg550.mdl", -20.0f},
-		{"w_tmp.mdl", 0.0f}, {"w_fiveseven.mdl", 180.0f},
-		{"w_flashbang.mdl", -90.0f}, {"w_hegrenade.mdl", -90.0f},
-		{"w_smokegrenade.mdl", -90.0f}, {"w_molotov.mdl", -90.0f},
-		{"w_incgrenade.mdl", -90.0f},
-		{"w_kevlar.mdl", -90.0f}, {"w_assault.mdl", -90.0f},
-	};
-	for (const Roll &entry : rolls)
-		if (path && std::strstr(path, entry.stem))
-			return entry.degrees;
-	return 0.0f;
-}
-
-void ApplyItemScreenRoll(const char *path, float *camRoll, float *frameW, float *frameH)
-{
-	const float correction = ItemScreenRoll(path);
-	if (std::fabs(correction) < 0.01f)
-		return;
-	*camRoll += correction;
-	// The grenade world meshes are much chunkier than weapon silhouettes. Once
-	// upright, swap the projected axes and reserve extra framing so they match
-	// the reference's smaller icons. Rifle/pistol corrections align their long
-	// axis and deliberately keep the already measured frame instead of shrinking
-	// the model a second time with a rotated axis-aligned box.
-	if (path && (std::strstr(path, "flashbang") || std::strstr(path, "hegrenade") ||
-		std::strstr(path, "smokegrenade") || std::strstr(path, "molotov") ||
-		std::strstr(path, "incgrenade") || std::strstr(path, "w_kevlar.mdl") ||
-		std::strstr(path, "w_assault.mdl")))
-	{
-		const float oldW = *frameW;
-		*frameW = *frameH * 1.12f;
-		*frameH = oldW * 0.86f;
-	}
-	// A few stock world models have sequence boxes far larger than their visible
-	// mesh. They otherwise remain tiny despite correct centering and rotation.
-	// This is camera framing only; the cards still render the original MDLs.
-	float framing = 1.0f;
-	if (path && std::strstr(path, "w_m3.mdl"))
-		framing = 0.72f;
-	else if (path && std::strstr(path, "w_sg552.mdl"))
-		framing = 0.55f;
-	if (framing < 1.0f)
-	{
-		*frameW *= framing;
-		*frameH *= framing;
-	}
+	*pitch = upright ? 0.0f : 90.0f;
+	*yaw = 0.0f;
+	*roll = 0.0f;
+	float yExt = 1.0f, zExt = 1.0f;
+	MeasureItem(mins, maxs, *pitch, *yaw, 0.0f, &yExt, &zExt, shift);
+	// Longest silhouette axis stays horizontal. Extra per-weapon roll is
+	// included in the measured frame so distance matches what the camera sees.
+	const float baseRoll = (!upright && zExt > yExt) ? 90.0f : 0.0f;
+	*camRoll = baseRoll + extraRoll;
+	float rolledShift[3] = {};
+	MeasureItem(mins, maxs, *pitch, *yaw, *camRoll, frameW, frameH, rolledShift);
+	(void)rolledShift;
 }
 
 void SetupStudio(cl_entity_t *ent, const char *path, int sequence, float pitch, float yaw, float roll,
@@ -288,10 +291,30 @@ void CTeamModelPreview::SetItemPreview(const char *modelPath)
 	float maxs[3] = { 12.0f, 12.0f, 2.0f };
 	if (!ReadStudioIdleBox(modelPath, mins, maxs))
 		Menu_Con("CSRETRO_BUY_ITEM_BOX_FALLBACK path=%s", modelPath);
+	const BuyItemLook *look = LookupBuyItem(modelPath);
+	const bool upright = look && look->upright;
+	preview.itemFill = look ? look->fill : 0.88f;
+	preview.itemZoom = look ? look->zoom : 1.0f;
+	preview.itemContain = look && look->contain;
 	FrameItem(mins, maxs, &preview.pitch, &preview.yaw, &preview.roll, &preview.camRoll,
-		&preview.frameW, &preview.frameH, preview.shift);
-	ApplyItemScreenRoll(modelPath, &preview.camRoll, &preview.frameW, &preview.frameH);
+		&preview.frameW, &preview.frameH, preview.shift, upright, look ? look->roll : 0.0f);
 	m_worldWidth = preview.frameW;
+	m_itemSlotScale = 1.0f;
+}
+
+void CTeamModelPreview::SetItemSlotScale(float scale)
+{
+	m_itemSlotScale = std::max(0.35f, std::min(1.75f, scale));
+}
+
+void CTeamModelPreview::GetItemFrame(float *frameW, float *frameH) const
+{
+	const float w = (m_item && m_count > 0) ? m_previews[0].frameW : 24.0f;
+	const float h = (m_item && m_count > 0) ? m_previews[0].frameH : 24.0f;
+	if (frameW)
+		*frameW = std::max(0.1f, w);
+	if (frameH)
+		*frameH = std::max(0.1f, h);
 }
 
 void CTeamModelPreview::SetStageBackdrop(bool enabled)
@@ -375,16 +398,25 @@ void CTeamModelPreview::Paint()
 	float itemDist = 24.0f;
 	if (m_item && m_count > 0)
 	{
-		const float byWidth = DistanceForHeight(m_previews[0].frameW / 0.94f, rvp.fov_x);
-		const float byHeight = DistanceForHeight(m_previews[0].frameH / 0.84f, rvp.fov_y);
-		itemDist = std::max(8.0f, std::max(byWidth, byHeight));
-		rvp.viewangles[2] = m_previews[0].camRoll;
+		const Preview &item = m_previews[0];
+		const float fill = std::max(0.18f, item.itemFill);
+		if (item.itemContain)
+		{
+			itemDist = std::max(
+				DistanceForHeight(item.frameW / fill, rvp.fov_x),
+				DistanceForHeight(item.frameH / fill, rvp.fov_y));
+		}
+		else
+			itemDist = DistanceForHeight(item.frameW / fill, rvp.fov_x);
+		itemDist /= std::max(0.35f, item.itemZoom);
+		itemDist = std::max(8.0f, itemDist);
+		rvp.viewangles[2] = item.camRoll;
 	}
 	else
 	{
 		rvp.vieworigin[0] = 0.0f;
 		rvp.vieworigin[1] = 0.0f;
-		rvp.vieworigin[2] = -5.0f;
+		rvp.vieworigin[2] = m_cameraHeight;
 		rvp.viewangles[0] = 0.0f;
 		rvp.viewangles[1] = 0.0f;
 		rvp.viewangles[2] = 0.0f;
@@ -425,7 +457,8 @@ void CTeamModelPreview::Paint()
 		{
 			players[i].index = 0;
 			players[i].curstate.number = 0;
-			players[i].curstate.effects |= EF_CSRETRO_ITEM | EF_FULLBRIGHT | EF_NOINTERP;
+			players[i].curstate.scale = 1.0f;
+			players[i].curstate.effects |= EF_FULLBRIGHT | EF_NOINTERP;
 			if (!m_logged)
 				Menu_Con("CSRETRO_BUY_ITEM path=%s pitch=%.0f yaw=%.0f camRoll=%.0f frame=%.1fx%.1f dist=%.1f",
 					preview.path, preview.pitch, preview.yaw, preview.camRoll,

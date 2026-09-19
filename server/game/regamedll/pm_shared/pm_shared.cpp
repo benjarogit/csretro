@@ -2745,7 +2745,7 @@ void EXT_FUNC __API_HOOK(PM_Jump)()
 	real_t fvel = Length(pmove->velocity);
 	float fvol = 1.0f;
 
-	if (fvel >= 150.0f)
+	if (fvel >= 150.0f || (pmove->flags & FL_DUCKING))
 	{
 		PM_PlayStepSound(PM_MapTextureTypeStepType(pmove->chtexturetype), fvol);
 	}
@@ -2915,36 +2915,21 @@ void PM_CheckFalling()
 		if (pmove->waterlevel <= 0)
 		{
 			if (pmove->flFallVelocity > PM_PLAYER_MAX_SAFE_FALL_SPEED)
-			{
 				fvol = 1.0f;
-			}
 			else if (pmove->flFallVelocity > PM_PLAYER_MAX_SAFE_FALL_SPEED / 2)
-			{
 				fvol = 0.85f;
-			}
 			else if (pmove->flFallVelocity < PM_PLAYER_MIN_BOUNCE_SPEED)
-			{
 				fvol = 0.0f;
-			}
 		}
 
 		if (fvol > 0.0f)
 		{
 			PM_CatagorizeTextureType();
-
-			// play step sound for current texture
 			PM_PlayStepSound(PM_MapTextureTypeStepType(pmove->chtexturetype), fvol);
-
 			pmove->flTimeStepSound = 300;
-
-			// Knock the screen around a little bit, temporary effect
-			// punch z axis
-			pmove->punchangle[2] = pmove->flFallVelocity * 0.013;
-
+			pmove->punchangle[2] = pmove->flFallVelocity * 0.013f;
 			if (pmove->punchangle[0] > 8.0f)
-			{
 				pmove->punchangle[0] = 8.0f;
-			}
 		}
 	}
 

@@ -38,6 +38,15 @@ enum WeaponInfiniteAmmoMode
 	WPNMODE_INFINITE_BPAMMO
 };
 
+struct CSBuyPurchase
+{
+	int kind;
+	int weaponId;
+	int price;
+	int snapshot;
+	bool refundable;
+};
+
 class CCSPlayer: public CCSMonster {
 public:
 	CCSPlayer() :
@@ -59,9 +68,25 @@ public:
 		m_flLongJumpForce(0),
 		m_flDuckSpeedMultiplier(0),
 		m_iUserID(-1),
-		m_iGibDamageThreshold(GIB_PLAYER_THRESHOLD)
+		m_iGibDamageThreshold(GIB_PLAYER_THRESHOLD),
+		m_bLoadoutReady(false),
+		m_nPurchases(0),
+		m_rebuyHe(0),
+		m_rebuyFlash(0),
+		m_rebuySmoke(0),
+		m_rebuyMolotov(0),
+		m_rebuyInc(0),
+		m_bAnnouncerReady(false)
 	{
 		m_szModel[0] = '\0';
+
+		for (int i = 0; i < 5; ++i)
+		{
+			m_loadoutMid[i] = 0;
+			m_loadoutRifle[i] = 0;
+		}
+		for (int i = 0; i < 16; ++i)
+			m_purchases[i] = {};
 
 		// Resets the kill history for this player
 		for (int i = 0; i < MAX_CLIENTS; i++)
@@ -197,6 +222,18 @@ public:
 
 	// Player movement version control
 	PlayerMovementVersion m_MovementVersion;
+
+	int m_loadoutMid[5];
+	int m_loadoutRifle[5];
+	bool m_bLoadoutReady;
+	CSBuyPurchase m_purchases[16];
+	int m_nPurchases;
+	int m_rebuyHe;
+	int m_rebuyFlash;
+	int m_rebuySmoke;
+	int m_rebuyMolotov;
+	int m_rebuyInc;
+	bool m_bAnnouncerReady;
 };
 
 // Inlines

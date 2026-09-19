@@ -2,17 +2,22 @@
 
 #include "Controls/MenuEngine.h"
 #include "../vgui/window_geometry.h"
+#include "keydefs.h"
 
 #include "KeyValues.h"
 #include "vgui/IInputInternal.h"
 #include "vgui/IScheme.h"
 #include "vgui/ISurfaceNext.h"
 #include "vgui/KeyCode.h"
+#include "vgui/MouseCode.h"
 #include "vgui_controls/Button.h"
 #include "vgui_controls/Frame.h"
 #include "vgui_controls/Panel.h"
 #include "vgui_controls/RichText.h"
 #include "vgui_controls/TextEntry.h"
+#include "vgui/IVGui.h"
+#include "vgui_controls/Controls.h"
+#include "../vgui/vgui_boot.h"
 
 #include <algorithm>
 #include <cctype>
@@ -99,7 +104,7 @@ public:
 		}
 		if (code == KEY_UP || code == KEY_DOWN)
 		{
-			PostMessage(GetParent(), new KeyValues("ConsoleHistory", "direction", code == KEY_UP ? -1 : 1));
+			PostMessage(GetParent(), new KeyValues("ConsoleNavigate", "direction", code == KEY_UP ? -1 : 1));
 			return;
 		}
 		if (code == KEY_ESCAPE)
@@ -131,6 +136,8 @@ Color ColorForCode(char code, const Color &fallback)
 
 // Suggestions must not steal focus. vgui Menu is a popup that RequestFocus()
 // and eats Enter/typing — that made the console unusable after the first match.
+// Rows are painted here so the list can sit above the history view and still
+// take mouse hits without child Buttons grabbing the entry's focus.
 class CSuggestionList final : public Panel
 {
 	DECLARE_CLASS_SIMPLE_OVERRIDE(CSuggestionList, Panel);
@@ -143,7 +150,7 @@ public:
 		SetKeyBoardInputEnabled(false);
 		SetMouseInputEnabled(true);
 		SetVisible(false);
-		SetZPos(80);
+		SetZPos(200);
 	}
 
 	void ApplySchemeSettings(IScheme *scheme) override
@@ -154,40 +161,107 @@ public:
 		m_armedBg = scheme->GetColor("Menu.ArmedBgColor", Color(70, 80, 55, 255));
 		m_text = scheme->GetColor("Menu.TextColor", Color(216, 222, 211, 255));
 		m_armedText = scheme->GetColor("Menu.ArmedTextColor", Color(255, 255, 255, 255));
+		m_font = scheme->GetFont("GameConsole_Mono", true);
+		if (m_font == INVALID_FONT)
+			m_font = scheme->GetFont("Default", true);
 	}
 
 	void SetNames(const std::vector<std::string> &names, int selected)
 	{
-		while (GetChildCount() > 0)
-			delete GetChild(0);
+		m_names.clear();
 		const int shown = std::min(static_cast<int>(names.size()), kMaxCompletionMenu);
-		constexpr int rowH = 20;
 		for (int i = 0; i < shown; ++i)
-		{
-			auto *btn = new Button(this, "Suggest", names[static_cast<size_t>(i)].c_str(), this,
-				names[static_cast<size_t>(i)].c_str());
-			btn->SetKeyBoardInputEnabled(false);
-			btn->SetMouseInputEnabled(true);
-			btn->SetContentAlignment(Label::a_west);
-			btn->SetPaintBackgroundEnabled(true);
-			btn->SetBgColor(i == selected ? m_armedBg : GetBgColor());
-			btn->SetFgColor(i == selected ? m_armedText : m_text);
-			btn->SetBounds(0, i * rowH, std::max(1, GetWide()), rowH);
-		}
-		SetTall(std::max(1, shown * rowH));
+			m_names.push_back(names[static_cast<size_t>(i)]);
+		m_selected = selected;
+		if (m_hover >= shown)
+			m_hover = -1;
+		SetTall(std::max(1, shown * kRowH));
 		SetVisible(shown > 0);
 	}
 
-	void OnCommand(const char *command) override
+	void OnCursorMoved(int x, int y) override
 	{
-		if (!command || !*command)
+		BaseClass::OnCursorMoved(x, y);
+		const int row = RowAt(y);
+		if (row != m_hover)
+		{
+			m_hover = row;
+			Repaint();
+		}
+	}
+
+	void OnCursorExited() override
+	{
+		BaseClass::OnCursorExited();
+		if (m_hover >= 0)
+		{
+			m_hover = -1;
+			Repaint();
+		}
+	}
+
+	void OnMousePressed(MouseCode code) override
+	{
+		if (code != MOUSE_LEFT)
+			return;
+		int mx = 0, my = 0;
+		input()->GetCursorPos(mx, my);
+		ScreenToLocal(mx, my);
+		const int row = RowAt(my);
+		if (row < 0)
 			return;
 		KeyValues *kv = new KeyValues("CompletionCommand");
-		kv->SetString("command", command);
+		kv->SetString("command", m_names[static_cast<size_t>(row)].c_str());
+		kv->SetInt("index", row);
 		PostActionSignal(kv);
 	}
 
+	void Paint() override
+	{
+		BaseClass::Paint();
+		if (!surface() || m_names.empty())
+			return;
+		int w = 0, h = 0;
+		GetSize(w, h);
+		if (m_font != INVALID_FONT)
+			surface()->DrawSetTextFont(m_font);
+		for (int i = 0; i < static_cast<int>(m_names.size()); ++i)
+		{
+			const bool hot = (i == m_selected || i == m_hover);
+			if (hot)
+			{
+				surface()->DrawSetColor(m_armedBg);
+				surface()->DrawFilledRect(0, i * kRowH, w, (i + 1) * kRowH);
+			}
+			wchar_t label[128];
+			const std::string &name = m_names[static_cast<size_t>(i)];
+			size_t n = 0;
+			for (; n + 1 < sizeof(label) / sizeof(label[0]) && n < name.size(); ++n)
+				label[n] = static_cast<unsigned char>(name[n]);
+			label[n] = L'\0';
+			surface()->DrawSetTextColor(hot ? m_armedText : m_text);
+			surface()->DrawSetTextPos(6, i * kRowH + 2);
+			surface()->DrawPrintText(label, static_cast<int>(n));
+		}
+	}
+
 private:
+	static constexpr int kRowH = 20;
+
+	int RowAt(int localY) const
+	{
+		if (localY < 0)
+			return -1;
+		const int row = localY / kRowH;
+		if (row < 0 || row >= static_cast<int>(m_names.size()))
+			return -1;
+		return row;
+	}
+
+	std::vector<std::string> m_names;
+	int m_selected = -1;
+	int m_hover = -1;
+	HFont m_font = INVALID_FONT;
 	Color m_armedBg{70, 80, 55, 255};
 	Color m_text{216, 222, 211, 255};
 	Color m_armedText{255, 255, 255, 255};
@@ -206,10 +280,12 @@ public:
 		SetMoveable(true);
 		SetMinimumSize(kMinimumWide, kMinimumTall);
 		SetVisible(false);
+		SetZPos(80);
 
 		m_historyView = new RichText(this, "ConsoleHistory");
 		m_historyView->SetVerticalScrollbar(true);
 		m_historyView->SetMaximumCharCount(1024 * 1024);
+		m_historyView->SetZPos(0);
 
 		m_entry = new CConsoleEntry(this, "ConsoleEntry");
 		m_entry->AddActionSignalTarget(this);
@@ -267,7 +343,139 @@ public:
 	{
 		Activate();
 		MoveToFront();
+		if (input())
+			input()->SetAppModalSurface(GetVPanel());
 		m_entry->RequestFocus();
+		RebuildCompletions();
+	}
+
+	void KeepInputFocus()
+	{
+		MoveToFront();
+		if (input())
+			input()->SetAppModalSurface(GetVPanel());
+		if (m_entry && (!input() || input()->GetFocus() != m_entry->GetVPanel()))
+			m_entry->RequestFocus();
+	}
+
+	void FeedKey(int vguiKeyCode, bool down)
+	{
+		if (!m_entry || vguiKeyCode <= KEY_NONE)
+			return;
+		KeepInputFocus();
+		KeyValues *kv = new KeyValues(down ? "KeyCodeTyped" : "KeyCodeReleased", "code", vguiKeyCode);
+		ivgui()->PostMessage(m_entry->GetVPanel(), kv, 0);
+	}
+
+	void FeedChar(wchar_t ch)
+	{
+		if (!m_entry || ch < 32 || ch == '`' || ch == '~')
+			return;
+		KeepInputFocus();
+		m_entry->InsertChar(ch);
+	}
+
+	void HandleRawKey(int xashKey, bool down)
+	{
+		if (!m_entry)
+			return;
+		if (xashKey == K_CTRL)
+		{
+			m_ctrlDown = down;
+			return;
+		}
+		if (xashKey == K_SHIFT)
+		{
+			m_shiftDown = down;
+			return;
+		}
+		if (xashKey == K_ALT)
+			return;
+		if (!down)
+			return;
+
+		KeepInputFocus();
+		if (xashKey == K_BACKSPACE)
+		{
+			m_entry->Backspace();
+			RebuildCompletions();
+			return;
+		}
+		if (xashKey == K_DEL)
+		{
+			m_entry->Delete();
+			RebuildCompletions();
+			return;
+		}
+		if (xashKey == K_ENTER || xashKey == K_KP_ENTER)
+		{
+			Submit();
+			return;
+		}
+		if (xashKey == K_ESCAPE)
+		{
+			GameConsole_Hide();
+			return;
+		}
+		if (xashKey == K_TAB)
+		{
+			CycleCompletion(m_shiftDown);
+			return;
+		}
+		if (xashKey == K_UPARROW)
+		{
+			NavigateList(-1);
+			return;
+		}
+		if (xashKey == K_DOWNARROW)
+		{
+			NavigateList(1);
+			return;
+		}
+		if (m_ctrlDown && (xashKey == 'v' || xashKey == 'V'))
+		{
+			PostMessage(m_entry, new KeyValues("DoPaste"));
+			return;
+		}
+		if (m_ctrlDown && (xashKey == 'c' || xashKey == 'C'))
+		{
+			PostMessage(m_entry, new KeyValues("DoCopySelected"));
+			return;
+		}
+		if (m_ctrlDown)
+			return;
+		if (xashKey < 32 || xashKey >= 127 || xashKey == '`' || xashKey == '~')
+			return;
+
+		int ch = xashKey;
+		if (m_shiftDown)
+		{
+			if (ch == '-')
+				ch = '_';
+			else if (ch == '=')
+				ch = '+';
+			else if (ch == ';')
+				ch = ':';
+			else if (ch == '\'')
+				ch = '"';
+			else if (ch == ',')
+				ch = '<';
+			else if (ch == '.')
+				ch = '>';
+			else if (ch == '/')
+				ch = '?';
+			else if (ch == '\\')
+				ch = '|';
+			else if (ch == '[')
+				ch = '{';
+			else if (ch == ']')
+				ch = '}';
+			else if (ch == '<')
+				ch = '>';
+			else if (ch >= 'a' && ch <= 'z')
+				ch = ch - 'a' + 'A';
+		}
+		m_entry->InsertChar(static_cast<wchar_t>(ch));
 		RebuildCompletions();
 	}
 
@@ -315,6 +523,8 @@ protected:
 	{
 		HideCompletions();
 		SaveGeometry();
+		if (input())
+			input()->ReleaseAppModalSurface();
 		BaseClass::OnClose();
 		if (!g_shuttingDown)
 			RestoreInputAfterClose();
@@ -330,10 +540,9 @@ protected:
 		RebuildCompletions();
 	}
 	MESSAGE_FUNC(OnConsoleClose, "ConsoleClose") { GameConsole_Hide(); }
-	MESSAGE_FUNC_INT(OnConsoleHistory, "ConsoleHistory", direction)
+	MESSAGE_FUNC_INT(OnConsoleNavigate, "ConsoleNavigate", direction)
 	{
-		HideCompletions();
-		NavigateHistory(direction);
+		NavigateList(direction);
 	}
 	MESSAGE_FUNC_INT(OnConsoleComplete, "ConsoleComplete", reverse)
 	{
@@ -346,7 +555,23 @@ protected:
 		const char *command = kv->GetString("command", "");
 		if (!command || !*command)
 			return;
+		const int index = kv->GetInt("index", -1);
+		m_autoComplete = true;
+		if (index >= 0 && index < ShownCompletionCount())
+			m_nextCompletion = index;
+		else
+		{
+			for (int i = 0; i < ShownCompletionCount(); ++i)
+			{
+				if (m_completions[static_cast<size_t>(i)] == command)
+				{
+					m_nextCompletion = i;
+					break;
+				}
+			}
+		}
 		ApplyCompletion(command);
+		RefreshCompletionMenu();
 	}
 
 private:
@@ -431,9 +656,10 @@ private:
 			return;
 		}
 
-		// GoldSrc: TAB completes in the entry. A visible list still eats clicks
-		// and looks like a second UI; keep matches for TAB only.
-		m_completionMenu->SetVisible(false);
+		const int selected = m_autoComplete ? m_nextCompletion : -1;
+		m_completionMenu->SetNames(m_completions, selected);
+		PlaceCompletionMenu();
+		m_completionMenu->MoveToFront();
 		if (m_entry)
 			m_entry->RequestFocus();
 	}
@@ -444,8 +670,14 @@ private:
 			return;
 		int ex = 0, ey = 0, ew = 0, eh = 0;
 		m_entry->GetBounds(ex, ey, ew, eh);
-		m_completionMenu->SetPos(ex, ey + eh);
 		m_completionMenu->SetWide(std::max(ew, 180));
+		const int listH = m_completionMenu->GetTall();
+		int y = ey - listH;
+		if (y < 0)
+			y = ey + eh;
+		m_completionMenu->SetPos(ex, y);
+		if (m_completionMenu->IsVisible())
+			m_completionMenu->MoveToFront();
 	}
 
 	void HideCompletions()
@@ -456,33 +688,54 @@ private:
 			m_completionMenu->SetVisible(false);
 	}
 
-	void CycleCompletion(bool reverse)
+	int ShownCompletionCount() const
+	{
+		return std::min(static_cast<int>(m_completions.size()), kMaxCompletionMenu);
+	}
+
+	bool SuggestionsVisible() const
+	{
+		return m_completionMenu && m_completionMenu->IsVisible() && ShownCompletionCount() > 0;
+	}
+
+	void NavigateList(int direction)
+	{
+		if (SuggestionsVisible())
+			NavigateSuggestions(direction);
+		else
+		{
+			HideCompletions();
+			NavigateHistory(direction);
+		}
+	}
+
+	void NavigateSuggestions(int direction)
 	{
 		if (m_completions.empty())
 			RebuildCompletions();
-		if (m_completions.empty())
+		const int n = ShownCompletionCount();
+		if (n <= 0)
 			return;
-
-		const int n = static_cast<int>(m_completions.size());
 		if (!m_autoComplete)
 		{
 			m_autoComplete = true;
-			m_nextCompletion = reverse ? n - 1 : 0;
-		}
-		else if (reverse)
-		{
-			--m_nextCompletion;
-			if (m_nextCompletion < 0)
-				m_nextCompletion = n - 1;
+			m_nextCompletion = (direction > 0) ? 0 : n - 1;
 		}
 		else
 		{
-			++m_nextCompletion;
-			if (m_nextCompletion >= n)
+			m_nextCompletion += direction;
+			if (m_nextCompletion < 0)
+				m_nextCompletion = n - 1;
+			else if (m_nextCompletion >= n)
 				m_nextCompletion = 0;
 		}
-
 		ApplyCompletion(m_completions[static_cast<size_t>(m_nextCompletion)].c_str());
+		RefreshCompletionMenu();
+	}
+
+	void CycleCompletion(bool reverse)
+	{
+		NavigateSuggestions(reverse ? -1 : 1);
 	}
 
 	void ApplyCompletion(const char *name)
@@ -518,6 +771,8 @@ private:
 	bool m_autoComplete = false;
 	bool m_ignoreTextChanged = false;
 	int m_nextCompletion = 0;
+	bool m_ctrlDown = false;
+	bool m_shiftDown = false;
 };
 
 void RestoreInputAfterClose()
@@ -527,11 +782,15 @@ void RestoreInputAfterClose()
 	{
 		gMenuVisible = true;
 		MenuEngine::SetKeyDest(2); // key_menu
+		return;
 	}
-	else
+	if (VGuiXash_IsBuySelectActive() || VGuiXash_IsTeamSelectActive() ||
+		VGuiXash_IsClassSelectActive())
 	{
-		MenuEngine::SetKeyDest(1); // key_game
+		MenuEngine::SetKeyDest(2);
+		return;
 	}
+	MenuEngine::SetKeyDest(1); // key_game
 }
 } // namespace
 
@@ -590,7 +849,9 @@ bool GameConsole_Toggle()
 	MenuEngine::SetKeyDest(2); // key_menu routes input through VGUI2
 	// Overlay, not a full menu: UI_IsVisible stays false so the world/HUD keep
 	// rendering. Keys still go to VGUI because dest is key_menu.
-	MenuEngine::EnableTextInput(true);
+	// Do not EnableTextInput: ExtAPI then swallows letter keydowns and never
+	// delivers UI_CharEvent, so the entry looks dead (move/close still work).
+	MenuEngine::EnableTextInput(false);
 	g_dialog->ActivateConsole();
 	if (ConsoleDebugEnabled())
 		MenuEngine::ConsolePrint("CSRETRO_CONSOLE_OPEN\n");
@@ -610,6 +871,34 @@ void GameConsole_Hide()
 bool GameConsole_IsActive()
 {
 	return g_dialog && g_dialog->IsVisible();
+}
+
+void GameConsole_FocusEntry()
+{
+	if (!g_dialog || !g_dialog->IsVisible())
+		return;
+	g_dialog->KeepInputFocus();
+}
+
+void GameConsole_FeedKey(int vguiKeyCode, bool down)
+{
+	if (!g_dialog || !g_dialog->IsVisible())
+		return;
+	g_dialog->FeedKey(vguiKeyCode, down);
+}
+
+void GameConsole_FeedChar(wchar_t ch)
+{
+	if (!g_dialog || !g_dialog->IsVisible())
+		return;
+	g_dialog->FeedChar(ch);
+}
+
+void GameConsole_HandleRawKey(int xashKey, bool down)
+{
+	if (!g_dialog || !g_dialog->IsVisible())
+		return;
+	g_dialog->HandleRawKey(xashKey, down);
 }
 
 void GameConsole_Print(const char *text)

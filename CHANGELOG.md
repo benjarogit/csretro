@@ -1,215 +1,34 @@
 # Changelog
 
-Jede Version hier = ein GitHub-Release auf `benjarogit/csretro` (privat).
-Der verbindliche Projektstand steht in `docs/HANDOFF.md`.
+## Unreleased
 
-## Unreleased — Phase 3M (VGUI2 / Desktop-UI)
+## 0.1.6 — 2026-09-19
 
-Kein Phase-3-Tag. Kein FOV. 3C-Baseline (`v0.1.5`) bleibt gültig.
+### Gameplay
 
-- **2026-09-11, Recheck 13:35:** Buy ohne Pause-Blur und ohne schwarze Platte, damit die Map sichtbar bleibt. Versionstring nicht auf In-Game-Overlays. Leerzeichen in UI-Labels abgesichert.
+- Freeze-Countdown default 15s with Xonotic announcer voices (Prepare at 10s if at least 8s remain, then 5–1, Begin). Top HUD shows Prepare for Battle only; the clock stays at the bottom.
+- Optional warmup/ready (`mp_warmup`); F12 or chat/console `ready`. Default off.
+- Client and GameDLL again share the 450 ms `fuser2` landing hitch (`scripts/movement-contract-gate.sh`). Replay/N-frame verification is still open.
+- Inferno no longer emits a `TE_SPRITE` per spread node (ignition only), to reduce Incendiary tent-pool overflow. In-game visual check is still pending.
 
-- **2026-09-11, Recheck 13:20:** Class-Lineup war links-rechts gespiegelt (Elite Crew unter Arctic-Label). Laterals korrigiert. Gold-Waffenkarten verworfen, wieder Skin-`w_*.mdl`.
+### UI
 
-- **2026-09-11, Recheck 13:05:** Phoenix-Buy zeigte Arctic, weil `terror` als „Default“ vom HUD überschrieben wurde. Joinclass bleibt. In-Game-`~` wieder VGUI-Konsole. Footer Gold-Text. Smoke/Landung/Feuer unverändert.
+- Team, class and buy preview cameras and card layout refined (owner pass plus follow-up).
+- Buy-menu silhouettes as TGA overrides; announcer WAVs vendored with notice.
 
-- **2026-09-11, Utility-Zielbild:** HE/Flash/Smoke nach 3M (Deckung, Flash-Audio, Smoke-Zellen). Kein Gameplay-Code in diesem Schritt. Wurf und Inferno unangetastet. `docs/UTILITY.md`.
+### Architecture / Dokumentation
 
-- **2026-09-11, Buy-Kamera / Inc-Wurf / Konsole:** Buy-Figur rechts immer yaw 202 (Phoenix war mit Team-T 150 von hinten). Inc-Idle nach dem Wurf wie HE/Smoke (0,75/0,5), kein zweiter Arm. In-Game-Konsole lässt Welt/HUD weiterlaufen, TAB-Complete, schließt bei `sv_restart`. Erster Klick bleibt Inhaber-PASS. languagelawyer-Feuer-Sim nicht übernommen.
+- Public player and contributor documentation in German and English (MkDocs).
+- PrimeXT is documented as a client tech upstream, not a second runtime. No PrimeXT renderer import in this release.
+- `engine/ROLE.md` / `client/ROLE.md` allow engine extensions and a single client library.
 
-- **2026-09-11, Modelle zurück / Buy-Kamera:** Zippo-Molotov und Fire-Pack-Inc wiederhergestellt (languagelawyer-Mesh war nicht verlangt). Buy-Figur damals Team-Kamera 150/202; 11:03 auf rechte Kamera 202 korrigiert. Buy-Layout-Referenz `buy-menu-idee.png` offen. Erster Klick bleibt Inhaber-PASS 08:43/08:44.
+Diese Version bestätigt keine vollständige Behebung offener Gameplay-Fehler.  
+This release does not certify that outstanding gameplay issues are fully fixed.
 
-- **Nachzug zum Playtest 18:58 (lokal geprüft, Inhaber-Abnahme offen):** Eigene Klasse in Live-Team erhalten; vererbte Ego-Waffen-Spiegelung vor Preview-Transform zurückgesetzt. Mehrfach-Slots bei `hud_fastswitch=1` ohne M1-Bestätigung durchschalten. Native Captures zeigen Elite Crew/SAS und Inc-Wurf samt Feuer; allgemeiner Inc-Renderfehler nicht reproduziert, Developer-Diagnose ergänzt. Testskript unterscheidet Capture von visueller Abnahme. Keine Inferno-/Economy-/Kamerawerte geändert.
+## Earlier development snapshots / Frühere Entwicklungsstände
 
-- **Granaten-Wurf / Live-Teamwechsel (2026-09-10, Playtest 18:58 FAIL):** Im Code liegen Wurf-Layer (M2 **im Spiel OK**), Pin-trotz-NextAttack, Inferno-`FEV_GLOBAL` und Preview-Dummy. Im Spiel weiter falsch: Live-`chooseteam` andere Klasse + T von hinten; Buy-Figur nicht die gewählte Klasse; erster `+attack` tot bis zum zweiten Druck; Inc-Feuer hörbar/schadet, unsichtbar. Vorherige „erledigt“-Zeilen sind ungültig. `docs/HANDOFF.md`, `docs/INFERNO.md`.
-- **Native Molotov / Incendiary (2026-09-08, Nachzug 2026-09-09):** Zwei Extra-Granaten in der GameDLL (T $400 / CT $500), gemeinsames Inferno-Node-System, keine AMXX-IDs. HE/Flash/Smoke bleiben. IDs 32/33, `MAX_WEAPONS=64`. Hold-to-Throw: Pin 1 s muss durchlaufen (Timer wird beim Kochen nicht mehr auf +0,25 s gezogen), danach Idle-Pose; Loslassen wirft. Primär/Sekundär/Mittelwurf, Wurfursprung 22/6-Trace. Docht-Loop startet mit dem Docht (0,46 s). Zündung: begehbarer Boden sofort, Wand prallt, Bodenprobe 48 u, Stillstand 0,5 s / ONGROUND sucht in 128 u; max. 2 s Flug + Transfer. Feuer braucht LOS zum Spieler. First-Person: intaktes 2008-Zippo-Rig (kein Cross-Skeleton-Hand-Retarget); Inc = Smoke-Hände + echte `p_inc`-Dose auf `Bone02`. ZBot kauft team-gated, hält durch die Pin-Sequenz. Nightvision amputiert. Assets lokal per `./scripts/import-molotov-assets.sh`. Sichtbar erst mit `m_iId` 6 Bit in `delta.lst`. `docs/INFERNO.md`.
-- **Buy/Team (Inhaber 2026-09-08, Nachzug):** Menüfiguren leihen keinen Live-Spieler-Slot mehr (`SetIndependentPlayerState` + Engine-Dummy-`player_info` bei `EF_CSRETRO_PREVIEW`, Slots ≠ 1). Team-Spielerzahl sitzt über dem Modell-Viewport. Waffenkarten: die genannten Mid-Tier/Rifles aufrecht, MAC-10 extra Vierteldrehung, Kevlar hochkant wie Granaten. Nightvision bleibt amputiert (Overview/`BuyModel` überspringen Steam-`nvgs`). Buy-Zellen/Footer und Overlay dichter, damit Text und ausgegraute Preise lesbar bleiben. `joinclass` vor HUD. Manuelle Abnahme offen.
-- **Tactical Shield amputiert (Inhaber 2026-09-08):** Kein Schild-Gameplay mehr. Pistolen, Messer, Granaten, C4, Bots, Buy/Rebuy/Autobuy, Pickup, HUD und Schaden behandeln das Schild nicht. `weapon_shield` auf Karten wird beim Spawn entfernt, ohne zu crashen. `ARMOURY_SHIELD=19` bleibt eine leere Map-ID (kein Rutsch der übrigen Armoury-Nummern). Die drei ReGame-API-VTable-Slots `GiveShield`/`DropShield`/`RemoveShield` sind deprecated No-Ops, damit andere Plugin-Slots nicht verrutschen. Buy-Figur ist die eigene Klasse, gleiche Kamera/Pose wie Team/Class rechts (Yaw 202 T / 206 CT). Desktop-`ChromeGlass` Alpha 214/200. T-Emblem-Stern mit Kantendeckung. Economy-Modernisierung ist ein anderer Schritt.
-- **Buy-Menü (Inhaber 2026-09-07 abgelehnt, Referenzumbau aktiv):** `TEMP_EXTRA/cstrike15_src` und `TEMP_EXTRA/hl2_src` wurden für Zustands-/Lifecycle-Verträge gelesen; die sichtbare CS:GO-Scaleform-Komposition liegt dort nicht als editierbares Layout vor und wird deshalb nativ nach dem Referenzbild rekonstruiert. Die Hauptseite verwendet eine zentrierte, nach oben begrenzte 1280×720-Bühne mit gemessenen Spaltenbreiten, gerundeten Karten, Blur, Footer und großer rechter MDL-Figur. Geld, Buy-Time und das tatsächliche Playerinfo/Userinfo-Modell kommen aus dem Client-HUD; `joinclass` überbrückt nur den Übergang. T hält `p_ak47`, CT `p_m4a1`. Kaufkarten rendern ausschließlich echte, texturierte `w_*.mdl`, ohne TGA/Sprite/GlowShell. Kleine Auflösungen nutzen die Breite stärker und kurze Kartennamen; ab 1280 wächst das Menü nicht weiter. ESC setzt auch den Server-Menüzustand zurück, Wiederöffnen und direkter Kauf bleiben im gemeinsamen Raster. Gates: T/Leet und CT/GSG9, 800×600, 1280×720, 1920×1080 sowie Live-Resize; Team/Class-Regression grün. `cstrike/gfx/vgui` bleibt amputiert. Kein CS2-Katalog oder Source-/Scaleform-Import. Manuelle visuelle Abnahme bleibt offen.
-- **Team-Wahl auf Referenzkomposition umgebaut (Inhaber 2026-09-07 visuell bestätigt):** Vollbild-Blur, große T-/CT-Ganzkörper vor kreisförmigen CS-Retro-Emblemen, Titel/Counts oben, reale Teamnamen in der Mitte und Icon-Footer unten rechts. `leet` + `p_glock18` sowie `sas` + `p_usp` laufen als echte Studio-Modelle mit Bone-Merge statt Sprite-/Attachment-Fallback. Der Client liefert den Roster-State auch bei geschlossenem Scoreboard. Die Engine sichert den temporären Preview-Parent und stellt Entity-/2D-State wieder her; der Fullscreen-Backdrop verwirft eine stale VGUI-Schere, die auf 16:9 einen ungeblurten oberen Streifen erzeugte. Gate prüft Funktion und die Namensstrecke bei 800×600 sowie 1280×720.
-- **Gamma/Brightness-Nachkontrolle 2026-09-05:** Die bisherige CVar-Vorschau blieb hinter `ui_renderworld=0` und dem gecachten Pause-Blur unsichtbar. Extended Menu API 2 fordert für den offenen Video-Tab eine frische Weltansicht an; der Pause-Blur wird dort ausgesetzt und danach neu aufgebaut. Gamma reicht entsprechend der Engine von 1.8 bis 3.0. Ein Hinweis erklärt die Vorschau auf einer Map. Video-Gate prüft jetzt echte Slider-Tastennachrichten durch die VGUI-Signalkette; Pause-Gate fotografiert die Welt vor/nach Regleränderung. Engine und Menü gemeinsam neu gebaut; manuelle Abnahme offen.
-- **3M-Reihenfolge bestätigt:** Vollständige Funktion und visueller Feinschliff der GameUI und In-Game-UI gehören vor die weiteren Feature-Phasen. Akzeptierte erste In-Game-Flächen sind Zwischenstände; PlayerList und anschließender In-Game-Feinschliff bleiben im Menüumfang.
+The [existing tags and releases](https://github.com/benjarogit/csretro/releases) describe historical
+source snapshots. They are not a current, supported binary distribution.
+For current limitations, see the [project status](https://benjarogit.github.io/csretro/en/status/).
 
-- **Runtime-Diagnostik ursächlich bereinigt:** Sky-Wechsel gibt nur noch vorhandene `alpha_sky`-/`solid_sky`-Texturen frei, statt fehlende Texturen beim Cleanup erst zu laden. `ip6=localhost` übernimmt den tatsächlich gebundenen IPv6-Endpunkt und versucht nicht mehr, einen nicht vorhandenen AAAA-Eintrag des Rechnernamens zu erzwingen. Die CS-GameDLL betritt den nur in Condition Zero registrierten Tutor-CVar-Pfad nicht mehr. ZBot prüft die BSP-Dateigröße über den portablen VFS-Pfad `maps/<map>.bsp`; die passende `de_dust.nav` wird daher unter Linux nicht mehr fälschlich als fremde Map-Version gemeldet. Der GameData-Bootstrap validiert Steam-`cstrike/sprites/hud.txt` vollständig und korrigiert im privaten Datenbaum den nachweislich veralteten Kopfzähler 215 auf die vorhandenen 190 Datensätze. Frischer Scoreboard-Runtime-Lauf: **keine** dieser Meldungen, regulärer Exit, Gate PASS. Keine Warnung wurde gefiltert oder herabgestuft.
-- **Engine-Typdiagnostik:** POSIX-Socketlängen verwenden jetzt `socklen_t`; `va_list`-Formatfunktionen besitzen einen eigenen Compilervertrag und der Adressvergleich behandelt alle Enum-Werte. Diese Warnungen sind behoben. Der weitere historische Engine-Warnungsbestand bleibt sichtbar und wird blockweise ursächlich abgearbeitet.
-- **Engine-Full-Rebuild / Client-ABI:** Ein altes `build/engine/engine/libxash.so` meldete noch `HUD_GetSoundInterface` und `Voice_StartChannel` als optionale Fallbacks, obwohl der Quellstand bereits nur noch den eigenen `GetClientAPI`-Tabellenvertrag lädt. Der vollständige Neubau legte zwei echte Restbrüche frei: `cl_pmove.c` griff noch auf den entfernten optionalen `pfnClipMoveToEntity`-Callback zu und der alte Touch-Compilepfad inkludierte die entfernte Mobility-API. Client-Prediction behält für das im CS-Client ungenutzte `SOLID_CUSTOM` den bisherigen No-Hit-Pfad; die alte Touch-Input-Implementierung ist entfernt, gemeinsam genutzter Desktop-Code behält nur interne No-Ops und der Build definiert `XASH_NO_TOUCH`. Full-Rebuild **PASS**, Spectator-/Scoreboard-Gates **PASS**; die alten Fallback-Meldungen sind aus Binärdatei und Runtime-Log verschwunden. Die sichtbaren historischen Compilerwarnungen bleiben eigene Ursachenarbeit.
-- **Spectator/Scoreboard-Look (erste Scheibe):** Eigene `HudFrameLook`-Familie, kein Team-Viewport. Spectator = Rahmen links/rechts plus T/CT-Akzent im oberen Balken. Scoreboard = durchscheinende Tafel, Gold/Blau-Kopfstreifen, festes Name/K/D/Ping-Raster. Gates spec/score unverändert (Funktion). **Inhaber 2026-09-04: beide ersten Look-Scheiben abgenommen; Feinschliff später.**
-- **Team/Class/Buy-Look (erste Scheibe):** Gemeinsame `InGameViewportLook`-Karten statt ClientScheme-Orange. Team Split-T/CT, Buy-Hauptseite als Raster, Welt durchscheinender. Steam-`.res` und `jointeam`/`joinclass`/Kauf-Aliase unverändert. Gates team/class/buy **PASS** @800×600. Eine als UTF-8 gespeicherte `csretro_gameui_english.txt` im BASEDIR hatte die UTF-16-GameData-Datei überschattet (`CSRETRO_LOC_MISSING` nur Browser-Tokens) — Override wieder UTF-16LE; Play/Isolate/Bootstrap wandeln UTF-8-Kopien um.
-- **Scoreboard als VGUI2 (eigene Familie):** TAB (`+showscores`) öffnet eine mittige Tafel (T/CT-Spalten, Name/K/D/Ping). Welt bleibt; Tasten beim Spiel. Orange HUD-Tafel wird übersprungen, sobald die Menü-Lib da ist. Steam-`ScoreBoard.res` = Felder, nicht das Overlay. Seitenkarten/Economy und Broadcast-Look später. Gate: `./scripts/vgui-score-gate.sh`. **Inhaber 2026-09-04: Grundfunktion und erste Look-Scheibe abgenommen; Spalten, Schrift und leere Teamseite später verfeinern.**
-- **Spectator als VGUI2 (eigene Familie):** Dunkle Top/Bottom-Rahmen, T/CT-Stand, Timer, Map, Kameramodus, Ziel+HP. Welt bleibt frei; Maus/Tasten beim Spiel (`KEY_DEST_GAME`, nicht modal). Orange HUD-Balken werden übersprungen, sobald die Menü-Lib da ist. Steam-`Spectator.res` = Felder, nicht das Overlay. Anreiz (Idee, kein 1:1): Broadcast-Rahmen, Daten am Rand — ohne Veto, Avatare, Waffen-Icons, Radar, Rundenhistorie, Mid-Scoreboard. Gate: `./scripts/vgui-spec-gate.sh`. **Inhaber 2026-09-04: Grundfunktion und erste Look-Scheibe abgenommen; Feinschliff später.**
-- **Pause als VGUI2 (GameUI, nicht Overlay):** Escape im Spiel öffnet dieselbe `GameMenu.res`-Liste (Resume/Disconnect/Options/Quit). **Inhaber 2026-09-04: Grundfunktion und Optik abgenommen** (Welt unscharf, mittig „Pausiert“, Liste zentriert). Titelseiten-PNG bleibt das Hauptmenü. Kein `setpause` auf Listen/MP. PlayerList bleibt Stub (`menu_playerlist`). Gate: `./scripts/vgui-pause-gate.sh`.
-- **Radio als VGUI2 (eigene Familie):** Kompakte HUD-Karte, Texte aus `titles.txt`. Kein Team-Viewport, kein `KEY_DEST_MENU` — Bewegung und Schuss bleiben, nur 0–9/ESC greifen (`IsModalInGame`). `radio1`/`radio2`/`radio3` → Aliase. Gate: `./scripts/vgui-radio-gate.sh`. **Inhaber 2026-09-04: Grundfunktion abgenommen.** Team/Class/Buy-Modernisierung ist ein anderer Schritt (Anreize 2026-09-04).
-- **Buy-Tastatur:** Nach Waffe/Equipment/Autobuy/Rebuy schließt das Overlay (Munition auf der Hauptseite bleibt). A/R für Autobuy/Rebuy, nicht mehr nur 0–9.
-- **Buy Autobuy/Rebuy:** Steam-Buttons schickten `cl_autobuy`/`cl_rebuy` ohne Liste. Jetzt Client-`autobuy`/`rebuy` (lädt `autobuy.txt`/`rebuy.txt` → `cl_set*`). Produktlisten in `data/ui-overrides/cstrike/`. Hover/Optik später.
-- **play.sh Session-Log:** jeder Lauf schreibt `build/run/play.log` (plus `logs/play-TIMESTAMP.log`) und `-log` → `engine.log`.
-- **Schuss-Hänger (Regression):** Dieselbe Klasse wie 2026-08-31 (Dedicated `sv_maxupdaterate 30` → Snapshot alle ~33 ms). Auf Xash-Listen gilt `cl_cmdrate` bei `maxclients>1`; Play-`config.cfg` hatte die Xash-Rohwerte `cl_updaterate 20` / `cl_cmdrate 30` / `sv_maxupdaterate 60`. Produkt-Defaults und Sanitize: 102 / 100 / 102, `rate` 100000. `Menu_Con`→Notify-HUD bleibt in `play.sh` aus. **Inhaber 2026-09-04: Hänger weg.** Buy „teilweise“ unverändert, nicht angefasst.
-- **VGUI-Corner-Logflut:** Jedes Panel lud `gfx/vgui2/800corner*` (Steam-Nibble, nicht im Produkt). Defaults leer; `DrawSetTextureFile` wiederholt fehlgeschlagene PIC_Load nicht. DrawBox Type 2 bleibt scharfes Rechteck.
-- **V1-Runtime-PoC bestanden:** `vgui_controls` + Xash-Surface/Input + `.res`/Scheme + FreeType-Glyphen; Maus/Tastatur/TextEntry/Tab/Escape/Resize; ASan+UBSan; keine Steam-/vgui2-/Touch-Runtime. Nachweis: `./scripts/vgui-v1-poc-runtime.sh`, manuell `./scripts/play.sh`.
-- V1 ist die verbindliche UI-Basis (`docs/PHASE3M.md`). Rekonstruktion der Steam-CS-1.6-VGUI2-Oberfläche beginnt.
-- **Options Mouse/Audio:** Gates **PASS** (funktional + Preferred-Size-Layout @640–1366); Miles absichtlich hidden.
-- **Options Video:** **Mouse PASS · Audio PASS · Video PASS** (Automated + Mode-Safety + Wanduhr-10s delta_ms≈10072 + Visual Confirm/Reinit). Graceful Shutdown **PASS**. Confirm schließt per `Close()` (Modal-Teardown). Matrix: `docs/PHASE3M-VIDEO.md`. Gamescope-WSI Zenity getrennt. **Kein Phase-3-Tag. FOV/3D gesperrt.**
-- **Video Gamma/Brightness sichtbar:** Programmatisch erzeugte `CCvarSlider` melden Änderungen jetzt ihrer Parent-Page, sodass echtes Ziehen Apply aktiviert. Brightness und Gamma werden als Live-Vorschau in die Engine geschrieben; Cancel/X/ESC stellen die Öffnungswerte wieder her, Apply/OK committen. Xash baut damit die Lightmaps der Spielwelt neu auf. Ein deterministischer Scoreboard-Vergleich belegt die Bildänderung; Wallpaper und VGUI bleiben bewusst außerhalb eines globalen Postprocess. Score- und Video-Gate warten nach dem Screenshot-Befehl, damit das Bild tatsächlich geschrieben wird; das Video-Gate beendet Xash danach regulär mit Exit 0 statt per Signal.
-- **Options Keyboard:** **AUTOMATED PASS / MANUAL RECHECK OPEN** nach User-Retest-Fix. Staged Bindings überleben Page-Wechsel; Apply schreibt Engine/Config; normaler `play.sh` seedet CS-Defaults nur bei leerer/HL-Fallback/Gate-Config; isoliertes Gate prüft `F11=+forward`. Capture, Wheel, Isolation, BIND_AUDIT bleiben grün. `docs/PHASE3M-KEYBOARD.md`.
-- **BIND_AUDIT:** Buchstaben über `KeyNameToKeynum`-Scan (Raw-Pfad `w`=119, `c`=99); `hidden_third_plus` = Catalog, nicht unmatched.
-- **Adaptive Layout / Resize:** **AUTOMATED PASS / MANUAL ACCEPTANCE OPEN** — Classic 512×406 bleibt; Grow über Dialog−Preferred; abgeleitetes Minimum **512×406**; natives Resize an allen acht Grips; List-Viewport/Footer-Clipping automatisiert geprüft. `docs/PHASE3M-LAYOUT.md`.
-- **Window Geometry:** Save/Restore, Live-Save ohne Apply, Full-Workspace-Clamp und echter Prozess-Restart **AUTOMATED PASS**.
-- **Gate-Startvertrag:** Scripts verwenden `-menulib` mit absolutem Menüpfad, damit relative `CSRETRO_MENU_SO=build/...` nicht in Engine-Fallbacks läuft.
-- **Gate-Isolation:** ältere Mouse/Audio/Video/V1PoC/Shutdown-Gates schreiben standardmäßig nach `build/run-gate/*` statt in den normalen `build/run`-Play-Baum.
-- **Options Audio:** sichtbarer Sound-Quality-Block rückt unter MP3 Volume; hidden HEV/Suit-Abstand bleibt nicht mehr als Loch stehen.
-- **Create Game als VGUI2 (Schritt 3, Server-Seite):** `CCreateGameDialog` + `CCreateGameServerPage` ersetzen den Interim-`DrawNewGame`; Map-Liste kommt über `FindFirst("maps/*.bsp")`, Werte laufen ausschließlich über `ServerProfile` → `Profile_Start`. Bot-Block nur wählbar, wenn die Map ein `.nav` hat (aktuell nur `de_dust` von 25 Maps) — sonst gesperrt mit Hinweis statt toter Option. Steam-Networking-Checkbox bewusst nicht übernommen. Gate: `./scripts/vgui-creategame-gate.sh` **PASS** @800×600/1024×768.
-- **Create Game Gameplay-Seite (Schritt 3, Stufe B):** `CCreateGameGameplayPage` baut ihre Zeilen aus `cstrike/settings.scr` (18 Einträge), gelesen von `ServerSettingsScript` — gezielter Port der Parse-Semantik von NextClients `ScriptObject` ohne dessen Config-Schreibpfad (`docs/UPSTREAM.md`). `settings.scr` ist jetzt im Gamedata-Manifest. Grenzen aus dem Script greifen beim Übernehmen (Gate prüft `mp_roundtime` 99 → 15). Servername, Slots und Passwort sind von der Server-Seite auf die Gameplay-Seite gewandert, wo sie laut `settings.scr` hingehören — vorher standen sie an beiden Orten. `ServerProfile` führt die Gameplay-Regeln als Name/Wert-Liste statt als Feld je CVar, `Profile_WriteListen` schreibt sie durch; neue Zeilen in `settings.scr` wirken damit ohne Codeänderung.
-- **Create Game Labels + drei Tabs (Schritt 3, Stufe C):** Ursache der fehlenden Beschriftungen war `SetFirstColumnWidth(0)` ohne Prompt in der Zeile. `CreateGameSettingsList` setzt Label+Control in dieselbe Zeile (Classic-Maße, Zahlenfelder 72px). Gruppierung Identity / Rules / Fairness; Hostname/Slots/Passwort wieder auf der Server-Seite. `settings.scr` um ReGameDLL-gedeckte CVars erweitert (`mp_c4timer`, `mp_maxmoney`, `mp_autoteambalance`, `mp_limitteams`, `mp_playerid`, `allow_spectators`); Logging/Infinite-Ammo/Scoreboard bewusst weggelassen. Totes Feld `ServerProfile::teambalance` entfernt. Gate prüft `CSRETRO_CREATE_LABELS`.
-- **Create Game Visual-Abnahme (Fehlerliste):** Combo-Selection füllt die Zelle (kein versetztes Gold-Insel-Rect). Radio/Checkbox/Scroll-Pfeile/Fenster-X sitzen in der Glyphe (`vgui_symbols` + Control-Offsets 0).
-- **Hauptmenü-Hintergrund:** einziges Motiv `resource/background/csretro.png` (CS Retro, 1672×941 PNG). Steam-Kacheln (`800_*_loading.tga`, `BackgroundLayout.txt` in cstrike/valve) werden nicht importiert und aus Altbeständen entfernt. Nachweis: Log `CSRETRO_BG`.
-- **Dialog-Chrome korrigiert (CS:Source-Hierarchie):** Die zweite Runde hat innen mitgerundet — Frame 14px **und** Settings-Liste/ListPanel 8px. Das war falsch (Doppel-Kante). Standard ist jetzt **eine** äußere Hülle (`Frame` ~8px + Outline, Glass-Alpha 188) und innen eckig: flaches dunkles Rechteck, `ButtonDepressedBorder`, Padding bleibt. `DrawBox` Type 2 ohne Ecktexturen fällt auf ein scharfes Rechteck zurück. Create Game, Find Servers und Options teilen dieselbe Sprache. Create-Game-Doppel-Rundung ist keine Referenz mehr.
-- **Create Game / Options / Find Servers — Combo/Liste:** geschlossenes Combo ohne Dauer-Fill, LAN-Empty-Text nur in der Liste, Settings-Padding und gemeinsame Control-Kante. Options teilt dieselbe Chrome (kein Seiten-Rewrite).
-- **VGUI-Deadlock behoben:** `CheckButton::SetSelected` postet `CheckButtonChecked` auch ohne Zustandswechsel — ein Handler, der daraufhin wieder `SetSelected` ruft, hängt die Nachrichtenschleife auf. Zustandskorrekturen laufen jetzt über `SilentSetSelected`.
-- **Server Browser als LAN-VGUI2:** `CServerBrowserDialog` ersetzt den Interim-`DrawBrowser`. Discovery über Engine-`localservers` / `UI_AddServerToList` (`pfnAdrToString`). Fremde `gamedir` und GoldSrc-`gs` werden abgelehnt. **Kein** Internet-Tab, kein Steam-Master — eigene Internet-Serverliste ist ein separates Vorhaben (`docs/SERVER.md`). Gate: `./scripts/vgui-serverbrowser-gate.sh` @800×600/1024×768 (quit-Vertrag, kein Connect).
-- **Team-Wahl als VGUI2 (Schritt 5, erste Scheibe):** `CTeamSelectPanel` ersetzt den Interim-Rechteck-Renderer für `MENU_TEAM`. Steam-`resource/UI/Teammenu.res`, `ClientScheme`, Overlay statt Frame-Hülle, `HTML/MapInfo` → `RichText` aus `maps/<hostmap>.txt`, sichtbare Buttons nach `validSlots`, Commands nur über das Backend (`jointeam`/`spectate`/`vguicancel`). `ShowMenu` bleibt. Buy weiter Interim. Factory-Lookup: `Csretro_GetGameMenuExports` plus Retry, damit `_vgui_menus` nicht still auf 0 fällt. Gate: `./scripts/vgui-teamselect-gate.sh` **PASS** @800×600 (quit-Vertrag).
-- **Class-Wahl als VGUI2 (Schritt 5, zweite Scheibe):** Ursache der rohen Tokens (`Cstrike_Terror`, …) war der Interim-Pfad: `Menu_LoadRes` + `Menu_L` (ASCII-Parser auf UTF-16-Loc) + Konsolenfont statt `Label::SetText`-`#`. Zusätzlich setzt Steam-`Classmenu_*.res` bei mehreren Buttons `labelText` zweimal (erst leer, dann `#Token`) — `KeyValues::GetString` nimmt den ersten. `CClassSelectPanel` lädt die `.res` als echte VGUI2 (gleiches Overlay/ClientScheme wie Team) und setzt die `#`-Tokens nach. Die Klassen erscheinen als animierte Player-`mdl`, ohne Hover-Portraits aus `gfx/vgui`. Commands `joinclass N` / `vguicancel` (ReGameDLL `HandleMenu_ChooseAppearance`). CS-1.6: Militia/Spetsnaz aus, Auto-Select = Slot 5. `Menu_Con` schreibt Notify-HUD nicht mehr in `play.sh` (nur stderr; Gates weiter engine.log). Gate: `./scripts/vgui-classselect-gate.sh` (quit-Vertrag, TER+CT). Team-Funktion ist automatisiert; ihre neue Referenzoptik wartet auf Inhaber-Abnahme. Class **AUTOMATED + Inhaber-Check Namen ok**.
-- **Class_Info-Fix:** `#Cstrike_Class_Info` auf `classInfoLabel` steht in Steam-`Classmenu_*.res` (`visible 0`), fehlt aber in `cstrike_english`. `ShowClassPreview` blendete das Label trotzdem ein. `Label::SetText("#…")`; bei Fehlschlag leerer String, Label unsichtbar. Leerer Text statt Roh-Token.
-- **Buy als VGUI2 (Schritt 5, dritte Scheibe):** `CBuySelectPanel` ersetzt den Interim-Rechteck-Renderer für `MENU_BUY` und die Waffen-/Equipment-Typen. Steam-`MainBuyMenu.res` plus team-spezifische `BuyPistols_*.res` / `BuyShotguns_*.res` / `BuyRifles_*.res` / `BuySubMachineguns_*.res` / `BuyMachineguns_*.res` / `BuyEquipment_*.res`. Kategorie-Klick lädt die Unterseite clientseitig; Kauf geht nur über das Backend (`glock`/`vest`/`primammo`/… → ReGameDLL `HandleBuyAliasCommands`; Steam-`autobuy`/`rebuy` → `cl_autobuy`/`cl_rebuy`). `vguicancel` auf der Unterseite zurück zur Hauptseite, ESC schließt. `ShowMenu` bleibt. **Navigation:** Steam-Hauptseite schreibt `"Command"` (groß); unser KeyValues-Symbol ist case-sensitiv, `Button::ApplySettings` sucht `"command"` — ohne Nachzug blieb der Klick tot. `Menu_LoadRes` setzt beide Schreibweisen. **Layout:** `MainBuyMenu.res` hat kein `BuyMenu`/Frame mit `wide`/`tall` (Team/Class schon). Default-Panel 64×24 clippt die Buttons — Overlay-Dim ohne UI. Panel füllt das Overlay (Viewport-Koordinaten, wie Ref B). Gate prüft `CSRETRO_BUY_LAYOUT fit=1`. Gate: `./scripts/vgui-buy-gate.sh` **PASS** @800×600 (quit-Vertrag, Loc ohne Roh-Tokens, ESC, Pistolen-Unterseite, `glock`, Layout).
-- **Quit-Vertrag im Create-Gate:** Das Gate schoss die Engine per Signal ab und blendete die Job-Control-Meldung aus. Jetzt setzt das Menü `quit` ab (`CSRETRO_GATE_GRACEFUL_QUIT`), und der gemeinsame Helfer `csretro_gate_wait_quit` prüft Exit 0 und Crash-Signaturen — keine Doppelimplementierung mehr. Nativ bevorzugt, weil unter gamescope der beobachtete Exit-Code dem Wrapper gehört (gamescope stürzt im eigenen Teardown ab), nicht der Engine. Übriggebliebene Prozesse werden gemeldet, nicht still weggeräumt; SIGTERM allein reicht bei hängender Engine nicht.
-- **Gamedata-Aufräumen deklarativ:** hartcodiertes `prune_steam_fonts` ersetzt durch `prune`-Regeln im Manifest (`ignore` = nicht importieren, `prune` = aus Altbeständen entfernen); Ergebnis landet in `origin.json` unter `pruned`. Umfang bewusst klein gehalten: `gamedata/valve` bleibt vollständig, weil `halflife.wad` von 22 der 25 Maps und `xeno.wad` von zweien referenziert wird. `docs/GAMEDATA.md`.
-- **Localization-Kodierung:** Valve-`*_english.txt` sind **UTF-16LE**. Eine als UTF-8 eingefügte Zeile macht die Datei unlesbar, ohne dass die UI abstürzt (`CSRETRO_LOC_csretro_gameui FAIL`). Das Create-Gate prüft Ladeerfolg und fehlende Tokens jetzt explizit.
-- **ComboBox Visual Polish:** Dropdown-Items innerhalb Menu-Border; Arrow zentriert ohne Extra-Border; Itemhöhe **20px** greift (Default + `Menu/ItemHeight` + Bootstrap-Patch); Content-Inset ≥1 gegen Rahmen-Bleed; TextInset-Y 1.
-- **CheckButton/Slider Visual Polish:** CheckImage über Marlett; **sichtbarer** Fill (`CheckButton.BgColor`→`WindowBG`, Fallback opaque); Marlett `g`=Fill / `e`/`f`=Bevel / `b`=dicker Haken; Scheme `GetColor` Default-Alpha **255** bei RGB-only (verhindert unsichtbare Controls); `Slider.NobColor`→`ControlBG`. Gates: Mouse/Video/Keyboard **PASS** nach Fix.
-- **Keyboard Capture UX:** „Press a key…“ während Capture in `BrightControlText` (Primary) bzw. `BrightBaseText` (Alternate); Inline-Panel + Listenzelle.
-- **PropertySheet Tab Polish:** Inaktive Tabs über `PropertySheet.TextColor`→`DimBaseText` (statt fehlendem `FgColorDim`); aktive Tabs gold (`BrightControlText`); Tab-Label zentriert, Inset 4px; kompakter **72×24** in Options (statt 84×28); `SetTabHeight()` API.
-- **Font-Metrik (FreeType→GDI):** `surface_xash.cpp` — Ascent/Descent/Internal-Leading; `textOffsetY` (+1px bei Zellenüberlauf); Scheme-`weight` 0→400; Marlett-Symbole mit gleichem Y-Offset.
-- **Hauptmenü als echte VGUI2-Controls:** `client/menu/vgui/main_menu.cpp` baut `GameMenu.res` als `vgui2::Menu` mit `MenuItem`s nach (Muster: NextClient `CBasePanel`/`CGameMenu`/`CGameMenuItem`). Farben und Maße aus `TrackerScheme` `InGameDesktop` (`MenuColor`, `ArmedMenuColor`, `MenuItemHeight`, `GameMenuInset`), Schrift `MenuLarge`, Anker unten links. Localization läuft über den `#`-Pfad von `Label::SetText` statt über den Interim-`Menu_L`, damit fehlende Tokens nicht still als Rohtext erscheinen. `OnlyInGame`-Einträge werden bei Levelwechsel neu bewertet. Das Menü-Popup liegt bewusst hinten (`MovePopupToBack`), sonst fängt es den linken Resize-Griff des Options-Dialogs ab. `vgui2::Menu` schließt sich als Popup selbst — beim Aktivieren eines Eintrags, bei ESC und bei Fokusverlust; das Hauptmenü war dadurch nach dem ersten Klick auf „Options“ dauerhaft weg. `SetVisible(false)` wird deshalb nur noch über `SetVisibleExplicit` aus `MainMenu_Show/Hide` durchgelassen, und das Menü ist nicht beim `CMenuManager` registriert (`EnableUseMenuManager(false)`), der bei jedem Klick außerhalb alle Menüs abräumt. Interim-Hauptmenü und Interim-Options-Textscreen entfernt. Neues Gate `./scripts/vgui-mainmenu-gate.sh` (Items, Localization, Bottom-Left-Anker, Screenshot sowie Überleben von Options-Öffnen/Klick/ESC) **PASS** bei 640×480/800×600/1024×768/1366×768; alle Options-Gates und Graceful-Shutdown weiter **PASS**. Der Survive-Teil treibt bewusst `UI_MouseMove`/`UI_KeyEvent` statt der VGUI-Interna — eine Simulation über `IInputInternal` verfehlte den Pfad und bestand auch mit ausgebautem Fix.
-- **Text-Antialiasing:** VGUI-Glyphen werden immer mit Graustufen-AA gerastert. `TrackerScheme` setzt `antialias 0`, weil Win32-Tahoma gehintete Embedded-Bitmaps mitbringt — Noto hat keine, 1-Bit-Rasterung wirkte ausgefranst. Scheme-Wunsch bleibt als `aa_req` im Metrics-Log. Gates Mouse/Audio/Video/Keyboard/Layout **PASS**.
-- **UI-Schrift Noto Sans (komplett):** Noto Sans / Noto Sans Mono (**SIL OFL 1.1**) werden mitgeliefert (`data/ui-overrides/platform/resource/csretro_fonts/`) — keine System- oder Steam-Font-Abhängigkeit, gleiche Optik auf Linux/Windows/macOS. Resolver mappt alle Scheme-Familien deterministisch (kein `<Family>.ttf`-Raten); Liberation/DejaVu/FiraSans-Reste entfernt; Scheme-`lastResort` → `Noto Sans`. Steam-`platform/resource/linux_fonts` wird nicht mehr importiert und aus bestehenden Bäumen entfernt. Vertikalmetrik identisch zu vorher (cell 16 / asc 13 / desc 4), horizontal minimal schmaler. Gates Mouse/Audio/Video/Keyboard/Layout **PASS**.
-- **Menü-Build Warning-Hygiene:** Suppress-Flags entfernt; Root-Cause-Fixes. Clean Rebuild `csretro_menu`: **0 Warnungen / 0 Fehler**. Kein `--clean-first` am gemeinsamen CMake-Baum ohne anschließendes `build-client.sh`.
-- **Global VGUI2 Visual Polish** OPEN (Feinschliff Controls/Video-Footer). Classic 5971 + moderne Desktop-Darstellung.
-- **VGUI2 Symbol-Control-Gate grün:** `vgui_symbols.cpp` — Marlett geometrisch; kein Windows-Marlett.ttf; Scheme-lastResort überschreibt Symbolfonts nicht.
-- **Metrics-/Classic-Gate:** Preferred Size **512×406**. Mouse+Audio+Video Gates. FOV gesperrt.
-- **Windows ShellOpen:** offenes Plattform-Gate (No-Op).
-- Eine Menü-Lib `client/menu/` (`GetMenuAPI` + `GameMenuExports001`).
-- Font-Resolver: GameData `platform/resource/csretro_fonts` (+ System-Verzeichnisse nur als Notnagel).
-- Team-Wahl: echte VGUI2 — Funktion und Referenzumbau automatisiert, manuelle visuelle Abnahme offen. Class-Wahl: echte VGUI2 — AUTOMATED + Namen ok, Class_Info-Fix. Buy: echte VGUI2 — AUTOMATED PASS (Hauptseite + Pistolen/`glock`). Radio: echte VGUI2-Overlay (kein Steam-`.res`). Hauptmenü, Options, Create Game und LAN-Server-Browser sind VGUI2.
-- `ShowMenu` bleibt Legacy. 3D/FOV erst nach Freigabe.
-## 0.1.5 — 2026-09-01
-
-Kein Phase-3-Tag. Kein FOV.
-
-### Desktop-Menüs
-
-- Kein modaler `MenuFactory`-Dialog: Xash hat das Native Object; Phase-3-`libmenu.so` exportiert kein `GameMenuExports001`.
-- Touch-/`exec touch/*.cfg`-Pfad entfernt. Team/Klasse/Buy/Radio = GoldSrc-`ShowMenu` + `titles.txt`.
-- `_vgui_menus` 0. `cstrike/liblist.gam` ist CS-Retro-owned.
-- Architektur: `docs/MENUS.md`. Tests: `./scripts/interactive-menus.sh`, `./scripts/interactive-3c.sh`.
-
-### Game-Data
-
-Kein Phase-3-Abschluss-Tag. 3D nicht automatisch (FOV erst nach Freigabe).
-
-- Steam CS 1.6 (AppID 10) nur als read-only Quelle. Bootstrap: `scripts/bootstrap-gamedata.py`.
-- Manifest `data/gamedata-manifest.json` aus Runtime-Traces. RODIR = `gamedata/`, nicht Steam-HL.
-- User-Configs bleiben in BASEDIR. Steam-Updates: `--refresh` nur für Steam-sourced Dateien.
-
-### 3C
-
-- Interaktiver Listen-Lauf `de_dust`: Team, Spawn, Movement, Duck/Jump, Waffenwechsel, Schießen, Reload, HUD, Round/GameRules, Host-Admin-Binds, Shutdown.
-- Script: `./scripts/interactive-3c.sh`. ZBot-Runtime-Daten nur unter `build/run/`.
-- Listen-`+map`: BASEDIR `valve.rc`/`cstrike.rc` mit `stuffcmds` (auch im Smoke).
-
-### GameDLL
-
-- `rehlds/ReGameDLL_CS` `b088984` nach `server/game/` vendort. Target `csretro_gamedll` → `cs_amd64.so`.
-- Eigenes CMake, kein Upstream-CMake/SLN, kein CMake-3.5-Workaround.
-- ZBot vollständig mitgebaut (Migration, nicht amputiert).
-- 64-Bit: Xash-`unsigned long` für Funktionsnamen, `XASH_64BIT`/`MAKE_STRING`, Save-`FIELD_FUNCTION` über `uintptr_t`.
-- Linux x86_64: Xash lädt die Lib; Dedicated- und Listen-Smoke `de_dust` (Connect + Shutdown).
-- ASan+UBSan-Entwicklungsbuild: `./scripts/build-gamedll.sh --sanitize`.
-
-### 3A/3B Client (unverändert)
-
-- A1-Body, `client_amd64.so`, `GetClientAPI`.
-
-### Herkunft
-
-- `docs/UPSTREAM.md`: verbindliche Upstream-Policy (beobachten, selektiv porten, kein Auto-Sync).
-- `CREDITS.md`: dauerhafte Danksagung; ergänzt AUTHORS/README der Upstreams, ersetzt sie nicht.
-
-### Nicht enthalten
-
-- Kein 3D-Feature-Port, kein Phase-3-Release, keine Windows-/macOS-Runtime.
-
-## 0.1.4-phase2 — 2026-09-01
-
-### Schnitt
-
-- `steam_api_proxy/` entfernt; Launcher lädt `steam_api.dll` nicht mehr.
-- 8684-Address-Provider entfernt; NitroApi hookt keine Steam-`hw.dll`/`client.dll` mehr.
-- Steam-Master (`hl1master`) und `MatchmakingSteamComp` entfernt.
-- Xash-Exportvertrag: `client/export/csretro_cdll_export.h`, CMake-Target `csretro_client_export`.
-
-### Behalten
-
-- Feature-Quellen: `client_mini` (GameHud, View, FOV, …), `engine_mini` NCLM/HTTP-Master, GameUI als Quelle.
-
-### Nicht enthalten
-
-- Kein Phase-3-Body, kein `GetClientAPI`-Rumpf, kein `client/body/`.
-
-## 0.1.3-a1 — 2026-09-01
-
-### Dokumentation
-
-- Gate: **A1 — Ref A als Client-Body** (2026-09-01).
-- NextClient bleibt funktionale Zielbasis. cs16-client nur Xash-Unterbau (Allowlist).
-- `docs/ROLLEN.md`; Handoff, Phasen, Lizenzen, Architektur, Refs nachgezogen.
-- A1-Lizenz dokumentiert, nicht als vollständig geklärt markiert.
-
-### Nicht enthalten
-
-- Kein Phase-3-Body-Code, kein Ref-A-Vendor nach `client/body/`.
-
-## 0.1.2-gate — 2026-09-01
-
-### Dokumentation
-
-- Gate vor Phase 3: Körper-Quelle A0 (neu schreiben) oder A1 (Ref A nur als `cl_dll`-Körper, GPL-Attribution).
-- Option A bleibt die Form (Export + Körper + Features), nicht die stillschweigende Entscheidung „Körper von Null“.
-- `docs/PHASEN.md`; Architektur/Handoff/Lizenzen nachgezogen.
-
-## 0.1.1-phase1 — 2026-09-01
-
-### Dokumentation
-
-- Phase-1-Analyse: NextClient ist Overlay, kein Client-Körper.
-- Entscheidung: eigener `GetClientAPI`-Export + eigener Körper + Features aus `client_mini` als Module. Ref A nur gelesen.
-- Architektur festgehalten (heute: `docs/PHASEN.md`, `docs/SCHNITTSTELLEN.md`).
-
-### Nicht enthalten
-
-- Kein Client-Code, kein Ref-A/B-Import, kein Steam-Schnitt (Phase 2).
-
-## 0.1.0-phase0 — 2026-09-01
-
-### Repo
-
-- GitHub `benjarogit/csretro` `main` geleert und durch diesen Stand ersetzt.
-- Altes Xash+cs16-client-Monorepo und Release `v0.2.0` gelten nicht mehr.
-
-### Hinzugefügt
-
-- Leeren Worktree als CS-Retro-Monorepo angelegt (kein Altbestand).
-- Vendoring ohne Git-Submodule:
-  - `engine/` — Xash3D-FWGS `1442d14`
-  - `client/` — NextClient `f5addc2` + NclNitroApi `f73fc1a` + ncl-hl1-source-sdk `46c3103`
-  - `server/` — NextClientServerApi `1c7e5c6`
-  - `refs/a-cs16-client/` — Velaron/cs16-client `bb60674` (eingefroren)
-  - `refs/b-cs16-goldsrc/` — FuryBaM/cs16-goldsrc-client `b662acc` (eingefroren)
-- `bots/` als leerer, getrennter Bereich.
-- Einheitliches CMake-Gerüst (Clang; 32-Bit-Presets später entfernt).
-- Engine-Build-Skript (Waf + Clang, 64-bit); erster erfolgreicher Clang-Build der Engine.
-- Rollen-, Lizenz-, Upstream-, Schnittstellen- und Handoff-Doku.
-
-### Nicht enthalten
-
-- Microsoft vcpkg (bewusst nicht vendort).
-- Spielinhalte (valve/cstrike).
-- Lauffähiger NextClient unter Xash (Phase 1–3).
-- Code aus Referenz A oder B.
+[Projektstatus auf Deutsch](https://benjarogit.github.io/csretro/status/).

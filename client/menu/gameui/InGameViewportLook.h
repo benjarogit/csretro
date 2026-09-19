@@ -8,22 +8,30 @@
 #include <algorithm>
 #include <cmath>
 
-// Team/Class/Buy: eine Familie. Kein GameUI-Frame, kein Radio-Klon.
-// Team-Wahl: CS:GO-Layout (Titel, Emblem, Modell, mittige Listen).
-namespace InGameViewportLook
+// CS Retro in-game UI chrome. Buy, Team, Class and Radio share this palette.
+// The toolkit underneath is an implementation detail, not the product name.
+namespace InGameUi
 {
-inline Color OverlayBg() { return Color(0, 0, 0, 110); }
-inline Color Card() { return Color(16, 16, 18, 236); }
-inline Color CardArmed() { return Color(36, 36, 40, 248); }
+inline Color Overlay() { return Color(0, 0, 0, 208); }
+inline Color OverlayBg() { return Overlay(); }
+inline Color Card() { return Color(18, 19, 22, 236); }
+inline Color CardArmed() { return Color(36, 38, 42, 248); }
 inline Color Text() { return Color(240, 240, 240, 255); }
 inline Color TextDim() { return Color(210, 210, 212, 255); }
-inline Color Terror() { return Color(210, 170, 70, 255); }
+inline Color Terror() { return Color(232, 196, 52, 255); }
 inline Color CT() { return Color(90, 170, 230, 255); }
-inline Color BuyGold() { return Color(232, 196, 52, 255); }
+inline Color Gold() { return Color(232, 196, 52, 255); }
+inline Color BuyGold() { return Gold(); }
 inline Color BuyCell() { return Color(28, 30, 34, 250); }
 inline Color BuyCellArmed() { return Color(72, 76, 84, 255); }
 inline Color BuyCellDim() { return Color(22, 23, 26, 250); }
 inline Color BuyPlate() { return Color(10, 10, 12, 0); }
+inline Color BuyOverlay() { return Color(0, 0, 0, 208); }
+inline Color BuyColumn(int index)
+{
+	const int lift = (index % 2) ? 0 : 10;
+	return Color(14 + lift, 15 + lift, 18 + lift, 158);
+}
 
 // In-game UI grows up to a comfortable 1440x810 workspace, then stays centered.
 // This is deliberately not a fixed 16:9 letterbox: 4:3 and ultrawide keep all
@@ -71,6 +79,7 @@ inline void StyleFooterButton(vgui2::Button *btn, Color accent)
 	btn->SetKeyFocusBorder(nullptr);
 	btn->SetContentAlignment(vgui2::Label::a_center);
 	btn->SetButtonActivationType(vgui2::Button::ACTIVATE_ONPRESSED);
+	btn->SetTextInset(8, 0);
 }
 
 inline void StyleTitle(vgui2::Label *lab)
@@ -112,58 +121,87 @@ inline void PaintRoundedRect(int x0, int y0, int x1, int y1, int radius, Color c
 	}
 }
 
+inline void PaintOverlay(int w, int h)
+{
+	if (!vgui2::surface() || w < 1 || h < 1)
+		return;
+	const Color veil = Overlay();
+	vgui2::surface()->DrawSetColor(veil.r(), veil.g(), veil.b(), veil.a());
+	vgui2::surface()->DrawFilledRect(0, 0, w, h);
+}
+
+// Team/Class: map stays readable. Buy keeps PaintOverlay.
+inline void PaintSelectVeil(int w, int h)
+{
+	if (!vgui2::surface() || w < 1 || h < 1)
+		return;
+	vgui2::surface()->DrawSetColor(0, 0, 0, 82);
+	vgui2::surface()->DrawFilledRect(0, 0, w, h);
+}
+
 inline void PaintBuyPlate(int w, int h)
 {
 	PaintRoundedRect(0, 0, w, h, std::min(8, h / 8), BuyPlate());
 }
 
-inline void PaintBuyHeader(int w, int h)
+inline void PaintBuyHeader(int w, int h, Color accent = BuyGold())
 {
-	PaintRoundedRect(0, 0, w, h, std::min(4, h / 5), Color(28, 30, 33, 240));
+	if (!vgui2::surface() || w < 2 || h < 2)
+		return;
+	const int y = std::max(0, h - 2);
+	vgui2::surface()->DrawSetColor(accent.r(), accent.g(), accent.b(), 210);
+	vgui2::surface()->DrawFilledRect(0, y, w, h);
+}
+
+inline void PaintBuyColumn(int w, int h, int index)
+{
+	if (!vgui2::surface() || w < 2 || h < 2)
+		return;
+	PaintRoundedRect(0, 0, w, h, 4, BuyColumn(index));
 }
 
 inline void PaintBuyCell(int w, int h, bool armed, bool dim = false)
 {
 	if (!vgui2::surface() || w < 2 || h < 2)
 		return;
-	const int radius = std::max(3, std::min(5, h / 9));
-	const Color edge = armed ? Color(214, 214, 218, 200) :
-		Color(150, 154, 160, 150);
-	PaintRoundedRect(0, 0, w, h, radius, edge);
-	PaintRoundedRect(1, 1, w - 1, h - 1, std::max(2, radius - 1),
+	PaintRoundedRect(0, 0, w, h, 3,
 		armed ? BuyCellArmed() : (dim ? BuyCellDim() : BuyCell()));
 }
+
+inline void PaintBuyFooter(int w, int h, Color accent, bool armed)
+{
+	if (!vgui2::surface() || w < 2 || h < 2)
+		return;
+	PaintRoundedRect(0, 0, w, h, 3, armed ? Color(36, 38, 42, 230) : Color(18, 19, 22, 210));
+	vgui2::surface()->DrawSetColor(accent.r(), accent.g(), accent.b(), armed ? 255 : 220);
+	vgui2::surface()->DrawFilledRect(6, h - 3, w - 6, h - 1);
+}
+
+inline void DrawFilledTriangle(int x0, int y0, int x1, int y1, int x2, int y2, Color color);
 
 inline void PaintCardBackground(int w, int h, Color accent, bool armed)
 {
 	if (!vgui2::surface() || w < 2 || h < 2)
 		return;
-	const Color fill = armed ? CardArmed() : Card();
-	vgui2::surface()->DrawSetColor(fill);
-	vgui2::surface()->DrawFilledRect(0, 0, w, h);
-	vgui2::surface()->DrawSetColor(accent.r(), accent.g(), accent.b(), armed ? 230 : 150);
+	PaintRoundedRect(0, 0, w, h, 3, armed ? CardArmed() : Card());
+	vgui2::surface()->DrawSetColor(accent.r(), accent.g(), accent.b(), armed ? 230 : 170);
 	vgui2::surface()->DrawFilledRect(0, 0, 3, h);
-	vgui2::surface()->DrawSetColor(255, 255, 255, armed ? 36 : 18);
-	vgui2::surface()->DrawFilledRect(3, 0, w, 1);
-	vgui2::surface()->DrawFilledRect(3, h - 1, w, h);
+	vgui2::surface()->DrawFilledRect(6, h - 3, w - 6, h - 1);
 }
 
-// Fast volle Fläche auf kleinen Viewports; auf großen Displays begrenzte Bühne.
 inline void TeamStage(int viewW, int viewH, int &x, int &y, int &w, int &h)
 {
-	w = std::max(320, std::min(1440, viewW * 94 / 100));
-	h = std::max(260, viewH * 86 / 100);
-	w = std::min(w, viewW);
-	h = std::min(h, viewH);
+	w = std::min(viewW, viewH * 16 / 9);
+	h = viewH;
 	x = (viewW - w) / 2;
-	y = viewH * 6 / 100;
+	y = 0;
 }
 
 // Charakter-Slot: ganze Teamspalte unter den Titeln.
 inline void TeamCharacterSlot(int sideW, int sideH, int &x, int &y, int &w, int &h)
 {
 	x = 0;
-	y = sideH * 16 / 100;
+	y = sideH * 18 / 100;
 	w = sideW;
 	h = std::max(32, sideH - y);
 }
@@ -172,20 +210,28 @@ inline void TeamEmblemMetrics(int sideW, int sideH, int &cx, int &cy, int &radiu
 {
 	int sx = 0, sy = 0, sw = 0, sh = 0;
 	TeamCharacterSlot(sideW, sideH, sx, sy, sw, sh);
-	cx = sx + sw / 2;
-	cy = sy + sh * 48 / 100;
-	radius = std::max(44, std::min(sw, sh) * 36 / 100);
+	cx = sideW / 2;
+	cy = sideH * 56 / 100;
+	radius = std::max(32, std::min(sideW * 44 / 100, sideH * 24 / 100));
 }
 
-// Ganzkörper vor dem Kreis, nicht als Avatar im Ring.
+// Quadrat um das Emblem, nicht die ganze Spalte.
 inline void TeamModelViewport(int sideW, int sideH, int &x, int &y, int &w, int &h)
 {
-	x = 0;
-	// Keep both title rows clear. Player models intentionally extend above the
-	// emblem, but never into the team count as they did at 720/1080p.
-	y = sideH * 32 / 100;
+	int cx = 0, cy = 0, radius = 0;
+	TeamEmblemMetrics(sideW, sideH, cx, cy, radius);
 	w = sideW;
-	h = std::max(64, sideH - y);
+	h = sideH * 64 / 100;
+	x = cx - w / 2;
+	y = cy - h / 2;
+	if (x < 0)
+		x = 0;
+	if (y < 0)
+		y = 0;
+	if (x + w > sideW)
+		x = std::max(0, sideW - w);
+	if (y + h > sideH)
+		y = std::max(0, sideH - h);
 }
 
 inline bool PointInTriangle(float px, float py,
@@ -290,7 +336,7 @@ inline void PaintTeamGlyph(int team, int cx, int cy, int radius, Color accent, b
 	}
 }
 
-inline void PaintEmblem(int team, int cx, int cy, int radius, Color accent, bool armed)
+inline void PaintEmblem(int team, int cx, int cy, int radius, Color accent, bool armed, int ringWidth = 2)
 {
 	auto *surf = vgui2::surface();
 	if (!surf || radius < 12)
@@ -308,18 +354,59 @@ inline void PaintEmblem(int team, int cx, int cy, int radius, Color accent, bool
 			surf->DrawFilledRect(cx - span, cy + y, cx + span + 1, cy + y + 1);
 		}
 	}
-	const int inner = std::max(1, radius - 2);
+	const int inner = std::max(1, radius - ringWidth);
 	for (int y = -radius; y <= radius; ++y)
 	{
 		const int outer = static_cast<int>(std::sqrt(static_cast<double>(radius * radius - y * y)));
 		int hole = 0;
 		if (y >= -inner && y <= inner)
 			hole = static_cast<int>(std::sqrt(static_cast<double>(inner * inner - y * y)));
-		surf->DrawSetColor(accent.r(), accent.g(), accent.b(), ringA);
+		if (team == 1 && ringWidth > 2)
+			surf->DrawSetColor(28, 27, 22, 235);
+		else
+			surf->DrawSetColor(accent.r(), accent.g(), accent.b(), ringA);
 		surf->DrawFilledRect(cx - outer, cy + y, cx - hole, cy + y + 1);
 		surf->DrawFilledRect(cx + hole, cy + y, cx + outer + 1, cy + y + 1);
 	}
-	PaintTeamGlyph(team, cx, cy, radius, accent, armed);
+	if (ringWidth <= 2)
+	{
+		PaintTeamGlyph(team, cx, cy, radius, accent, armed);
+		return;
+	}
+	// Selection badges: broad wings for T, a feathered wreath for CT.
+	// Native geometry, not a stretched star or an imported reference bitmap.
+	const Color ink = team == 1 ? Color(28, 26, 20, 230) : Color(accent.r(), accent.g(), accent.b(), 200);
+	const int r = radius * 78 / 100;
+	for (int side : {-1, 1})
+	{
+		if (team == 1)
+		{
+			DrawFilledTriangle(cx, cy + r / 3, cx + side * r, cy - r / 4,
+				cx + side * r * 3 / 4, cy + r / 3, ink);
+			for (int i = 0; i < 5; ++i)
+				DrawFilledTriangle(cx + side * r / 5, cy + r / 3,
+					cx + side * r * (8 - i) / 10, cy + r * (3 + i) / 10,
+					cx + side * r / 5, cy + r * 3 / 4, ink);
+		}
+		else
+		{
+			for (int i = 0; i < 10; ++i)
+			{
+				const float angle = (-65.0f + i * 13.0f) * 3.14159265f / 180.0f;
+				const int x = cx + side * static_cast<int>(std::cos(angle) * r * .65f);
+				const int y = cy + static_cast<int>(std::sin(angle) * r);
+				DrawFilledTriangle(x, y, x + side * r / 4, y - r / 5,
+					x + side * r / 8, y + r / 6, ink);
+			}
+		}
+	}
+	if (team == 1)
+	{
+		DrawFilledTriangle(cx, cy - r / 2, cx - r / 5, cy + r / 3, cx + r / 5, cy + r / 3, ink);
+		DrawFilledTriangle(cx, cy + r, cx - r / 5, cy + r / 3, cx + r / 5, cy + r / 3, ink);
+	}
+	else
+		DrawFilledTriangle(cx, cy + r, cx - r / 4, cy + r / 2, cx + r / 4, cy + r / 2, ink);
 }
 
 inline void PaintTeamBackdrop(int w, int h, bool blurred)
@@ -341,4 +428,6 @@ inline void PaintSplitBackdrop(int w, int h)
 {
 	PaintTeamBackdrop(w, h, false);
 }
-} // namespace InGameViewportLook
+} // namespace InGameUi
+
+namespace InGameViewportLook = InGameUi;

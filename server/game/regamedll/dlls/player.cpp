@@ -27,6 +27,7 @@
 */
 
 #include "precompiled.h"
+#include "buy_system.h"
 
 BOOL gInitHUD = TRUE;
 
@@ -3345,6 +3346,9 @@ LINK_HOOK_CLASS_CHAIN(CGrenade *, CBasePlayer, ThrowGrenade, (CBasePlayerWeapon 
 
 CGrenade *CBasePlayer::__API_HOOK(ThrowGrenade)(CBasePlayerWeapon *pWeapon, VectorRef vecSrc, VectorRef vecThrow, float time, unsigned short usEvent)
 {
+	if (pWeapon)
+		Buy_OnGrenadeThrown(this, pWeapon->m_iId);
+
 	switch (pWeapon->m_iId)
 	{
 	case WEAPON_HEGRENADE:    return CGrenade::ShootTimed2(pev, vecSrc, vecThrow, time, m_iTeam, usEvent);
@@ -4482,6 +4486,7 @@ bool CBasePlayer::CanPlayerBuy(bool display)
 #ifdef REGAMEDLL_ADD
 	if (buytime.value != -1.0f)
 #endif
+	if (!(CSGameRules() && CSGameRules()->IsWarmup()))
 	{
 		int buyTime = int(buytime.value * 60.0f);
 		if (buyTime < MIN_BUY_TIME)
@@ -9894,7 +9899,7 @@ void CBasePlayer::PostAutoBuyCommandProcessing(AutoBuyInfoStruct *commandInfo, b
 	}
 }
 
-void CBasePlayer::BuildRebuyStruct()
+void CBasePlayer::BuildRebuyStruct(bool replaceConsumables)
 {
 	if (m_bIsInRebuy)
 	{
@@ -9931,34 +9936,55 @@ void CBasePlayer::BuildRebuyStruct()
 
 	// HE Grenade
 	int iAmmoIndex = GetAmmoIndex("HEGrenade");
-
-	if (iAmmoIndex != -1)
-		m_rebuyStruct.m_heGrenade = m_rgAmmo[iAmmoIndex];
+	const int he = iAmmoIndex != -1 ? m_rgAmmo[iAmmoIndex] : 0;
+	const int flash = (iAmmoIndex = GetAmmoIndex("Flashbang")) != -1 ? m_rgAmmo[iAmmoIndex] : 0;
+	const int smoke = (iAmmoIndex = GetAmmoIndex("SmokeGrenade")) != -1 ? m_rgAmmo[iAmmoIndex] : 0;
+	const int molotov = (iAmmoIndex = GetAmmoIndex("Molotov")) != -1 ? m_rgAmmo[iAmmoIndex] : 0;
+	const int inc = (iAmmoIndex = GetAmmoIndex("Incgrenade")) != -1 ? m_rgAmmo[iAmmoIndex] : 0;
+	// Keep last purchased nade counts if the player already threw them and then
+	// bought a gun. Refunds pass replaceConsumables so the snapshot can drop.
+	if (CCSPlayer *cs = CSPlayer())
+	{
+		if (replaceConsumables)
+		{
+			cs->m_rebuyHe = he;
+			cs->m_rebuyFlash = flash;
+			cs->m_rebuySmoke = smoke;
+			cs->m_rebuyMolotov = molotov;
+			cs->m_rebuyInc = inc;
+		}
+		else
+		{
+			if (he > cs->m_rebuyHe)
+				cs->m_rebuyHe = he;
+			if (flash > cs->m_rebuyFlash)
+				cs->m_rebuyFlash = flash;
+			if (smoke > cs->m_rebuySmoke)
+				cs->m_rebuySmoke = smoke;
+			if (molotov > cs->m_rebuyMolotov)
+				cs->m_rebuyMolotov = molotov;
+			if (inc > cs->m_rebuyInc)
+				cs->m_rebuyInc = inc;
+		}
+		m_rebuyStruct.m_heGrenade = cs->m_rebuyHe;
+		m_rebuyStruct.m_flashbang = cs->m_rebuyFlash;
+		m_rebuyStruct.m_smokeGrenade = cs->m_rebuySmoke;
+		m_rebuyStruct.m_molotov = cs->m_rebuyMolotov;
+		m_rebuyStruct.m_incGrenade = cs->m_rebuyInc;
+	}
 	else
-		m_rebuyStruct.m_heGrenade = 0;
-
-	// flashbang
-	iAmmoIndex = GetAmmoIndex("Flashbang");
-
-	if (iAmmoIndex != -1)
-		m_rebuyStruct.m_flashbang = m_rgAmmo[iAmmoIndex];
-	else
-		m_rebuyStruct.m_flashbang = 0;
-
-	// smokegrenade
-	iAmmoIndex = GetAmmoIndex("SmokeGrenade");
-
-	if (iAmmoIndex != -1)
-		m_rebuyStruct.m_smokeGrenade = m_rgAmmo[iAmmoIndex];
-	else
-		m_rebuyStruct.m_smokeGrenade = 0;
-
-	// Team-specific fire grenade. Keep both fields so a team change cannot
-	// accidentally rebuy the other side's grenade.
-	iAmmoIndex = GetAmmoIndex("Molotov");
-	m_rebuyStruct.m_molotov = iAmmoIndex != -1 ? m_rgAmmo[iAmmoIndex] : 0;
-	iAmmoIndex = GetAmmoIndex("Incgrenade");
-	m_rebuyStruct.m_incGrenade = iAmmoIndex != -1 ? m_rgAmmo[iAmmoIndex] : 0;
+	{
+		if (replaceConsumables || he >= m_rebuyStruct.m_heGrenade)
+			m_rebuyStruct.m_heGrenade = he;
+		if (replaceConsumables || flash >= m_rebuyStruct.m_flashbang)
+			m_rebuyStruct.m_flashbang = flash;
+		if (replaceConsumables || smoke >= m_rebuyStruct.m_smokeGrenade)
+			m_rebuyStruct.m_smokeGrenade = smoke;
+		if (replaceConsumables || molotov >= m_rebuyStruct.m_molotov)
+			m_rebuyStruct.m_molotov = molotov;
+		if (replaceConsumables || inc >= m_rebuyStruct.m_incGrenade)
+			m_rebuyStruct.m_incGrenade = inc;
+	}
 
 	m_rebuyStruct.m_defuser = m_bHasDefuser;			// defuser
 	m_rebuyStruct.m_armor = m_iKevlar;					// check for armor.
@@ -10028,14 +10054,10 @@ void CBasePlayer::RebuyPrimaryWeapon()
 
 void CBasePlayer::RebuyPrimaryAmmo()
 {
-	CBasePlayerWeapon *pPrimary = static_cast<CBasePlayerWeapon *>(m_rgpPlayerItems[PRIMARY_WEAPON_SLOT]);
-	if (pPrimary)
-	{
-		// if we had more ammo before than we have now, buy more.
-		if (m_rebuyStruct.m_primaryAmmo > m_rgAmmo[pPrimary->m_iPrimaryAmmoType]) {
-			ClientCommand("primammo");
-		}
-	}
+}
+
+void CBasePlayer::RebuySecondaryAmmo()
+{
 }
 
 void CBasePlayer::RebuySecondaryWeapon()
@@ -10045,17 +10067,6 @@ void CBasePlayer::RebuySecondaryWeapon()
 		const char *alias = WeaponIDToAlias(m_rebuyStruct.m_secondaryWeapon);
 		if (alias) {
 			ClientCommand(alias);
-		}
-	}
-}
-
-void CBasePlayer::RebuySecondaryAmmo()
-{
-	CBasePlayerWeapon *pSecondary = static_cast<CBasePlayerWeapon *>(m_rgpPlayerItems[PISTOL_SLOT]);
-	if (pSecondary)
-	{
-		if (m_rebuyStruct.m_secondaryAmmo > m_rgAmmo[pSecondary->m_iPrimaryAmmoType]) {
-			ClientCommand("secammo");
 		}
 	}
 }
@@ -10095,19 +10106,21 @@ void CBasePlayer::RebuySmokeGrenade()
 
 void CBasePlayer::RebuyMolotov()
 {
-	if (m_iTeam != TERRORIST)
+	if (m_iTeam != TERRORIST || m_rebuyStruct.m_molotov <= 0)
 		return;
 	const int ammo = GetAmmoIndex("Molotov");
-	if (ammo != -1 && m_rebuyStruct.m_molotov > m_rgAmmo[ammo])
+	const int have = ammo != -1 ? m_rgAmmo[ammo] : 0;
+	if (have < m_rebuyStruct.m_molotov)
 		ClientCommand("molotov");
 }
 
 void CBasePlayer::RebuyIncendiary()
 {
-	if (m_iTeam != CT)
+	if (m_iTeam != CT || m_rebuyStruct.m_incGrenade <= 0)
 		return;
 	const int ammo = GetAmmoIndex("Incgrenade");
-	if (ammo != -1 && m_rebuyStruct.m_incGrenade > m_rgAmmo[ammo])
+	const int have = ammo != -1 ? m_rgAmmo[ammo] : 0;
+	if (have < m_rebuyStruct.m_incGrenade)
 		ClientCommand("incgrenade");
 }
 
@@ -10505,6 +10518,14 @@ bool EXT_FUNC CBasePlayer::__API_HOOK(GetIntoGame)()
 	m_iFOV = DEFAULT_FOV;
 
 	Q_memset(&m_rebuyStruct, 0, sizeof(m_rebuyStruct));
+	if (CCSPlayer *cs = CSPlayer())
+	{
+		m_rebuyStruct.m_heGrenade = cs->m_rebuyHe;
+		m_rebuyStruct.m_flashbang = cs->m_rebuyFlash;
+		m_rebuyStruct.m_smokeGrenade = cs->m_rebuySmoke;
+		m_rebuyStruct.m_molotov = cs->m_rebuyMolotov;
+		m_rebuyStruct.m_incGrenade = cs->m_rebuyInc;
+	}
 
 	m_bIsInRebuy = false;
 	m_bJustConnected = false;

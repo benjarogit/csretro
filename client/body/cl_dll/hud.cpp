@@ -298,6 +298,7 @@ void CHud :: Init( void )
 
 	HOOK_MESSAGE( gHUD, Fog );
 	HOOK_MESSAGE( gHUD, WpnBits2 );
+	HOOK_MESSAGE( gHUD, BuyEco );
 
 	gEngfuncs.pfnHookUserMsg( "Rain", __MsgFunc_Rain );
 	gEngfuncs.pfnHookUserMsg( "Snow", __MsgFunc_Snow );
@@ -355,6 +356,11 @@ void CHud :: Init( void )
 
 	m_iLogo = 0;
 	m_iFOV = 0;
+	m_buyLossBonus = 0;
+	m_buyNextRoundMin = 0;
+	m_buyRefundCount = 0;
+	m_buyTeammates[0] = 0;
+	m_buyGround[0] = 0;
 
 	m_pSpriteList = NULL;
 
@@ -445,8 +451,8 @@ void CHud :: VidInit( void )
 	m_scrinfo.iSize = sizeof( m_scrinfo );
 	GetScreenInfo( &m_scrinfo );
 
-	m_truescrinfo.iWidth = CVAR_GET_FLOAT("width");
-	m_truescrinfo.iHeight = CVAR_GET_FLOAT("height");
+	m_truescrinfo.iWidth = CVAR_GET_FLOAT("vid_width");
+	m_truescrinfo.iHeight = CVAR_GET_FLOAT("vid_height");
 
 	// ----------
 	// Load Sprites

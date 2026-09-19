@@ -4,13 +4,14 @@ CS Retro baut auf jahrelanger Arbeit vieler Entwickler und Projekte auf.
 
 Wir haben diese Arbeit **nicht** selbst geschaffen. CS Retro ist unsere integrierte Weiterentwicklung: vendorte Quellen, eigene Architektur, 64-Bit und Cross-Platform. Der Dank gilt den Menschen und Projekten, ohne die das nicht möglich wäre.
 
-Diese Datei bleibt dauerhaft. Sie ist keine Phasendoku und wird nach einem Phasenabschluss nicht gelöscht.
+Diese Datei ist der dauerhafte Herkunfts- und Danksagungsnachweis.
 
 **Diese Liste ergänzt die Credits der Upstream-Projekte.** Vorhandene AUTHORS, CREDITS, README-Acknowledgements und Contributor-Listen der verwendeten Quellen bleiben die maßgebliche Herkunft. Hier nicht kürzen oder ersetzen.
 
-Vor einer späteren öffentlichen Veröffentlichung die dann tatsächlich verwendeten Pins noch einmal durchgehen und namentliche Contributors/Acknowledgements der jeweiligen Projekte hier nachziehen.
+Die Aufzählung ist nicht abschließend. Ergänzungen und belegte Korrekturen sind willkommen.
 
-Technische Pins: `docs/UPSTREAM.md`. Lizenzen: `docs/LIZENZEN.md`.
+Technische Pins: [Deutsch](docs/upstream.de.md) / [English](docs/upstream.en.md).
+Lizenzen: [Deutsch](docs/licenses.de.md) / [English](docs/licenses.en.md).
 
 ## Spiel und Ursprung
 
@@ -95,6 +96,10 @@ Lizenzwechsel MIT (Juli 2025), namentlich in `server/game/LICENSE-TRANSITION.md`
 
 sowie alle weiteren signifikanten Contributors des Projekts.
 
+## Announcer — Xonotic
+
+- [Xonotic Team](https://xonotic.org) und Contributors — Stimmen `prepareforbattle`, `5`–`1`, `begin`, `1minuteremains` aus [xonotic-data.pk3dir](https://github.com/xonotic/xonotic-data.pk3dir) (`sound/announcer/default/`). GPL; Notice: `data/ui-overrides/cstrike/sound/announcer/NOTICE.txt`. Kein QuakeC-Import.
+
 ## Schriften
 
 - [Noto Project Authors](https://github.com/notofonts/latin-greek-cyrillic) — **Noto Sans** und **Noto Sans Mono** (SIL OFL 1.1), UI-Schrift von CS Retro. Lizenztext: `data/ui-overrides/platform/resource/csretro_fonts/OFL.txt`
@@ -105,21 +110,33 @@ sowie alle weiteren signifikanten Contributors des Projekts.
 
 ## Weitere Referenzen
 
-- [languagelawyer/cs16-client molotov](https://github.com/languagelawyer/cs16-client/tree/molotov) und [ReGameDLL_CS molotov](https://github.com/languagelawyer/ReGameDLL_CS/tree/molotov) — GoldSrc-Molotov-Experiment. Übernommen: sichtbare Inferno-Tempents. **Nicht** deren Viewmodels (Zippo/Fire-Pack bleiben). `docs/UPSTREAM.md`
+- [languagelawyer/cs16-client molotov](https://github.com/languagelawyer/cs16-client/tree/molotov), [ReGameDLL_CS molotov](https://github.com/languagelawyer/ReGameDLL_CS/tree/molotov) und [mainui_cpp molotov](https://github.com/languagelawyer/mainui_cpp/tree/molotov) — Referenzen für Granaten, Kaufanbindung und Inferno-Effekte; kein vollständiger Branch-Import.
 - [FuryBaM/cs16-goldsrc-client](https://github.com/FuryBaM/cs16-goldsrc-client) — Ref B, bedingte Menü-Referenz
 - [YaPB](https://github.com/yapb/yapb) (jeefo und Contributors) — beobachtet als Bot-Quelle; noch nicht vendort
 - ZBot in ReGameDLL — mitvendort, später mit YaPB und weiteren vergleichen
 
-## Research / VGUI2-Referenzen (Phase 3M)
+## VGUI2-Referenzen
 
-Technische Pins, Commits und Erkenntnisse: `docs/UPSTREAM.md` (Abschnitt „VGUI2 Research References“). Hier nur Würdigung — keine Ersatz-Provenance.
+Vergleichsquellen sind nicht automatisch Bestandteil der Laufzeit. Die jeweiligen Autoren behalten ihre Urheberschaft.
 
 - [Valve Developer Community](https://developer.valvesoftware.com/wiki/VGUI_Documentation) — VGUI/VGUI2-Dokumentation (Panel, Resources, Scheme, Build Mode)
 - [CKFDevPowered/CKF3Alpha](https://github.com/CKFDevPowered/CKF3Alpha) und Contributors — klassische GoldSrc-GameUI-Rekonstruktion (Options/GameMenu-Vergleich)
 - [Counter-Strike-16/OpenGoldSrc](https://github.com/Counter-Strike-16/OpenGoldSrc) und Contributors — GoldSrc-/GameUI-/VGUI2-Rekonstruktion
 - [hzqst/MetaHookSv](https://github.com/hzqst/MetaHookSv) und Contributors — VGUI2Extension, Scheme/Resource-Hooks, HiDPI-Vergleich (nicht Classic-Baseline); Radar/HUD beobachtet, nicht vendort. Original: [nagist/metahook](https://github.com/nagist/metahook)
 - [DeadZoneLuna/css-community](https://github.com/DeadZoneLuna/css-community) — CS:Source Community Edition (2007-Leak-Port nach Source 2013); In-Game-Menü-Vergleich (Team/Class/Buy), nicht Engine. Credits dort u. a. NicolasDe GameUI2. Nicht vendort.
-- Lokale Abguck-Dumps `TEMP_EXTRA/` (nicht im Git): **Source SDK 2013** (`hl2_src`, inkl. Counter-Strike: Source) und **Counter-Strike: Global Offensive** (`cstrike15_src`). Menüs/Radar später; andere Engines, nicht vendort. `docs/UPSTREAM.md`
+- Counter-Strike: Source und Counter-Strike: Global Offensive — visuelle und Verhaltensreferenzen für Menüs; keine mitgelieferten Source-Engines oder Flash-Assets.
 - [kungfulon/fwgs-vgui2-support](https://github.com/kungfulon/fwgs-vgui2-support) — historische Xash-VGUI2-Forschung
 
-Jedes weitere Projekt, aus dem wir später Code oder Verhalten übernehmen, hier und in `docs/UPSTREAM.md` nachtragen.
+## Dokumentationswerkzeuge
+
+- [MkDocs](https://www.mkdocs.org/) und Contributors.
+- [Material for MkDocs](https://github.com/squidfunk/mkdocs-material), Martin Donath und Contributors.
+- [mkdocs-static-i18n](https://github.com/ultrabug/mkdocs-static-i18n), Ultrabug und Contributors.
+
+## Zusätzliche Modell- und Effektpakete
+
+Die Autorenzuordnung und Weitergaberechte der lokal verwendeten Granatenpakete sind noch nicht
+vollständig dokumentiert. Keine Zuschreibung an CS Retro und keine pauschale Weitergabefreigabe.
+Belegte Ergänzungen sind ausdrücklich willkommen.
+
+Jedes weitere Projekt, aus dem Code oder Verhalten übernommen wird, hier und im Upstream-Nachweis nachtragen.

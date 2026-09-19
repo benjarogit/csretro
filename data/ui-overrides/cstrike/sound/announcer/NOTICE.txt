@@ -1,0 +1,10 @@
+Announcer voice clips vendored from Xonotic
+(xonotic-data.pk3dir, sound/announcer/default/).
+
+Source: https://github.com/xonotic/xonotic-data.pk3dir
+Project: https://xonotic.org
+Copyright: Xonotic Team and contributors
+License: GNU GPL (xonotic-data; see that repository)
+
+Clips used: prepareforbattle, 5, 4, 3, 2, 1, begin, 1minuteremains.
+No QuakeC from Xonotic is included.

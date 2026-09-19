@@ -2,7 +2,8 @@
 
 #include "ClassSelectPanel.h"
 #include "Controls/MenuEngine.h"
-#include "InGameViewportLook.h"
+#include "GameConsoleDialog.h"
+#include "InGameUi.h"
 #include "RadioSelectPanel.h"
 #include "TeamSelectPanel.h"
 #include "TeamModelPreview.h"
@@ -12,6 +13,7 @@
 #include <vgui/ISchemeNext.h>
 #include <vgui/ISurfaceNext.h>
 #include <vgui/KeyCode.h>
+#include <vgui/MouseCode.h>
 #include <vgui_controls/Button.h>
 #include <vgui_controls/Controls.h>
 #include <vgui_controls/Divider.h>
@@ -278,14 +280,146 @@ const char *BuyDisplayName(const char *command)
 	return nullptr;
 }
 
+int BuyCatalogPrice(const char *command)
+{
+	struct Entry { const char *command; int price; };
+	static const Entry prices[] = {
+		{"vest", 650}, {"vesthelm", 1000}, {"defuser", 400},
+		{"flash", 200}, {"hegren", 300}, {"sgren", 300},
+		{"molotov", 400}, {"incgrenade", 500},
+		{"glock", 200}, {"usp", 200}, {"p228", 400}, {"deagle", 700},
+		{"elites", 500}, {"fn57", 500},
+		{"mac10", 1050}, {"tmp", 1100}, {"mp5", 1500}, {"ump45", 1200},
+		{"p90", 2350}, {"xm1014", 2000}, {"m3", 1700}, {"m249", 5200},
+		{"galil", 1800}, {"famas", 1950}, {"ak47", 2700}, {"m4a1", 2900},
+		{"sg552", 3000}, {"aug", 3300}, {"scout", 2750}, {"awp", 4750},
+		{"g3sg1", 5000}, {"sg550", 5000},
+	};
+	if (!command)
+		return 0;
+	for (const Entry &entry : prices)
+		if (!strcasecmp(command, entry.command))
+			return entry.price;
+	return 0;
+}
+
+const char *LoadoutFileName(bool ct)
+{
+	return ct ? "loadout_ct" : "loadout_t";
+}
+
+void DefaultLoadout(bool ct, char mid[5][16], char rifle[5][16])
+{
+	const char *m[5];
+	const char *r[5];
+	if (ct)
+	{
+		const char *cm[] = {"tmp", "mp5", "ump45", "p90", "xm1014"};
+		const char *cr[] = {"famas", "m4a1", "scout", "awp", "sg550"};
+		for (int i = 0; i < 5; ++i) { m[i] = cm[i]; r[i] = cr[i]; }
+	}
+	else
+	{
+		const char *tm[] = {"mac10", "mp5", "ump45", "p90", "xm1014"};
+		const char *tr[] = {"galil", "ak47", "scout", "awp", "g3sg1"};
+		for (int i = 0; i < 5; ++i) { m[i] = tm[i]; r[i] = tr[i]; }
+	}
+	for (int i = 0; i < 5; ++i)
+	{
+		snprintf(mid[i], 16, "%s", m[i]);
+		snprintf(rifle[i], 16, "%s", r[i]);
+	}
+}
+
+void MidPool(bool ct, const char **out, int *n)
+{
+	static const char *tPool[] = {"mac10", "mp5", "ump45", "p90", "xm1014", "m3", "m249"};
+	static const char *ctPool[] = {"tmp", "mp5", "ump45", "p90", "xm1014", "m3", "m249"};
+	*n = 7;
+	for (int i = 0; i < 7; ++i)
+		out[i] = (ct ? ctPool : tPool)[i];
+}
+
+void RiflePool(bool ct, const char **out, int *n)
+{
+	static const char *tPool[] = {"galil", "ak47", "sg552", "scout", "awp", "g3sg1"};
+	static const char *ctPool[] = {"famas", "m4a1", "aug", "scout", "awp", "sg550"};
+	*n = 6;
+	for (int i = 0; i < 6; ++i)
+		out[i] = (ct ? ctPool : tPool)[i];
+}
+
+bool InLoadoutSlots(char slots[5][16], const char *alias)
+{
+	for (int i = 0; i < 5; ++i)
+		if (!strcasecmp(slots[i], alias))
+			return true;
+	return false;
+}
+
+void LoadoutPath(bool ct, char *out, size_t outsz)
+{
+	const char *basedir = getenv("XASH3D_BASEDIR");
+	if (!basedir || !basedir[0])
+		basedir = getenv("CSRETRO_RUN_DIR");
+	if (basedir && basedir[0])
+		snprintf(out, outsz, "%s/cstrike/%s", basedir, LoadoutFileName(ct));
+	else
+		snprintf(out, outsz, "%s", LoadoutFileName(ct));
+}
+
+void ReadLoadoutFile(bool ct, char mid[5][16], char rifle[5][16])
+{
+	DefaultLoadout(ct, mid, rifle);
+	char path[512];
+	LoadoutPath(ct, path, sizeof(path));
+	FILE *f = fopen(path, "r");
+	if (!f)
+		return;
+	char got[10][16] = {};
+	int n = 0;
+	while (n < 10 && fscanf(f, "%15s", got[n]) == 1)
+		++n;
+	fclose(f);
+	if (n != 10)
+		return;
+	for (int i = 0; i < 5; ++i)
+	{
+		snprintf(mid[i], 16, "%s", got[i]);
+		snprintf(rifle[i], 16, "%s", got[i + 5]);
+	}
+}
+
+void WriteLoadoutFile(bool ct, char mid[5][16], char rifle[5][16])
+{
+	char path[512];
+	LoadoutPath(ct, path, sizeof(path));
+	FILE *f = fopen(path, "w");
+	if (!f)
+		return;
+	fprintf(f, "%s %s %s %s %s %s %s %s %s %s\n",
+		mid[0], mid[1], mid[2], mid[3], mid[4],
+		rifle[0], rifle[1], rifle[2], rifle[3], rifle[4]);
+	fclose(f);
+}
+
+void SendLoadoutToServer(char mid[5][16], char rifle[5][16])
+{
+	char buf[256];
+	snprintf(buf, sizeof(buf), "cl_setloadout %s %s %s %s %s %s %s %s %s %s\n",
+		mid[0], mid[1], mid[2], mid[3], mid[4],
+		rifle[0], rifle[1], rifle[2], rifle[3], rifle[4]);
+	MenuEngine::ClientCmdNow(buf);
+}
+
 const char *CompactBuyDisplayName(const std::string &name)
 {
 	struct Entry { const char *full; const char *compact; };
 	static const Entry names[] = {
-		{"Kevlar Vest", "Kevlar"}, {"Kevlar+Helm", "Kev+Helm"},
+		{"Kevlar Vest", "Kevlar"}, {"Kevlar+Helm", "Kevlar+Helm"},
 		{"Desert Eagle", "Deagle"},
 		{"Dual Elites", "Elites"}, {"Flashbang", "Flash"},
-		{"HE Grenade", "HE Gren."},
+		{"HE Grenade", "HE"}, {"Incendiary", "Incendiary"},
 	};
 	for (const Entry &entry : names)
 		if (name == entry.full)
@@ -297,7 +431,8 @@ void SetBuyModel(CTeamModelPreview *preview, const char *name)
 {
 	const char *model = BuyModel(name);
 	preview->SetVisible(model != nullptr);
-	if (!model) return;
+	if (!model)
+		return;
 	char path[96];
 	snprintf(path, sizeof(path), "models/w_%s.mdl", model);
 	preview->SetItemPreview(path);
@@ -318,8 +453,35 @@ public:
 	{
 		int w = 0, h = 0;
 		GetSize(w, h);
-		InGameViewportLook::PaintBuyPlate(w, h);
+		InGameUi::PaintBuyPlate(w, h);
 	}
+};
+
+class CBuyColumnPlate : public Panel
+{
+	DECLARE_CLASS_SIMPLE_OVERRIDE(CBuyColumnPlate, Panel);
+
+public:
+	CBuyColumnPlate(Panel *parent, const char *name, int index)
+		: BaseClass(parent, name)
+		, m_index(index)
+	{
+		SetPaintBackgroundEnabled(true);
+		SetPaintBorderEnabled(false);
+		SetMouseInputEnabled(false);
+		SetKeyBoardInputEnabled(false);
+		SetZPos(-1);
+	}
+
+	void PaintBackground() override
+	{
+		int w = 0, h = 0;
+		GetSize(w, h);
+		InGameUi::PaintBuyColumn(w, h, m_index);
+	}
+
+private:
+	int m_index = 0;
 };
 
 class CBuySectionLabel : public Label
@@ -334,12 +496,17 @@ public:
 		SetPaintBorderEnabled(false);
 	}
 
+	void SetAccent(Color accent) { m_accent = accent; }
+
 	void PaintBackground() override
 	{
 		int w = 0, h = 0;
 		GetSize(w, h);
-		InGameViewportLook::PaintBuyHeader(w, h);
+		InGameUi::PaintBuyHeader(w, h, m_accent);
 	}
+
+private:
+	Color m_accent = InGameUi::BuyGold();
 };
 
 class CBuyHoverButton : public Button
@@ -387,11 +554,26 @@ public:
 		m_number->SetVisible(true);
 		SetText("");
 	}
-	void ConfigureWeapon(const char *command, const char *label, int cost)
+	void ConfigureWeapon(const char *command, const char *label, int cost, bool reserve = false, bool ct = false, bool rifle = false)
 	{
-		if (!command || !command[0] || cost <= 0)
+		if (!command || !command[0])
 			return;
-		SetCommand(command);
+		const int catalog = BuyCatalogPrice(command);
+		if (catalog > 0)
+			cost = catalog;
+		if (cost <= 0 && !reserve)
+			return;
+		m_alias = command;
+		m_reserve = reserve;
+		m_ctTeam = ct;
+		if (reserve)
+		{
+			char swap[64];
+			snprintf(swap, sizeof(swap), "loadout_swap %s %s", rifle ? "rifle" : "mid", command);
+			SetCommand(swap);
+		}
+		else
+			SetCommand(command);
 		const char *display = BuyDisplayName(command);
 		const char *productName = display && display[0] ? display : label;
 		if (productName && productName[0])
@@ -407,7 +589,7 @@ public:
 		char price[24];
 		std::snprintf(price, sizeof(price), "$%d", cost);
 		m_price->SetText(price);
-		m_price->SetVisible(true);
+		m_price->SetVisible(cost > 0);
 		ApplyLook();
 	}
 	void SetAccent(Color accent)
@@ -420,6 +602,18 @@ public:
 	{
 		BaseClass::ApplySchemeSettings(pScheme);
 		ApplyLook();
+	}
+
+	void OnMousePressed(MouseCode code) override
+	{
+		if (code == MOUSE_RIGHT && m_isWeaponCard && !m_reserve && !m_alias.empty())
+		{
+			char buf[80];
+			snprintf(buf, sizeof(buf), "buydrop %s\n", m_alias.c_str());
+			MenuEngine::ClientCmdNow(buf);
+			return;
+		}
+		BaseClass::OnMousePressed(code);
 	}
 
 	void PerformLayout() override
@@ -438,17 +632,22 @@ public:
 			if (!m_productName.empty())
 				m_name->SetText(w < 80 ? CompactBuyDisplayName(m_productName) : m_productName.c_str());
 			const int imgY = labelH + 1;
-			// The price is an overlay, as in the reference. Reserving a second text
-			// row here squeezed the real MDL into a thin strip on compact cards.
 			const int imgH = std::max(1, h - imgY - (compact ? 3 : 4));
-			m_weaponImage->SetBounds(pad, imgY, std::max(1, w - pad * 2), imgH);
+			if (m_weaponImage->PreviewCount() > 0)
+			{
+				m_weaponImage->SetVisible(true);
+				m_weaponImage->SetBounds(pad, imgY, std::max(1, w - pad * 2), imgH);
+			}
+			else
+				m_weaponImage->SetVisible(false);
 			m_number->SetBounds(pad, 3, numberW, labelH);
 			m_name->SetBounds(pad + numberW, 3, std::max(1, w - numberW - pad * 2), labelH);
 			m_price->SetBounds(std::max(pad, w - 72), h - priceH - 2, 68, priceH);
+			const Color accent = m_ctTeam ? InGameUi::CT() : InGameUi::BuyGold();
 			const bool dim = Unaffordable();
 			m_number->SetFgColor(dim ? Color(168, 170, 174, 220) : Color(210, 210, 214, 220));
-			m_name->SetFgColor(dim ? InGameViewportLook::TextDim() : InGameViewportLook::BuyGold());
-			m_price->SetFgColor(dim ? Color(196, 168, 64, 230) : InGameViewportLook::BuyGold());
+			m_name->SetFgColor(dim ? InGameUi::TextDim() : accent);
+			m_price->SetFgColor(dim ? Color(196, 168, 64, 230) : accent);
 		}
 	}
 
@@ -457,39 +656,45 @@ public:
 		int w = 0, h = 0;
 		GetSize(w, h);
 		if (m_isFooter)
+		{
+			InGameUi::PaintBuyFooter(w, h, m_accent, IsArmed() || IsDepressed());
 			return;
-		InGameViewportLook::PaintBuyCell(w, h, IsArmed() || IsDepressed(), Unaffordable());
+		}
+		InGameUi::PaintBuyCell(w, h, IsArmed() || IsDepressed(), Unaffordable());
 	}
 
 	void ApplySettings(KeyValues *inResourceData) override
 	{
 		BaseClass::ApplySettings(inResourceData);
-		// Steam-Buy-`.res` schreibt "Command" (groß). KeyValues-Symbole
-		// sind bei uns case-sensitiv — Button::ApplySettings sucht "command".
 		const char *cmd = inResourceData->GetString("command", "");
 		if (!cmd[0])
 			cmd = inResourceData->GetString("Command", "");
 		if (cmd[0])
 			SetCommand(cmd);
-		const int cost = inResourceData->GetInt("cost", 0);
+		const int cost = BuyCatalogPrice(cmd);
 		m_isWeaponCard = cost > 0 && cmd[0] && !IsResCommand(cmd);
 		if (m_isWeaponCard)
 			ConfigureWeapon(cmd, nullptr, cost);
 	}
 
 private:
-	Color m_accent = InGameViewportLook::Text();
+	Color m_accent = InGameUi::Text();
 	CTeamModelPreview *m_weaponImage = nullptr;
 	Label *m_number = nullptr;
 	Label *m_name = nullptr;
 	Label *m_price = nullptr;
 	bool m_isWeaponCard = false;
 	bool m_isFooter = false;
+	bool m_reserve = false;
+	bool m_ctTeam = false;
 	int m_cost = 0;
 	std::string m_productName;
+	std::string m_alias;
 
 	bool Unaffordable() const
 	{
+		if (m_reserve)
+			return true;
 		return m_isWeaponCard && m_cost > 0 && g_buyHud.money < m_cost;
 	}
 
@@ -497,25 +702,29 @@ private:
 	{
 		if (m_isFooter)
 		{
-			InGameViewportLook::StyleFooterButton(this, m_accent);
-			SetPaintBackgroundEnabled(false);
+			InGameUi::StyleFooterButton(this, m_accent);
+			SetPaintBackgroundEnabled(true);
 			SetContentAlignment(Label::a_center);
-			SetTextInset(0, 0);
+			SetTextInset(10, 0);
 			return;
 		}
-		InGameViewportLook::StyleCardButton(this, InGameViewportLook::BuyGold());
+		InGameUi::StyleCardButton(this, InGameUi::BuyGold());
 		SetContentAlignment(m_isWeaponCard ? Label::a_northwest : Label::a_west);
 		SetTextInset(m_isWeaponCard ? 0 : 12, m_isWeaponCard ? 0 : 0);
+		if (m_isWeaponCard)
+			SetText("");
 		const bool dim = Unaffordable();
-		SetFgColor(dim ? InGameViewportLook::TextDim() : InGameViewportLook::Text());
-		SetBgColor((IsArmed() || IsDepressed()) ? InGameViewportLook::BuyCellArmed() :
-			(dim ? InGameViewportLook::BuyCellDim() : InGameViewportLook::BuyCell()));
+		SetFgColor(dim ? InGameUi::TextDim() : InGameUi::Text());
+		SetBgColor((IsArmed() || IsDepressed()) ? InGameUi::BuyCellArmed() :
+			(dim ? InGameUi::BuyCellDim() : InGameUi::BuyCell()));
 		if (m_number)
 			m_number->SetFgColor(dim ? Color(168, 170, 174, 220) : Color(210, 210, 214, 220));
 		if (m_name)
-			m_name->SetFgColor(dim ? InGameViewportLook::TextDim() : InGameViewportLook::BuyGold());
+			m_name->SetFgColor(dim ? InGameUi::TextDim() :
+				(m_ctTeam ? InGameUi::CT() : InGameUi::BuyGold()));
 		if (m_price)
-			m_price->SetFgColor(dim ? Color(196, 168, 64, 230) : InGameViewportLook::BuyGold());
+			m_price->SetFgColor(dim ? Color(196, 168, 64, 230) :
+				(m_ctTeam ? InGameUi::CT() : InGameUi::BuyGold()));
 	}
 };
 
@@ -546,10 +755,17 @@ public:
 		const bool enteringMain = menuType == MENU_BUY && (!resOverride || !resOverride[0]);
 		m_overview.clear();
 		std::fill(std::begin(m_overviewTitles), std::end(m_overviewTitles), nullptr);
+		std::fill(std::begin(m_columnPlates), std::end(m_columnPlates), nullptr);
 		m_character = nullptr;
 		m_classCaption = nullptr;
 		m_plate = nullptr;
 		m_money = nullptr;
+		m_nextMin = nullptr;
+		m_mates = nullptr;
+		m_refundAll = nullptr;
+		for (auto *&b : m_groundBtns)
+			b = nullptr;
+		m_groundBtns.clear();
 		while (GetChildCount() > 0)
 			delete GetChild(0);
 		m_type = menuType;
@@ -888,21 +1104,59 @@ public:
 			return;
 		}
 
+		if (!strncasecmp(command, "loadout_swap ", 13))
+		{
+			const char *rest = command + 13;
+			char kind[16] = {};
+			char alias[16] = {};
+			sscanf(rest, "%15s %15s", kind, alias);
+			if (alias[0])
+			{
+				const bool rifle = !strcasecmp(kind, "rifle");
+				char (*arr)[16] = rifle ? m_loadoutRifle : m_loadoutMid;
+				if (!InLoadoutSlots(arr, alias))
+					snprintf(arr[4], 16, "%s", alias);
+				WriteLoadoutFile(m_team == TEAM_CT, m_loadoutMid, m_loadoutRifle);
+				char buf[80];
+				snprintf(buf, sizeof(buf), "cl_loadout_swap %s %s\n", rifle ? "rifle" : "mid", alias);
+				MenuEngine::ClientCmdNow(buf);
+				RebuildLoadoutCards();
+			}
+			return;
+		}
+		if (!strcasecmp(command, "refundall"))
+		{
+			MenuEngine::ClientCmdNow("refundall\n");
+			return;
+		}
+		if (!strncasecmp(command, "buy_ground ", 11))
+		{
+			char buf[48];
+			snprintf(buf, sizeof(buf), "%s\n", command);
+			MenuEngine::ClientCmdNow(buf);
+			return;
+		}
+
 		char mapped[64];
 		MapSteamBuyAlias(mapped, sizeof(mapped), command);
 		Menu_Con("CSRETRO_BUY_CMD %s", mapped);
 		char buf[80];
 		snprintf(buf, sizeof(buf), "%s\n", mapped);
 		MenuEngine::ClientCmdNow(buf);
-		// Kategorie bleibt offen. Munition auf der Hauptseite auch (6+7).
-		// Waffe / Equipment / Autobuy / Rebuy: Menü zu, wie CS-1.6-Tastatur.
-		if (strcasecmp(mapped, "primammo") != 0 && strcasecmp(mapped, "secammo") != 0)
-			CloseClientBuyMenu();
+		if (!strcasecmp(mapped, "rebuy") || !strcasecmp(mapped, "autobuy") ||
+			strcasecmp(mapped, "primammo") == 0 || strcasecmp(mapped, "secammo") == 0)
+			return;
+		CloseClientBuyMenu();
 		return;
 	}
 
 	void OnKeyCodeTyped(KeyCode code) override
 	{
+		if (code == KEY_F12)
+		{
+			MenuEngine::ClientCmdNow("ready\n");
+			return;
+		}
 		if (code == KEY_ESCAPE)
 		{
 			CloseClientBuyMenu();
@@ -964,10 +1218,17 @@ private:
 	Label *m_classCaption = nullptr;
 	Panel *m_plate = nullptr;
 	Label *m_money = nullptr;
+	Label *m_nextMin = nullptr;
+	Label *m_mates = nullptr;
+	CBuyHoverButton *m_refundAll = nullptr;
+	std::vector<CBuyHoverButton *> m_groundBtns;
+	char m_loadoutMid[5][16] = {};
+	char m_loadoutRifle[5][16] = {};
 	std::string m_characterModel;
 	struct OverviewCard { CBuyHoverButton *button; int column; int row; };
 	std::vector<OverviewCard> m_overview;
 	Label *m_overviewTitles[5] = {};
+	Panel *m_columnPlates[5] = {};
 
 	void QueuePage(int menuType, const char *res, int validSlots)
 	{
@@ -998,53 +1259,130 @@ private:
 	void BuildUnifiedOverview()
 	{
 		const char *titles[5] = {"1  Equipment", "2  Pistols", "3  Mid-Tier", "4  Rifles", "5  Grenades"};
+		const Color accent = (m_team == TEAM_CT) ? InGameUi::CT() : InGameUi::BuyGold();
 		for (int col = 0; col < 5; ++col)
 		{
+			char plateName[32];
+			snprintf(plateName, sizeof(plateName), "OverviewPlate%d", col);
+			m_columnPlates[col] = new CBuyColumnPlate(this, plateName, col);
 			char name[32];
 			snprintf(name, sizeof(name), "OverviewTitle%d", col);
-			m_overviewTitles[col] = new CBuySectionLabel(this, name, titles[col]);
-			m_overviewTitles[col]->SetContentAlignment(Label::a_center);
+			auto *title = new CBuySectionLabel(this, name, titles[col]);
+			title->SetContentAlignment(Label::a_center);
+			title->SetAccent(accent);
+			m_overviewTitles[col] = title;
 		}
 
+		const bool ct = m_team == TEAM_CT;
+		ReadLoadoutFile(ct, m_loadoutMid, m_loadoutRifle);
+		SendLoadoutToServer(m_loadoutMid, m_loadoutRifle);
+
 		int nextRow[5] = {};
-		auto append = [&](const char *path, int column, int filter) {
-			for (const ResField &field : Menu_LoadRes(path))
-			{
-				if (field.command.empty() || field.cost <= 0 || IsResCommand(field.command.c_str()) ||
-					IsShieldBuy(field.command.c_str()) || IsNvgBuy(field.command.c_str()))
-					continue;
-				const bool grenade = !strcasecmp(field.command.c_str(), "flash") ||
-					!strcasecmp(field.command.c_str(), "hegren") || !strcasecmp(field.command.c_str(), "sgren") ||
-					!strcasecmp(field.command.c_str(), "molotov") || !strcasecmp(field.command.c_str(), "incgrenade");
-				if ((filter == 1 && !grenade) || (filter == 2 && grenade) || nextRow[column] >= 6)
-					continue;
-				char name[64];
-				snprintf(name, sizeof(name), "Overview%d_%d", column, nextRow[column]);
-				auto *button = new CBuyHoverButton(this, name);
-				button->ConfigureWeapon(field.command.c_str(), field.label.c_str(), field.cost);
-				button->SetOverviewNumber(nextRow[column] + 1);
-				m_overview.push_back({button, column, nextRow[column]++});
-			}
+		auto addCard = [&](const char *cmd, int column, bool reserve, bool rifle) {
+			if (!cmd || !cmd[0] || nextRow[column] >= 7)
+				return;
+			char name[64];
+			snprintf(name, sizeof(name), "Overview%d_%d", column, nextRow[column]);
+			auto *button = new CBuyHoverButton(this, name);
+			button->ConfigureWeapon(cmd, nullptr, BuyCatalogPrice(cmd), reserve, ct, rifle);
+			button->SetOverviewNumber(nextRow[column] + 1);
+			m_overview.push_back({button, column, nextRow[column]++});
 		};
 
-		const bool ct = m_team == TEAM_CT;
-		const char *equipment = ct ? "resource/UI/BuyEquipment_CT.res" : "resource/UI/BuyEquipment_TER.res";
-		append(equipment, 0, 2);
-		append(ct ? "resource/UI/BuyPistols_CT.res" : "resource/UI/BuyPistols_TER.res", 1, 0);
-		append(ct ? "resource/UI/BuyShotguns_CT.res" : "resource/UI/BuyShotguns_TER.res", 2, 0);
-		append(ct ? "resource/UI/BuySubMachineguns_CT.res" : "resource/UI/BuySubMachineguns_TER.res", 2, 0);
-		append(ct ? "resource/UI/BuyMachineguns_CT.res" : "resource/UI/BuyMachineguns_TER.res", 2, 0);
-		append(ct ? "resource/UI/BuyRifles_CT.res" : "resource/UI/BuyRifles_TER.res", 3, 0);
-		append(equipment, 4, 1);
+		addCard("vest", 0, false, false);
+		addCard("vesthelm", 0, false, false);
+		if (ct)
+			addCard("defuser", 0, false, false);
+		addCard("flash", 4, false, false);
+		addCard("hegren", 4, false, false);
+		addCard("sgren", 4, false, false);
+		addCard(ct ? "incgrenade" : "molotov", 4, false, false);
+
+		if (ct)
+		{
+			addCard("usp", 1, false, false);
+			addCard("glock", 1, false, false);
+			addCard("p228", 1, false, false);
+			addCard("deagle", 1, false, false);
+			addCard("fn57", 1, false, false);
+		}
+		else
+		{
+			addCard("glock", 1, false, false);
+			addCard("usp", 1, false, false);
+			addCard("p228", 1, false, false);
+			addCard("deagle", 1, false, false);
+			addCard("elites", 1, false, false);
+		}
+
+		FillLoadoutColumns(addCard);
 
 		HideSteamCategoryChrome();
 		m_plate = new CBuyRoundedPanel(this, "BuyPlate");
 		m_plate->SetPaintBackgroundEnabled(true);
 		m_plate->SetPaintBorderEnabled(false);
-		m_plate->SetBgColor(InGameViewportLook::BuyPlate());
+		m_plate->SetBgColor(InGameUi::BuyPlate());
 		m_plate->SetMouseInputEnabled(false);
 		m_plate->SetKeyBoardInputEnabled(false);
 		m_plate->SetZPos(-2);
+	}
+
+	template <typename AddFn>
+	void FillLoadoutColumns(AddFn addCard)
+	{
+		const bool ct = m_team == TEAM_CT;
+		for (int i = 0; i < 5; ++i)
+			addCard(m_loadoutMid[i], 2, false, false);
+		for (int i = 0; i < 5; ++i)
+			addCard(m_loadoutRifle[i], 3, false, true);
+		const char *midPool[8] = {};
+		const char *riflePool[8] = {};
+		int nMid = 0, nRifle = 0;
+		MidPool(ct, midPool, &nMid);
+		RiflePool(ct, riflePool, &nRifle);
+		for (int i = 0; i < nMid; ++i)
+		{
+			if (!InLoadoutSlots(m_loadoutMid, midPool[i]))
+				addCard(midPool[i], 2, true, false);
+		}
+		for (int i = 0; i < nRifle; ++i)
+		{
+			if (!InLoadoutSlots(m_loadoutRifle, riflePool[i]))
+				addCard(riflePool[i], 3, true, true);
+		}
+	}
+
+	void RebuildLoadoutCards()
+	{
+		std::vector<OverviewCard> kept;
+		for (const OverviewCard &card : m_overview)
+		{
+			if (card.column < 2 || card.column == 4)
+				kept.push_back(card);
+			else
+				delete card.button;
+		}
+		m_overview.swap(kept);
+		int nextRowDummy[5] = {};
+		for (const OverviewCard &card : m_overview)
+			nextRowDummy[card.column] = std::max(nextRowDummy[card.column], card.row + 1);
+		auto addCard = [&](const char *cmd, int column, bool reserve, bool rifle) {
+			int row = 0;
+			for (const OverviewCard &card : m_overview)
+				if (card.column == column)
+					row = std::max(row, card.row + 1);
+			if (!cmd || !cmd[0] || row >= 7)
+				return;
+			char name[64];
+			snprintf(name, sizeof(name), "Overview%d_%d", column, row);
+			auto *button = new CBuyHoverButton(this, name);
+			button->ConfigureWeapon(cmd, nullptr, BuyCatalogPrice(cmd), reserve, m_team == TEAM_CT, rifle);
+			button->SetOverviewNumber(row + 1);
+			button->SetVisible(true);
+			m_overview.push_back({button, column, row});
+		};
+		FillLoadoutColumns(addCard);
+		LayoutFamily();
 	}
 
 	static bool ValidPlayerModel(const char *name)
@@ -1102,8 +1440,8 @@ private:
 		char path[96];
 		snprintf(path, sizeof(path), "models/player/%s/%s.mdl", model, model);
 		m_character->SetPreview(path, ct ? "models/p_m4a1.mdl" : "models/p_ak47.mdl", yaw, seq);
-		m_character->SetWorldWidth(65.0f);
-		m_character->SetWorldHeight(82.0f);
+		m_character->SetWorldWidth(52.0f);
+		m_character->SetWorldHeight(80.0f);
 		if (m_classCaption)
 			m_classCaption->SetVisible(false);
 		Menu_Con("CSRETRO_BUY_CHARACTER team=%d model=%s src=%s remember=%s hud=%s yaw=%.0f seq=%d",
@@ -1122,7 +1460,7 @@ private:
 		m_classCaption = new Label(this, "BuyClassName", "");
 		m_classCaption->SetContentAlignment(Label::a_center);
 		m_classCaption->SetPaintBackgroundEnabled(false);
-		m_classCaption->SetFgColor(InGameViewportLook::BuyGold());
+		m_classCaption->SetFgColor(InGameUi::BuyGold());
 		m_classCaption->SetMouseInputEnabled(false);
 		m_classCaption->SetKeyBoardInputEnabled(false);
 		m_classCaption->SetZPos(2);
@@ -1132,22 +1470,90 @@ private:
 
 	void BuildRuntimeChrome()
 	{
+		const Color accent = (m_team == TEAM_CT) ? InGameUi::CT() : InGameUi::BuyGold();
 		m_money = new Label(this, "BuyMoney", "");
 		m_money->SetContentAlignment(Label::a_west);
 		m_money->SetPaintBackgroundEnabled(false);
-		m_money->SetFgColor(InGameViewportLook::BuyGold());
+		m_money->SetFgColor(accent);
 		m_money->SetMouseInputEnabled(false);
 		m_money->SetKeyBoardInputEnabled(false);
+		m_nextMin = new Label(this, "BuyNextMin", "");
+		m_nextMin->SetContentAlignment(Label::a_west);
+		m_nextMin->SetPaintBackgroundEnabled(false);
+		m_nextMin->SetFgColor(accent);
+		m_nextMin->SetMouseInputEnabled(false);
+		m_mates = new Label(this, "BuyTeammates", "");
+		m_mates->SetContentAlignment(Label::a_west);
+		m_mates->SetPaintBackgroundEnabled(false);
+		m_mates->SetFgColor(InGameUi::TextDim());
+		m_mates->SetMouseInputEnabled(false);
+		m_refundAll = new CBuyHoverButton(this, "RefundAllButton");
+		m_refundAll->SetCommand("refundall");
+		m_refundAll->SetText("REFUND ALL");
+		m_refundAll->SetFooter(true);
+		m_refundAll->SetAccent(accent);
+		for (int i = 0; i < 4; ++i)
+		{
+			char name[32];
+			snprintf(name, sizeof(name), "BuyGround%d", i);
+			auto *btn = new CBuyHoverButton(this, name);
+			btn->SetFooter(true);
+			btn->SetVisible(false);
+			m_groundBtns.push_back(btn);
+		}
 		UpdateRuntimeChrome();
 	}
 
 	void UpdateRuntimeChrome()
 	{
+		const Color accent = (m_team == TEAM_CT) ? InGameUi::CT() : InGameUi::BuyGold();
 		if (m_money)
 		{
 			char money[32];
 			std::snprintf(money, sizeof(money), "$%d", std::max(0, g_buyHud.money));
 			m_money->SetText(money);
+			m_money->SetFgColor(accent);
+		}
+		if (m_nextMin)
+		{
+			char text[48];
+			if (g_buyHud.nextRoundMin > 0)
+				std::snprintf(text, sizeof(text), "Next round min  $%d", g_buyHud.nextRoundMin);
+			else
+				std::snprintf(text, sizeof(text), "Next round min  $%d",
+					std::max(0, g_buyHud.money + g_buyHud.lossBonus));
+			m_nextMin->SetText(text);
+			m_nextMin->SetFgColor(accent);
+		}
+		if (m_mates)
+			m_mates->SetText(g_buyHud.teammates[0] ? g_buyHud.teammates : "");
+		if (!m_groundBtns.empty())
+		{
+			char ground[81] = {};
+			snprintf(ground, sizeof(ground), "%s", g_buyHud.ground);
+			char *save = nullptr;
+			char *tok = strtok_r(ground, ",", &save);
+			size_t i = 0;
+			for (; tok && i < m_groundBtns.size(); ++i, tok = strtok_r(nullptr, ",", &save))
+			{
+				int ent = 0;
+				char alias[16] = {};
+				if (sscanf(tok, "%d:%15s", &ent, alias) != 2)
+				{
+					m_groundBtns[i]->SetVisible(false);
+					continue;
+				}
+				char cmd[32];
+				snprintf(cmd, sizeof(cmd), "buy_ground %d", ent);
+				m_groundBtns[i]->SetCommand(cmd);
+				char label[32];
+				snprintf(label, sizeof(label), "PICK %s", alias);
+				m_groundBtns[i]->SetText(label);
+				m_groundBtns[i]->SetVisible(true);
+				m_groundBtns[i]->SetFooter(true);
+			}
+			for (; i < m_groundBtns.size(); ++i)
+				m_groundBtns[i]->SetVisible(false);
 		}
 		if (!m_pageIsMain)
 			return;
@@ -1163,9 +1569,9 @@ private:
 		}
 		char text[80];
 		if (configured < 0)
-			std::snprintf(text, sizeof(text), "BUY TIME REMAINING  --:--");
+			std::snprintf(text, sizeof(text), "Buy Time Remaining  --:--");
 		else
-			std::snprintf(text, sizeof(text), "BUY TIME REMAINING  %02d:%02d",
+			std::snprintf(text, sizeof(text), "Buy Time Remaining  %02d:%02d",
 				remaining / 60, remaining % 60);
 		title->SetText(text);
 		title->SetContentAlignment(Label::a_center);
@@ -1264,7 +1670,7 @@ private:
 
 	void StyleButtons()
 	{
-		const Color gold = InGameViewportLook::BuyGold();
+		const Color gold = InGameUi::BuyGold();
 		for (int i = 0; i < GetChildCount(); ++i)
 		{
 			auto *btn = dynamic_cast<Button *>(GetChild(i));
@@ -1273,32 +1679,41 @@ private:
 			const char *name = btn->GetName();
 			const bool footer = name && (!strcasecmp(name, "AutobuyButton") ||
 				!strcasecmp(name, "RebuyButton") || !strcasecmp(name, "CancelButton") ||
-				!strcasecmp(name, "cancelbutton"));
+				!strcasecmp(name, "cancelbutton") || !strcasecmp(name, "RefundAllButton") ||
+				!strncasecmp(name, "BuyGround", 9));
+			const Color accent = (m_team == TEAM_CT) ? InGameUi::CT() : InGameUi::BuyGold();
 			if (auto *look = dynamic_cast<CBuyHoverButton *>(btn))
 			{
 				look->SetFooter(footer);
-				look->SetAccent(gold);
+				look->SetAccent(footer ? accent : ((m_team == TEAM_CT) ? InGameUi::CT() : InGameUi::BuyGold()));
 				continue;
 			}
 			if (footer)
-				InGameViewportLook::StyleFooterButton(btn, gold);
+				InGameUi::StyleFooterButton(btn, accent);
 			else
-				InGameViewportLook::StyleCardButton(btn, gold);
+				InGameUi::StyleCardButton(btn, gold);
 			btn->SetContentAlignment(footer ? Label::a_center : Label::a_west);
 			btn->SetTextInset(footer ? 0 : 12, 0);
 		}
-		InGameViewportLook::StyleTitle(dynamic_cast<Label *>(FindChildByName("Title")));
+		if (auto *title = dynamic_cast<Label *>(FindChildByName("Title")))
+		{
+			InGameUi::StyleTitle(title);
+			title->SetFgColor(gold);
+		}
 		if (auto *cat = dynamic_cast<Label *>(FindChildByName("selectCategory")))
 		{
 			cat->SetVisible(false);
 		}
+		const Color section = (m_team == TEAM_CT) ? InGameUi::CT() : InGameUi::BuyGold();
 		for (Label *title : m_overviewTitles)
 		{
 			if (!title)
 				continue;
-			title->SetFgColor(InGameViewportLook::TextDim());
-			title->SetPaintBackgroundEnabled(false);
+			title->SetFgColor(section);
+			title->SetPaintBackgroundEnabled(true);
 			title->SetContentAlignment(Label::a_center);
+			if (auto *look = dynamic_cast<CBuySectionLabel *>(title))
+				look->SetAccent(section);
 		}
 		if (m_money)
 		{
@@ -1309,10 +1724,10 @@ private:
 				if (font != INVALID_FONT)
 					m_money->SetFont(font);
 			}
-			m_money->SetFgColor(InGameViewportLook::BuyGold());
+			m_money->SetFgColor(InGameUi::BuyGold());
 		}
 		if (m_classCaption)
-			m_classCaption->SetFgColor(InGameViewportLook::BuyGold());
+			m_classCaption->SetFgColor(InGameUi::BuyGold());
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
 			// The CS:GO-style character is composited directly over the dimmed
@@ -1323,7 +1738,7 @@ private:
 		if (Panel *div = FindChildByName("Divider1"))
 			div->SetVisible(false);
 		if (m_plate)
-			m_plate->SetBgColor(InGameViewportLook::BuyPlate());
+			m_plate->SetBgColor(InGameUi::BuyPlate());
 	}
 
 	void RelayoutMainGrid()
@@ -1332,53 +1747,81 @@ private:
 		GetSize(w, h);
 		if (w < 400 || h < 300)
 			return;
-		// On sub-720p windows, scaling the 1280 reference literally leaves large
-		// dead margins while item names collapse into ellipses. Use the available
-		// 4:3 stage more fully there; the 1.0 cap keeps 1280+ layouts from growing.
-		const float scale = std::max(0.5f, std::min(1.0f,
-			std::min(static_cast<float>(w) / 1066.6667f, static_cast<float>(h) / 720.0f)));
-		const int stageW = std::min(w - 16, static_cast<int>(1100.0f * scale));
-		const int stageH = std::min(h - 24, static_cast<int>(640.0f * scale));
+		const float scale = std::max(0.55f, std::min(1.15f,
+			std::min(static_cast<float>(w) / 1280.0f, static_cast<float>(h) / 720.0f)));
+		const int stageW = std::min(w - 16, static_cast<int>(1200.0f * scale));
+		const int stageH = std::min(h - 16, static_cast<int>(680.0f * scale));
 		const int stageX = (w - stageW) / 2;
-		const int stageY = (h - stageH) / 2;
-		const int footerGap = std::max(4, static_cast<int>(6.0f * scale));
+		const int stageY = std::max(8, (h - stageH) / 2);
+		const int footerGap = std::max(16, static_cast<int>(22.0f * scale));
+		const int bh = std::max(26, static_cast<int>(32.0f * scale));
+		const int by = h - bh - std::max(14, static_cast<int>(18.0f * scale));
+		const int charGap = std::max(10, static_cast<int>(18.0f * scale));
+		const int charW = std::max(180, stageW * 26 / 100);
 		const int plateX = stageX;
-		const int plateW = std::min(stageW, static_cast<int>(560.0f * scale));
-		const int titleY = stageY + static_cast<int>(82.0f * scale);
-		const int titleH = std::max(22, static_cast<int>(26.0f * scale));
+		const int plateW = std::max(360, stageW - charW - charGap);
+		const int titleY = stageY + static_cast<int>(22.0f * scale);
+		const int titleH = std::max(22, static_cast<int>(28.0f * scale));
 		const int headerY = titleY + titleH;
-		const int headerH = std::max(20, static_cast<int>(24.0f * scale));
-		const int gridY = headerY + headerH + std::max(3, static_cast<int>(6.0f * scale));
-		// Six CS 1.6 entries must occupy roughly the same total height as the
-		// five-row reference instead of stretching the plate to the footer.
-		const int cellH = std::max(40, static_cast<int>(48.0f * scale));
-		const int rowGap = std::max(4, static_cast<int>(6.0f * scale));
-		const int gridBottom = gridY + cellH * 6 + rowGap * 5;
-		// Measured from the supplied 1280x720 reference. Equal-width columns
-		// erase its rhythm; equipment/pistols/grenades are narrow while the two
-		// long-name weapon groups intentionally receive more room.
-		const int baseX[5] = {9, 116, 224, 355, 497};
-		const int baseW[5] = {89, 89, 110, 122, 87};
+		const int headerH = std::max(18, static_cast<int>(24.0f * scale));
+		const int gridY = headerY + headerH + std::max(4, static_cast<int>(8.0f * scale));
+		int maxRows = 1;
+		for (const OverviewCard &card : m_overview)
+			maxRows = std::max(maxRows, card.row + 1);
+		const int rowGap = std::max(3, static_cast<int>(6.0f * scale));
+		const int colGap = std::max(6, static_cast<int>(10.0f * scale));
+		const float cardAspect = 2.20f;
+		int cellW = std::max(88, (plateW - colGap * 4) / 5);
+		int cellH = std::max(40, static_cast<int>(static_cast<float>(cellW) / cardAspect + 0.5f));
+		const int gridLimit = std::max(gridY + 80, by - std::max(28, static_cast<int>(40.0f * scale)));
+		const int naturalH = cellH * maxRows + rowGap * std::max(0, maxRows - 1);
+		if (gridY + naturalH > gridLimit && naturalH > 0)
+		{
+			const float shrink = static_cast<float>(gridLimit - gridY) / static_cast<float>(naturalH);
+			cellW = std::max(80, static_cast<int>(static_cast<float>(cellW) * shrink));
+			cellH = std::max(40, static_cast<int>(static_cast<float>(cellW) / cardAspect + 0.5f));
+		}
+		const int usedW = cellW * 5 + colGap * 4;
+		const int gridX = plateX + std::max(0, (plateW - usedW) / 2);
 		int colX[5] = {};
 		int colW[5] = {};
 		for (int col = 0; col < 5; ++col)
 		{
-			colX[col] = plateX + static_cast<int>(baseX[col] * scale);
-			colW[col] = std::max(42, static_cast<int>(baseW[col] * scale));
+			colX[col] = gridX + col * (cellW + colGap);
+			colW[col] = cellW;
 		}
+		const int gridBottom = gridY + cellH * maxRows + rowGap * std::max(0, maxRows - 1);
 		if (auto *title = FindChildByName("Title"))
 			title->SetBounds(plateX, titleY, plateW, titleH);
 		if (auto *autoBuy = dynamic_cast<Button *>(FindChildByName("AutobuyButton")))
-			autoBuy->SetText("[F3]  AUTO BUY");
+			autoBuy->SetText("F3  AUTO BUY");
 		if (auto *rebuy = dynamic_cast<Button *>(FindChildByName("RebuyButton")))
-			rebuy->SetText("[F4]  RE-BUY PREVIOUS");
+			rebuy->SetText("F4  REBUY PREVIOUS");
 		if (auto *cancel = dynamic_cast<Button *>(FindChildByName("CancelButton")))
-			cancel->SetText("[ESCAPE]  BACK");
+			cancel->SetText("ESC  BACK");
+		if (m_refundAll)
+			m_refundAll->SetText("SELL ALL");
 		HideSteamCategoryChrome();
 		if (m_plate)
 			m_plate->SetVisible(false);
+		int colRows[5] = {};
+		for (const OverviewCard &card : m_overview)
+			colRows[card.column] = std::max(colRows[card.column], card.row + 1);
+		const int platePad = std::max(3, colGap / 2);
 		for (int col = 0; col < 5; ++col)
 		{
+			if (m_columnPlates[col])
+			{
+				if (colRows[col] <= 0)
+				{
+					m_columnPlates[col]->SetVisible(false);
+					continue;
+				}
+				const int colBottom = gridY + colRows[col] * cellH + rowGap * std::max(0, colRows[col] - 1);
+				m_columnPlates[col]->SetVisible(true);
+				m_columnPlates[col]->SetBounds(colX[col] - platePad / 2, headerY,
+					colW[col] + platePad, colBottom - headerY + platePad);
+			}
 			if (m_overviewTitles[col])
 				m_overviewTitles[col]->SetBounds(colX[col], headerY, colW[col], headerH);
 		}
@@ -1386,8 +1829,14 @@ private:
 			card.button->SetBounds(colX[card.column],
 				gridY + card.row * (cellH + rowGap), colW[card.column], cellH);
 		if (m_money)
-			m_money->SetBounds(std::max(24, w * 4 / 100), h - std::max(48, static_cast<int>(56.0f * scale)),
-				std::max(140, static_cast<int>(200.0f * scale)), std::max(36, static_cast<int>(44.0f * scale)));
+			m_money->SetBounds(std::max(24, w * 4 / 100), h - std::max(72, static_cast<int>(80.0f * scale)),
+				std::max(140, static_cast<int>(200.0f * scale)), std::max(22, static_cast<int>(28.0f * scale)));
+		if (m_nextMin)
+			m_nextMin->SetBounds(std::max(24, w * 4 / 100), h - std::max(50, static_cast<int>(56.0f * scale)),
+				std::max(180, static_cast<int>(240.0f * scale)), std::max(18, static_cast<int>(22.0f * scale)));
+		if (m_mates)
+			m_mates->SetBounds(plateX, gridBottom + std::max(4, static_cast<int>(6.0f * scale)),
+				plateW, std::max(16, static_cast<int>(18.0f * scale)));
 
 		struct FooterSpec
 		{
@@ -1395,25 +1844,26 @@ private:
 			int baseW;
 		};
 		const FooterSpec specs[] = {
-			{"RebuyButton", 250},
-			{"AutobuyButton", 190},
-			{"CancelButton", 180},
+			{"RebuyButton", 160},
+			{"AutobuyButton", 120},
+			{"RefundAllButton", 100},
+			{"CancelButton", 80},
 		};
 		std::vector<Panel *> bottom;
 		std::vector<int> bottomW;
 		for (const FooterSpec &spec : specs)
 		{
-			if (Panel *p = FindChildByName(spec.name))
+			if (auto *p = dynamic_cast<Button *>(FindChildByName(spec.name)))
 			{
 				if (!p->IsVisible())
 					continue;
+				int tw = 0, th = 0;
+				p->GetContentSize(tw, th);
 				bottom.push_back(p);
-				bottomW.push_back(std::max(140, static_cast<int>(spec.baseW * scale)));
+				bottomW.push_back(std::max(static_cast<int>(spec.baseW * scale * 0.45f), tw + 24));
 			}
 		}
-		const int bh = std::max(22, static_cast<int>(26.0f * scale));
-		const int by = std::min(h - bh - std::max(12, static_cast<int>(16.0f * scale)),
-			stageY + static_cast<int>(575.0f * scale));
+		// Footer Y/H already computed above so the weapon cards can sit above it.
 		if (!bottom.empty())
 		{
 			int totalW = footerGap * static_cast<int>(bottom.size() - 1);
@@ -1426,10 +1876,19 @@ private:
 				x += bottomW[i] + footerGap;
 			}
 		}
+		int gx = plateX;
+		const int gh = std::max(18, static_cast<int>(20.0f * scale));
+		const int gy = gridBottom + std::max(22, static_cast<int>(24.0f * scale));
+		for (CBuyHoverButton *btn : m_groundBtns)
+		{
+			if (!btn || !btn->IsVisible())
+				continue;
+			btn->SetBounds(gx, gy, std::max(70, static_cast<int>(90.0f * scale)), gh);
+			gx += std::max(76, static_cast<int>(96.0f * scale));
+		}
 		if (m_character)
 		{
 			m_character->SetVisible(true);
-			const int charGap = std::max(10, static_cast<int>(16.0f * scale));
 			const int charX = plateX + plateW + charGap;
 			const int charRight = stageX + stageW - std::max(8, static_cast<int>(12.0f * scale));
 			const int charW = charRight - charX;
@@ -1448,7 +1907,7 @@ private:
 		GetSize(w, h);
 		if (w < 400 || h < 300)
 			return;
-		const float scale = std::max(0.5f, std::min(1.2f,
+		const float scale = std::max(0.55f, std::min(1.15f,
 			std::min(static_cast<float>(w) / 1280.0f, static_cast<float>(h) / 720.0f)));
 		const int stageW = std::min(w - 16, static_cast<int>(980.0f * scale));
 		const int stageH = std::min(h - 16, static_cast<int>(600.0f * scale));
@@ -1502,23 +1961,38 @@ private:
 			return ay < by;
 		});
 		const int listY = titleY + titleH;
-		const int listH = static_cast<int>(390.0f * scale);
 		const int cols = weapons.size() > 1 ? 2 : 1;
 		const int rows = weapons.empty() ? 1 :
 			(static_cast<int>(weapons.size()) + cols - 1) / cols;
-		const int cardW = (listW - gap * (cols - 1)) / cols;
-		const int rowH = (listH - gap * (rows - 1)) / rows;
+		const float cardAspect = 2.20f;
+		int cardW = (listW - gap * (cols - 1)) / std::max(1, cols);
+		int rowH = std::max(40, static_cast<int>(static_cast<float>(cardW) / cardAspect + 0.5f));
+		const int listLimit = stageY + stageH - std::max(36, static_cast<int>(44.0f * scale));
+		const int naturalH = rowH * rows + gap * std::max(0, rows - 1);
+		if (listY + naturalH > listLimit && naturalH > 0)
+		{
+			const float shrink = static_cast<float>(listLimit - listY) / static_cast<float>(naturalH);
+			cardW = std::max(80, static_cast<int>(static_cast<float>(cardW) * shrink));
+			rowH = std::max(40, static_cast<int>(static_cast<float>(cardW) / cardAspect));
+		}
+		const int usedW = cardW * cols + gap * std::max(0, cols - 1);
+		const int listX = stageX + std::max(0, (listW - usedW) / 2);
 		for (size_t i = 0; i < weapons.size(); ++i)
 		{
 			const int col = static_cast<int>(i) % cols;
 			const int row = static_cast<int>(i) / cols;
-			weapons[i]->SetBounds(stageX + col * (cardW + gap), listY + row * (rowH + gap), cardW, rowH);
+			weapons[i]->SetBounds(listX + col * (cardW + gap), listY + row * (rowH + gap), cardW, rowH);
 		}
 		if (cancel)
-			cancel->SetBounds(stageX + (stageW - static_cast<int>(145.0f * scale)) / 2,
-				stageY + static_cast<int>(575.0f * scale),
-				std::max(110, static_cast<int>(145.0f * scale)),
-				std::max(28, static_cast<int>(32.0f * scale)));
+		{
+			cancel->SetText("ESC  BACK");
+			int tw = 0, th = 0;
+			cancel->GetContentSize(tw, th);
+			const int cancelW = std::max(72, tw + 12);
+			cancel->SetBounds(stageX + (stageW - cancelW) / 2,
+				stageY + stageH - std::max(28, static_cast<int>(32.0f * scale)),
+				cancelW, std::max(22, static_cast<int>(26.0f * scale)));
+		}
 		if (Panel *info = FindChildByName("ItemInfo"))
 		{
 			info->SetVisible(true);
@@ -1557,7 +2031,7 @@ private:
 		Menu_Con("CSRETRO_BUY_LAYOUT panel=%d,%d %dx%d child=%d,%d %dx%d fit=%d",
 			px, py, pw, ph, bx, by, bw, bh, ButtonsOnPanel() ? 1 : 0);
 		int canvasX = 0, canvasY = 0, canvasW = 0, canvasH = 0;
-		InGameViewportLook::ContentCanvas(pw, ph, canvasX, canvasY, canvasW, canvasH);
+		InGameUi::ContentCanvas(pw, ph, canvasX, canvasY, canvasW, canvasH);
 		Menu_Con("CSRETRO_BUY_CANVAS view=%dx%d canvas=%d,%d %dx%d capped=%d compact=%d model=%d",
 			pw, ph, canvasX, canvasY, canvasW, canvasH,
 			(canvasW < pw * 9 / 10 || canvasH < ph * 9 / 10) ? 1 : 0,
@@ -1602,8 +2076,7 @@ public:
 		if (!surface())
 			return;
 		// CS:GO buy: the live map stays sharp. Only a light veil.
-		surface()->DrawSetColor(0, 0, 0, 48);
-		surface()->DrawFilledRect(0, 0, w, h);
+		InGameUi::PaintOverlay(w, h);
 	}
 
 	void PerformLayout() override
@@ -1626,6 +2099,8 @@ public:
 
 	void OnKeyCodeTyped(KeyCode code) override
 	{
+		if (GameConsole_IsActive())
+			return;
 		if (m_buy)
 		{
 			m_buy->OnKeyCodeTyped(code);
@@ -1726,6 +2201,7 @@ bool BuySelect_Show(Panel *root, int menuType, int validSlots)
 		gEng.pfnSetKeyDest(KEY_DEST_MENU);
 		g_keyDestPushed = true;
 	}
+	MenuEngine::ClientCmdNow("-forward;-back;-moveleft;-moveright;-jump;-speed;-duck\n");
 	MainMenu_SyncDialogVisibility();
 	return true;
 }
@@ -1741,7 +2217,7 @@ void BuySelect_Hide()
 	PauseBackdrop_Invalidate();
 	MainMenu_SyncDialogVisibility();
 	if (g_keyDestPushed && !gMenuVisible && !TeamSelect_IsActive() && !ClassSelect_IsActive() &&
-		!RadioSelect_IsActive())
+		!RadioSelect_IsActive() && !GameConsole_IsActive())
 	{
 		MenuEngine::RestoreGameKeyDest();
 		g_keyDestPushed = false;
@@ -1775,6 +2251,11 @@ void BuySelect_Shutdown()
 
 void BuySelect_AfterFrame()
 {
+	const bool console = GameConsole_IsActive();
+	if (g_overlay)
+		g_overlay->SetKeyBoardInputEnabled(!console);
+	if (g_panel)
+		g_panel->SetKeyBoardInputEnabled(!console);
 	if (g_panel && g_panel->IsVisible())
 		g_panel->ApplyPendingPage();
 }

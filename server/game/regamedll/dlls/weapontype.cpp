@@ -533,6 +533,24 @@ WeaponInfoStruct *GetWeaponInfo(int weaponID)
 	return nullptr;
 }
 
+int GetWeaponKillReward(int weaponID)
+{
+	switch (weaponID)
+	{
+	case WEAPON_AWP:
+		return 100;
+	case WEAPON_MAC10:
+	case WEAPON_UMP45:
+	case WEAPON_XM1014:
+	case WEAPON_MP5N:
+	case WEAPON_TMP:
+	case WEAPON_M3:
+		return 600;
+	default:
+		return 300;
+	}
+}
+
 WeaponInfoStruct *GetWeaponInfo(const char *weaponName)
 {
 	for (auto& info : g_weaponInfo) {

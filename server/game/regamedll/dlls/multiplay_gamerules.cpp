@@ -1,4 +1,5 @@
 #include "precompiled.h"
+#include "buy_system.h"
 
 CCStrikeGameMgrHelper g_GameMgrHelper;
 CHalfLifeMultiplay *g_pMPGameRules = nullptr;
@@ -389,6 +390,8 @@ CHalfLifeMultiplay::CHalfLifeMultiplay()
 	m_bMapHasCameras = -1;
 
 	m_iLoserBonus = m_rgRewardAccountRules[RR_LOSER_BONUS_DEFAULT];
+	m_iCTLossStage = 0;
+	m_iTerroristLossStage = 0;
 	m_iNumConsecutiveCTLoses = 0;
 	m_iNumConsecutiveTerroristLoses = 0;
 	m_iC4Guy = 0;
@@ -548,10 +551,117 @@ CHalfLifeMultiplay::CHalfLifeMultiplay()
 	m_flTimeLimit = 0.0f;
 	m_flGameStartTime = 0.0f;
 	m_bTeamBalanced = false;
+	m_bWarmupActive = false;
+	m_bWarmupFinished = false;
+	m_fWarmupStartTime = 0.0f;
+	m_fWarmupHudNext = 0.0f;
 
 #ifndef REGAMEDLL_FIXES
 	g_pMPGameRules = this;
 #endif
+}
+
+void CHalfLifeMultiplay::ClearWarmupReady()
+{
+	for (int i = 1; i <= gpGlobals->maxClients; i++)
+	{
+		CBasePlayer *pPlayer = UTIL_PlayerByIndex(i);
+		if (!UTIL_IsValidPlayer(pPlayer) || !pPlayer->CSPlayer())
+			continue;
+		pPlayer->CSPlayer()->m_bAnnouncerReady = false;
+	}
+}
+
+void CHalfLifeMultiplay::CountWarmupReady(int &ready, int &need) const
+{
+	ready = 0;
+	need = 0;
+	for (int i = 1; i <= gpGlobals->maxClients; i++)
+	{
+		CBasePlayer *pPlayer = UTIL_PlayerByIndex(i);
+		if (!UTIL_IsValidPlayer(pPlayer) || pPlayer->m_iJoiningState != JOINED)
+			continue;
+		if (pPlayer->m_iTeam != CT && pPlayer->m_iTeam != TERRORIST)
+			continue;
+		if (pPlayer->pev->deadflag != DEAD_NO)
+			continue;
+		need++;
+		if (pPlayer->IsBot() || (pPlayer->CSPlayer() && pPlayer->CSPlayer()->m_bAnnouncerReady))
+			ready++;
+	}
+}
+
+void CHalfLifeMultiplay::SendWarmupHud()
+{
+	int ready = 0, need = 0;
+	CountWarmupReady(ready, need);
+	if (gmsgWarmup)
+	{
+		MESSAGE_BEGIN(MSG_ALL, gmsgWarmup);
+			WRITE_BYTE(m_bWarmupActive ? 1 : 0);
+			WRITE_BYTE(ready);
+			WRITE_BYTE(need);
+			WRITE_BYTE(announcer_countdown.value != 0.0f ? 1 : 0);
+			WRITE_BYTE(announcer_minute.value != 0.0f ? 1 : 0);
+		MESSAGE_END();
+	}
+}
+
+void CHalfLifeMultiplay::StartWarmup()
+{
+	m_bWarmupActive = true;
+	m_bFreezePeriod = FALSE;
+	m_fWarmupStartTime = gpGlobals->time;
+	m_fWarmupHudNext = 0.0f;
+	ClearWarmupReady();
+	int limit = static_cast<int>(announcer_warmup_limit.value);
+	if (limit < 0)
+		limit = 0;
+	m_iRoundTimeSecs = limit > 0 ? limit : 1800;
+	SendWarmupHud();
+}
+
+void CHalfLifeMultiplay::EndWarmup()
+{
+	if (!m_bWarmupActive)
+		return;
+	m_bWarmupActive = false;
+	m_bWarmupFinished = true;
+	ClearWarmupReady();
+	SendWarmupHud();
+	m_flRestartRoundTime = gpGlobals->time;
+}
+
+void CHalfLifeMultiplay::SetPlayerReady(CBasePlayer *pPlayer, bool ready)
+{
+	if (!pPlayer || !pPlayer->CSPlayer() || !m_bWarmupActive)
+		return;
+	pPlayer->CSPlayer()->m_bAnnouncerReady = ready;
+	SendWarmupHud();
+}
+
+void CHalfLifeMultiplay::WarmupThink()
+{
+	if (!m_bWarmupActive)
+		return;
+
+	if (m_fWarmupHudNext <= gpGlobals->time)
+	{
+		SendWarmupHud();
+		m_fWarmupHudNext = gpGlobals->time + 1.0f;
+	}
+
+	int ready = 0, need = 0;
+	CountWarmupReady(ready, need);
+	if (need > 0 && ready >= need)
+	{
+		EndWarmup();
+		return;
+	}
+
+	const float limit = announcer_warmup_limit.value;
+	if (limit > 0.0f && gpGlobals->time >= m_fWarmupStartTime + limit)
+		EndWarmup();
 }
 
 void CHalfLifeMultiplay::RefreshSkillData()
@@ -918,6 +1028,9 @@ void EXT_FUNC CHalfLifeMultiplay::__API_HOOK(CheckWinConditions)()
 	// other player's check
 	m_bNeededPlayers = false;
 	if (!(scenarioFlags & SCENARIO_BLOCK_NEED_PLAYERS) && NeededPlayersCheck())
+		return;
+
+	if (m_bWarmupActive)
 		return;
 
 	// Assasination/VIP scenarion check
@@ -1535,6 +1648,7 @@ void CHalfLifeMultiplay::SwapAllPlayers()
 
 	// Swap Team victories
 	SWAP(m_iNumTerroristWins, m_iNumCTWins);
+	Buy_OnHalftimeSwap();
 
 	// Update the clients team score
 	UpdateTeamScores();
@@ -1771,6 +1885,8 @@ void EXT_FUNC CHalfLifeMultiplay::__API_HOOK(RestartRound)()
 
 	if (m_bCompleteReset)
 	{
+		m_bWarmupFinished = false;
+		m_bWarmupActive = false;
 		// bounds check
 		if (timelimit.value < 0)
 		{
@@ -1851,6 +1967,8 @@ void EXT_FUNC CHalfLifeMultiplay::__API_HOOK(RestartRound)()
 
 	// This makes the round timer function as the intro timer on the client side
 	m_iRoundTimeSecs = m_iIntroRoundTime;
+	if (announcer_warmup.value != 0.0f && !m_bWarmupFinished)
+		StartWarmup();
 
 	// Check to see if there's a mapping info paramater entity
 	if (g_pMapInfo)
@@ -1902,43 +2020,17 @@ void EXT_FUNC CHalfLifeMultiplay::__API_HOOK(RestartRound)()
 		temp->RePosition();
 	}
 
-	// Scale up the loser bonus when teams fall into losing streaks
-	if (m_iRoundWinStatus == WINSTATUS_TERRORISTS)	// terrorists won
+	if (m_iRoundWinStatus == WINSTATUS_TERRORISTS)
 	{
-		// check to see if they just broke a losing streak
-		if (m_iNumConsecutiveTerroristLoses > 1)
-		{
-			// this is the default losing bonus
-			m_iLoserBonus = m_rgRewardAccountRules[RR_LOSER_BONUS_MIN];
-		}
-
-		m_iNumConsecutiveTerroristLoses = 0;	// starting fresh
-		m_iNumConsecutiveCTLoses++;				// increment the number of wins the CTs have had
+		m_iNumConsecutiveTerroristLoses = (m_iNumConsecutiveTerroristLoses > 0) ? (m_iNumConsecutiveTerroristLoses - 1) : 0;
+		m_iNumConsecutiveCTLoses++;
 	}
 	else if (m_iRoundWinStatus == WINSTATUS_CTS)
 	{
-		// check to see if they just broke a losing streak
-		if (m_iNumConsecutiveCTLoses > 1)
-		{
-			// this is the default losing bonus
-			m_iLoserBonus = m_rgRewardAccountRules[RR_LOSER_BONUS_MIN];
-		}
-
-		m_iNumConsecutiveCTLoses = 0;		// starting fresh
-		m_iNumConsecutiveTerroristLoses++;	// increment the number of wins the Terrorists have had
+		m_iNumConsecutiveCTLoses = (m_iNumConsecutiveCTLoses > 0) ? (m_iNumConsecutiveCTLoses - 1) : 0;
+		m_iNumConsecutiveTerroristLoses++;
 	}
-
-	// check if the losing team is in a losing streak & that the loser bonus hasen't maxed out.
-	if (m_iNumConsecutiveTerroristLoses > 1 && m_iLoserBonus < m_rgRewardAccountRules[RR_LOSER_BONUS_MAX])
-	{
-		// help out the team in the losing streak
-		m_iLoserBonus += m_rgRewardAccountRules[RR_LOSER_BONUS_ADD];
-	}
-	else if (m_iNumConsecutiveCTLoses > 1 && m_iLoserBonus < m_rgRewardAccountRules[RR_LOSER_BONUS_MAX])
-	{
-		// help out the team in the losing streak
-		m_iLoserBonus += m_rgRewardAccountRules[RR_LOSER_BONUS_ADD];
-	}
+	Buy_OnRoundEnd(m_iRoundWinStatus);
 
 	// assign the wining and losing bonuses
 	if (m_iRoundWinStatus == WINSTATUS_TERRORISTS)	// terrorists won
@@ -1977,6 +2069,7 @@ void EXT_FUNC CHalfLifeMultiplay::__API_HOOK(RestartRound)()
 		m_iNumConsecutiveTerroristLoses = 0;
 		m_iNumConsecutiveCTLoses = 0;
 		m_iLoserBonus = m_rgRewardAccountRules[RR_LOSER_BONUS_DEFAULT];
+		Buy_ResetMatchEconomy();
 	}
 
 #ifdef REGAMEDLL_FIXES
@@ -2047,6 +2140,7 @@ void EXT_FUNC CHalfLifeMultiplay::__API_HOOK(RestartRound)()
 #endif
 
 			pPlayer->RoundRespawn();
+			Buy_ClearRound(pPlayer);
 
 #ifdef REGAMEDLL_ADD
 			FireTargets("game_entity_restart", pPlayer, nullptr, USE_TOGGLE, 0.0);
@@ -2098,6 +2192,8 @@ void EXT_FUNC CHalfLifeMultiplay::__API_HOOK(RestartRound)()
 #ifdef REGAMEDLL_ADD
 	FireTargets("game_round_start", nullptr, nullptr, USE_TOGGLE, 0.0);
 #endif
+
+	SendWarmupHud();
 }
 
 BOOL CHalfLifeMultiplay::IsThereABomber()
@@ -2462,12 +2558,15 @@ void EXT_FUNC CHalfLifeMultiplay::__API_HOOK(Think)()
 			MESSAGE_END();
 		}
 
+		if (m_bWarmupActive)
+			WarmupThink();
+
 		// Check for the end of the round.
 		if (IsFreezePeriod())
 		{
 			CheckFreezePeriodExpired();
 		}
-		else
+		else if (!m_bWarmupActive)
 		{
 			CheckRoundTimeExpired();
 		}
@@ -2818,6 +2917,9 @@ void EXT_FUNC CHalfLifeMultiplay::OnRoundFreezeEnd()
 		Q_strncpy(T_sentence, "%!MRAD_LOCKNLOAD", sizeof(T_sentence));
 	}
 
+	const bool skipDefaultRadio = announcer_countdown.value != 0.0f
+		&& !m_bMapHasEscapeZone && !m_bMapHasVIPSafetyZone;
+
 	// Reset the round time
 	m_fRoundStartTimeReal = m_fRoundStartTime = gpGlobals->time;
 
@@ -2846,15 +2948,18 @@ void EXT_FUNC CHalfLifeMultiplay::OnRoundFreezeEnd()
 
 		if (plr->m_iJoiningState == JOINED)
 		{
-			if (plr->m_iTeam == CT && !bCTPlayed)
+			if (!skipDefaultRadio)
 			{
-				plr->Radio(CT_sentence);
-				bCTPlayed = true;
-			}
-			else if (plr->m_iTeam == TERRORIST && !bTPlayed)
-			{
-				plr->Radio(T_sentence);
-				bTPlayed = true;
+				if (plr->m_iTeam == CT && !bCTPlayed)
+				{
+					plr->Radio(CT_sentence);
+					bCTPlayed = true;
+				}
+				else if (plr->m_iTeam == TERRORIST && !bTPlayed)
+				{
+					plr->Radio(T_sentence);
+					bTPlayed = true;
+				}
 			}
 
 			if (plr->m_iTeam != SPECTATOR)
@@ -3577,6 +3682,8 @@ void CHalfLifeMultiplay::InitHUD(CBasePlayer *pl)
 		}
 	}
 #endif
+
+	SendWarmupHud();
 }
 
 void CHalfLifeMultiplay::ClientDisconnected(edict_t *pClient)
@@ -3857,12 +3964,21 @@ void EXT_FUNC CHalfLifeMultiplay::__API_HOOK(PlayerSpawn)(CBasePlayer *pPlayer)
 	if (m_bMapHasBombTarget && (int)defuser_allocation.value == DEFUSERALLOCATION_RANDOM)
 		pPlayer->RemoveDefuser();
 #endif
+
+	if (m_bWarmupActive && !pPlayer->IsBot())
+	{
+		ClientPrint(pPlayer->pev, HUD_PRINTCENTER, "Warmup: F12 ready\n");
+		ClientPrint(pPlayer->pev, HUD_PRINTTALK, "Warmup: F12, or type ready in chat or console.\n");
+	}
 }
 
 LINK_HOOK_CLASS_CUSTOM_CHAIN(BOOL, CHalfLifeMultiplay, CSGameRules, FPlayerCanRespawn, (CBasePlayer *pPlayer), pPlayer)
 
 BOOL EXT_FUNC CHalfLifeMultiplay::__API_HOOK(FPlayerCanRespawn)(CBasePlayer *pPlayer)
 {
+	if (m_bWarmupActive)
+		return TRUE;
+
 #ifdef REGAMEDLL_ADD
 	if (forcerespawn.value <= 0)
 #endif
@@ -4051,7 +4167,12 @@ void EXT_FUNC CHalfLifeMultiplay::__API_HOOK(PlayerKilled)(CBasePlayer *pVictim,
 				UTIL_LogPrintf("\"%s<%i><%s><TERRORIST>\" triggered \"Assassinated_The_VIP\"\n", STRING(killer->pev->netname), GETPLAYERUSERID(killer->edict()), GETPLAYERAUTHID(killer->edict()));
 			}
 			else
-				killer->AddAccount(REWARD_KILLED_ENEMY, RT_ENEMY_KILLED);
+			{
+				int reward = REWARD_KILLED_ENEMY;
+				if (killer->m_pActiveItem)
+					reward = GetWeaponKillReward(killer->m_pActiveItem->m_iId);
+				killer->AddAccount(reward, RT_ENEMY_KILLED);
+			}
 
 			if (!(killer->m_flDisplayHistory & DHF_ENEMY_KILLED))
 			{

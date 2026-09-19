@@ -37,6 +37,14 @@ for play_txt in autobuy.txt rebuy.txt; do
 		cp -a "${ROOT}/data/ui-overrides/cstrike/${play_txt}" "${RUN}/cstrike/${play_txt}"
 	fi
 done
+if [[ -d "${ROOT}/data/ui-overrides/cstrike/resource/buy" ]]; then
+	mkdir -p "${RUN}/cstrike/resource/buy"
+	cp -a "${ROOT}/data/ui-overrides/cstrike/resource/buy/." "${RUN}/cstrike/resource/buy/"
+fi
+if [[ -d "${ROOT}/data/ui-overrides/cstrike/sound/announcer" ]]; then
+	mkdir -p "${RUN}/cstrike/sound/announcer"
+	cp -a "${ROOT}/data/ui-overrides/cstrike/sound/announcer/." "${RUN}/cstrike/sound/announcer/"
+fi
 PLAY_STAMP="$(date +%Y%m%d-%H%M%S)"
 PLAY_LOG="${RUN}/logs/play-${PLAY_STAMP}.log"
 ln -sfn "play-${PLAY_STAMP}.log" "${RUN}/logs/play-latest.log"

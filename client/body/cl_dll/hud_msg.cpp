@@ -110,7 +110,7 @@ int CHud :: MsgFunc_InitHUD( const char *pszName, int iSize, void *pbuf )
 		pList = pList->pNext;
 	}
 
-	g_iFreezeTimeOver = 0;
+	g_iFreezeTimeOver = 1;
 
 	g_FogParameters.density = 0.0f;
 	g_FogParameters.affectsSkyBox = 0;
@@ -182,6 +182,21 @@ int CHud::MsgFunc_WpnBits2( const char *pszName, int iSize, void *pbuf )
 	BufferReader reader( pszName, pbuf, iSize );
 	m_iWeaponBits2 = reader.ReadLong();
 	m_bWeaponBits2Received = true;
+	return 1;
+}
+
+int CHud::MsgFunc_BuyEco( const char *pszName, int iSize, void *pbuf )
+{
+	BufferReader reader( pszName, pbuf, iSize );
+	m_buyLossBonus = reader.ReadShort();
+	m_buyNextRoundMin = reader.ReadShort();
+	m_buyRefundCount = reader.ReadByte();
+	const char *mates = reader.ReadString();
+	const char *ground = reader.ReadString();
+	strncpy( m_buyTeammates, mates ? mates : "", sizeof(m_buyTeammates) - 1 );
+	m_buyTeammates[sizeof(m_buyTeammates) - 1] = 0;
+	strncpy( m_buyGround, ground ? ground : "", sizeof(m_buyGround) - 1 );
+	m_buyGround[sizeof(m_buyGround) - 1] = 0;
 	return 1;
 }
 

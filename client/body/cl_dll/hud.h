@@ -811,6 +811,10 @@ public:
 	// show the timer
 	// [empty]
 	CHudMsgFunc(ShowTimer);
+	CHudMsgFunc(Warmup);
+	void InitHUDData( void );
+	bool IsWarmup() const { return m_bWarmup; }
+	bool HandleReadyKey(int keynum);
 	int GetTimeRemaining() const;
 	int GetRoundDuration() const { return m_iTime; }
 
@@ -821,6 +825,18 @@ private:
 	float m_fStartTime;
 	bool m_bPanicColorChange;
 	float m_flPanicTime;
+	bool m_bWarmup;
+	int m_iWarmupReady;
+	int m_iWarmupNeed;
+	bool m_bAnnouncerCountdown;
+	bool m_bAnnouncerMinute;
+	bool m_bAnnouncerWasFreeze;
+	bool m_bAnnouncerPreparePlayed;
+	bool m_bAnnouncerBeginPlayed;
+	int m_iAnnouncerLastSpoken;
+	int m_iAnnouncerPrevRemain;
+	bool m_bAnnouncerMinutePlayed;
+	void TickAnnouncer(int remain, bool freeze);
 };
 //
 //-----------------------------------------------------
@@ -976,7 +992,17 @@ public:
 
 	inline short GetCharWidth ( unsigned char ch )
 	{
-		return m_scrinfo.charWidths[ ch ];
+		short w = m_scrinfo.charWidths[ch];
+		if (ch == ' ')
+		{
+			const short em = m_scrinfo.charWidths['0'] > 0 ? m_scrinfo.charWidths['0'] : m_scrinfo.iCharHeight;
+			const short floor = static_cast<short>(em > 0 ? em * 2 / 5 : 10);
+			if (w < floor)
+				w = floor;
+			if (w < 10)
+				w = 10;
+		}
+		return w;
 	}
 
 	inline int GetCharHeight( )
@@ -1071,6 +1097,13 @@ public:
 
 	CHudMsgFunc(Fog);
 	CHudMsgFunc(WpnBits2);
+	CHudMsgFunc(BuyEco);
+
+	int m_buyLossBonus;
+	int m_buyNextRoundMin;
+	int m_buyRefundCount;
+	char m_buyTeammates[160];
+	char m_buyGround[80];
 
 	// Screen information
 	SCREENINFO	m_scrinfo;

@@ -1,0 +1,96 @@
+site_name: CS Retro
+site_url: https://benjarogit.github.io/csretro/
+site_description: Counter-Strike-Gefühl von damals. Raum für neue Ideen.
+repo_url: https://github.com/benjarogit/csretro
+repo_name: benjarogit/csretro
+docs_dir: docs
+site_dir: site
+theme:
+  name: material
+  language: de
+  font: false
+  icon:
+    logo: material/target
+  palette:
+    - scheme: slate
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Helle Darstellung
+    - scheme: default
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Dunkle Darstellung
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: false
+      languages:
+        - locale: de
+          default: true
+          name: Deutsch
+          build: true
+        - locale: en
+          name: English
+          build: true
+          site_description: The Counter-Strike feel you remember. Room for new ideas.
+          nav_translations:
+            Start: Home
+            Spielen: Play
+            Einstieg: Getting started
+            Bedienung: Controls
+            Bilder: Screenshots
+            Projektstatus: Project status
+            Entwickeln: Develop
+            Architektur: Architecture
+            Mitmachen: Contributing
+            Dokumentation: Documentation
+            Herkunft: Origins
+            Lizenzen: Licenses
+nav:
+  - Start: index.md
+  - Spielen:
+      - Einstieg: getting-started.md
+      - Bedienung: controls.md
+      - Bilder: screenshots.md
+      - Projektstatus: status.md
+  - Entwickeln:
+      - Build: build.md
+      - Architektur: architecture.md
+      - Mitmachen: contributing.md
+      - Dokumentation: documentation.md
+  - Herkunft:
+      - Credits: credits.md
+      - Upstream: upstream.md
+      - Lizenzen: licenses.md
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+extra_css:
+  - assets/stylesheets/extra.css
+validation:
+  nav:
+    omitted_files: info
+  links:
+    not_found: warn
+    unrecognized_links: warn
+    anchors: warn

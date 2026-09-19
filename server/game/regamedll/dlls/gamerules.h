@@ -127,8 +127,8 @@ enum RewardAccount
 	REWARD_BOMB_DEFUSED             = 3250,
 	REWARD_BOMB_PLANTED             = 800,
 	REWARD_BOMB_EXPLODED            = 3250,
-	REWARD_CTS_WIN                  = 3000,
-	REWARD_TERRORISTS_WIN           = 3000,
+	REWARD_CTS_WIN                  = 3250,
+	REWARD_TERRORISTS_WIN           = 3250,
 	REWARD_ALL_HOSTAGES_RESCUED     = 2500,
 
 	// the end round was by the expiration time
@@ -138,8 +138,8 @@ enum RewardAccount
 
 	// loser bonus
 	REWARD_LOSER_BONUS_DEFAULT      = 1400,
-	REWARD_LOSER_BONUS_MIN          = 1500,
-	REWARD_LOSER_BONUS_MAX          = 3000,
+	REWARD_LOSER_BONUS_MIN          = 1400,
+	REWARD_LOSER_BONUS_MAX          = 3400,
 	REWARD_LOSER_BONUS_ADD          = 500,
 
 	REWARD_RESCUED_HOSTAGE          = 750,
@@ -736,6 +736,14 @@ public:
 	float GetRoundRestartDelay() const;
 
 	bool IsGameStarted() const { return m_bGameStarted; }
+	bool IsWarmup() const { return m_bWarmupActive; }
+	void StartWarmup();
+	void EndWarmup();
+	void WarmupThink();
+	void SendWarmupHud();
+	void ClearWarmupReady();
+	void CountWarmupReady(int &ready, int &need) const;
+	void SetPlayerReady(CBasePlayer *pPlayer, bool ready);
 
 	// has a style of gameplay when aren't any teams
 	bool IsFreeForAll() const;
@@ -795,6 +803,8 @@ public:
 	int m_iC4Timer;
 	int m_iC4Guy;							// The current Terrorist who has the C4.
 	int m_iLoserBonus;						// the amount of money the losing team gets. This scales up as they lose more rounds in a row
+	int m_iCTLossStage;
+	int m_iTerroristLossStage;
 	int m_iNumConsecutiveCTLoses;			// the number of rounds the CTs have lost in a row.
 	int m_iNumConsecutiveTerroristLoses;	// the number of rounds the Terrorists have lost in a row.
 
@@ -849,6 +859,10 @@ protected:
 	float m_flTimeLimit;
 	float m_flGameStartTime;
 	bool m_bTeamBalanced;
+	bool m_bWarmupActive;
+	bool m_bWarmupFinished;
+	float m_fWarmupStartTime;
+	float m_fWarmupHudNext;
 };
 
 typedef struct mapcycle_item_s

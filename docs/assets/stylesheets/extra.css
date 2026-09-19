@@ -1,0 +1,9 @@
+:root { --md-primary-fg-color: #252722; --md-accent-fg-color: #d7ad43; }
+[data-md-color-scheme="slate"] { --md-default-bg-color: #1b1d1b; }
+.md-typeset h1 { font-weight: 700; letter-spacing: -.035em; }
+.md-typeset a { text-underline-offset: .18em; }
+.md-typeset img { border-radius: .35rem; height: auto; }
+.md-typeset .hero { border-left: .25rem solid #d7ad43; padding: .25rem 1rem; margin: 1.5rem 0; }
+.md-typeset .hero p { font-size: 1.15rem; line-height: 1.5; }
+.md-typeset .caption { font-size: .75rem; opacity: .85; margin-top: -.5rem; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }

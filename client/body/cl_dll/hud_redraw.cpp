@@ -108,6 +108,11 @@ int CHud :: Redraw( float flTime, int intermission )
 		buy.money = m_Money.GetMoney();
 		buy.roundRemaining = m_Timer.GetTimeRemaining();
 		buy.roundDuration = m_Timer.GetRoundDuration();
+		buy.lossBonus = m_buyLossBonus;
+		buy.nextRoundMin = m_buyNextRoundMin;
+		buy.refundCount = m_buyRefundCount;
+		strncpy(buy.teammates, m_buyTeammates, sizeof(buy.teammates) - 1);
+		strncpy(buy.ground, m_buyGround, sizeof(buy.ground) - 1);
 		const char *modelSrc = nullptr;
 		if (cl_entity_t *local = gEngfuncs.GetLocalPlayer())
 		{

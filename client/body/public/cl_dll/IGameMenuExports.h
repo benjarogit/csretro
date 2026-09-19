@@ -64,6 +64,11 @@ struct BuyHudState
 	int roundRemaining;
 	int roundDuration;
 	char model[32];
+	int lossBonus;
+	int nextRoundMin;
+	int refundCount;
+	char teammates[160];
+	char ground[80];
 };
 
 class IGameMenuExports : public IBaseInterface

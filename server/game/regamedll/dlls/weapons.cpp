@@ -220,6 +220,8 @@ struct {
 	{ AMMO_HEGRENADE,    "HEGrenade" },
 	{ AMMO_SMOKEGRENADE, "SmokeGrenade" },
 	{ AMMO_C4,           "C4" },
+	{ AMMO_MOLOTOV,      "Molotov" },
+	{ AMMO_INCGRENADE,   "Incgrenade" },
 };
 #endif
 

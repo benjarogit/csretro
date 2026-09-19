@@ -6,10 +6,18 @@
 #include "cl_util.h"
 #include "cl_entity.h"
 #include "entity_types.h"
+#include "const.h"
 
 #include <string.h>
 
+enum
+{
+	CSRETRO_STUDIO_SNAP_MAX = 256
+};
+
 static CSRETRO_EntCopy s_ents[CSRETRO_COPY_MAX];
+static cl_entity_t s_studio_snaps[CSRETRO_STUDIO_SNAP_MAX];
+static int s_snap_count = 0;
 static int s_count = 0;
 static int s_overflow = 0;
 static CSRETRO_SceneStats s_stats;
@@ -44,6 +52,7 @@ static int Classify( int type, const cl_entity_t *ent, int model_type )
 void CSRETRO_Scene_Clear( void )
 {
 	s_count = 0;
+	s_snap_count = 0;
 	s_overflow = 0;
 	memset( &s_stats, 0, sizeof( s_stats ) );
 }
@@ -94,6 +103,22 @@ void CSRETRO_Scene_Add( int type, struct cl_entity_s *ent )
 	dst->aiment = ent->curstate.aiment;
 	dst->body = ent->curstate.body;
 	dst->kind = kind;
+	dst->snap_index = -1;
+	dst->is_viewmodel = ( gEngfuncs.GetViewModel() == ent ) ? 1 : 0;
+	dst->is_follow = ( ent->curstate.movetype == MOVETYPE_FOLLOW ) ? 1 : 0;
+	dst->is_preview = ( ent->curstate.effects & EF_CSRETRO_PREVIEW ) ? 1 : 0;
+	if( ( kind == CSRETRO_KIND_STUDIO || kind == CSRETRO_KIND_STUDIO_LOCAL )
+		&& s_snap_count < CSRETRO_STUDIO_SNAP_MAX )
+	{
+		s_studio_snaps[s_snap_count] = *ent;
+		dst->snap_index = s_snap_count++;
+	}
+	if( dst->is_follow )
+		s_stats.studio_follow++;
+	if( dst->is_viewmodel )
+		s_stats.studio_viewmodel++;
+	if( dst->is_preview )
+		s_stats.studio_preview++;
 
 	s_stats.mirrored = s_count;
 	if( kind == CSRETRO_KIND_TENT_SPRITE )
@@ -135,4 +160,18 @@ void CSRETRO_Scene_NoteDrawn( int kind )
 		s_stats.tent_drawn++;
 	else if( kind == CSRETRO_KIND_NORMAL_SPRITE )
 		s_stats.normal_drawn++;
+	else if( kind == CSRETRO_KIND_STUDIO )
+		s_stats.studio_drawn++;
+}
+
+void CSRETRO_Scene_NoteAttempted( void )
+{
+	s_stats.studio_attempted++;
+}
+
+struct cl_entity_s *CSRETRO_Scene_StudioSnap( int snap_index )
+{
+	if( snap_index < 0 || snap_index >= s_snap_count )
+		return NULL;
+	return &s_studio_snaps[snap_index];
 }

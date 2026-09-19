@@ -3,6 +3,7 @@
 #include "render_world.h"
 #include "render_scene.h"
 #include "render_sprite.h"
+#include "render_studio.h"
 
 #include "hud.h"
 #include "cl_util.h"
@@ -23,9 +24,11 @@ static int s_normal_crc_logged = 0;
 static int s_tent_proof_logged = 0;
 static int s_tent_seen = 0;
 static int s_nodepth_try = 0;
+static int s_studio_crc_logged = 0;
 static char s_proof_map[64];
 static float s_probe_start = 0.0f;
 static int s_probe_step = 0;
+static int s_probe_ak = 0;
 
 static void ResetSpriteProof( void )
 {
@@ -34,6 +37,7 @@ static void ResetSpriteProof( void )
 	s_tent_proof_logged = 0;
 	s_tent_seen = 0;
 	s_nodepth_try = 0;
+	s_studio_crc_logged = 0;
 	CSRETRO_Sprite_ResetDump();
 	CSRETRO_Sprite_SetNoDepth( 0 );
 }
@@ -263,10 +267,41 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_Sprite_SetNoDepth( s_nodepth_try == 1 );
 		CSRETRO_Sprite_DrawList( org, ang, &scene );
 		CSRETRO_Sprite_SetNoDepth( 0 );
-		CSRETRO_World_GetStats( &st );
-		dump = s_dump && s_dump->value != 0.0f;
-		memset( &proof, 0, sizeof( proof ) );
-		CSRETRO_Backend_EndOffscreen( &proof, 1 );
+		{
+			CSRETRO_OffscreenProof after_sprites;
+			memset( &after_sprites, 0, sizeof( after_sprites ) );
+			CSRETRO_Backend_SampleProof( &after_sprites );
+			CSRETRO_Backend_PrepareImmediateDraw();
+			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+			CSRETRO_Studio_DrawList( &scene );
+			CSRETRO_World_GetStats( &st );
+			dump = s_dump && s_dump->value != 0.0f;
+			memset( &proof, 0, sizeof( proof ) );
+			CSRETRO_Backend_EndOffscreen( &proof, 1 );
+			if( scene.studio_attempted > 0 && s_studio_crc_logged != 1 )
+			{
+				int differ = after_sprites.crc != proof.crc ? 1 : 0;
+				if( s_studio_crc_logged == 0 )
+				{
+					gEngfuncs.Con_Printf(
+						"CS Retro: offscreen studio crc sprites=%08x full=%08x differ=%i attempted=%i drawn=%i\n",
+						after_sprites.crc, proof.crc, differ,
+						scene.studio_attempted, scene.studio_drawn );
+					s_studio_crc_logged = differ ? 1 : -1;
+					if( differ )
+						gEngfuncs.Con_Printf(
+							"CS Retro: offscreen studio proof sprites_crc=%08x full_crc=%08x differ=1 drawn=%i\n",
+							after_sprites.crc, proof.crc, scene.studio_drawn );
+				}
+				else if( differ )
+				{
+					s_studio_crc_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: offscreen studio proof sprites_crc=%08x full=%08x differ=1 drawn=%i\n",
+						after_sprites.crc, proof.crc, scene.studio_drawn );
+				}
+			}
+		}
 		proof.draw_executed = st.captured && st.tris > 0;
 
 		if( !s_proof_logged || strncmp( s_proof_map, st.map, sizeof( s_proof_map ) ) != 0 )
@@ -291,8 +326,13 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				"CS Retro: Normal sprite mirrored: %i drawn: %i\n",
 				scene.normal_sprite, scene.normal_drawn );
 			gEngfuncs.Con_Printf(
-				"CS Retro: Studio classified: %i local: %i (not drawn) brush: %i strategy=deferred\n",
-				scene.studio, scene.studio_local, scene.brush );
+				"CS Retro: Studio classified: %i local: %i follow: %i viewmodel: %i preview: %i attempted: %i drawn: %i (events off, player=C)\n",
+				scene.studio, scene.studio_local, scene.studio_follow,
+				scene.studio_viewmodel, scene.studio_preview,
+				scene.studio_attempted, scene.studio_drawn );
+			gEngfuncs.Con_Printf(
+				"CS Retro: brush: %i strategy=deferred\n",
+				scene.brush );
 		}
 		if( scene.normal_drawn > 0 && s_normal_crc_logged != 1 )
 		{
@@ -369,6 +409,22 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			int px3c = s_probe_seq->value >= 2.0f;
 			if( px3c )
 			{
+				if( s_probe_ak == 0 && elapsed >= 3.0f )
+				{
+					float ang[3] = { 48.0f, 0.0f, 0.0f };
+					s_probe_ak = 1;
+					gEngfuncs.GetViewAngles( ang );
+					ang[0] = 48.0f;
+					gEngfuncs.SetViewAngles( ang );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq give ak47\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; give weapon_ak47\n" );
+				}
+				else if( s_probe_ak == 1 && elapsed >= 3.8f )
+				{
+					s_probe_ak = 2;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq drop ak47\n" );
+					gEngfuncs.pfnClientCmd( "drop\n" );
+				}
 				if( s_probe_step == 0 && elapsed >= 4.0f )
 				{
 					s_probe_step = 1;

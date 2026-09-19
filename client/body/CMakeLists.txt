@@ -42,6 +42,7 @@ set(CS_SOURCES
     "${RENDER_DIR}/render_world.cpp"
     "${RENDER_DIR}/render_scene.cpp"
     "${RENDER_DIR}/render_sprite.cpp"
+    "${RENDER_DIR}/render_studio.cpp"
 )
 
 if(NOT HAVE_STRLCPY)

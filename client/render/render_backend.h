@@ -79,6 +79,9 @@ typedef struct CSRETRO_GL_s
 	void ( *AlphaFunc )( unsigned int func, float ref );
 	void ( *BlendEquation )( unsigned int mode );
 	void ( *Vertex3fv )( const float *v );
+	void ( *DepthRange )( double n, double f );
+	void ( *PolygonMode )( unsigned int face, unsigned int mode );
+	void ( *ShadeModel )( unsigned int mode );
 } CSRETRO_GL;
 
 extern CSRETRO_GL gXRGL;

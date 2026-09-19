@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.1.16 — 2026-09-20
+
+### Renderer
+
+- PX4A: Non-player studio models draw offscreen through the existing CS GameStudioModelRenderer (`STUDIO_RENDER` only). Snapshots are copies; `CurrentEntity` / `CurrentModel` are restored. Player, viewmodel, `MOVETYPE_FOLLOW`, and previews stay out of this slice.
+- GL isolation now also saves depth range, polygon mode, shade model, and texenv. `GL_RenderFrame` stays 0. Player/viewmodel follow in [#9](https://github.com/benjarogit/csretro/issues/9) / [#10](https://github.com/benjarogit/csretro/issues/10). Brush/EFX/triangles remain [#7](https://github.com/benjarogit/csretro/issues/7).
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.15 — 2026-09-20
 
 ### Renderer

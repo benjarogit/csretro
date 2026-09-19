@@ -473,3 +473,16 @@ Spiegel = Kopie, keine Live-Pointer über Frames. Model-Pointer nur im Map-/Fram
 **Player:** Variante C (nicht doppelt zeichnen) bis Safety A/B trägt. **Viewmodel:** PX4C (DepthRange, Events, Wick, righthand). **FOLLOW:** eigener Slice (Parent in Mirror-Liste, `StudioMergeBones`). **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
 
 Erster Draw-Slice (PX4A.1): `ET_NORMAL` + `mod_studio`, kein Viewmodel, kein Player, kein `MOVETYPE_FOLLOW`, nur `STUDIO_RENDER`.
+
+**PX4A Implementation 2026-09-20**
+
+- Snapshot: volle `cl_entity_t`-Kopie inkl. `curstate`/`latched`/`attachment`. Kein Live-Pointer über Frames. Model-Pointer nur Map-/Frame-Lebensdauer.
+- Draw: `R_SetCurrentEntity(snap)` → `g_StudioRenderer.StudioDrawModel(STUDIO_RENDER)` → restore Entity + `R_SetCurrentModel`. `kRenderFxDeadPlayer` übersprungen (würde `StudioDrawPlayer` ziehen).
+- `GetViewInfo` / Frustum während `GL_RenderFrame` können vom vorherigen Frame stammen (`R_SetupFrustum` kommt erst in `R_RenderScene`). Für den ersten Non-Player-Slice akzeptiert: `R_StudioCheckBBox` cullt mit diesem stale Frustum.
+- `R_SetCurrentEntity(NULL)` setzt `RI.currentmodel` nicht zurück — deshalb zusätzlich `R_SetCurrentModel(saved)`.
+- `R_RunViewmodelEvents` nach return 0 setzt `RI.currententity = tr.viewent` selbst. Restore bleibt Pflicht.
+- GL-Isolation erweitert: FBO, Viewport, Depth-Range/Test/Write, Blend, Alpha, Cull, TMU, Texenv, Matrizen, Color, Polygon-Mode, Shade-Model, CurrentEntity/CurrentModel.
+- Pixelproof `de_aztec`: `models/skeleton.mdl` index 217, attempted=8 drawn=8, `sprites_crc=0a25ad1a full=010c70c2 differ=1`, `events=0`. Player `local: 1` nicht gezeichnet (C). FOLLOW/Viewmodel/Preview 0.
+- Probe: `./scripts/px4a-offscreen-probe.sh` PASS. PX3C-Regression PASS. Movement-Gate PASS. Mapchange + `vid_setmode` im selben Lauf. `GL_RenderFrame` immer 0.
+- Player C, Viewmodel PX4C, FOLLOW eigener Slice, Previews geschützt. `CL_UpdateLatchedVars` weiter NULL.
+- `return 1` gesperrt: Brush, Engine-EFX, Client-Triangles, Player, Viewmodel, Vis.

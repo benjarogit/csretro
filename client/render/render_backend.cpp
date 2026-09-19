@@ -72,6 +72,13 @@
 #define GL_BLEND_EQUATION 0x8009
 #define GL_CURRENT_COLOR 0x0B00
 #define GL_FUNC_ADD 0x8006
+#define GL_DEPTH_RANGE 0x0B70
+#define GL_POLYGON_MODE 0x0B40
+#define GL_SHADE_MODEL 0x0B54
+#define GL_FRONT_AND_BACK 0x0408
+#define GL_FILL 0x1B02
+#define GL_FLAT 0x1D00
+#define GL_TEXTURE_ENV_MODE 0x2200
 
 CSRETRO_GL gXRGL;
 
@@ -153,6 +160,11 @@ typedef struct GLState_s
 	float alpha_ref;
 	int blend_eq;
 	float color[4];
+	float depth_range[2];
+	int polygon_mode[2];
+	int shade_model;
+	int texenv0;
+	int texenv1;
 	int saved;
 } GLState;
 
@@ -210,6 +222,9 @@ int CSRETRO_Backend_Init( struct render_api_s *api )
 	LOAD1( AlphaFunc, "glAlphaFunc" );
 	LOAD2( BlendEquation, "glBlendEquation", "glBlendEquationEXT" );
 	LOAD1( Vertex3fv, "glVertex3fv" );
+	LOAD1( DepthRange, "glDepthRange" );
+	LOAD1( PolygonMode, "glPolygonMode" );
+	LOAD1( ShadeModel, "glShadeModel" );
 
 	pglGenFramebuffers = (PFN_GEN)LoadProc( "glGenFramebuffers", "glGenFramebuffersEXT" );
 	pglDeleteFramebuffers = (PFN_DEL)LoadProc( "glDeleteFramebuffers", "glDeleteFramebuffersEXT" );
@@ -356,7 +371,18 @@ static void SaveState( void )
 	{
 		gXRGL.GetFloatv( GL_ALPHA_TEST_REF, &s_saved.alpha_ref );
 		gXRGL.GetFloatv( GL_CURRENT_COLOR, s_saved.color );
+		gXRGL.GetFloatv( GL_DEPTH_RANGE, s_saved.depth_range );
 	}
+	if( !s_saved.depth_range[1] )
+		s_saved.depth_range[1] = 1.0f;
+	gXRGL.GetIntegerv( GL_POLYGON_MODE, s_saved.polygon_mode );
+	if( !s_saved.polygon_mode[0] )
+		s_saved.polygon_mode[0] = (int)GL_FILL;
+	if( !s_saved.polygon_mode[1] )
+		s_saved.polygon_mode[1] = (int)GL_FILL;
+	gXRGL.GetIntegerv( GL_SHADE_MODEL, &s_saved.shade_model );
+	if( !s_saved.shade_model )
+		s_saved.shade_model = (int)GL_FLAT;
 	if( !s_saved.blend_eq )
 		s_saved.blend_eq = (int)GL_FUNC_ADD;
 	gXRGL.GetIntegerv( GL_CULL_FACE_MODE, &s_saved.cull_mode );
@@ -374,10 +400,12 @@ static void SaveState( void )
 		if( gXRGL.IsEnabled )
 			s_saved.tex2d1 = gXRGL.IsEnabled( GL_TEXTURE_2D );
 		gXRGL.GetIntegerv( GL_TEXTURE_BINDING_2D, &s_saved.tex1 );
+		gXRGL.GetIntegerv( GL_TEXTURE_ENV_MODE, &s_saved.texenv1 );
 		gXRGL.ActiveTexture( GL_TEXTURE0 );
 		if( gXRGL.IsEnabled )
 			s_saved.tex2d0 = gXRGL.IsEnabled( GL_TEXTURE_2D );
 		gXRGL.GetIntegerv( GL_TEXTURE_BINDING_2D, &s_saved.tex0 );
+		gXRGL.GetIntegerv( GL_TEXTURE_ENV_MODE, &s_saved.texenv0 );
 	}
 	else
 		gXRGL.GetIntegerv( GL_TEXTURE_BINDING_2D, &s_saved.tex0 );
@@ -414,6 +442,8 @@ static void RestoreState( void )
 			gXRGL.Enable( GL_TEXTURE_2D );
 		else
 			gXRGL.Disable( GL_TEXTURE_2D );
+		if( gXRGL.TexEnvi && s_saved.texenv1 )
+			gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, s_saved.texenv1 );
 		gXRGL.ActiveTexture( GL_TEXTURE0 );
 		if( gXRGL.BindTexture )
 			gXRGL.BindTexture( GL_TEXTURE_2D, (unsigned int)s_saved.tex0 );
@@ -421,6 +451,8 @@ static void RestoreState( void )
 			gXRGL.Enable( GL_TEXTURE_2D );
 		else
 			gXRGL.Disable( GL_TEXTURE_2D );
+		if( gXRGL.TexEnvi && s_saved.texenv0 )
+			gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, s_saved.texenv0 );
 		gXRGL.ActiveTexture( (unsigned int)s_saved.active_tex );
 	}
 	else if( gXRGL.BindTexture )
@@ -456,6 +488,16 @@ static void RestoreState( void )
 		gXRGL.BlendEquation( (unsigned int)s_saved.blend_eq );
 	if( gXRGL.Color4f )
 		gXRGL.Color4f( s_saved.color[0], s_saved.color[1], s_saved.color[2], s_saved.color[3] );
+	if( gXRGL.DepthRange )
+		gXRGL.DepthRange( (double)s_saved.depth_range[0], (double)s_saved.depth_range[1] );
+	if( gXRGL.PolygonMode )
+	{
+		gXRGL.PolygonMode( GL_FRONT_AND_BACK, (unsigned int)s_saved.polygon_mode[0] );
+		if( s_saved.polygon_mode[1] && s_saved.polygon_mode[1] != s_saved.polygon_mode[0] )
+			gXRGL.PolygonMode( GL_BACK, (unsigned int)s_saved.polygon_mode[1] );
+	}
+	if( gXRGL.ShadeModel && s_saved.shade_model )
+		gXRGL.ShadeModel( (unsigned int)s_saved.shade_model );
 	if( gXRGL.DepthMask )
 		gXRGL.DepthMask( s_saved.depth_mask );
 	if( gXRGL.DepthFunc && s_saved.depth_func )
@@ -589,6 +631,14 @@ void CSRETRO_Backend_PrepareImmediateDraw( void )
 		gXRGL.Disable( GL_BLEND );
 	if( gXRGL.Color4f )
 		gXRGL.Color4f( 1.0f, 1.0f, 1.0f, 1.0f );
+	if( gXRGL.DepthRange )
+		gXRGL.DepthRange( 0.0, 1.0 );
+	if( gXRGL.PolygonMode )
+		gXRGL.PolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+	if( gXRGL.ShadeModel )
+		gXRGL.ShadeModel( GL_FLAT );
+	if( gXRGL.TexEnvi )
+		gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
 }
 
 void CSRETRO_Backend_BindTexture( int tmu, unsigned int texnum )

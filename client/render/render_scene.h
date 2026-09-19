@@ -27,6 +27,10 @@ typedef struct CSRETRO_EntCopy_s
 	int aiment;
 	int body;
 	int kind; // CSRETRO_KIND_*
+	int snap_index; // studio snapshot slot, or -1
+	int is_viewmodel;
+	int is_follow;
+	int is_preview;
 } CSRETRO_EntCopy;
 
 enum
@@ -51,8 +55,15 @@ typedef struct CSRETRO_SceneStats_s
 	int other;
 	int tent_drawn;
 	int normal_drawn;
+	int studio_follow;
+	int studio_viewmodel;
+	int studio_preview;
+	int studio_attempted;
+	int studio_drawn;
 	int overflow;
 } CSRETRO_SceneStats;
+
+struct cl_entity_s *CSRETRO_Scene_StudioSnap( int snap_index );
 
 void CSRETRO_Scene_Clear( void );
 void CSRETRO_Scene_Add( int type, struct cl_entity_s *ent );
@@ -60,3 +71,4 @@ int CSRETRO_Scene_Count( void );
 const CSRETRO_EntCopy *CSRETRO_Scene_Get( int index );
 void CSRETRO_Scene_GetStats( CSRETRO_SceneStats *out );
 void CSRETRO_Scene_NoteDrawn( int kind );
+void CSRETRO_Scene_NoteAttempted( void );

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.9 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- PX2 visual certification against `17bd79f`: Team/class/buy previews, T/CT spawn, viewmodel, HUD, and HE/Smoke/Flash still draw through the Xash fallback (`GL_RenderFrame` returns 0). Issue #4 closed. No renderer product change.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.8 — 2026-09-19
 
 ### Architecture

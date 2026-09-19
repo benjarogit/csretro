@@ -3,7 +3,7 @@
 Stand: 2026-09-19. Gegen CS Retro `76ee12f` (v0.1.6). Kein Produktcode.
 Status-Wörter: **CONFIRMED** (im Baum/Remote nachgeprüft), **INFERRED** (folgt aus Code, nicht runtime-geprüft), **UNKNOWN** (nicht belegt), **DEFERRED** (bewusst später).
 
-Issues: [#1 Movement Replay](https://github.com/benjarogit/csretro/issues/1), [#2 Incendiary In-Game](https://github.com/benjarogit/csretro/issues/2), [#3 erster M1 Granaten](https://github.com/benjarogit/csretro/issues/3), [#4 PX2-Brücke](https://github.com/benjarogit/csretro/issues/4). Alle vier bleiben offen.
+Issues: [#1 Movement Replay](https://github.com/benjarogit/csretro/issues/1), [#2 Incendiary In-Game](https://github.com/benjarogit/csretro/issues/2), [#3 erster M1 Granaten](https://github.com/benjarogit/csretro/issues/3) bleiben offen. [#4 PX2-Brücke](https://github.com/benjarogit/csretro/issues/4) visuell verifiziert 2026-09-20.
 
 ## Pin
 
@@ -148,11 +148,12 @@ Nicht: PrimeXT-Copy, ImGui, Studio, PhysX, Shader, Inferno.
 | Disconnect / Reconnect | CONFIRMED | `Host_EndGame: disconnected` danach erneut `Spawn Server: de_dust` |
 | Video-Reinit | CONFIRMED | Xash hat kein `vid_restart`; `vid_setmode 1024 768` / `1280 720` ohne Crash. Handshake läuft nur beim Client-Load, Callbacks bleiben. |
 | Shutdown | CONFIRMED | Probe endete mit `quit`, Exit 0 |
-| Team / Klasse / Buy-Vorschau | UNKNOWN | Menüs nicht geöffnet; Pfade unangetastet |
-| Pixelgleichheit vs. vor PX2 | INFERRED | return 0 → Xash `R_RenderScene`; kein Inhaber-Screenshot |
-| Join als Teamspieler + Viewmodel | UNKNOWN | `game_playerspawn` ja, kein Team/Class-Pick |
+| Team / Klasse / Buy-Vorschau | CONFIRMED | Isolierter Lauf 2026-09-20, `build/px2-cert-shots/`. Team T+CT-Modelle+Embleme; Klasse 4×T und 4×CT; Buy-Raster + Player-Preview beider Teams |
+| Pixelgleichheit vs. vor PX2 | INFERRED | return 0 → Xash `R_RenderScene`; kein Pixeldiff, keine offensichtliche Regression |
+| Join als Teamspieler + Viewmodel | CONFIRMED | T-Spawn Glock + HUD; CT-Spawn USP + HUD; Welt `de_dust` sichtbar |
+| HE / Smoke / Flash sichtbar | CONFIRMED | HE-Viewmodel + Explosion; Smoke-Viewmodel + Wolke; Flash-Viewmodel + Wurf-Entity. Nicht #2-DoD |
 
-#1–#3 bleiben PX0-Verifikation. #4: implemented / verification pending (kein Inhaber-PASS). PX3 nicht gestartet.
+#1–#3 bleiben PX0-Verifikation. #4 visuell PASS 2026-09-20. PX3-Produktcode nicht gestartet. `GL_RenderFrame` bleibt 0.
 
 ## Movement-Review (76ee12f, kein neues Contract-Issue)
 

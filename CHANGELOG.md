@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.10 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- PX3A frame-composition research: `GL_RenderFrame → 1` skips all of Xash `R_RenderScene` (world, entities, both EFX passes, client triangles, viewmodel). Recommended strategy C — build world technique offscreen while the callback still returns 0. No renderer product change.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.9 — 2026-09-20
 
 ### Architektur / Dokumentation

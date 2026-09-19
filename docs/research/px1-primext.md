@@ -3,7 +3,7 @@
 Stand: 2026-09-19. Gegen CS Retro `76ee12f` (v0.1.6). Kein Produktcode.
 Status-Wörter: **CONFIRMED** (im Baum/Remote nachgeprüft), **INFERRED** (folgt aus Code, nicht runtime-geprüft), **UNKNOWN** (nicht belegt), **DEFERRED** (bewusst später).
 
-Issues: [#1 Movement Replay](https://github.com/benjarogit/csretro/issues/1), [#2 Incendiary In-Game](https://github.com/benjarogit/csretro/issues/2), [#3 erster M1 Granaten](https://github.com/benjarogit/csretro/issues/3) bleiben offen. [#4 PX2-Brücke](https://github.com/benjarogit/csretro/issues/4) visuell verifiziert 2026-09-20.
+Issues: [#1 Movement Replay](https://github.com/benjarogit/csretro/issues/1), [#2 Incendiary In-Game](https://github.com/benjarogit/csretro/issues/2), [#3 erster M1 Granaten](https://github.com/benjarogit/csretro/issues/3) bleiben offen. [#4 PX2-Brücke](https://github.com/benjarogit/csretro/issues/4) visuell verifiziert 2026-09-20. [#5 PX3B](https://github.com/benjarogit/csretro/issues/5) nicht gestartet.
 
 ## Pin
 
@@ -166,3 +166,157 @@ Der alte ~7k-Diff auf `server/.../pm_shared.cpp` in `76ee12f` ist Format/Lockste
 ## Docs-Links
 
 MkDocs-i18n: `architecture.md` / `upstream.md` in der Site sind keine toten Links. Tote internen ROLE-Pfade (`docs/BOTS.md`, `docs/SERVER.md`, `docs/ROLLEN.md`) wurden in bestehenden Dateien nachgezogen. HUD/Konsole: `76ee12f` enthält einen gezielten Console-Fix; ohne aktuelle Repro kein Issue.
+
+## PX3A — Frame-Kompositionsvertrag (2026-09-20)
+
+Kein Produktcode. `GL_RenderFrame` bleibt 0. Leitzaun: **`return 1` erst wenn klar ist, wer jeden notwendigen sichtbaren Pass besitzt.**
+
+### Xash frame coverage
+
+CONFIRMED `engine/engine/client/cl_view.c` `V_RenderView` → `GL_RenderFrame` (`cl_view.c:418`) → `ref.dllFuncs.GL_RenderFrame` → `engine/ref/gl/gl_rmain.c` `R_RenderFrame` (`gl_rmain.c:1079`).
+
+Normaler World-Frame **nur wenn** Client-`GL_RenderFrame` fehlt oder **0** zurückgibt:
+
+```text
+R_RenderFrame
+  R_SetupRefParams
+  [Client GL_RenderFrame]          → 0
+  R_RunViewmodelEvents             (wenn nicht RF_ONLY_CLIENTDRAW)
+  R_RenderScene                    gl_rmain.c:947
+    R_DrawWorld
+    R_DrawEntitiesOnList           gl_rmain.c:794
+      solid brush/alias/studio
+      solid sprites
+      CL_DrawEFX(..., false)       gl_rmain.c:864
+      HUD_DrawNormalTriangles      gl_rmain.c:870
+      translucent brush/alias/studio/sprite
+      HUD_DrawTransparentTriangles gl_rmain.c:917
+      CL_DrawEFX(..., true)        gl_rmain.c:925
+      R_DrawViewModel              gl_rmain.c:934
+    R_DrawWaterSurfaces
+```
+
+HUD-2D/VGUI nach dem 3D-Frame liegen **nicht** in `R_RenderScene`. `V_RenderView` endet mit `GL_BackendEndFrame`. INFERRED: 2D-HUD überlebt `return 1`. 3D-Team/Klasse/Buy-Previews laufen durch dieselbe `GL_RenderFrame`-Naht und sterben bei `return 1`, wenn der Client sie nicht selbst zeichnet.
+
+### What return 1 suppresses
+
+CONFIRMED `gl_rmain.c:1091–1101`: bei gesetztem Callback und Rückgabe 1 setzt Xash `tr.fCustomRendering`, ruft `R_GatherPlayerLight(tr.viewent)`, erhöht `tr.realframecount`, setzt `tr.fResetVis`, **return** — **kein** `R_RenderScene`.
+
+Damit entfallen in diesem Frame: World/BSP, Brush-Entities, Studio-Entities (inkl. Spieler), Sprites, beide `CL_DrawEFX`-Pässe (TempEnts/Smoke/HE/Inferno-Sprites), Client-Triangles, Viewmodel, Water.
+
+Was weiterläuft: `R_SetupRefParams`, der Takeover-Zweig oben, später `R_EndFrame` / Swap. Soft-Renderer hat denselben Takeover (`engine/ref/soft/r_main.c:1154`).
+
+### PrimeXT frame coverage
+
+CONFIRMED Pin `46fb05b` `refs/primext/client/render/gl_rmain.cpp`:
+
+- `HUD_RenderFrame` (`gl_rmain.cpp:1003`) ist der volle Takeover. Kommentar: return 1 = Client zeichnet **alles**; return 0 z. B. wenn `GL_BackendStartFrame` scheitert oder Preview nicht vom Client kommen soll.
+- Erfolgreicher Pfad: `R_RenderScene` + `GL_BackendEndFrame`, dann **return 1** (`gl_rmain.cpp:1053–1059`).
+- PrimeXT-`R_RenderScene` (`gl_rmain.cpp:944`): Sky, solid Brush, **solid Studio**, `HUD_DrawNormalTriangles`, Particles, Trans-Liste (sortiert `R_SortTransMeshes`), Particles trans, Weather, `HUD_DrawTransparentTriangles`.
+- Viewmodel: `GL_BackendEndFrame` → `R_DrawViewModel` (`gl_backend.cpp:475`).
+- PrimeXT setzt **alle** `render_interface_t`-Slots (`gl_rmain.cpp:1134–1149`), nicht nur `GL_RenderFrame`.
+
+Was PrimeXT selbst besitzen muss, weil Xash bei return 1 nicht mehr zeichnet: World/Brush, Studio, Sprites/Quads in der Trans-Liste, Particles, Client-Triangles, Viewmodel, Map-Userdata/Lightmaps.
+
+### Existing CS Studio reusable?
+
+**POSSIBLE** — Studio-Interface ist unabhängig von `render_interface_t`.
+
+CONFIRMED: `HUD_GetStudioModelInterface` (`GameStudioModelRenderer.cpp:1220`) liefert `R_StudioDrawModel` / `R_StudioDrawPlayer`. Xash ruft das nur aus `R_StudioDrawModelInternal` (`gl_studio.c:3366`) auf, und nur wenn `RF_DRAW_WORLD` und nicht `r_studio_builtin_renderer`. Aufrufer: `R_DrawStudioModel` in der Entity-Liste und `R_DrawViewModel` (`gl_studio.c:3482`).
+
+Ein Custom-Frame kann `g_StudioRenderer` weiter als CS-Was nutzen, **wenn** er Entity/Model-Kontext setzt (`IEngineStudio`, `gRenderAPI.R_SetCurrentEntity` in `engine/ref/gl/gl_context.c:253`) und `StudioDrawModel` / `StudioDrawPlayer` selbst aufruft. PrimeXT-Studio muss dafür nicht übernommen werden.
+
+**NOT PRACTICAL** ohne diesen expliziten Aufruf: `return 1` allein ruft `GameStudioModelRenderer` nicht. `EF_CSRETRO_ITEM` / `EF_CSRETRO_PREVIEW` bleiben Client-seitig im Studio-Renderer; Engine-GL ehrt sie nur auf dem Engine-Pfad.
+
+Viewmodel-Strategie: entweder weiter Engine `R_DrawViewModel` (nur bei return 0 oder Hybrid-B) oder Custom-Frame zeichnet `tr.viewent` analog PrimeXT/`R_DrawViewModel`.
+
+### Entity / Sprite / EFX / TempEnt
+
+| Teilstück | Heute | Bei return 1 | Öffentliche API |
+| --- | --- | --- | --- |
+| Brush ents | `R_DrawBrushModel` in Entity-Liste | weg | intern `ref/gl` |
+| Studio ents | `R_DrawStudioModel` → Client-Studio | weg | Studio-Interface, siehe oben |
+| Sprites | `R_DrawSpriteModel` | weg | intern `ref/gl` |
+| TempEnts / EFX | `CL_DrawEFX` (`cl_efx.c`, von `gl_rmain.c` gerufen) | weg | **nicht** in `render_api_t`. Nur `GL_DrawParticles` existiert (`render_api.h:241`) |
+| ParticleMan | Client-Lib, nicht Inferno-Pfad | HUD-Triangles evtl. | Client-Exports |
+| Inferno/Smoke TE_SPRITE | Client erzeugt Tents; Xash zeichnet sie in `CL_DrawEFX` | **unsichtbar** | ohne Engine-Hook oder eigenen Sprite-Pass verloren — Härte #2 |
+| Client-Triangles | `HUD_DrawNormalTriangles` / `Transparent` | weg | Client-Exports, Custom-Frame muss sie rufen |
+| Viewmodel | `R_DrawViewModel` | weg | intern, oder Studio auf `viewent` |
+
+TempEnt-Strategie: **nicht** `return 1`, solange `CL_DrawEFX` keinen Client-Aufrufer hat. Sonst Issue #2 (Incendiary) und Smoke/HE-Sprites verschwinden strukturell.
+
+### Required callbacks (nicht aktivieren)
+
+Xash NULL-prüft jeden Slot. Bewertung für einen späteren Custom-Frame, nicht für jetzt:
+
+| Slot | Aufrufer | Bewertung |
+| --- | --- | --- |
+| `GL_BuildLightmaps` | `gl_rsurf.c:3898`, `gl_rmain.c:988` | needed for world preparation |
+| `GL_OrthoBounds` | `gl_rsurf.c:121` | needed only later (overview) |
+| `R_CreateStudioDecalList` / `R_ClearStudioDecals` | `gl_decals.c` | needed only later |
+| `R_SpeedsMessage` | `gl_backend.c:30` | not needed yet |
+| `Mod_ProcessUserData` | `gl_context.c:133/156` (Modell load/unload) | needed for world preparation |
+| `R_ProcessEntData` | `gl_context.c:305` | needed for world preparation (PrimeXT Instances) |
+| `Mod_GetCurrentVis` | `gl_rsurf.c:114` nur wenn `tr.fCustomRendering` | needed before return 1 |
+| `R_NewMap` | `gl_context.c:436` | needed for world preparation |
+| `R_ClearScene` | `gl_rmain.c:224` | needed before return 1 |
+| `CL_UpdateLatchedVars` | `cl_frame.c:228/285` | needed only later (Studio-Lerp), evtl. before return 1 wenn Custom-Studio |
+
+Keine Callback-Funktion nur deshalb setzen, weil PrimeXT sie besitzt.
+
+### Required engine extensions
+
+Für Strategie B dauerhaft denkbar: `R_RenderScene` so teilen, dass World clientseitig und Entity/EFX/Viewmodel engine-seitig bleiben. Nur wenn die Naht bleibt, keine Wegwerf-API.
+
+Für Strategie A ohne Engine-Änderung: Client braucht eigenen Sprite/EFX-Pass oder eine neue, stabile Engine-Export-Funktion zum Aufruf von `CL_DrawEFX`. Heute **UNKNOWN**, ob das ohne ABI-Bruch 37 geht — eher spätere Engine-Erweiterung als stiller Cast.
+
+### Recommended strategy: C
+
+**C — offscreen/diagnostisch.** Kein Rückschritt.
+
+Begründung: Ein sichtbares `return 1` ohne Studio-, Sprite-, EFX- und Viewmodel-Besitz erzeugt einen halben Frame (Welt ohne Waffen/FX/Previews). Das verletzt den Leitzaun. Strategie A wäre PrimeXT-vollständig und zieht Studio/EFX in PX3 vor. Strategie B ist nur sinnvoll, wenn CS Retro eine **dauerhafte** World-vs-Rest-Naht in Xash will — derzeit nicht nötig, um World-Technik zu lernen.
+
+Strategie C: World/Lightmap-Technik hinter `GL_RenderFrame → 0` aufbauen und nachweisen (Offscreen/Debug). Sichtbarer Takeover erst, wenn Komposition (Entities, Sprites, `CL_DrawEFX` oder Ersatz, Viewmodel, CS-Studio, Previews) einen Besitzer hat.
+
+### Updated phase proposal
+
+```text
+PX3A  Frame-Kompositionsvertrag (diese Research) — fertig
+PX3B  Renderer-Core + World offscreen; GL_RenderFrame bleibt 0
+PX3C  Entity / Sprite / EFX-Komposition (inkl. TempEnt/#2)
+PX4   Studio-Fusion: bestehender GameStudioModelRenderer im Custom Frame
+PX4 Exit → erster vollständiger return 1
+```
+
+Alte Matrix „World = PX3, Studio = PX4“ als **sofort sichtbarer** Custom-Frame ist falsch. Als Lernreihenfolge hinter return 0 bleibt sie gültig.
+
+### Files expected to change (erst nach Freigabe, nicht jetzt)
+
+PX3B (nach neuer Freigabe): neuer Client-Renderpfad neben `cdll_int.cpp`, evtl. Diagnose-FBO; Docs. Kein `return 1`.
+
+### Files explicitly untouched
+
+`pm_shared`, Inferno-Gameplay, Zippo, ReGameDLL-Regeln, PhysX, ImGui, Spieler-UI, `GameStudioModelRenderer` Ersatz, `EF_CSRETRO_*`, PBR/HDR/PostFX, CS2-Waffen, PrimeXT-Copy nach `client/body/`.
+
+### PX3A RESULT
+
+```text
+Xash frame coverage:          CONFIRMED siehe oben
+PrimeXT frame coverage:       CONFIRMED voller Takeover + eigene Studio/EFX/VM-Pässe
+What return 1 suppresses:     CONFIRMED gesamtes R_RenderScene
+World dependencies:           Lightmaps, Mod_ProcessUserData, R_NewMap, vis
+Entity dependencies:          R_DrawEntitiesOnList oder eigener Pass
+Sprite/EFX dependencies:      CL_DrawEFX nicht in render_api_t
+Existing CS Studio reusable?: POSSIBLE (expliziter Aufruf); NOT PRACTICAL bei nacktem return 1
+Viewmodel strategy:           Engine-Pass behalten bis Takeover vollständig
+TempEnt strategy:             CL_DrawEFX behalten oder ersetzen, sonst #2 tot
+Required callbacks:           siehe Tabelle; jetzt keine aktivieren
+Required engine extensions:   keine für C; B nur als dauerhafte Naht; A braucht EFX-Hook
+Recommended strategy A/B/C:   C
+Files expected to change:     erst PX3B nach Freigabe
+Files explicitly untouched:   Locks oben
+New issues:                   [#5 PX3B World offscreen](https://github.com/benjarogit/csretro/issues/5) (nicht gestartet)
+Updated phase proposal:       PX3A done → PX3B offscreen → PX3C EFX → PX4 Studio → return 1
+```
+
+PX3-Implementierung und `return 1` erst nach neuer Freigabe.

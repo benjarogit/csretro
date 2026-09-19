@@ -54,4 +54,4 @@ A port should identify its source, commit, affected files, license notices and t
 Do not add a second parallel implementation of **product logic**. The Xash world renderer may remain as a diagnostic/A/B fallback (`r_csretro_renderer 0`).
 PrimeXT updates are ported into the now-owned CS Retro implementation; they do not restore old upstream layers.
 Binding integration plan: PX0 (contracts/baselines) before productive renderer work (PX2).
-PX1 research and port matrix: [docs/research/px1-primext.md](research/px1-primext.md). PX2 (`17bd79f`) is the `HUD_GetRenderInterface` bridge; `GL_RenderFrame` returns 0 until a custom frame owns every required pass. PX3A settles frame composition before any world port.
+PX1 research and port matrix: [docs/research/px1-primext.md](research/px1-primext.md). PX2 (`17bd79f`) is the `HUD_GetRenderInterface` bridge. PX3A: strategy C — world technique first offscreen, `GL_RenderFrame` stays 0 until every visible pass has an owner.

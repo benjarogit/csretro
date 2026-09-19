@@ -196,15 +196,19 @@ R_RenderFrame
     R_DrawWaterSurfaces
 ```
 
-HUD-2D/VGUI nach dem 3D-Frame liegen **nicht** in `R_RenderScene`. `V_RenderView` endet mit `GL_BackendEndFrame`. INFERRED: 2D-HUD überlebt `return 1`. 3D-Team/Klasse/Buy-Previews laufen durch dieselbe `GL_RenderFrame`-Naht und sterben bei `return 1`, wenn der Client sie nicht selbst zeichnet.
+`CL_EmitEntities` (`cl_frame.c:1287`) füllt `tr.draw_list` **vor** dem Draw. `return 1` stoppt nur das Zeichnen, nicht Allokation/Simulation.
+
+HUD-2D/VGUI liegen **nicht** in `R_RenderScene`. CONFIRMED `V_PostRender` (`cl_view.c:526`): `CL_DrawHUD` / `HUD_Redraw` und `VGui_Paint` laufen nach dem 3D-Pass weiter. 3D-Team/Klasse/Buy-Previews und das Menü-`pfnRenderScene` (`cl_gameui.c:875`) gehen durch dieselbe `GL_RenderFrame`-Naht und sterben bei `return 1`, wenn der Client sie nicht selbst zeichnet.
+
+`RF_ONLY_CLIENTDRAW` ist ein **anderer** Pfad als `return 1`: `R_RenderScene` läuft, World/Entities/EFX/Viewmodel nicht, HUD-Triangles schon. `return 1` streicht auch die HUD-Triangles.
 
 ### What return 1 suppresses
 
 CONFIRMED `gl_rmain.c:1091–1101`: bei gesetztem Callback und Rückgabe 1 setzt Xash `tr.fCustomRendering`, ruft `R_GatherPlayerLight(tr.viewent)`, erhöht `tr.realframecount`, setzt `tr.fResetVis`, **return** — **kein** `R_RenderScene`.
 
-Damit entfallen in diesem Frame: World/BSP, Brush-Entities, Studio-Entities (inkl. Spieler), Sprites, beide `CL_DrawEFX`-Pässe (TempEnts/Smoke/HE/Inferno-Sprites), Client-Triangles, Viewmodel, Water.
+Damit entfallen in diesem Frame: World/BSP, Brush-Entities, Studio-Entities (inkl. Spieler), Sprites inkl. TempEnt-Sprites, beide `CL_DrawEFX`-Pässe (Beams / Particles / Tracer — **nicht** TempEnt-Sprites), Client-Triangles, Viewmodel-Events, Viewmodel, Water, `R_PushDlights`.
 
-Was weiterläuft: `R_SetupRefParams`, der Takeover-Zweig oben, später `R_EndFrame` / Swap. Soft-Renderer hat denselben Takeover (`engine/ref/soft/r_main.c:1154`).
+Was weiterläuft: `R_SetupRefParams`, der Takeover-Zweig oben, Entity-Link/Tent-Think, später `V_PostRender` / `R_EndFrame` / Swap. Soft-Renderer hat denselben Takeover (`engine/ref/soft/r_main.c:1154`).
 
 ### PrimeXT frame coverage
 
@@ -216,7 +220,9 @@ CONFIRMED Pin `46fb05b` `refs/primext/client/render/gl_rmain.cpp`:
 - Viewmodel: `GL_BackendEndFrame` → `R_DrawViewModel` (`gl_backend.cpp:475`).
 - PrimeXT setzt **alle** `render_interface_t`-Slots (`gl_rmain.cpp:1134–1149`), nicht nur `GL_RenderFrame`.
 
-Was PrimeXT selbst besitzen muss, weil Xash bei return 1 nicht mehr zeichnet: World/Brush, Studio, Sprites/Quads in der Trans-Liste, Particles, Client-Triangles, Viewmodel, Map-Userdata/Lightmaps.
+Was PrimeXT selbst besitzen muss, weil Xash bei return 1 nicht mehr zeichnet: World/Brush, Studio, Sprites/Quads in der Trans-Liste, Engine-EFX via `GL_DrawParticles`, Client-Triangles, Viewmodel, Map-Userdata/Lightmaps.
+
+Zusätzlich CONFIRMED: PrimeXT **stiehlt** sichtbare Ents in `HUD_AddEntity` (`refs/primext/client/entity.cpp:43`) — `R_AddEntity` in die eigene Liste, return 0, damit Xash sie nicht in `tr.draw_list` legt. `ET_BEAM` return 1, damit `CL_DrawBeams` die Engine-Beam-Liste behält. `R_ClearScene` leert die PrimeXT-Liste jedes Frame. Viewmodel liegt **nicht** in `tr.draw_entities`. PrimeXT-`tri.cpp`-Stubs sind leer; CS-Retro-`tri.cpp` ist es nicht (Overview, Fog, ParticleMan/Wetter, `EV_UpdateMolotovHeld`).
 
 ### Existing CS Studio reusable?
 
@@ -226,24 +232,27 @@ CONFIRMED: `HUD_GetStudioModelInterface` (`GameStudioModelRenderer.cpp:1220`) li
 
 Ein Custom-Frame kann `g_StudioRenderer` weiter als CS-Was nutzen, **wenn** er Entity/Model-Kontext setzt (`IEngineStudio`, `gRenderAPI.R_SetCurrentEntity` in `engine/ref/gl/gl_context.c:253`) und `StudioDrawModel` / `StudioDrawPlayer` selbst aufruft. PrimeXT-Studio muss dafür nicht übernommen werden.
 
-**NOT PRACTICAL** ohne diesen expliziten Aufruf: `return 1` allein ruft `GameStudioModelRenderer` nicht. `EF_CSRETRO_ITEM` / `EF_CSRETRO_PREVIEW` bleiben Client-seitig im Studio-Renderer; Engine-GL ehrt sie nur auf dem Engine-Pfad.
+**NOT PRACTICAL** ohne diesen expliziten Aufruf: `return 1` allein ruft `GameStudioModelRenderer` nicht.
 
-Viewmodel-Strategie: entweder weiter Engine `R_DrawViewModel` (nur bei return 0 oder Hybrid-B) oder Custom-Frame zeichnet `tr.viewent` analog PrimeXT/`R_DrawViewModel`.
+`EF_CSRETRO_PREVIEW` sitzt in GSMR (Client-Was). `EF_CSRETRO_ITEM` sitzt nur in Engine-`R_StudioDrawPoints` — GSMR prüft das Bit nicht. PrimeXT ersetzt `pStudioDraw` **nicht** (`gl_studio_init.cpp`); deren VBO-Studio ist ein paralleler Pfad ohne CS-Was.
+
+Viewmodel-Strategie: entweder weiter Engine `R_DrawViewModel` (nur bei return 0 oder Hybrid-B) oder Custom-Frame zeichnet `GetViewModel()` inkl. `STUDIO_EVENTS` (Wick-Knochen) und `STUDIO_RENDER`. `GetViewInfo` / Frustum kommen heute erst in `R_SetupFrustum` **nach** dem Custom-Hook — der Custom-Frame muss View-Vektoren selbst setzen.
 
 ### Entity / Sprite / EFX / TempEnt
 
 | Teilstück | Heute | Bei return 1 | Öffentliche API |
 | --- | --- | --- | --- |
-| Brush ents | `R_DrawBrushModel` in Entity-Liste | weg | intern `ref/gl` |
-| Studio ents | `R_DrawStudioModel` → Client-Studio | weg | Studio-Interface, siehe oben |
-| Sprites | `R_DrawSpriteModel` | weg | intern `ref/gl` |
-| TempEnts / EFX | `CL_DrawEFX` (`cl_efx.c`, von `gl_rmain.c` gerufen) | weg | **nicht** in `render_api_t`. Nur `GL_DrawParticles` existiert (`render_api.h:241`) |
-| ParticleMan | Client-Lib, nicht Inferno-Pfad | HUD-Triangles evtl. | Client-Exports |
-| Inferno/Smoke TE_SPRITE | Client erzeugt Tents; Xash zeichnet sie in `CL_DrawEFX` | **unsichtbar** | ohne Engine-Hook oder eigenen Sprite-Pass verloren — Härte #2 |
-| Client-Triangles | `HUD_DrawNormalTriangles` / `Transparent` | weg | Client-Exports, Custom-Frame muss sie rufen |
-| Viewmodel | `R_DrawViewModel` | weg | intern, oder Studio auf `viewent` |
+| Brush ents | `R_DrawBrushModel` in Entity-Liste | Liste voll, niemand zeichnet | intern `ref/gl`; `HUD_AddEntity` sieht sie nur |
+| Studio ents | `R_DrawStudioModel` → GSMR | weg | Studio-Interface, siehe oben |
+| Sprites | `R_DrawSpriteModel` in derselben Liste | weg | intern `ref/gl`; `SPR_*` ist HUD-2D |
+| TempEnt-Sprites | Tent → `CL_AddVisibleEntity` → **`R_DrawSpriteModel`** | Sim/Think weiter, **Pixel weg** | Alloc über `pEfxAPI`; Draw fehlt |
+| Engine-EFX | `CL_DrawEFX` (Beams / Particles / Tracer) | weg | `gRenderAPI.GL_DrawParticles` zweimal (false/true) |
+| ParticleMan | nur Wetter in `HUD_DrawTransparentTriangles` | weg, wenn Hook fehlt | direkt aufrufbar; **keine Granaten** |
+| Inferno/Smoke TE_SPRITE | Event/TE allokiert; Draw = Trans-Sprite | **unsichtbar** — Härte #2 | Sprite-Listen-Draw, nicht `GL_DrawParticles` |
+| Client-Triangles / Wick | Xash nach Entities | weg | CS-Retro-`tri.cpp` selbst rufen (`EV_UpdateMolotovHeld`) |
+| Viewmodel | `R_DrawViewModel` + vorher Events | weg | `IEngineStudio` + `GetViewModel()` |
 
-TempEnt-Strategie: **nicht** `return 1`, solange `CL_DrawEFX` keinen Client-Aufrufer hat. Sonst Issue #2 (Incendiary) und Smoke/HE-Sprites verschwinden strukturell.
+TempEnt-Strategie: **nicht** `return 1`, solange niemand `R_DrawSpriteModel` bzw. die Trans-Sprite-Liste zeichnet. `GL_DrawParticles` ersetzt das **nicht**. Sonst ist #2 (Incendiary) strukturell unsichtbar — gleicher sichtbarer Ausfall wie ein voller Tent-Pool, nur diesmal durch den Renderer.
 
 ### Required callbacks (nicht aktivieren)
 
@@ -256,7 +265,7 @@ Xash NULL-prüft jeden Slot. Bewertung für einen späteren Custom-Frame, nicht 
 | `R_CreateStudioDecalList` / `R_ClearStudioDecals` | `gl_decals.c` | needed only later |
 | `R_SpeedsMessage` | `gl_backend.c:30` | not needed yet |
 | `Mod_ProcessUserData` | `gl_context.c:133/156` (Modell load/unload) | needed for world preparation |
-| `R_ProcessEntData` | `gl_context.c:305` | needed for world preparation (PrimeXT Instances) |
+| `R_ProcessEntData` | `gl_context.c:305` (nur GL) | needed only later (PrimeXT Studio-Instances; erster World-Nachweis ohne) |
 | `Mod_GetCurrentVis` | `gl_rsurf.c:114` nur wenn `tr.fCustomRendering` | needed before return 1 |
 | `R_NewMap` | `gl_context.c:436` | needed for world preparation |
 | `R_ClearScene` | `gl_rmain.c:224` | needed before return 1 |
@@ -268,7 +277,7 @@ Keine Callback-Funktion nur deshalb setzen, weil PrimeXT sie besitzt.
 
 Für Strategie B dauerhaft denkbar: `R_RenderScene` so teilen, dass World clientseitig und Entity/EFX/Viewmodel engine-seitig bleiben. Nur wenn die Naht bleibt, keine Wegwerf-API.
 
-Für Strategie A ohne Engine-Änderung: Client braucht eigenen Sprite/EFX-Pass oder eine neue, stabile Engine-Export-Funktion zum Aufruf von `CL_DrawEFX`. Heute **UNKNOWN**, ob das ohne ABI-Bruch 37 geht — eher spätere Engine-Erweiterung als stiller Cast.
+Für Strategie A ohne Engine-Änderung: Client braucht eigenen **Sprite-Listen-Draw** (TempEnts) und muss `GL_DrawParticles` plus CS-Retro-`tri.cpp` selbst rufen. `render_api_t` v37 ist eingefroren; neue Slots nur am Ende. `R_DrawEntitiesOnList` / `R_DrawSpriteModel` sind intern.
 
 ### Recommended strategy: C
 
@@ -306,10 +315,10 @@ PrimeXT frame coverage:       CONFIRMED voller Takeover + eigene Studio/EFX/VM-P
 What return 1 suppresses:     CONFIRMED gesamtes R_RenderScene
 World dependencies:           Lightmaps, Mod_ProcessUserData, R_NewMap, vis
 Entity dependencies:          R_DrawEntitiesOnList oder eigener Pass
-Sprite/EFX dependencies:      CL_DrawEFX nicht in render_api_t
-Existing CS Studio reusable?: POSSIBLE (expliziter Aufruf); NOT PRACTICAL bei nacktem return 1
-Viewmodel strategy:           Engine-Pass behalten bis Takeover vollständig
-TempEnt strategy:             CL_DrawEFX behalten oder ersetzen, sonst #2 tot
+Sprite/EFX dependencies:      TempEnt-Sprites = R_DrawSpriteModel; CL_DrawEFX = Beams/Particles via GL_DrawParticles
+Existing CS Studio reusable?: POSSIBLE (expliziter GSMR-Aufruf); NOT PRACTICAL bei nacktem return 1
+Viewmodel strategy:           Engine-Pass behalten bis Takeover vollständig; Events für Wick
+TempEnt strategy:             Sprite-Listen-Draw behalten oder ersetzen; GL_DrawParticles reicht nicht (#2)
 Required callbacks:           siehe Tabelle; jetzt keine aktivieren
 Required engine extensions:   keine für C; B nur als dauerhafte Naht; A braucht EFX-Hook
 Recommended strategy A/B/C:   C

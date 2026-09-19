@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.11 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- PX3A follow-up: Inferno/Smoke TempEnts are drawn by `R_DrawSpriteModel` on the entity list, not by `CL_DrawEFX`. `GL_DrawParticles` keeps beams/particles only. Strategy C unchanged.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.10 — 2026-09-20
 
 ### Architektur / Dokumentation

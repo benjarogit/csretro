@@ -3,7 +3,7 @@
 Stand: 2026-09-19. Gegen CS Retro `76ee12f` (v0.1.6). Kein Produktcode.
 Status-Wörter: **CONFIRMED** (im Baum/Remote nachgeprüft), **INFERRED** (folgt aus Code, nicht runtime-geprüft), **UNKNOWN** (nicht belegt), **DEFERRED** (bewusst später).
 
-Issues: [#1 Movement Replay](https://github.com/benjarogit/csretro/issues/1), [#2 Incendiary In-Game](https://github.com/benjarogit/csretro/issues/2), [#3 erster M1 Granaten](https://github.com/benjarogit/csretro/issues/3) bleiben offen. [#4 PX2-Brücke](https://github.com/benjarogit/csretro/issues/4) visuell verifiziert 2026-09-20. [#5 PX3B](https://github.com/benjarogit/csretro/issues/5) nicht gestartet.
+Issues: [#1 Movement Replay](https://github.com/benjarogit/csretro/issues/1), [#2 Incendiary In-Game](https://github.com/benjarogit/csretro/issues/2), [#3 erster M1 Granaten](https://github.com/benjarogit/csretro/issues/3) bleiben offen. [#4 PX2-Brücke](https://github.com/benjarogit/csretro/issues/4) visuell verifiziert 2026-09-20. [#5 PX3B](https://github.com/benjarogit/csretro/issues/5) Implementation in Progress — nicht schließen vor vollem visuellem DoD.
 
 ## Pin
 
@@ -324,8 +324,66 @@ Required engine extensions:   keine für C; B nur als dauerhafte Naht; A braucht
 Recommended strategy A/B/C:   C
 Files expected to change:     erst PX3B nach Freigabe
 Files explicitly untouched:   Locks oben
-New issues:                   [#5 PX3B World offscreen](https://github.com/benjarogit/csretro/issues/5) (nicht gestartet)
+New issues:                   [#5 PX3B World offscreen](https://github.com/benjarogit/csretro/issues/5) (Implementation; offen bis DoD)
 Updated phase proposal:       PX3A done → PX3B offscreen → PX3C EFX → PX4 Studio → return 1
 ```
 
-PX3-Implementierung und `return 1` erst nach neuer Freigabe.
+## PX3B — World offscreen (2026-09-20)
+
+Erste gezielte PrimeXT-derived Produktintegration. **Kein Blanket-Import.**
+`GL_RenderFrame` bleibt unter allen Umständen 0. Sichtbarer Frame = Xash.
+
+„Kein PrimeXT-Produktimport“ heißt nicht „keinen PrimeXT-Code adaptieren“.
+Erlaubt: untersuchen → Teil wählen → an CS Retro anpassen → `client/render/` → Herkunft dokumentieren.
+Nicht erlaubt: gesamten PrimeXT-`client/render/`-Baum kopieren, zweite Runtime, PrimeXT-Layer, ungeprüftes `game_shared/`.
+
+### Produktpfad
+
+| Verantwortung | CS-Retro-Datei |
+| --- | --- |
+| Lifecycle | `client/render/render_core.cpp` + Brücke `cdll_int.cpp` |
+| GL / Offscreen | `client/render/render_backend.cpp` |
+| World/BSP + Draw | `client/render/render_world.cpp` + `render_xash_brush.h` |
+
+Eine `client_amd64.so`. `cdll_int.cpp` bleibt Bridge: `GL_RenderFrame` ruft `CSRETRO_Renderer_Frame` (void) und **return 0**.
+
+### CVar
+
+| CVar | Default | Bedeutung |
+| --- | --- | --- |
+| `r_csretro_renderer` | 0 | 0 = Xash-only, kein Extra-Cost. 1 = Offscreen-Probe + sichtbarer Xash-Fallback. Kein sichtbarer Custom-Renderer. |
+| `r_csretro_offscreen_dump` | 0 | Diagnose; einmaliger PPM-Dump passiert ohnehin beim ersten nicht-leeren Probe-Pass. |
+| `r_csretro_probe_seq` | 0 | Diagnose: dust → aztec → dust → `vid_setmode` → quit. |
+
+### Callbacks
+
+Aktiviert, weil der Nachweis sie braucht (additiv, ersetzen Xash nicht):
+
+| Slot | Warum | Daten | Bleibt Xash | Unload / Map / Vid |
+| --- | --- | --- | --- | --- |
+| `Mod_ProcessUserData` | World-Load/Unload erkennen | `model_s*`, create-Flag | Textur-/Modell-Load | create=false gibt Mesh frei |
+| `R_NewMap` | Nach Engine-Lightmaps/Polys Mesh kopieren | `pfnGetModel(1)` | sichtbares Draw | Recapture, alte Handles weg |
+| `GL_BuildLightmaps` | Nach Engine-LM-Rebuild UVs/Pages refreshen | aktuelles Worldmesh | Engine baut LM zuerst (`gl_rsurf.c`) | Recapture |
+
+Absichtlich NULL: `Mod_GetCurrentVis`, `R_ClearScene`, `R_ProcessEntData`, Studio-Decals, `GL_OrthoBounds`, `R_SpeedsMessage`, `CL_UpdateLatchedVars`.
+
+### Provenance (gezielt)
+
+| Stück | Upstream | Pin | Original | CS-Retro | Reason |
+| --- | --- | --- | --- | --- | --- |
+| Lifecycle-Naht | SNMetamorph/PrimeXT | `46fb05b` / continious | `client/render/gl_rmain.cpp` HUD_* + `HUD_GetRenderInterface` | `render_core.cpp`, `cdll_int.cpp` | Init/Vid/Shutdown/Map ohne Takeover |
+| GL-Proc-Load | PrimeXT | derselbe | `client/render/gl_export.cpp` `GL_GetProcAddress` | `render_backend.cpp` | Nur nötige Procs, Xash-Wrapper für Bind/CreateTexture |
+| FBO-Idee | PrimeXT | derselbe | `client/render/gl_framebuffer.cpp` | `render_backend.cpp` (eigenes FBO, 512²) | Offscreen-Nachweis, Default aus |
+| World-Mesh aus Surfaces | PrimeXT | derselbe | `client/render/gl_world_new.cpp` `Mod_CreateBufferObject` | `render_world.cpp` | Echte BSP-Surfaces/Polys, Kopie statt Engine-Pointer |
+| Lightmap-Pages | PrimeXT / Xash | derselbe | `gl_lightmap.cpp` + Engine `PARM_TEX_LIGHTMAP` | `render_world.cpp` bindet Engine-LM | Baseline-LM, kein eigener Atlas |
+| View-Matrix | GoldSrc/Xash | — | `R_SetupGL` / Quake-Rotate | `render_backend.cpp` `ApplyView` | Offscreen-Kamera aus `ref_viewpass` |
+
+Nicht übernommen: Studio, Sprites, Particles, Weather, ImGui, PostFX, HDR, Shadows, PBR, PhysX, PrimeXT-Server, volles Materialsystem, Shader-VBO-Pfad.
+
+### PX3C-Hinweis (nicht starten)
+
+Sprite-Draw ≠ `GL_DrawParticles`. Inferno/Smoke-TempEnts sitzen in `R_DrawSpriteModel`. GSMR nur bei bewusstem Aufruf. `return 1` bleibt gesperrt.
+
+### Probe
+
+`./scripts/px3b-offscreen-probe.sh` — erwartet dust + aztec Offscreen-Proof, `empty=0`, `GL_RenderFrame` nie 1.

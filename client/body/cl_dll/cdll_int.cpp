@@ -41,6 +41,7 @@
 #include "environment.h"
 
 #include "cl_util.h"
+#include "csretro_render.h"
 
 cl_enginefunc_t		gEngfuncs  = { };
 render_api_t		gRenderAPI = { };
@@ -190,6 +191,7 @@ HUD_Shutdown
 */
 void DLLEXPORT HUD_Shutdown( void )
 {
+	CSRETRO_Renderer_Shutdown();
 	gHUD.Shutdown();
 	Input_Shutdown();
 	Localize_Free();
@@ -312,6 +314,7 @@ bool isLoaded = false;
 
 int DLLEXPORT HUD_VidInit( void )
 {
+	CSRETRO_Renderer_VidInit();
 	gHUD.VidInit();
 
 	isLoaded = true;
@@ -341,6 +344,7 @@ void DLLEXPORT HUD_Init( void )
 	LoadMenuInterface();
 	InitInput();
 	gHUD.Init();
+	CSRETRO_Renderer_Init();
 	
 	// Initialize menu if it's loaded
 	if( g_pMenu && !g_pMenu->Initialize( Sys_GetFactoryThis() ) )
@@ -475,24 +479,25 @@ void DLLEXPORT HUD_DirectorMessage( int iSize, void *pbuf )
 ==========================
 HUD_GetRenderInterface
 
-PX2: own render_interface_t, only GL_RenderFrame. Return 0 → Xash R_RenderScene.
+PX2/PX3B: own render_interface_t. GL_RenderFrame is the only visible-frame hook
+and always returns 0. Offscreen probe lives in client/render/, never takes over Xash.
 ==========================
 */
 
 static cvar_t *r_csretro_renderer = NULL;
 static int s_glRenderFrameLogged = 0;
 
-// 0 = Xash draws. Never return 1 until a real custom path exists (not PX2).
+// Unconditional 0. No code path — including CVar 1 — may return 1.
 static int CSRETRO_GL_RenderFrame( const struct ref_viewpass_s *rvp )
 {
-	(void)rvp;
+	CSRETRO_Renderer_Frame( rvp );
 
 	if( !s_glRenderFrameLogged )
 	{
 		s_glRenderFrameLogged = 1;
 		gEngfuncs.Con_Printf( "CS Retro: GL_RenderFrame callback reached\n" );
 		if( r_csretro_renderer && r_csretro_renderer->value != 0.0f )
-			gEngfuncs.Con_Printf( "CS Retro: r_csretro_renderer 1 requested, no custom path yet — Xash fallback selected\n" );
+			gEngfuncs.Con_Printf( "CS Retro: r_csretro_renderer 1 offscreen probe, visible frame stays Xash\n" );
 		else
 			gEngfuncs.Con_Printf( "CS Retro: Xash fallback selected\n" );
 	}
@@ -500,9 +505,36 @@ static int CSRETRO_GL_RenderFrame( const struct ref_viewpass_s *rvp )
 	return 0;
 }
 
+static void CSRETRO_GL_BuildLightmaps( void )
+{
+	// Additive: engine already rebuilt lightmaps (gl_rsurf.c). Visible Xash path unchanged.
+	CSRETRO_Renderer_OnLightmaps();
+}
+
+static void CSRETRO_Mod_ProcessUserData( struct model_s *mod, qboolean create, const byte *buffer )
+{
+	CSRETRO_Renderer_OnModel( mod, create ? 1 : 0, buffer );
+}
+
+static void CSRETRO_R_NewMap( void )
+{
+	CSRETRO_Renderer_OnNewMap();
+}
+
 static render_interface_t gCSRetroRenderInterface = {
 	CL_RENDER_INTERFACE_VERSION,
-	CSRETRO_GL_RenderFrame
+	CSRETRO_GL_RenderFrame,
+	CSRETRO_GL_BuildLightmaps,
+	NULL, // GL_OrthoBounds — overview only
+	NULL, // R_CreateStudioDecalList
+	NULL, // R_ClearStudioDecals
+	NULL, // R_SpeedsMessage
+	CSRETRO_Mod_ProcessUserData,
+	NULL, // R_ProcessEntData — PX3C/PX4
+	NULL, // Mod_GetCurrentVis — erst vor return 1
+	CSRETRO_R_NewMap,
+	NULL, // R_ClearScene — erst vor return 1
+	NULL  // CL_UpdateLatchedVars — Studio-Lerp, später
 };
 
 int DLLEXPORT HUD_GetRenderInterface( int version, render_api_t *renderfuncs, render_interface_t *callback )
@@ -524,7 +556,7 @@ int DLLEXPORT HUD_GetRenderInterface( int version, render_api_t *renderfuncs, re
 
 	s_glRenderFrameLogged = 0;
 	gEngfuncs.Con_Printf( "CS Retro: HUD_GetRenderInterface accepted v%i\n", CL_RENDER_INTERFACE_VERSION );
-	gEngfuncs.Con_Printf( "CS Retro: CS-Retro render callbacks registered\n" );
+	gEngfuncs.Con_Printf( "CS Retro: CS-Retro render callbacks registered (GL_RenderFrame always 0)\n" );
 
 	return true;
 }

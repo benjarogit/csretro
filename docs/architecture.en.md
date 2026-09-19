@@ -9,7 +9,7 @@ CS Retro (one codebase)
 ├── Client: one client_amd64.so
 │   ├── CS body (Velaron/NextClient-derived)
 │   ├── Movement/prediction (same contract as the GameDLL)
-│   └── PrimeXT-derived tech (renderer/graphics/ImGui tools; from PX2)
+│   └── PrimeXT-derived tech (`client/render/`; PX2 bridge, PX3B world offscreen)
 ├── Menu library: CS Retro InGameUi (VGUI2 stays valid; ImGui for tools)
 └── GameDLL: ReGameDLL-derived — rules, weapons, inferno, ZBot
 ```
@@ -23,6 +23,7 @@ The renderer does not own gameplay. Client and GameDLL implement the same moveme
 | `engine/` | Xash3D-FWGS-derived runtime; CS Retro extensions allowed, no CS menu logic |
 | `client/export/` | CS Retro client export for the engine |
 | `client/body/` | Client runtime, HUD, prediction and shared weapons |
+| `client/render/` | CS Retro renderer (lifecycle, offscreen GL, world/BSP). One `client_amd64.so`. |
 | `client/menu/` | GameUI, team, class and buy interfaces |
 | `client/nextclient/`, other client sources | Functional port sources from NextClient |
 | `server/game/` | ReGameDLL-based gameplay and server logic |
@@ -54,4 +55,4 @@ A port should identify its source, commit, affected files, license notices and t
 Do not add a second parallel implementation of **product logic**. The Xash world renderer may remain as a diagnostic/A/B fallback (`r_csretro_renderer 0`).
 PrimeXT updates are ported into the now-owned CS Retro implementation; they do not restore old upstream layers.
 Binding integration plan: PX0 (contracts/baselines) before productive renderer work (PX2).
-PX1 research and port matrix: [docs/research/px1-primext.md](research/px1-primext.md). PX2 (`17bd79f`) is the `HUD_GetRenderInterface` bridge. PX3A: strategy C — world technique first offscreen, `GL_RenderFrame` stays 0 until every visible pass has an owner.
+PX1 research and port matrix: [docs/research/px1-primext.md](research/px1-primext.md). PX2 (`17bd79f`) is the `HUD_GetRenderInterface` bridge. PX3A: strategy C. PX3B: world/offscreen in `client/render/`, `GL_RenderFrame` stays 0. Visible takeover only after entity/EFX/studio ownership (PX3C/PX4).

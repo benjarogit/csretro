@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.1.12 — 2026-09-20
+
+### Renderer
+
+- PX3B: PrimeXT-derived World/Offscreen-Pfad in `client/render/` (Lifecycle, FBO, echter BSP-Mesh, textured + Baseline-Lightmap). `GL_RenderFrame` bleibt 0; sichtbarer Frame ist Xash.
+- CVar `r_csretro_renderer` 1 startet nur die Offscreen-Probe (kein sichtbarer Custom-Renderer). Diagnose: `r_csretro_probe_seq`, einmaliger `csretro_offscreen.ppm`.
+- Additive Callbacks: `Mod_ProcessUserData`, `R_NewMap`, `GL_BuildLightmaps`. Studio/Sprite/EFX/Viewmodel unverändert bei Xash.
+
+Diese Version übernimmt den sichtbaren Frame nicht. Team-/Klassen-/Kaufvorschau und Viewmodel bleiben der Xash-Fallback.  
+This release does not take over the visible frame. Team/class/buy previews and the viewmodel stay on the Xash fallback.
+
 ## 0.1.11 — 2026-09-20
 
 ### Architektur / Dokumentation

@@ -8,6 +8,7 @@ check_symbol_exists(strlcat string.h HAVE_STRLCAT)
 
 set(BODY "${CMAKE_CURRENT_SOURCE_DIR}")
 set(EXPORT_DIR "${CSRETRO_ROOT}/client/export")
+set(RENDER_DIR "${CSRETRO_ROOT}/client/render")
 
 file(GLOB CS_CLIENT_SRC "${BODY}/cl_dll/*.cpp")
 file(GLOB CS_EV_SRC "${BODY}/cl_dll/events/*.cpp")
@@ -36,6 +37,9 @@ set(CS_SOURCES
     "${BODY}/common/interface.cpp"
     "${BODY}/public/utflib.cpp"
     "${EXPORT_DIR}/csretro_cdll_export.cpp"
+    "${RENDER_DIR}/render_core.cpp"
+    "${RENDER_DIR}/render_backend.cpp"
+    "${RENDER_DIR}/render_world.cpp"
 )
 
 if(NOT HAVE_STRLCPY)
@@ -63,6 +67,7 @@ target_include_directories(csretro_client PRIVATE
     "${BODY}/miniutl"
     "${BODY}/cl_dll/particleman"
     "${EXPORT_DIR}"
+    "${RENDER_DIR}"
 )
 
 target_compile_definitions(csretro_client PRIVATE

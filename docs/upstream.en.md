@@ -35,7 +35,7 @@ Already present: `R_StudioGetPlayerState` requires `currententity` (`dccfaf3`).
 
 - Product code lives in CS Retro paths and may be rewritten.
 - `refs/primext/` is the not-built comparison tree (gitignored). PX1 pin: tag `continious`, SHA `46fb05b41e58ed887718649e1720313baaac9a35` (2026-08-23). No submodule/vcpkg fetch. Not `latest`.
-- First productive integration is PX2: render-API bridge only (`17bd79f`, visually verified, issue #4 closed). See `docs/research/px1-primext.md`.
+- First productive integration is PX2: render-API bridge only (`17bd79f`, visually verified, issue #4 closed). PX3B: targeted world/offscreen adaptation in `client/render/` (`GL_RenderFrame` stays 0). See `docs/research/px1-primext.md`.
 - Updates: understand the fix → find our implementation → take it in CS Retro form.
 - Record provenance and license per port before public source or builds.
 

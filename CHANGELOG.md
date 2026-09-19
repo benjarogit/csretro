@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.13 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- PX3B visual certification against `bbe418d`: with `r_csretro_renderer 1` the offscreen world pass stays nonempty (dust/aztec/mapchange/`vid_setmode`) while the visible Xash frame still shows Team/class/buy, T/CT spawn, viewmodel, HUD, and HE/Smoke/Flash. GL state isolation CONFIRMED as far as visible. Issue #5 closed. No renderer product change.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.12 — 2026-09-20
 
 ### Renderer

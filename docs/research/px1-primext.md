@@ -3,7 +3,7 @@
 Stand: 2026-09-19. Gegen CS Retro `76ee12f` (v0.1.6). Kein Produktcode.
 Status-Wörter: **CONFIRMED** (im Baum/Remote nachgeprüft), **INFERRED** (folgt aus Code, nicht runtime-geprüft), **UNKNOWN** (nicht belegt), **DEFERRED** (bewusst später).
 
-Issues: [#1 Movement Replay](https://github.com/benjarogit/csretro/issues/1), [#2 Incendiary In-Game](https://github.com/benjarogit/csretro/issues/2), [#3 erster M1 Granaten](https://github.com/benjarogit/csretro/issues/3) bleiben offen. [#4 PX2-Brücke](https://github.com/benjarogit/csretro/issues/4) visuell verifiziert 2026-09-20. [#5 PX3B](https://github.com/benjarogit/csretro/issues/5) Implementation in Progress — nicht schließen vor vollem visuellem DoD.
+Issues: [#1 Movement Replay](https://github.com/benjarogit/csretro/issues/1), [#2 Incendiary In-Game](https://github.com/benjarogit/csretro/issues/2), [#3 erster M1 Granaten](https://github.com/benjarogit/csretro/issues/3) bleiben offen. [#4 PX2-Brücke](https://github.com/benjarogit/csretro/issues/4) visuell verifiziert 2026-09-20. [#5 PX3B](https://github.com/benjarogit/csretro/issues/5) visuell zertifiziert 2026-09-20, geschlossen.
 
 ## Pin
 
@@ -380,10 +380,50 @@ Absichtlich NULL: `Mod_GetCurrentVis`, `R_ClearScene`, `R_ProcessEntData`, Studi
 
 Nicht übernommen: Studio, Sprites, Particles, Weather, ImGui, PostFX, HDR, Shadows, PBR, PhysX, PrimeXT-Server, volles Materialsystem, Shader-VBO-Pfad.
 
-### PX3C-Hinweis (nicht starten)
-
-Sprite-Draw ≠ `GL_DrawParticles`. Inferno/Smoke-TempEnts sitzen in `R_DrawSpriteModel`. GSMR nur bei bewusstem Aufruf. `return 1` bleibt gesperrt.
-
 ### Probe
 
 `./scripts/px3b-offscreen-probe.sh` — erwartet dust + aztec Offscreen-Proof, `empty=0`, `GL_RenderFrame` nie 1.
+
+### PX3B-Nachweis (2026-09-20)
+
+Gegen `bbe418d` / v0.1.12. Sichtbarer Lauf mit `r_csretro_renderer 1` (sonst nur Xash ohne Offscreen-Pass). Shots: `build/px3b-cert-shots/` (nicht committed). Automatische Probe: `./scripts/px3b-offscreen-probe.sh` PASS.
+
+| Punkt | Status | Beleg |
+| --- | --- | --- |
+| Interface v37 + Callbacks | CONFIRMED | `HUD_GetRenderInterface accepted v37`; `GL_RenderFrame always 0` |
+| `GL_RenderFrame` erreicht, return 0 | CONFIRMED | `GL_RenderFrame callback reached` + `r_csretro_renderer 1 offscreen probe, visible frame stays Xash` |
+| Offscreen dust nonempty | CONFIRMED | `map=maps/de_dust.bsp … empty=0 crc=24f7c85e pixels=45285` |
+| Offscreen aztec nonempty | CONFIRMED | `map=maps/de_aztec.bsp … empty=0 crc=b574ac9e pixels=128406` |
+| Mapchange zurück | CONFIRMED | Probe `de_dust` → `de_aztec` → `de_dust`, gleiche Counts; visuell Team-Menü nach Mapchange sauber |
+| `vid_setmode` | CONFIRMED | Probe `vid_setmode 1024 768` → neuer `crc=6a698541 pixels=22380`, weiterhin `empty=0`. Kein `vid_restart`. |
+| T/CT Join, World, VM, HUD | CONFIRMED | Isolierter Lauf: T-Glock + HUD, CT-USP + HUD, `de_dust` Welt |
+| Team / Klasse / Buy | CONFIRMED | T+CT-Previews, Klassen-Lineups, Buy-Raster + Player-Preview beider Teams |
+| HE / Smoke / Flash | CONFIRMED | HE-Explosion; Smoke-Wolke; Flash-Viewmodel + Wurf. Nicht #2-DoD |
+| Folgerahmen / Artefakte | CONFIRMED | Folge-Spawn ohne kaputten Frame; kein sichtbares FBO/Blend/Depth/Viewport/Textur-Leak |
+| GL state isolation | CONFIRMED | Save/Restore vor return 0; sichtbares Xash nach Offscreen-Pass unverändert. Pixelidentität nicht verlangt |
+| Movement-Gate | CONFIRMED | `./scripts/movement-contract-gate.sh` PASS |
+
+#1–#3 bleiben PX0-Verifikation. #5 visuell PASS 2026-09-20. `GL_RenderFrame` bleibt 0.
+
+### TempEnt-Sichtbarkeit (PX3C-Pfad, CONFIRMED)
+
+CS Retro sieht TempEnt-`cl_entity_t` bereits, bevor Xash sie in die sichtbare Ref-Liste legt. Keine neue Engine-ABI.
+
+```text
+HUD_TempEntUpdate
+  → Callback_AddVisibleEntity          (= CL_TempEntAddEntity, cl_tent.c)
+    → CL_AddVisibleEntity(..., ET_TEMPENTITY)
+      → HUD_AddEntity(ET_TEMPENTITY, ...)   // Spectatorfilter; sonst return 1
+        → ref R_AddEntity
+          → R_DrawSpriteModel                 // später in R_DrawEntitiesOnList
+```
+
+Belege: `client/body/cl_dll/entity.cpp` `HUD_TempEntUpdate` / `HUD_AddEntity`; `engine/engine/client/cl_tent.c` `CL_TempEntAddEntity`; `engine/engine/client/cl_frame.c` `CL_AddVisibleEntity`; `engine/ref/gl/gl_rmain.c` `R_AddEntity` / `R_DrawSpriteModel`.
+
+`GL_DrawParticles` rendert **keine** TempEnt-Sprites (unverändert: Beams/Particles/Tracer only).
+
+`R_ClearScene` (`gl_rmain.c`): Xash leert die eigene `tr.draw_list`, danach optional den Client-Callback. Der vierte additive Callback (`R_ClearScene`) kommt **erst in PX3C** — nur die CS-Retro-Spiegelliste leeren, Xash-Liste bleibt, Spiegel ist kein Ownership.
+
+### PX3C-Hinweis
+
+Sprite-Draw ≠ `GL_DrawParticles`. Inferno/Smoke-TempEnts sitzen in `R_DrawSpriteModel`. GSMR nur bei bewusstem Aufruf. `return 1` bleibt gesperrt.

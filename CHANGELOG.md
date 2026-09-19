@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.17 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- Handoff: PX4A Issue #8 geschlossen. Folgearbeit Player/FOLLOW #9, Viewmodel #10, pre-return-1 #7.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.16 — 2026-09-20
 
 ### Renderer

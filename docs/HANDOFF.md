@@ -34,7 +34,7 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/` (nicht comm
 - `de_aztec` `models/skeleton.mdl` ×8: `sprites_crc=0a25ad1a full=010c70c2 differ=1`, events=0. Player local classified, nicht gezeichnet (C).
 - `STUDIO_EVENTS` offscreen aus. CurrentEntity/CurrentModel restore. Kein Live-Pointer über Frames.
 - Mapchange aztec→dust, `vid_setmode`, Movement-Gate PASS. `GL_RenderFrame` immer 0.
-- Issue #8 schließen nach diesem Release.
+- Issue #8 geschlossen.
 
 **Offen vor return 1** — [#7](https://github.com/benjarogit/csretro/issues/7)
 - Brush-Entity Draw

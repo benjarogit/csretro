@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.1.14 — 2026-09-20
+
+### Renderer
+
+- PX3C: per-frame entity mirror (no steal) and additive `R_ClearScene` for the CS Retro list only. TempEnt and normal sprites draw offscreen from a PrimeXT-derived sprite path. `GL_RenderFrame` stays 0.
+- Studio is classified, not drawn. Brush entities are counted; draw deferred. Engine EFX and client triangles are not called offscreen (they advance simulation).
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.13 — 2026-09-20
 
 ### Architektur / Dokumentation

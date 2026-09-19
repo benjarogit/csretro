@@ -1,6 +1,8 @@
 #include "csretro_render.h"
 #include "render_backend.h"
 #include "render_world.h"
+#include "render_scene.h"
+#include "render_sprite.h"
 
 #include "hud.h"
 #include "cl_util.h"
@@ -16,6 +18,9 @@ static cvar_t *s_probe_seq = NULL;
 static int s_inited = 0;
 static int s_backend_ok = 0;
 static int s_proof_logged = 0;
+static int s_sprite_logged = 0;
+static int s_tent_proof_logged = 0;
+static int s_tent_seen = 0;
 static char s_proof_map[64];
 static float s_probe_start = 0.0f;
 static int s_probe_step = 0;
@@ -96,7 +101,11 @@ void CSRETRO_Renderer_Init( void )
 	s_inited = 1;
 	s_backend_ok = 0;
 	s_proof_logged = 0;
+	s_sprite_logged = 0;
+	s_tent_proof_logged = 0;
+	s_tent_seen = 0;
 	s_proof_map[0] = 0;
+	CSRETRO_Scene_Clear();
 	gEngfuncs.Con_Printf( "CS Retro: renderer lifecycle init (offscreen probe default off)\n" );
 }
 
@@ -110,16 +119,23 @@ void CSRETRO_Renderer_VidInit( void )
 		s_backend_ok = 0;
 	}
 	s_proof_logged = 0;
+	s_sprite_logged = 0;
+	s_tent_proof_logged = 0;
+	s_tent_seen = 0;
 	gEngfuncs.Con_Printf( "CS Retro: renderer vidinit (FBO rebuilt on next probe)\n" );
 }
 
 void CSRETRO_Renderer_Shutdown( void )
 {
 	CSRETRO_World_Release();
+	CSRETRO_Scene_Clear();
 	CSRETRO_Backend_Shutdown();
 	s_backend_ok = 0;
 	s_inited = 0;
 	s_proof_logged = 0;
+	s_sprite_logged = 0;
+	s_tent_proof_logged = 0;
+	s_tent_seen = 0;
 	gEngfuncs.Con_Printf( "CS Retro: renderer shutdown\n" );
 }
 
@@ -129,6 +145,9 @@ void CSRETRO_Renderer_OnNewMap( void )
 	CSRETRO_World_OnNewMap();
 	CSRETRO_Backend_AllowDump();
 	s_proof_logged = 0;
+	s_sprite_logged = 0;
+	s_tent_proof_logged = 0;
+	s_tent_seen = 0;
 	{
 		CSRETRO_WorldStats st;
 		CSRETRO_World_GetStats( &st );
@@ -152,6 +171,19 @@ void CSRETRO_Renderer_OnModel( struct model_s *mod, int create, const unsigned c
 static int ProbeEnabled( void )
 {
 	return s_renderer && s_renderer->value != 0.0f;
+}
+
+void CSRETRO_Renderer_ClearScene( void )
+{
+	// Additive: Xash already emptied tr.draw_list. Mirror has no ownership.
+	CSRETRO_Scene_Clear();
+}
+
+void CSRETRO_Renderer_AddEntity( int type, struct cl_entity_s *ent )
+{
+	if( !ProbeEnabled() )
+		return;
+	CSRETRO_Scene_Add( type, ent );
 }
 
 static void LogProof( const CSRETRO_WorldStats *st, const CSRETRO_OffscreenProof *proof )
@@ -216,24 +248,77 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 	{
 		float org[3] = { rvp->vieworigin[0], rvp->vieworigin[1], rvp->vieworigin[2] };
 		float ang[3] = { rvp->viewangles[0], rvp->viewangles[1], rvp->viewangles[2] };
+		CSRETRO_OffscreenProof world_proof;
+		CSRETRO_SceneStats scene;
 		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y );
-	}
-	CSRETRO_World_GetStats( &st );
-	dump = s_dump && s_dump->value != 0.0f;
-	memset( &proof, 0, sizeof( proof ) );
-	CSRETRO_Backend_EndOffscreen( &proof, 1 );
-	proof.draw_executed = st.captured && st.tris > 0;
+		memset( &world_proof, 0, sizeof( world_proof ) );
+		CSRETRO_Backend_SampleProof( &world_proof );
+		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+		CSRETRO_Sprite_DrawList( org, ang, &scene );
+		CSRETRO_World_GetStats( &st );
+		dump = s_dump && s_dump->value != 0.0f;
+		memset( &proof, 0, sizeof( proof ) );
+		CSRETRO_Backend_EndOffscreen( &proof, 1 );
+		proof.draw_executed = st.captured && st.tris > 0;
 
-	if( !s_proof_logged || strncmp( s_proof_map, st.map, sizeof( s_proof_map ) ) != 0 )
-	{
-		strncpy( s_proof_map, st.map, sizeof( s_proof_map ) - 1 );
-		s_proof_logged = 1;
-		LogProof( &st, &proof );
-		if( dump && gRenderAPI.pfnSaveFile && proof.target_ok )
+		if( !s_proof_logged || strncmp( s_proof_map, st.map, sizeof( s_proof_map ) ) != 0 )
 		{
-			// PPM is written from a later read if the user asks; counts+CRC are the gate.
-			gEngfuncs.Con_Printf( "CS Retro: offscreen dump requested (crc=%08x, nonempty=%i). Manual: r_csretro_offscreen_dump 1\n",
-				proof.crc, proof.nonempty_pixels );
+			strncpy( s_proof_map, st.map, sizeof( s_proof_map ) - 1 );
+			s_proof_logged = 1;
+			s_sprite_logged = 0;
+			LogProof( &st, &proof );
+			if( dump && gRenderAPI.pfnSaveFile && proof.target_ok )
+			{
+				gEngfuncs.Con_Printf( "CS Retro: offscreen dump requested (crc=%08x, nonempty=%i). Manual: r_csretro_offscreen_dump 1\n",
+					proof.crc, proof.nonempty_pixels );
+			}
+		}
+		if( !s_sprite_logged )
+		{
+			s_sprite_logged = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: TempEnt sprite mirrored: %i drawn: %i\n",
+				scene.tent_sprite, scene.tent_drawn );
+			gEngfuncs.Con_Printf(
+				"CS Retro: Normal sprite mirrored: %i drawn: %i\n",
+				scene.normal_sprite, scene.normal_drawn );
+			gEngfuncs.Con_Printf(
+				"CS Retro: Studio classified: %i local: %i (not drawn) brush: %i strategy=deferred\n",
+				scene.studio, scene.studio_local, scene.brush );
+			if( scene.normal_drawn > 0 || scene.tent_drawn > 0 )
+			{
+				gEngfuncs.Con_Printf(
+					"CS Retro: offscreen sprite crc world=%08x full=%08x differ=%i\n",
+					world_proof.crc, proof.crc,
+					world_proof.crc != proof.crc ? 1 : 0 );
+			}
+		}
+		if( !s_tent_seen && scene.tent_sprite > 0 )
+		{
+			s_tent_seen = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: TempEnt sprite mirrored: %i drawn: %i\n",
+				scene.tent_sprite, scene.tent_drawn );
+		}
+		if( !s_tent_proof_logged && scene.tent_drawn > 0 && world_proof.crc != proof.crc )
+		{
+			s_tent_proof_logged = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: TempEnt sprite mirrored: %i drawn: %i\n",
+				scene.tent_sprite, scene.tent_drawn );
+			gEngfuncs.Con_Printf(
+				"CS Retro: offscreen sprite proof world_crc=%08x full_crc=%08x differ=1 tent_drawn=%i\n",
+				world_proof.crc, proof.crc, scene.tent_drawn );
+		}
+		if( !s_tent_proof_logged && scene.tent_drawn > 0 && world_proof.crc != proof.crc )
+		{
+			s_tent_proof_logged = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: TempEnt sprite mirrored: %i drawn: %i\n",
+				scene.tent_sprite, scene.tent_drawn );
+			gEngfuncs.Con_Printf(
+				"CS Retro: offscreen sprite proof world_crc=%08x full_crc=%08x differ=1 tent_drawn=%i\n",
+				world_proof.crc, proof.crc, scene.tent_drawn );
 		}
 	}
 

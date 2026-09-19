@@ -422,8 +422,26 @@ Belege: `client/body/cl_dll/entity.cpp` `HUD_TempEntUpdate` / `HUD_AddEntity`; `
 
 `GL_DrawParticles` rendert **keine** TempEnt-Sprites (unverändert: Beams/Particles/Tracer only).
 
-`R_ClearScene` (`gl_rmain.c`): Xash leert die eigene `tr.draw_list`, danach optional den Client-Callback. Der vierte additive Callback (`R_ClearScene`) kommt **erst in PX3C** — nur die CS-Retro-Spiegelliste leeren, Xash-Liste bleibt, Spiegel ist kein Ownership.
+`R_ClearScene` (`gl_rmain.c`): Xash leert die eigene `tr.draw_list`, danach optional den Client-Callback. PX3C setzt diesen Callback **additiv**: nur die CS-Retro-Spiegelliste wird geleert. Xash-Liste bleibt. Spiegel ist kein Ownership.
 
-### PX3C-Hinweis
+### PX3C — Entity / Sprite offscreen (2026-09-20)
 
-Sprite-Draw ≠ `GL_DrawParticles`. Inferno/Smoke-TempEnts sitzen in `R_DrawSpriteModel`. GSMR nur bei bewusstem Aufruf. `return 1` bleibt gesperrt.
+Issue [#6](https://github.com/benjarogit/csretro/issues/6). `GL_RenderFrame` bleibt 0. Kein sichtbarer Custom-Frame. Kein PrimeXT-Steal (`HUD_AddEntity` behält Spectatorfilter/return 1).
+
+| Teilstück | Status | Beleg |
+| --- | --- | --- |
+| Entity-Spiegel | CONFIRMED | Kopie pro Frame in `render_scene.cpp`. Keine TempEnt-Pointer über Frames. |
+| `R_ClearScene` additiv | CONFIRMED | Log `R_ClearScene additive`; Xash-Liste unverändert |
+| TempEnt + `mod_sprite` | CONFIRMED | `TempEnt sprite mirrored: N drawn: N`; echter 8×8-HE-Spark `tex=553` an Welt-Origin |
+| `ET_NORMAL` + `mod_sprite` | CONFIRMED | aztec `Normal sprite mirrored: 16 drawn: 16` |
+| Studio | CONFIRMED nicht gezeichnet | `Studio classified: N local: N (not drawn)` |
+| Brush-Entities | DEFERRED | gezählt (`brush: N strategy=deferred`); World-Mesh ist nur Worldmodel. Türen/transparente Brushes = eigener Pass |
+| World+Sprite CRC | UNKNOWN | 512²-Readback oft identisch bei kleinen Tents (Depth/near). Pixelidentität nicht verlangt |
+| Engine-EFX `GL_DrawParticles` | DEFERRED | `CL_DrawParticles` ruft `CL_ThinkParticle` — ändert Sim-State. Doppelaufruf offscreen unsicher |
+| Client-Triangles | DEFERRED | `HUD_DrawTransparentTriangles` macht `ParticleMan::Update`, Fog, `EV_UpdateMolotovHeld` — nicht rein zeichnend |
+| GL isolation (Sprite) | CONFIRMED soweit sichtbar | blend/alpha-test/depth-mask/cull/texenv/TMU/color/matrices Save+Restore; sichtbares Xash ohne Artefakte |
+| Fehlende Sprite-Modi | DEFERRED | `SPR_ANGLED`; Frame-Lerp; Sprite-Lightmap |
+
+Provenance Sprite-Draw: PrimeXT `46fb05b` `client/render/gl_sprite.cpp` (Frame, Quad, Orientierung, Rendermode/color/amt), an CS-Retro-Kopien + Xash-`msprite_t`-View angepasst.
+
+`return 1` bleibt gesperrt. Studio/Viewmodel bleiben Xash/PX4. #1 #2 #3 #5 nicht angefasst.

@@ -27,6 +27,9 @@ int CSRETRO_Backend_Ready( void );
 int CSRETRO_Backend_BeginOffscreen( void );
 void CSRETRO_Backend_EndOffscreen( CSRETRO_OffscreenProof *proof, int do_readback );
 
+// Read FBO while still bound. Does not restore GL state.
+void CSRETRO_Backend_SampleProof( CSRETRO_OffscreenProof *proof );
+
 void CSRETRO_Backend_ApplyView( const float *vieworg, const float *viewangles, float fov_x, float fov_y );
 void CSRETRO_Backend_BindTexture( int tmu, unsigned int texnum );
 void CSRETRO_Backend_CleanupTextures( void );
@@ -71,6 +74,9 @@ typedef struct CSRETRO_GL_s
 	void ( *BindVertexArray )( unsigned int array );
 	void ( *ColorMask )( unsigned char r, unsigned char g, unsigned char b, unsigned char a );
 	void ( *TexEnvi )( unsigned int target, unsigned int pname, int param );
+	void ( *AlphaFunc )( unsigned int func, float ref );
+	void ( *BlendEquation )( unsigned int mode );
+	void ( *Vertex3fv )( const float *v );
 } CSRETRO_GL;
 
 extern CSRETRO_GL gXRGL;

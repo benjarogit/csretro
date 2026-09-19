@@ -55,4 +55,4 @@ Ein Port sollte Quelle, Commit, betroffene Dateien, Lizenzhinweise und Tests nen
 Keine zweite parallele Implementierung der **Produktlogik**. Der Xash-World-Renderer darf als Diagnose-/A/B-Fallback bleiben (`r_csretro_renderer 0`).
 PrimeXT-Updates gehen in die inzwischen eigene CS-Retro-Implementierung, nicht in wiederhergestellte Upstream-Schichten.
 Verbindlicher Integrationsplan: PX0 (Verträge/Baselines) vor produktiver Renderer-Integration (PX2).
-PX1-Research und Port-Matrix: [docs/research/px1-primext.md](research/px1-primext.md). PX2 (`17bd79f`) ist die `HUD_GetRenderInterface`-Brücke. PX3A: Strategie C. PX3B (`bbe418d`, visuell zertifiziert): World/Offscreen in `client/render/`, `GL_RenderFrame` bleibt 0. Sichtbarer Takeover erst nach Entity/EFX/Studio-Besitz (PX3C/PX4).
+PX1-Research und Port-Matrix: [docs/research/px1-primext.md](research/px1-primext.md). PX2 (`17bd79f`) ist die `HUD_GetRenderInterface`-Brücke. PX3A: Strategie C. PX3B (`bbe418d`, visuell zertifiziert): World/Offscreen. PX3C: Entity-Spiegel + Sprite-Offscreen, `GL_RenderFrame` bleibt 0. Sichtbarer Takeover erst nach vollem Entity/EFX/Studio-Besitz (PX4).

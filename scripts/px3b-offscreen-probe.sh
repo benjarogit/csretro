@@ -118,6 +118,12 @@ if rg -qi 'GL_RenderFrame.*return 1|custom path took over' "${ALL}"; then
 	fail "GL_RenderFrame darf nicht 1 zurückgeben"
 fi
 rg -q 'renderer shutdown|Host_Shutdown|quit' "${ALL}" || true
+if rg -q 'R_ClearScene additive' "${ALL}"; then
+	echo "PX3C_PROBE R_ClearScene additive logged"
+fi
+if rg -q 'TempEnt sprite mirrored:' "${ALL}"; then
+	rg -n 'TempEnt sprite mirrored:|Normal sprite mirrored:|Studio classified:|offscreen sprite proof' "${ALL}" | head -n 20
+fi
 
 echo "PX3B_PROBE PASS"
 echo "PX3B_PROBE log=${ALL}"

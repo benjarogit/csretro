@@ -26,6 +26,7 @@
 #include "ev_hldm.h"
 #include "particleman.h"
 #include "particleman_internal.h"
+#include "csretro_render.h"
 
 extern vec3_t v_origin;
 
@@ -66,10 +67,14 @@ int DLLEXPORT HUD_AddEntity( int type, struct cl_entity_s *ent, const char *mode
 
 		if ( (	g_iUser1 == OBS_IN_EYE || gHUD.m_Spectator.m_pip->value == INSET_IN_EYE ) &&
 				ent->index == g_iUser2 )
+		{
+			CSRETRO_Renderer_AddEntity( type, ent );
 			return 0;	// don't draw the player we are following in eye
+		}
 
 	}
 
+	CSRETRO_Renderer_AddEntity( type, ent );
 	return 1;
 }
 

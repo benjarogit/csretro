@@ -66,6 +66,12 @@
 #define GL_COLOR_WRITEMASK 0x0C23
 #define GL_ONE 1
 #define GL_ZERO 0
+#define GL_ALPHA_TEST 0x0BC0
+#define GL_ALPHA_TEST_FUNC 0x0BC1
+#define GL_ALPHA_TEST_REF 0x0BC2
+#define GL_BLEND_EQUATION 0x8009
+#define GL_CURRENT_COLOR 0x0B00
+#define GL_FUNC_ADD 0x8006
 
 CSRETRO_GL gXRGL;
 
@@ -142,6 +148,11 @@ typedef struct GLState_s
 	float modelview[16];
 	float projection[16];
 	unsigned char color_mask[4];
+	unsigned char alpha_test;
+	int alpha_func;
+	float alpha_ref;
+	int blend_eq;
+	float color[4];
 	int saved;
 } GLState;
 
@@ -196,6 +207,9 @@ int CSRETRO_Backend_Init( struct render_api_s *api )
 	LOAD2( BindVertexArray, "glBindVertexArray", NULL );
 	LOAD1( ColorMask, "glColorMask" );
 	LOAD1( TexEnvi, "glTexEnvi" );
+	LOAD1( AlphaFunc, "glAlphaFunc" );
+	LOAD2( BlendEquation, "glBlendEquation", "glBlendEquationEXT" );
+	LOAD1( Vertex3fv, "glVertex3fv" );
 
 	pglGenFramebuffers = (PFN_GEN)LoadProc( "glGenFramebuffers", "glGenFramebuffersEXT" );
 	pglDeleteFramebuffers = (PFN_DEL)LoadProc( "glDeleteFramebuffers", "glDeleteFramebuffersEXT" );
@@ -326,6 +340,7 @@ static void SaveState( void )
 		s_saved.depth_test = gXRGL.IsEnabled( GL_DEPTH_TEST );
 		s_saved.blend = gXRGL.IsEnabled( GL_BLEND );
 		s_saved.cull = gXRGL.IsEnabled( GL_CULL_FACE );
+		s_saved.alpha_test = gXRGL.IsEnabled( GL_ALPHA_TEST );
 	}
 	if( gXRGL.GetBooleanv )
 	{
@@ -335,6 +350,15 @@ static void SaveState( void )
 	gXRGL.GetIntegerv( GL_DEPTH_FUNC, &s_saved.depth_func );
 	gXRGL.GetIntegerv( GL_BLEND_SRC, &s_saved.blend_src );
 	gXRGL.GetIntegerv( GL_BLEND_DST, &s_saved.blend_dst );
+	gXRGL.GetIntegerv( GL_BLEND_EQUATION, &s_saved.blend_eq );
+	gXRGL.GetIntegerv( GL_ALPHA_TEST_FUNC, &s_saved.alpha_func );
+	if( gXRGL.GetFloatv )
+	{
+		gXRGL.GetFloatv( GL_ALPHA_TEST_REF, &s_saved.alpha_ref );
+		gXRGL.GetFloatv( GL_CURRENT_COLOR, s_saved.color );
+	}
+	if( !s_saved.blend_eq )
+		s_saved.blend_eq = (int)GL_FUNC_ADD;
 	gXRGL.GetIntegerv( GL_CULL_FACE_MODE, &s_saved.cull_mode );
 	gXRGL.GetIntegerv( GL_FRONT_FACE, &s_saved.front_face );
 	gXRGL.GetIntegerv( GL_ACTIVE_TEXTURE, &s_saved.active_tex );
@@ -418,10 +442,20 @@ static void RestoreState( void )
 		gXRGL.Enable( GL_BLEND );
 	else
 		gXRGL.Disable( GL_BLEND );
+	if( s_saved.alpha_test )
+		gXRGL.Enable( GL_ALPHA_TEST );
+	else
+		gXRGL.Disable( GL_ALPHA_TEST );
 	if( s_saved.cull )
 		gXRGL.Enable( GL_CULL_FACE );
 	else
 		gXRGL.Disable( GL_CULL_FACE );
+	if( gXRGL.AlphaFunc )
+		gXRGL.AlphaFunc( (unsigned int)s_saved.alpha_func, s_saved.alpha_ref );
+	if( gXRGL.BlendEquation && s_saved.blend_eq )
+		gXRGL.BlendEquation( (unsigned int)s_saved.blend_eq );
+	if( gXRGL.Color4f )
+		gXRGL.Color4f( s_saved.color[0], s_saved.color[1], s_saved.color[2], s_saved.color[3] );
 	if( gXRGL.DepthMask )
 		gXRGL.DepthMask( s_saved.depth_mask );
 	if( gXRGL.DepthFunc && s_saved.depth_func )
@@ -556,7 +590,7 @@ static unsigned int CRC32_Buf( const unsigned char *data, int len )
 	return crc ^ 0xFFFFFFFFu;
 }
 
-void CSRETRO_Backend_EndOffscreen( CSRETRO_OffscreenProof *proof, int do_readback )
+static void FillProof( CSRETRO_OffscreenProof *proof, int write_ppm )
 {
 	unsigned char *pixels = NULL;
 	int i, nonempty = 0;
@@ -564,61 +598,80 @@ void CSRETRO_Backend_EndOffscreen( CSRETRO_OffscreenProof *proof, int do_readbac
 
 	if( proof )
 		memset( proof, 0, sizeof( *proof ) );
-
-	if( do_readback && gXRGL.ReadPixels )
+	if( !gXRGL.ReadPixels )
 	{
-		pixels = (unsigned char *)malloc( (size_t)count * 4 );
-		if( pixels )
+		if( proof )
+			proof->target_ok = 1;
+		return;
+	}
+
+	pixels = (unsigned char *)malloc( (size_t)count * 4 );
+	if( !pixels )
+	{
+		if( proof )
+			proof->target_ok = 1;
+		return;
+	}
+	if( gXRGL.PixelStorei )
+		gXRGL.PixelStorei( GL_PACK_ALIGNMENT, 1 );
+	gXRGL.ReadPixels( 0, 0, CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, pixels );
+	for( i = 0; i < count; i++ )
+	{
+		const unsigned char *p = pixels + i * 4;
+		if( p[0] > 20 || p[1] > 20 || p[2] > 40 )
+			nonempty++;
+	}
+	if( proof )
+	{
+		proof->target_ok = 1;
+		proof->width = CSRETRO_OFFSCREEN_SIZE;
+		proof->height = CSRETRO_OFFSCREEN_SIZE;
+		proof->nonempty_pixels = nonempty;
+		proof->empty = nonempty == 0;
+		if( s_api && s_api->pfnFileBufferCRC32 )
+			proof->crc = s_api->pfnFileBufferCRC32( pixels, count * 4 );
+		else
+			proof->crc = CRC32_Buf( pixels, count * 4 );
+	}
+	if( write_ppm && !s_dumped_ppm && s_api && s_api->pfnSaveFile && nonempty > 0 )
+	{
+		const int rgb_len = count * 3;
+		unsigned char *ppm = (unsigned char *)malloc( (size_t)rgb_len + 64 );
+		if( ppm )
 		{
-			if( gXRGL.PixelStorei )
-				gXRGL.PixelStorei( GL_PACK_ALIGNMENT, 1 );
-			gXRGL.ReadPixels( 0, 0, CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, pixels );
-			for( i = 0; i < count; i++ )
+			int hdr = snprintf( (char *)ppm, 64, "P6\n%i %i\n255\n",
+				CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE );
+			int p;
+			unsigned char *dst = ppm + hdr;
+			for( p = 0; p < count; p++ )
 			{
-				const unsigned char *p = pixels + i * 4;
-				// clear color is ~10,10,30
-				if( p[0] > 20 || p[1] > 20 || p[2] > 40 )
-					nonempty++;
+				dst[0] = pixels[p * 4 + 0];
+				dst[1] = pixels[p * 4 + 1];
+				dst[2] = pixels[p * 4 + 2];
+				dst += 3;
 			}
-			if( proof )
-			{
-				proof->target_ok = 1;
-				proof->width = CSRETRO_OFFSCREEN_SIZE;
-				proof->height = CSRETRO_OFFSCREEN_SIZE;
-				proof->nonempty_pixels = nonempty;
-				proof->empty = nonempty == 0;
-				if( s_api && s_api->pfnFileBufferCRC32 )
-					proof->crc = s_api->pfnFileBufferCRC32( pixels, count * 4 );
-				else
-					proof->crc = CRC32_Buf( pixels, count * 4 );
-			}
-			if( !s_dumped_ppm && s_api && s_api->pfnSaveFile && nonempty > 0 )
-			{
-				const int rgb_len = count * 3;
-				unsigned char *ppm = (unsigned char *)malloc( (size_t)rgb_len + 64 );
-				if( ppm )
-				{
-					int hdr = snprintf( (char *)ppm, 64, "P6\n%i %i\n255\n",
-						CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE );
-					int p;
-					unsigned char *dst = ppm + hdr;
-					for( p = 0; p < count; p++ )
-					{
-						dst[0] = pixels[p * 4 + 0];
-						dst[1] = pixels[p * 4 + 1];
-						dst[2] = pixels[p * 4 + 2];
-						dst += 3;
-					}
-					if( s_api->pfnSaveFile( "csretro_offscreen.ppm", ppm, hdr + rgb_len ) )
-						s_dumped_ppm = 1;
-					free( ppm );
-				}
-			}
-			free( pixels );
+			if( s_api->pfnSaveFile( "csretro_offscreen.ppm", ppm, hdr + rgb_len ) )
+				s_dumped_ppm = 1;
+			free( ppm );
 		}
 	}
+	free( pixels );
+}
+
+void CSRETRO_Backend_SampleProof( CSRETRO_OffscreenProof *proof )
+{
+	FillProof( proof, 0 );
+}
+
+void CSRETRO_Backend_EndOffscreen( CSRETRO_OffscreenProof *proof, int do_readback )
+{
+	if( do_readback )
+		FillProof( proof, 1 );
 	else if( proof )
+	{
+		memset( proof, 0, sizeof( *proof ) );
 		proof->target_ok = 1;
+	}
 
 	RestoreState();
 	if( s_api && s_api->GL_CleanUpTextureUnits )

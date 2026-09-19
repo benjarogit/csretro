@@ -19,11 +19,24 @@ static int s_inited = 0;
 static int s_backend_ok = 0;
 static int s_proof_logged = 0;
 static int s_sprite_logged = 0;
+static int s_normal_crc_logged = 0;
 static int s_tent_proof_logged = 0;
 static int s_tent_seen = 0;
+static int s_nodepth_try = 0;
 static char s_proof_map[64];
 static float s_probe_start = 0.0f;
 static int s_probe_step = 0;
+
+static void ResetSpriteProof( void )
+{
+	s_sprite_logged = 0;
+	s_normal_crc_logged = 0;
+	s_tent_proof_logged = 0;
+	s_tent_seen = 0;
+	s_nodepth_try = 0;
+	CSRETRO_Sprite_ResetDump();
+	CSRETRO_Sprite_SetNoDepth( 0 );
+}
 
 static void Print( const char *msg )
 {
@@ -101,9 +114,7 @@ void CSRETRO_Renderer_Init( void )
 	s_inited = 1;
 	s_backend_ok = 0;
 	s_proof_logged = 0;
-	s_sprite_logged = 0;
-	s_tent_proof_logged = 0;
-	s_tent_seen = 0;
+	ResetSpriteProof();
 	s_proof_map[0] = 0;
 	CSRETRO_Scene_Clear();
 	gEngfuncs.Con_Printf( "CS Retro: renderer lifecycle init (offscreen probe default off)\n" );
@@ -119,9 +130,7 @@ void CSRETRO_Renderer_VidInit( void )
 		s_backend_ok = 0;
 	}
 	s_proof_logged = 0;
-	s_sprite_logged = 0;
-	s_tent_proof_logged = 0;
-	s_tent_seen = 0;
+	ResetSpriteProof();
 	gEngfuncs.Con_Printf( "CS Retro: renderer vidinit (FBO rebuilt on next probe)\n" );
 }
 
@@ -133,9 +142,7 @@ void CSRETRO_Renderer_Shutdown( void )
 	s_backend_ok = 0;
 	s_inited = 0;
 	s_proof_logged = 0;
-	s_sprite_logged = 0;
-	s_tent_proof_logged = 0;
-	s_tent_seen = 0;
+	ResetSpriteProof();
 	gEngfuncs.Con_Printf( "CS Retro: renderer shutdown\n" );
 }
 
@@ -145,9 +152,7 @@ void CSRETRO_Renderer_OnNewMap( void )
 	CSRETRO_World_OnNewMap();
 	CSRETRO_Backend_AllowDump();
 	s_proof_logged = 0;
-	s_sprite_logged = 0;
-	s_tent_proof_logged = 0;
-	s_tent_seen = 0;
+	ResetSpriteProof();
 	{
 		CSRETRO_WorldStats st;
 		CSRETRO_World_GetStats( &st );
@@ -253,8 +258,11 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y );
 		memset( &world_proof, 0, sizeof( world_proof ) );
 		CSRETRO_Backend_SampleProof( &world_proof );
+		CSRETRO_Backend_PrepareImmediateDraw();
 		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+		CSRETRO_Sprite_SetNoDepth( s_nodepth_try == 1 );
 		CSRETRO_Sprite_DrawList( org, ang, &scene );
+		CSRETRO_Sprite_SetNoDepth( 0 );
 		CSRETRO_World_GetStats( &st );
 		dump = s_dump && s_dump->value != 0.0f;
 		memset( &proof, 0, sizeof( proof ) );
@@ -285,12 +293,49 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			gEngfuncs.Con_Printf(
 				"CS Retro: Studio classified: %i local: %i (not drawn) brush: %i strategy=deferred\n",
 				scene.studio, scene.studio_local, scene.brush );
-			if( scene.normal_drawn > 0 || scene.tent_drawn > 0 )
+		}
+		if( scene.normal_drawn > 0 && s_normal_crc_logged != 1 )
+		{
+			int differ = world_proof.crc != proof.crc ? 1 : 0;
+			if( s_normal_crc_logged == 0 )
 			{
 				gEngfuncs.Con_Printf(
-					"CS Retro: offscreen sprite crc world=%08x full=%08x differ=%i\n",
-					world_proof.crc, proof.crc,
-					world_proof.crc != proof.crc ? 1 : 0 );
+					"CS Retro: offscreen sprite crc world=%08x full=%08x differ=%i view=%.0f %.0f %.0f\n",
+					world_proof.crc, proof.crc, differ,
+					org[0], org[1], org[2] );
+				if( differ )
+				{
+					s_normal_crc_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: offscreen sprite proof world_crc=%08x full_crc=%08x differ=1 normal_drawn=%i\n",
+						world_proof.crc, proof.crc, scene.normal_drawn );
+				}
+				else
+				{
+					s_normal_crc_logged = -1;
+					s_nodepth_try = 1;
+				}
+			}
+			else if( s_nodepth_try == 1 )
+			{
+				gEngfuncs.Con_Printf(
+					"CS Retro: offscreen sprite crc world=%08x full=%08x differ=%i nodepth=1\n",
+					world_proof.crc, proof.crc, differ );
+				s_nodepth_try = 2;
+				if( differ )
+				{
+					s_normal_crc_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: offscreen sprite proof world_crc=%08x full_crc=%08x differ=1 normal_drawn=%i nodepth=1\n",
+						world_proof.crc, proof.crc, scene.normal_drawn );
+				}
+			}
+			else if( differ )
+			{
+				s_normal_crc_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: offscreen sprite proof world_crc=%08x full_crc=%08x differ=1 normal_drawn=%i\n",
+					world_proof.crc, proof.crc, scene.normal_drawn );
 			}
 		}
 		if( !s_tent_seen && scene.tent_sprite > 0 )
@@ -299,16 +344,6 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			gEngfuncs.Con_Printf(
 				"CS Retro: TempEnt sprite mirrored: %i drawn: %i\n",
 				scene.tent_sprite, scene.tent_drawn );
-		}
-		if( !s_tent_proof_logged && scene.tent_drawn > 0 && world_proof.crc != proof.crc )
-		{
-			s_tent_proof_logged = 1;
-			gEngfuncs.Con_Printf(
-				"CS Retro: TempEnt sprite mirrored: %i drawn: %i\n",
-				scene.tent_sprite, scene.tent_drawn );
-			gEngfuncs.Con_Printf(
-				"CS Retro: offscreen sprite proof world_crc=%08x full_crc=%08x differ=1 tent_drawn=%i\n",
-				world_proof.crc, proof.crc, scene.tent_drawn );
 		}
 		if( !s_tent_proof_logged && scene.tent_drawn > 0 && world_proof.crc != proof.crc )
 		{
@@ -331,7 +366,63 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			if( s_probe_step == 0 && elapsed >= 8.0f )
+			int px3c = s_probe_seq->value >= 2.0f;
+			if( px3c )
+			{
+				if( s_probe_step == 0 && elapsed >= 4.0f )
+				{
+					s_probe_step = 1;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq give he\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; give weapon_hegrenade\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 5.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq throw he\n" );
+					gEngfuncs.pfnClientCmd( "+attack\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 6.5f )
+				{
+					s_probe_step = 3;
+					gEngfuncs.pfnClientCmd( "-attack\n" );
+				}
+				else if( s_probe_step == 3 && elapsed >= 8.0f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq give smoke\n" );
+					gEngfuncs.pfnClientCmd( "give weapon_smokegrenade\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 9.0f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq throw smoke\n" );
+					gEngfuncs.pfnClientCmd( "+attack\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 10.5f )
+				{
+					s_probe_step = 6;
+					gEngfuncs.pfnClientCmd( "-attack\n" );
+				}
+				else if( s_probe_step == 6 && elapsed >= 18.0f )
+				{
+					s_probe_step = 7;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+				}
+				else if( s_probe_step == 7 && elapsed >= 30.0f )
+				{
+					s_probe_step = 8;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 8 && elapsed >= 34.0f )
+				{
+					s_probe_step = 9;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
+					gEngfuncs.pfnClientCmd( "quit\n" );
+				}
+			}
+			else if( s_probe_step == 0 && elapsed >= 8.0f )
 			{
 				s_probe_step = 1;
 				gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_aztec\n" );

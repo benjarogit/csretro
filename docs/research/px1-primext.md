@@ -432,16 +432,44 @@ Issue [#6](https://github.com/benjarogit/csretro/issues/6). `GL_RenderFrame` ble
 | --- | --- | --- |
 | Entity-Spiegel | CONFIRMED | Kopie pro Frame in `render_scene.cpp`. Keine TempEnt-Pointer über Frames. |
 | `R_ClearScene` additiv | CONFIRMED | Log `R_ClearScene additive`; Xash-Liste unverändert |
-| TempEnt + `mod_sprite` | CONFIRMED | `TempEnt sprite mirrored: N drawn: N`; echter 8×8-HE-Spark `tex=553` an Welt-Origin |
-| `ET_NORMAL` + `mod_sprite` | CONFIRMED | aztec `Normal sprite mirrored: 16 drawn: 16` |
+| TempEnt + `mod_sprite` | CONFIRMED | echter HE-Spark `tex=704` 72×72 an Welt-Origin `1572 -290 -230`, `mirrored: 1 drawn: 1`, mode=5; CRC `7d62b310` ≠ `8f1af82c` |
+| `ET_NORMAL` + `mod_sprite` | CONFIRMED | aztec `Normal sprite mirrored: 16 drawn: 16`; dust-spawn 12× 64×128 grass/glow in view |
 | Studio | CONFIRMED nicht gezeichnet | `Studio classified: N local: N (not drawn)` |
-| Brush-Entities | DEFERRED | gezählt (`brush: N strategy=deferred`); World-Mesh ist nur Worldmodel. Türen/transparente Brushes = eigener Pass |
-| World+Sprite CRC | UNKNOWN | 512²-Readback oft identisch bei kleinen Tents (Depth/near). Pixelidentität nicht verlangt |
-| Engine-EFX `GL_DrawParticles` | DEFERRED | `CL_DrawParticles` ruft `CL_ThinkParticle` — ändert Sim-State. Doppelaufruf offscreen unsicher |
-| Client-Triangles | DEFERRED | `HUD_DrawTransparentTriangles` macht `ParticleMan::Update`, Fog, `EV_UpdateMolotovHeld` — nicht rein zeichnend |
-| GL isolation (Sprite) | CONFIRMED soweit sichtbar | blend/alpha-test/depth-mask/cull/texenv/TMU/color/matrices Save+Restore; sichtbares Xash ohne Artefakte |
-| Fehlende Sprite-Modi | DEFERRED | `SPR_ANGLED`; Frame-Lerp; Sprite-Lightmap |
+| Brush-Entities | DEFERRED | gezählt (`brush: N strategy=deferred`). [#7](https://github.com/benjarogit/csretro/issues/7) |
+| World+Sprite CRC | CONFIRMED | DoD präzisiert: echter Sprite-Pass ändert Offscreen-Pixel, nicht „winziger Smoke in 512²“. aztec `world=b574ac9e full=21e1f2db differ=1 normal_drawn=16`; spawn `world=9b241fd4 full=0742170e differ=1 normal_drawn=12` |
+| Engine-EFX `GL_DrawParticles` | DEFERRED | `CL_ThinkParticle` ändert Sim-State. [#7](https://github.com/benjarogit/csretro/issues/7) |
+| Client-Triangles | DEFERRED | ParticleMan/Fog/`EV_UpdateMolotovHeld` ändern State. [#7](https://github.com/benjarogit/csretro/issues/7) |
+| GL isolation (Sprite) | CONFIRMED soweit sichtbar | FBO nach World-Readback neu gebunden; blend/alpha/depth/cull/texenv/TMU/color/matrices Save+Restore; sichtbares Xash ohne Artefakte |
+| Fehlende Sprite-Modi | DEFERRED | `SPR_ANGLED`; Frame-Lerp; Sprite-Lightmap. [#7](https://github.com/benjarogit/csretro/issues/7) |
 
 Provenance Sprite-Draw: PrimeXT `46fb05b` `client/render/gl_sprite.cpp` (Frame, Quad, Orientierung, Rendermode/color/amt), an CS-Retro-Kopien + Xash-`msprite_t`-View angepasst.
 
-`return 1` bleibt gesperrt. Studio/Viewmodel bleiben Xash/PX4. #1 #2 #3 #5 nicht angefasst.
+**DoD-Präzisierung (vor #6-Close):** Die ursprüngliche Formel „world-only CRC ≠ world+smoke CRC“ bleibt als Pixel-Forderung stehen, wird aber nicht an einem winzigen HE/Smoke in 512² festgemacht. Nachweis ist: mindestens ein reproduzierbarer echter Sprite-Pass ändert Offscreen-Pixel vs World-only. Getrennt: reales `ET_TEMPENTITY` `mirrored>0 drawn>0` (kein Dummy). Erfüllt durch aztec/`de_dust` `ET_NORMAL` CRC-Differenz plus HE-Spark-TempEnt.
+
+**Visuell 2026-09-20** mit `r_csretro_renderer 1` (`build/px3c-cert-shots/`, nicht committed): T/CT Team+Klasse+Buy-Previews, T/CT Spawn mit Viewmodel/HUD, Mapchange aztec, `vid_setmode`. Kein sichtbarer Takeover, keine Blend/FBO-Leaks. HE/Smoke/Flash-Wurf im Automations-Shot nicht im Viewmodel (erstes M1, #3); sichtbarer Xash-Pfad unverändert (`return 0`). Offscreen-Tents während desselben Laufs geloggt. Probe: `./scripts/px3c-offscreen-probe.sh` PASS. Movement-Gate PASS.
+
+#6 visuell PASS / geschlossen. Rest vor return 1: [#7](https://github.com/benjarogit/csretro/issues/7). `return 1` bleibt gesperrt. #1 #2 #3 #5 nicht angefasst.
+
+### PX4A — GSMR side effects (Research, 2026-09-20)
+
+Zweiter offscreen GSMR-Aufruf im selben Frame ist **nicht** nebenwirkungsfrei. GSMR bleibt CS-Was. Kein PrimeXT `gl_studio_*`. `STUDIO_EVENTS` offscreen niemals. `GL_RenderFrame` bleibt 0.
+
+| Zustand | Klasse | Beleg |
+| --- | --- | --- |
+| `cl_entity_t` live (origin/angles/curstate) | READ ONLY wenn nur Kopie; GLOBAL MUTATION wenn GSMR das Live-Objekt bekommt | `StudioDrawModel` liest `m_pCurrentEntity`; Follow/Player schreiben angles/blend |
+| `entity_state_t` / `latched` | GLOBAL MUTATION | `latched.prevframe`, prevblending, sequencetime, prevcontroller in `StudioSetupBones` / `StudioDrawPlayer` |
+| attachments[4] | GLOBAL MUTATION / ENGINE MUTATION | `STUDIO_EVENTS`: `memcpy` auf `GetEntityByIndex` — offscreen aus |
+| `player_info_t` gait | GLOBAL MUTATION | `prevgaitorigin`, `gaityaw`, `gaitframe` in Player-Pfad |
+| Studio counters | GLOBAL MUTATION | `m_pModelsDrawn`, `m_pStudioModelCount` bei `STUDIO_RENDER` |
+| Current entity / model | ENGINE MUTATION / RESTORABLE | `gRenderAPI.R_SetCurrentEntity` setzt `RI.currententity` + `RI.currentmodel`. Save/set/render/restore. Xash setzt vor jedem sichtbaren Studio neu (`R_DrawStudioModel` / `R_DrawViewModel`) — Restore trotzdem Pflicht |
+| studio header / render model | ENGINE MUTATION / RESTORABLE | `StudioSetHeader`, `SetRenderModel` |
+| cached bones / `StudioSaveBones` | GLOBAL MUTATION | `m_rgCachedBoneTransform`, `m_nCachedBones` — nächster GSMR-Aufruf (sichtbares Xash) überschreibt |
+| Molotov wick | GLOBAL MUTATION / NOT SAFE TO DOUBLE-CALL | `EV_CaptureMolotovWickOrigin` schon im Bone-Setup von `StudioDrawModel`, **bevor** `STUDIO_EVENTS`. Viewmodel deshalb nicht im ersten Slice |
+| random / renderfx | GLOBAL MUTATION möglich | `StudioFxTransform`, dead-player branch ruft `StudioDrawPlayer` |
+| `CL_UpdateLatchedVars` | DEFERRED | nicht vorsorglich. Nur wenn Safety zeigt, dass Offscreen-Lerp sie braucht |
+
+Spiegel = Kopie, keine Live-Pointer über Frames. Model-Pointer nur im Map-/Frame-Lifecycle.
+
+**Player:** Variante C (nicht doppelt zeichnen) bis Safety A/B trägt. **Viewmodel:** PX4C (DepthRange, Events, Wick, righthand). **FOLLOW:** eigener Slice (Parent in Mirror-Liste, `StudioMergeBones`). **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
+
+Erster Draw-Slice (PX4A.1): `ET_NORMAL` + `mod_studio`, kein Viewmodel, kein Player, kein `MOVETYPE_FOLLOW`, nur `STUDIO_RENDER`.

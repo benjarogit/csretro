@@ -9,7 +9,7 @@ CS Retro (eine Codebasis)
 ├── Client: eine client_amd64.so
 │   ├── CS-Körper (Velaron/NextClient-derived)
 │   ├── Movement/Prediction (Vertrag mit der GameDLL)
-│   └── PrimeXT-derived Technik (`client/render/`; PX2-Brücke, PX3B World offscreen)
+│   └── PrimeXT-derived Technik (`client/render/`; PX3B World/BSP, PX3C Entity/Sprite offscreen)
 ├── Menü-Lib: CS-Retro-InGameUi (VGUI2 gültig; ImGui fest für Tools)
 └── GameDLL: ReGameDLL-derived — Spielregeln, Waffen, Inferno, ZBot
 ```
@@ -55,4 +55,4 @@ Ein Port sollte Quelle, Commit, betroffene Dateien, Lizenzhinweise und Tests nen
 Keine zweite parallele Implementierung der **Produktlogik**. Der Xash-World-Renderer darf als Diagnose-/A/B-Fallback bleiben (`r_csretro_renderer 0`).
 PrimeXT-Updates gehen in die inzwischen eigene CS-Retro-Implementierung, nicht in wiederhergestellte Upstream-Schichten.
 Verbindlicher Integrationsplan: PX0 (Verträge/Baselines) vor produktiver Renderer-Integration (PX2).
-PX1-Research und Port-Matrix: [docs/research/px1-primext.md](research/px1-primext.md). PX2 (`17bd79f`) ist die `HUD_GetRenderInterface`-Brücke. PX3A: Strategie C. PX3B (`bbe418d`, visuell zertifiziert): World/Offscreen. PX3C: Entity-Spiegel + Sprite-Offscreen, `GL_RenderFrame` bleibt 0. Sichtbarer Takeover erst nach vollem Entity/EFX/Studio-Besitz (PX4).
+PX1-Research und Port-Matrix: [docs/research/px1-primext.md](research/px1-primext.md). PX2 (`17bd79f`) ist die `HUD_GetRenderInterface`-Brücke. PX3A: Strategie C. PX3B (`bbe418d`, visuell zertifiziert): World/Offscreen. PX3C (visuell zertifiziert, #6 geschlossen): Entity-Spiegel + Sprite-Offscreen, `GL_RenderFrame` bleibt 0. Rest vor return 1: [#7](https://github.com/benjarogit/csretro/issues/7). Sichtbarer Takeover erst nach vollem Entity/EFX/Studio-Besitz (PX4).

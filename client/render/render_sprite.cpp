@@ -182,6 +182,21 @@ static void DrawQuad( const xr_mspriteframe_t *frame, const float *org, const fl
 	gXRGL.End();
 }
 
+static int s_dump_left = 8;
+static int s_nodepth = 0;
+static int s_tent_dumped = 0;
+
+void CSRETRO_Sprite_ResetDump( void )
+{
+	s_dump_left = 8;
+	s_tent_dumped = 0;
+}
+
+void CSRETRO_Sprite_SetNoDepth( int enabled )
+{
+	s_nodepth = enabled ? 1 : 0;
+}
+
 static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float *vright, const float *vup, const float *vforward, float cl_time )
 {
 	const xr_model_t *mod;
@@ -272,28 +287,52 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 		break;
 	}
 
-	if( hdr->facecull == XR_SPR_CULL_NONE && gXRGL.Disable )
+	// Sprites are two-sided. Xash uses GL_Cull(NONE) for SPR_CULL_NONE;
+	// offscreen keeps cull off so a winding mismatch cannot discard the pass.
+	if( gXRGL.Disable )
 		gXRGL.Disable( GL_CULL_FACE );
-	else if( gXRGL.Enable )
-		gXRGL.Enable( GL_CULL_FACE );
+
+	if( e->rendermode == kRenderGlow || e->rendermode == kRenderWorldGlow )
+	{
+		float dx = origin[0] - vieworg[0];
+		float dy = origin[1] - vieworg[1];
+		float dz = origin[2] - vieworg[2];
+		float dist = sqrtf( dx * dx + dy * dy + dz * dz );
+		if( dist > 1.0f )
+			scale *= dist * ( 1.0f / 200.0f );
+	}
 
 	ApplyMode( e->rendermode );
+	if( s_nodepth && gXRGL.Disable )
+		gXRGL.Disable( GL_DEPTH_TEST );
+	if( ( e->rendermode == kRenderGlow || e->rendermode == kRenderTransAdd
+		|| e->rendermode == kRenderWorldGlow ) && gXRGL.Disable )
+		gXRGL.Disable( GL_ALPHA_TEST );
 	if( gXRGL.Color4f )
 		gXRGL.Color4f( color[0], color[1], color[2], alpha );
 	if( gXRGL.Enable )
 		gXRGL.Enable( GL_TEXTURE_2D );
 	CSRETRO_Backend_BindTexture( 0, (unsigned int)frame->gl_texturenum );
+	if( s_dump_left > 0 || ( e->kind == CSRETRO_KIND_TENT_SPRITE && !s_tent_dumped ) )
 	{
-		static int s_once = 0;
-		if( !s_once && e->kind == CSRETRO_KIND_TENT_SPRITE )
-		{
-			s_once = 1;
-			gEngfuncs.Con_Printf(
-				"CS Retro: sprite frame tex=%i %ix%i L%.1f R%.1f U%.1f D%.1f scale=%.2f origin=%.0f %.0f %.0f mode=%i\n",
-				frame->gl_texturenum, frame->width, frame->height,
-				frame->left, frame->right, frame->up, frame->down,
-				scale, origin[0], origin[1], origin[2], e->rendermode );
-		}
+		float dx = origin[0] - vieworg[0];
+		float dy = origin[1] - vieworg[1];
+		float dz = origin[2] - vieworg[2];
+		float dist = sqrtf( dx * dx + dy * dy + dz * dz );
+		float facing = 0.0f;
+		if( dist > 0.001f )
+			facing = ( dx * vforward[0] + dy * vforward[1] + dz * vforward[2] ) / dist;
+		gEngfuncs.Con_Printf(
+			"CS Retro: sprite dump kind=%s tex=%i %ix%i L%.1f R%.1f U%.1f D%.1f origin=%.0f %.0f %.0f dist=%.0f facing=%.2f mode=%i scale=%.2f amt=%i\n",
+			e->kind == CSRETRO_KIND_TENT_SPRITE ? "tent" : "normal",
+			frame->gl_texturenum, frame->width, frame->height,
+			frame->left, frame->right, frame->up, frame->down,
+			origin[0], origin[1], origin[2], dist, facing,
+			e->rendermode, scale, e->renderamt );
+		if( e->kind == CSRETRO_KIND_TENT_SPRITE )
+			s_tent_dumped = 1;
+		else if( s_dump_left > 0 )
+			s_dump_left--;
 	}
 	DrawQuad( frame, origin, right, up, scale );
 

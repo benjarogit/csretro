@@ -31,6 +31,8 @@ void CSRETRO_Backend_EndOffscreen( CSRETRO_OffscreenProof *proof, int do_readbac
 void CSRETRO_Backend_SampleProof( CSRETRO_OffscreenProof *proof );
 
 void CSRETRO_Backend_ApplyView( const float *vieworg, const float *viewangles, float fov_x, float fov_y );
+// Immediate-mode draw on the bound FBO. Does not restore Xash state.
+void CSRETRO_Backend_PrepareImmediateDraw( void );
 void CSRETRO_Backend_BindTexture( int tmu, unsigned int texnum );
 void CSRETRO_Backend_CleanupTextures( void );
 

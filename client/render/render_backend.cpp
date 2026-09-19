@@ -554,6 +554,43 @@ void CSRETRO_Backend_ApplyView( const float *vieworg, const float *viewangles, f
 	gXRGL.Translatef( -vieworg[0], -vieworg[1], -vieworg[2] );
 }
 
+void CSRETRO_Backend_PrepareImmediateDraw( void )
+{
+	if( gXRGL.BindFramebuffer && s_fbo )
+		gXRGL.BindFramebuffer( GL_FRAMEBUFFER, s_fbo );
+	if( gXRGL.Viewport )
+		gXRGL.Viewport( 0, 0, CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE );
+	if( gXRGL.UseProgram )
+		gXRGL.UseProgram( 0 );
+	if( gXRGL.BindVertexArray )
+		gXRGL.BindVertexArray( 0 );
+	if( gXRGL.BindBuffer )
+	{
+		gXRGL.BindBuffer( GL_ARRAY_BUFFER, 0 );
+		gXRGL.BindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+	}
+	if( gXRGL.ActiveTexture )
+	{
+		gXRGL.ActiveTexture( GL_TEXTURE1 );
+		gXRGL.Disable( GL_TEXTURE_2D );
+		gXRGL.ActiveTexture( GL_TEXTURE0 );
+	}
+	if( gXRGL.Enable )
+	{
+		gXRGL.Enable( GL_TEXTURE_2D );
+		gXRGL.Enable( GL_DEPTH_TEST );
+		gXRGL.Enable( GL_CULL_FACE );
+	}
+	if( gXRGL.DepthMask )
+		gXRGL.DepthMask( GL_TRUE );
+	if( gXRGL.DepthFunc )
+		gXRGL.DepthFunc( GL_LEQUAL );
+	if( gXRGL.Disable )
+		gXRGL.Disable( GL_BLEND );
+	if( gXRGL.Color4f )
+		gXRGL.Color4f( 1.0f, 1.0f, 1.0f, 1.0f );
+}
+
 void CSRETRO_Backend_BindTexture( int tmu, unsigned int texnum )
 {
 	if( s_api && s_api->GL_Bind )

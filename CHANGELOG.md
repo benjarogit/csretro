@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.1.15 — 2026-09-20
+
+### Renderer
+
+- PX3C certification: offscreen sprite pass now rebinds the FBO after the world readback and draws two-sided sprites (glow scale, no alpha-test on additive). Real `ET_NORMAL` sprites change offscreen pixels vs world-only (aztec 16 drawn, CRC differ). Real HE TempEnt `mirrored: 1 drawn: 1` also changes CRC.
+- `GL_RenderFrame` stays 0. Brush/EFX/client-triangles remain deferred ([#7](https://github.com/benjarogit/csretro/issues/7)). Issue #6 closed.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.14 — 2026-09-20
 
 ### Renderer

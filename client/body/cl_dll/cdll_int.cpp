@@ -475,25 +475,56 @@ void DLLEXPORT HUD_DirectorMessage( int iSize, void *pbuf )
 ==========================
 HUD_GetRenderInterface
 
-Called when Xash3D sends render api to us
+PX2: own render_interface_t, only GL_RenderFrame. Return 0 → Xash R_RenderScene.
 ==========================
 */
 
+static cvar_t *r_csretro_renderer = NULL;
+static int s_glRenderFrameLogged = 0;
+
+// 0 = Xash draws. Never return 1 until a real custom path exists (not PX2).
+static int CSRETRO_GL_RenderFrame( const struct ref_viewpass_s *rvp )
+{
+	(void)rvp;
+
+	if( !s_glRenderFrameLogged )
+	{
+		s_glRenderFrameLogged = 1;
+		gEngfuncs.Con_Printf( "CS Retro: GL_RenderFrame callback reached\n" );
+		if( r_csretro_renderer && r_csretro_renderer->value != 0.0f )
+			gEngfuncs.Con_Printf( "CS Retro: r_csretro_renderer 1 requested, no custom path yet — Xash fallback selected\n" );
+		else
+			gEngfuncs.Con_Printf( "CS Retro: Xash fallback selected\n" );
+	}
+
+	return 0;
+}
+
+static render_interface_t gCSRetroRenderInterface = {
+	CL_RENDER_INTERFACE_VERSION,
+	CSRETRO_GL_RenderFrame
+};
+
 int DLLEXPORT HUD_GetRenderInterface( int version, render_api_t *renderfuncs, render_interface_t *callback )
 {
-	if( version != CL_RENDER_INTERFACE_VERSION )
+	if( version != CL_RENDER_INTERFACE_VERSION || !renderfuncs || !callback )
 		return false;
 
 	gRenderAPI = *renderfuncs;
+	*callback = gCSRetroRenderInterface;
 
-	// we didn't send callbacks to engine, because we don't use it
-	// *callback = renderInterface;
+	if( !r_csretro_renderer )
+		r_csretro_renderer = CVAR_CREATE( "r_csretro_renderer", "0", 0 );
 
 	// host_ver = "Q_buildnum() XASH_VERSION os arch commit". Dev-Waf ohne Datum → -1.
 	if( g_iXash > 0 && g_iXash < MIN_XASH_VERSION )
 	{
 		gRenderAPI.Host_Error("Xash3D FWGS version check failed!\nPlease update your Xash3D FWGS!\n");
 	}
+
+	s_glRenderFrameLogged = 0;
+	gEngfuncs.Con_Printf( "CS Retro: HUD_GetRenderInterface accepted v%i\n", CL_RENDER_INTERFACE_VERSION );
+	gEngfuncs.Con_Printf( "CS Retro: CS-Retro render callbacks registered\n" );
 
 	return true;
 }

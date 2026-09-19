@@ -128,17 +128,31 @@ PX3-Min-Deps: OpenGL-Funktionen über vorhandenes Xash-`GL_GetProcAddress`; Shad
 | Utils (pxbsp/pxrad) | `utils/` | — | — | miniz | REFERENCE ONLY | später | nicht Runtime | — |
 | Engine-Fork PrimeXT | `refs/primext/engine/` | Xash-FWGS | — | — | DO NOT PORT | — | zweite Engine | — |
 
-## PX2-Minimalschnitt (Issue #4, hier nicht implementieren)
+## PX2-Minimalschnitt (Issue #4)
 
-Dateien: `client/body/cl_dll/cdll_int.cpp` (`HUD_GetRenderInterface`), ggf. Export unverändert (`GetClientAPI` setzt den Pointer schon).
+Dateien: `client/body/cl_dll/cdll_int.cpp` (`HUD_GetRenderInterface`). Export unverändert (`GetClientAPI` setzt den Pointer schon).
 
-Verhalten: `*callback` = Tabelle mit `version = 37` und `GL_RenderFrame` → 0. Rest NULL.
+Verhalten: `*callback` = statische CS-Retro-`render_interface_t` mit `version = 37` und `GL_RenderFrame` → immer 0. Rest NULL. CVar `r_csretro_renderer` 0 = Xash-Fallback, 1 = Custom angefordert, ebenfalls return 0 (kein PX3).
 
 Nicht: PrimeXT-Copy, ImGui, Studio, PhysX, Shader, Inferno.
 
-Test: Bild = heutiges Xash; `movement-contract-gate.sh` PASS; Mapchange ohne Crash.
+### PX2-Nachweis (2026-09-19)
 
-#1–#3 sind PX0-Verifikation und blockieren PX2 nicht. #4 erst nach diesem Research-Commit.
+| Punkt | Status | Beleg |
+| --- | --- | --- |
+| Interface v37 angenommen | CONFIRMED | Log `HUD_GetRenderInterface accepted v37` |
+| Callbacks registriert | CONFIRMED | Log `CS-Retro render callbacks registered`; nur `GL_RenderFrame` gesetzt |
+| `GL_RenderFrame` erreicht, return 0 | CONFIRMED | Log `GL_RenderFrame callback reached` + `Xash fallback selected` |
+| Start / Mapload / Connect | CONFIRMED | `+map de_dust` und Probe-CFG: `level loaded`, `client connected` |
+| Mapchange | CONFIRMED | `de_dust` → `de_aztec` → `de_dust`, kein Crash |
+| Disconnect / Reconnect | CONFIRMED | `Host_EndGame: disconnected` danach erneut `Spawn Server: de_dust` |
+| Video-Reinit | CONFIRMED | Xash hat kein `vid_restart`; `vid_setmode 1024 768` / `1280 720` ohne Crash. Handshake läuft nur beim Client-Load, Callbacks bleiben. |
+| Shutdown | CONFIRMED | Probe endete mit `quit`, Exit 0 |
+| Team / Klasse / Buy-Vorschau | UNKNOWN | Menüs nicht geöffnet; Pfade unangetastet |
+| Pixelgleichheit vs. vor PX2 | INFERRED | return 0 → Xash `R_RenderScene`; kein Inhaber-Screenshot |
+| Join als Teamspieler + Viewmodel | UNKNOWN | `game_playerspawn` ja, kein Team/Class-Pick |
+
+#1–#3 bleiben PX0-Verifikation. #4: implemented / verification pending (kein Inhaber-PASS). PX3 nicht gestartet.
 
 ## Movement-Review (76ee12f, kein neues Contract-Issue)
 

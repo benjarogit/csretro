@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.1.8 — 2026-09-19
+
+### Architecture
+
+- Client now hands Xash a CS Retro `render_interface_t` (version 37). Only `GL_RenderFrame` is set and it always returns 0, so Xash keeps drawing.
+- Diagnostic CVar `r_csretro_renderer`: 0 = Xash fallback, 1 = custom requested but still returns 0 (no custom renderer in this release).
+
+Diese Version ändert die Darstellung nicht absichtlich. Team-/Klassen-/Kaufvorschau wurden nicht neu abgenommen.  
+This release is not intended to change what is drawn. Team/class/buy previews were not re-certified.
+
 ## 0.1.7 — 2026-09-19
 
 ### Architecture / Dokumentation

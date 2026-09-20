@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.1.19 — 2026-09-20
+
+### Renderer
+
+- PX4B.1: `MOVETYPE_FOLLOW` children draw offscreen only when a non-player studio parent is in the same-frame mirror list (`StudioDrawModel(0)` bone cache, then child `STUDIO_RENDER` / merge). Player-parent FOLLOW is counted and deferred — no `StudioDrawPlayer(0)`.
+- Stock CS maps (`de_aztec` / `de_dust`, bot + weapon give/drop) never expose a studio FOLLOW child (`follow: 0`). Documented as not reproducible with current game content. No dummy gameplay. `GL_RenderFrame` stays 0. Issue #9 stays open.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.18 — 2026-09-20
 
 ### Architektur / Dokumentation

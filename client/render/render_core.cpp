@@ -25,6 +25,8 @@ static int s_tent_proof_logged = 0;
 static int s_tent_seen = 0;
 static int s_nodepth_try = 0;
 static int s_studio_crc_logged = 0;
+static int s_follow_crc_logged = 0;
+static int s_follow_detail_logged = 0;
 static char s_proof_map[64];
 static float s_probe_start = 0.0f;
 static int s_probe_step = 0;
@@ -38,6 +40,8 @@ static void ResetSpriteProof( void )
 	s_tent_seen = 0;
 	s_nodepth_try = 0;
 	s_studio_crc_logged = 0;
+	s_follow_crc_logged = 0;
+	s_follow_detail_logged = 0;
 	CSRETRO_Sprite_ResetDump();
 	CSRETRO_Sprite_SetNoDepth( 0 );
 }
@@ -274,10 +278,34 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 			CSRETRO_Studio_DrawList( &scene );
-			CSRETRO_World_GetStats( &st );
-			dump = s_dump && s_dump->value != 0.0f;
-			memset( &proof, 0, sizeof( proof ) );
-			CSRETRO_Backend_EndOffscreen( &proof, 1 );
+			{
+				CSRETRO_OffscreenProof after_studio;
+				memset( &after_studio, 0, sizeof( after_studio ) );
+				CSRETRO_Backend_SampleProof( &after_studio );
+				CSRETRO_Backend_PrepareImmediateDraw();
+				CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+				CSRETRO_Studio_DrawFollow( &scene );
+				CSRETRO_World_GetStats( &st );
+				dump = s_dump && s_dump->value != 0.0f;
+				memset( &proof, 0, sizeof( proof ) );
+				CSRETRO_Backend_EndOffscreen( &proof, 1 );
+				if( scene.follow_drawn > 0 && s_follow_crc_logged != 1 )
+				{
+					int fdiffer = after_studio.crc != proof.crc ? 1 : 0;
+					gEngfuncs.Con_Printf(
+						"CS Retro: offscreen FOLLOW crc before=%08x after=%08x differ=%i drawn=%i\n",
+						after_studio.crc, proof.crc, fdiffer, scene.follow_drawn );
+					if( fdiffer )
+					{
+						s_follow_crc_logged = 1;
+						gEngfuncs.Con_Printf(
+							"CS Retro: offscreen FOLLOW proof before_crc=%08x after_crc=%08x differ=1 drawn=%i\n",
+							after_studio.crc, proof.crc, scene.follow_drawn );
+					}
+					else if( s_follow_crc_logged == 0 )
+						s_follow_crc_logged = -1;
+				}
+			}
 			if( scene.studio_attempted > 0 && s_studio_crc_logged != 1 )
 			{
 				int differ = after_sprites.crc != proof.crc ? 1 : 0;
@@ -331,8 +359,23 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				scene.studio_viewmodel, scene.studio_preview,
 				scene.studio_attempted, scene.studio_drawn );
 			gEngfuncs.Con_Printf(
+				"CS Retro: FOLLOW nonplayer_parent=%i player_parent=%i missing_parent=%i drawn=%i deferred_player=%i\n",
+				scene.follow_nonplayer_parent, scene.follow_player_parent,
+				scene.follow_missing_parent, scene.follow_drawn, scene.follow_deferred_player );
+			gEngfuncs.Con_Printf(
 				"CS Retro: brush: %i strategy=deferred\n",
 				scene.brush );
+		}
+		if( !s_follow_detail_logged
+			&& ( scene.studio_follow > 0 || scene.follow_nonplayer_parent > 0
+				|| scene.follow_player_parent > 0 || scene.follow_missing_parent > 0
+				|| scene.follow_drawn > 0 || scene.follow_deferred_player > 0 ) )
+		{
+			s_follow_detail_logged = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: FOLLOW nonplayer_parent=%i player_parent=%i missing_parent=%i drawn=%i deferred_player=%i\n",
+				scene.follow_nonplayer_parent, scene.follow_player_parent,
+				scene.follow_missing_parent, scene.follow_drawn, scene.follow_deferred_player );
 		}
 		if( scene.normal_drawn > 0 && s_normal_crc_logged != 1 )
 		{

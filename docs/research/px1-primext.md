@@ -488,3 +488,52 @@ Erster Draw-Slice (PX4A.1): `ET_NORMAL` + `mod_studio`, kein Viewmodel, kein Pla
 - `return 1` gesperrt: Brush, Engine-EFX, Client-Triangles, Player, Viewmodel, Vis.
 
 **Visuell 2026-09-20** mit `r_csretro_renderer 1` auf **de_aztec** (`build/px4a-cert-shots/`, nicht committed; `./scripts/px4a-visual-cert.sh`): T/CT Team+Klasse+Buy-Previews, T/CT Spawn mit Viewmodel/HUD, sichtbare Studio-Worldmodels (`pred_plant`), Folgeframes, Mapchange dust, `vid_setmode`. Kein sichtbarer Takeover, keine erkennbare Studio/Bone/Lighting/Texture-Korruption nach dem zusätzlichen Offscreen-GSMR-Aufruf. Bot Martin trat bei, war im First-Person-Shot nicht im Blick. `GL_INVALID_ENUM` nur als developer-2-Overlay (Fehlerqueue), Modelle selbst unversehrt. Probe + Movement-Gate PASS. `GL_RenderFrame` immer 0. Sichtbares Xash-Studio: **CONFIRMED**.
+
+### PX4B — FOLLOW parent graph + Player mutations (Research, 2026-09-20)
+
+Xash `R_DrawStudioModel` (`engine/ref/gl/gl_studio.c`): FOLLOW child → `CL_GetEntityByIndex(aiment)` nur als Typ-Check → Parent in **derselben** Draw-Liste (`solid` dann `trans`) → `StudioDrawModelInternal(parent, 0)` → `child.origin` / `curstate.origin` = parent → `StudioDrawModelInternal(child, STUDIO_RENDER|STUDIO_EVENTS)`. CS Retro: Parent nur aus der Mirror-Liste derselben Frame. Kein Live-`GetEntityByIndex`-Fallback. Offscreen niemals `STUDIO_EVENTS`.
+
+| Slice | Semantik | Status |
+| --- | --- | --- |
+| FOLLOW_NONPLAYER_PARENT | `StudioDrawModel(0)` auf Parent-Snapshot, Merge auf Child-Snapshot | implementiert; **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT** |
+| FOLLOW_PLAYER_PARENT | `StudioDrawPlayer(0)` würde `player_info_t`/gait mutieren, auch ohne RENDER/EVENTS | **DEFERRED** — kein `StudioDrawPlayer(0)` |
+
+CS-Inhalt: `CBasePlayerItem::AttachToPlayer` setzt `MOVETYPE_FOLLOW` + `EF_NODRAW` + `modelindex=0` (nicht in der Client-Draw-Liste). `CSprite::SetAttachment` ist Sprite, nicht Studio. Sichtbare Spielerwaffe = `StudioDrawPlayer` `weaponmodel` + `StudioMergeBones`, nicht ein FOLLOW-Child in `HUD_AddEntity`.
+
+#### StudioDrawPlayer Mutationen (auch flags=0)
+
+| Zustand | Mutation bei `StudioDrawPlayer(0)` | Snapshot/Restore |
+| --- | --- | --- |
+| `player_info_t.gaitsequence` | ja (`StudioProcessGait` / else-Zweig = 0) | yes — ganze `player_info_t` kopieren |
+| `player_info_t.gaitframe` / `gaityaw` / `prevgaitorigin` | ja in `StudioProcessGait` | yes (Teil von `player_info_t`) |
+| `player_info_t.renderframe` | ja, **immer** nach `StudioSaveBones` | yes |
+| `player_info_t` top/bottom color | nur gelesen bei `STUDIO_RENDER` | n/a |
+| Live `cl_entity_t` angles | ja (gait yaw), lokal oft save/restore | yes wenn Kopie; **no** wenn Live-Pointer |
+| `curstate.sequence` / `gaitsequence` clamp | ja | yes auf Snapshot |
+| `curstate.controller` + `latched.prevcontroller` | ja im no-gait-Zweig | yes auf Snapshot |
+| `curstate.body` (himodels) | nur `STUDIO_RENDER` | yes |
+| `curstate` / `latched` / `angles` via `SetupClientAnimation` | ja für **local** vor `_StudioDrawPlayer` | uncertain — `g_state`/`g_clientstate` parallel |
+| `SavePlayerState` / `RestorePlayerState` | nur local, schreibt `g_state` + Entity | uncertain — nicht dasselbe wie Offscreen-Safety |
+| `entity_state_t *pplayer` gaitsequence | ja (local anim) | yes wenn Caller-Kopie |
+| `m_pPlayerInfo` / `m_nPlayerIndex` / `m_pplayer` | ja, Globals | yes (Pointer zurücksetzen) |
+| cached bones / `StudioSaveBones` | ja, auch flags=0 | yes — nächstes sichtbares Xash überschreibt |
+| `m_pModelsDrawn` / `m_pStudioModelCount` | nur `STUDIO_RENDER` | n/a bei flags=0 |
+| attachments / `GetEntityByIndex` | nur `STUDIO_EVENTS` | n/a wenn Events aus |
+| GSMR header / `SetRenderModel` | ja | restorable via CurrentEntity/Model |
+| Schatten (`r_shadows`) | **nach** `_StudioDrawPlayer`, nicht an flags gebunden | no — sichtbarer Side-Draw |
+| Preview `s_previewInfo` | eigener Stack, nicht Live-`player_info` | yes für Preview; World-Offscreen mischt das nicht |
+
+**A** braucht nachweisbares snapshot/restore von `player_info_t` + gait **und** keine Schatten-Zweitzeichnung. **B** isolierter Offscreen-State, kein zweiter Renderer. **C** bleibt gültig — Player ist dann expliziter Blocker vor `return 1`. Kein Fortschritts-A ohne Beweis.
+
+`CL_UpdateLatchedVars` weiter NULL. Viewmodel #10. Previews nicht in World-Offscreen.
+
+**PX4B.1 Implementation 2026-09-20**
+
+- Parent-Lookup: `CSRETRO_Scene_FindByIndex(aiment)` in der Mirror-Liste derselben Frame. Kein `GetEntityByIndex`, keine Engine-Draw-Liste, keine Parent-Pointer über Frames.
+- Parent fehlt / nicht Studio / selbst FOLLOW / Preview / Viewmodel / DeadPlayer → Child offscreen nicht zeichnen, `missing_parent++`. Xash sichtbar unverändert.
+- Player-Parent (`player != 0` / `STUDIO_LOCAL` / snap.player) → `deferred_player++`, kein `StudioDrawPlayer(0)`.
+- Non-Player-Parent: `R_SetCurrentEntity(parent_snap)` → `StudioDrawModel(0)` (Bone-Cache) → Child-Snapshot `origin`/`curstate.origin` = parent → `StudioDrawModel(STUDIO_RENDER)` → Merge. Nur Snapshots. `STUDIO_EVENTS` aus.
+- Diagnose: `FOLLOW nonplayer_parent=N player_parent=N missing_parent=N drawn=N deferred_player=N`.
+- Probe `de_aztec` + Bot + `de_dust` + AK give/drop: `follow: 0` durchgehend, alle FOLLOW-Zähler 0. Kein Dummy-Gameplay. **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT**.
+- PX4A-Regression PASS. Movement-Gate PASS. `GL_RenderFrame` immer 0. Player C.
+- Issue #9 bleibt offen (Player-parent FOLLOW deferred, Player C).

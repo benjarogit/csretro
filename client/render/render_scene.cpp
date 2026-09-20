@@ -169,6 +169,43 @@ void CSRETRO_Scene_NoteAttempted( void )
 	s_stats.studio_attempted++;
 }
 
+const CSRETRO_EntCopy *CSRETRO_Scene_FindByIndex( int index )
+{
+	int i;
+
+	if( index <= 0 )
+		return NULL;
+	for( i = 0; i < s_count; i++ )
+	{
+		if( s_ents[i].index == index )
+			return &s_ents[i];
+	}
+	return NULL;
+}
+
+void CSRETRO_Scene_NoteFollowParent( int is_player )
+{
+	if( is_player )
+		s_stats.follow_player_parent++;
+	else
+		s_stats.follow_nonplayer_parent++;
+}
+
+void CSRETRO_Scene_NoteFollowMissing( void )
+{
+	s_stats.follow_missing_parent++;
+}
+
+void CSRETRO_Scene_NoteFollowDrawn( void )
+{
+	s_stats.follow_drawn++;
+}
+
+void CSRETRO_Scene_NoteFollowDeferred( void )
+{
+	s_stats.follow_deferred_player++;
+}
+
 struct cl_entity_s *CSRETRO_Scene_StudioSnap( int snap_index )
 {
 	if( snap_index < 0 || snap_index >= s_snap_count )

@@ -60,6 +60,11 @@ typedef struct CSRETRO_SceneStats_s
 	int studio_preview;
 	int studio_attempted;
 	int studio_drawn;
+	int follow_nonplayer_parent;
+	int follow_player_parent;
+	int follow_missing_parent;
+	int follow_drawn;
+	int follow_deferred_player;
 	int overflow;
 } CSRETRO_SceneStats;
 
@@ -72,3 +77,8 @@ const CSRETRO_EntCopy *CSRETRO_Scene_Get( int index );
 void CSRETRO_Scene_GetStats( CSRETRO_SceneStats *out );
 void CSRETRO_Scene_NoteDrawn( int kind );
 void CSRETRO_Scene_NoteAttempted( void );
+const CSRETRO_EntCopy *CSRETRO_Scene_FindByIndex( int index );
+void CSRETRO_Scene_NoteFollowParent( int is_player );
+void CSRETRO_Scene_NoteFollowMissing( void );
+void CSRETRO_Scene_NoteFollowDrawn( void );
+void CSRETRO_Scene_NoteFollowDeferred( void );

@@ -1,14 +1,15 @@
 # Handoff
 
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
-PX1–PX4A: `docs/research/px1-primext.md`.
+PX1–PX4B: `docs/research/px1-primext.md`.
 
-## Stand 2026-09-20 — PX4A Non-Player Studio offscreen
+## Stand 2026-09-20 — PX4B.1 Non-Player FOLLOW (nicht reproduzierbar)
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
 PX3B: `bbe418d` / v0.1.12, Cert `8443d0d` / v0.1.13, Issue #5 geschlossen.
 PX3C: `d3de222` / v0.1.14, Cert `9c7e7ae` / v0.1.15, Issue #6 geschlossen.
-PX4A: dieser Stand. `GL_RenderFrame` bleibt 0.
+PX4A: `29f5a3c` / v0.1.16, Visual `b42359a` / v0.1.18, Issue #8 geschlossen.
+PX4B.1: dieser Stand. `GL_RenderFrame` bleibt 0.
 
 **PrimeXT-Pin:** Tag `continious`, SHA `46fb05b41e58ed887718649e1720313baaac9a35` (2026-08-23).
 Rolle: nur lesen. Clone ohne Submodule nach `refs/primext/` (gitignored).
@@ -19,11 +20,11 @@ Rolle: nur lesen. Clone ohne Submodule nach `refs/primext/` (gitignored).
 - World/BSP: `client/render/render_world.cpp`
 - Entity-Spiegel: `client/render/render_scene.cpp` — volle `cl_entity_t`-Kopie inkl. latched, kein Steal
 - Sprite offscreen: `client/render/render_sprite.cpp`
-- Studio offscreen: `client/render/render_studio.cpp` — GSMR `STUDIO_RENDER` only, Snapshot, CurrentEntity save/restore
+- Studio offscreen: `client/render/render_studio.cpp` — GSMR `STUDIO_RENDER` only, Snapshot, CurrentEntity save/restore; FOLLOW child nur bei Non-Player-Parent in der Mirror-Liste
 - Brücke: `cdll_int.cpp` — `GL_RenderFrame` void + `return 0`; `HUD_AddEntity` spiegelt und behält Return
 
-**CVar:** `r_csretro_renderer` 0 = Xash-only. 1 = Offscreen World+Sprites+Non-Player-Studio + sichtbarer Xash-Fallback.
-Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`.
+**CVar:** `r_csretro_renderer` 0 = Xash-only. 1 = Offscreen World+Sprites+Non-Player-Studio+FOLLOW + sichtbarer Xash-Fallback.
+Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`.
 Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts/px4a-visual-cert.sh` → `build/px4a-cert-shots/` (nicht committed).
 
 **Callbacks an:** `Mod_ProcessUserData`, `R_NewMap`, `GL_BuildLightmaps`, `R_ClearScene` (additiv, nur CS-Retro-Liste).
@@ -37,14 +38,20 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Mapchange aztec→dust, `vid_setmode`, Movement-Gate PASS. `GL_RenderFrame` immer 0.
 - Visual: `./scripts/px4a-visual-cert.sh`. Issue #8 visuell zertifiziert, geschlossen.
 
-**Offen vor return 1** — [#7](https://github.com/benjarogit/csretro/issues/7)
-- Brush-Entity Draw
-- Engine-EFX (`GL_DrawParticles` / Think)
-- Client-Triangles (ParticleMan / Fog / Wick)
-- `SPR_ANGLED` / Frame-Lerp / Sprite-Lightmap
-- Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)), FOLLOW (Slice in #9), Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10)), Vis
+**PX4B.1**
+- FOLLOW parent graph: Child → `aiment` → Parent-Snapshot derselben Mirror-Liste → `StudioDrawModel(0)` → Origin-Kopie → Child `STUDIO_RENDER` / `StudioMergeBones`.
+- Player-parent FOLLOW deferred (kein `StudioDrawPlayer(0)`).
+- Probe: `follow: 0` auf de_aztec/de_dust inkl. Bot + AK give/drop. **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT.** Kein Dummy-Gameplay.
+- Player bleibt C. Issue #9 offen.
 
-**Nächster Schritt:** PX4B.1 — Non-Player FOLLOW (Parent in Mirror-Liste). Player-parent FOLLOW deferred. Player bleibt C. Kein Viewmodel. `return 1` weiter gesperrt.
+**Offen vor return 1**
+- [#7](https://github.com/benjarogit/csretro/issues/7): Brush-Entity Draw, Engine-EFX (`GL_DrawParticles` / Think), Client-Triangles (ParticleMan / Fog / Wick), `SPR_ANGLED` / Frame-Lerp / Sprite-Lightmap
+- Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)) — Variante C, Blocker vor `return 1`
+- Player-parent FOLLOW (Slice in #9, hängt an Player-Safety)
+- Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10))
+- Vis
+
+**Nächster Schritt:** Player-Safety (#9) oder #7 Brush/EFX. Player-parent FOLLOW nicht vor A/B-Beweis. Kein Viewmodel. `return 1` weiter gesperrt.
 
 **PX0 bleibt offen**
 - #1 Movement Replay: https://github.com/benjarogit/csretro/issues/1

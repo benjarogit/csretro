@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.27 — 2026-09-20
+
+### Renderer
+
+- #7 Offscreen Client-Triangles draw-only hinter Strategie C: Normal nach solid EFX, Transparent nach Sprites und vor trans EFX. ParticleMan mutate=0 bei 150 Wetterpartikeln, CRC differ=1, Xash `advanced=1`. Environment/Molotov nur im sichtbaren Xash-Frame. Spectator-Overview verification pending. `GL_RenderFrame` bleibt 0. Issue #7 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.26 — 2026-09-20
 
 ### Renderer

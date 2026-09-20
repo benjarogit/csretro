@@ -35,6 +35,7 @@ void CSRETRO_ClientTriangles_RenderParticleMan( int update_pvs_cache );
 void CSRETRO_ClientTriangles_AdvanceEnvironment( void );
 void CSRETRO_ClientTriangles_AdvanceMolotovHeld( void );
 void CSRETRO_ClientTriangles_DrawTransparentOnly( void );
+int CSRETRO_ClientTriangles_ParticleCount( void );
 
 #ifdef __cplusplus
 }

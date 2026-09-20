@@ -37,6 +37,7 @@ static int s_tri_xash_logged;
 static int s_tri_pman_drawonly_logged;
 static int s_tri_pman_advance_logged;
 static int s_tri_overview_drawonly_logged;
+static int s_tri_drawonly_reached_logged;
 static unsigned int s_tri_pman_drawonly_hash;
 static unsigned int s_tri_overview_drawonly_hash;
 static int s_tri_frame_noted;
@@ -128,14 +129,22 @@ void CSRETRO_ClientTriangles_AdvanceParticleMan( void )
 	s_tri_pman_adv++;
 	pman->Advance();
 
-	if ( !s_tri_pman_advance_logged )
+	if ( !s_tri_pman_advance_logged && s_tri_pman_drawonly_logged )
 	{
 		s_tri_pman_advance_logged = 1;
 		after = pman->StateHash();
 		gEngfuncs.Con_Printf(
 			"CS Retro: tri pman advance reached count=%i hash=%08x vs_drawonly=%08x advanced=%i\n",
 			pman->ParticleCount(), after, s_tri_pman_drawonly_hash,
-			s_tri_pman_drawonly_hash ? ( after != s_tri_pman_drawonly_hash ? 1 : 0 ) : 1 );
+			after != s_tri_pman_drawonly_hash ? 1 : 0 );
+	}
+	else if ( !s_tri_pman_advance_logged && !s_tri_drawonly_reached_logged )
+	{
+		s_tri_pman_advance_logged = 1;
+		after = pman->StateHash();
+		gEngfuncs.Con_Printf(
+			"CS Retro: tri pman advance reached count=%i hash=%08x vs_drawonly=%08x advanced=%i\n",
+			pman->ParticleCount(), after, s_tri_pman_drawonly_hash, 1 );
 	}
 }
 
@@ -162,6 +171,12 @@ void CSRETRO_ClientTriangles_AdvanceMolotovHeld( void )
 	EV_UpdateMolotovHeld();
 }
 
+int CSRETRO_ClientTriangles_ParticleCount( void )
+{
+	IParticleMan_Active *pman = ActiveParticleMan();
+	return pman ? pman->ParticleCount() : 0;
+}
+
 void CSRETRO_ClientTriangles_DrawTransparentOnly( void )
 {
 	IParticleMan_Active *pman = ActiveParticleMan();
@@ -169,10 +184,13 @@ void CSRETRO_ClientTriangles_DrawTransparentOnly( void )
 	int count = pman ? pman->ParticleCount() : 0;
 
 	s_tri_drawonly_trans++;
-	if ( s_tri_drawonly_trans == 1 )
+	if ( !s_tri_drawonly_reached_logged )
+	{
+		s_tri_drawonly_reached_logged = 1;
 		gEngfuncs.Con_Printf( "CS Retro: tri draw-only reached trans=1\n" );
+	}
 
-	if ( !s_tri_pman_drawonly_logged && pman )
+	if ( !s_tri_pman_drawonly_logged && pman && count > 0 )
 		before = pman->StateHash();
 
 	CSRETRO_Backend_PushFog();
@@ -180,7 +198,7 @@ void CSRETRO_ClientTriangles_DrawTransparentOnly( void )
 	CSRETRO_ClientTriangles_RenderParticleMan( 0 );
 	CSRETRO_Backend_PopFog();
 
-	if ( !s_tri_pman_drawonly_logged && pman )
+	if ( !s_tri_pman_drawonly_logged && pman && count > 0 )
 	{
 		after = pman->StateHash();
 		s_tri_pman_drawonly_logged = 1;

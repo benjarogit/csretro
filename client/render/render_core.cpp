@@ -31,6 +31,7 @@ static int s_follow_detail_logged = 0;
 static int s_brush_crc_logged = 0;
 static int s_brush_move_crc_logged = 0;
 static int s_efx_crc_logged = 0;
+static int s_tri_crc_logged = 0;
 static int s_brush_logged = 0;
 static unsigned int s_brush_rest_crc = 0;
 static char s_proof_map[64];
@@ -51,6 +52,7 @@ static void ResetSpriteProof( void )
 	s_brush_crc_logged = 0;
 	s_brush_move_crc_logged = 0;
 	s_efx_crc_logged = 0;
+	s_tri_crc_logged = 0;
 	s_brush_logged = 0;
 	s_brush_rest_crc = 0;
 	CSRETRO_Sprite_ResetDump();
@@ -315,6 +317,25 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 					before_solid_efx.crc, after_solid_efx.crc );
 			}
 		}
+		{
+			CSRETRO_OffscreenProof before_tri_n;
+			CSRETRO_OffscreenProof after_tri_n;
+			memset( &before_tri_n, 0, sizeof( before_tri_n ) );
+			CSRETRO_Backend_SampleProof( &before_tri_n );
+			CSRETRO_Backend_PrepareImmediateDraw();
+			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+			CSRETRO_ClientTriangles_DrawNormalOnly();
+			memset( &after_tri_n, 0, sizeof( after_tri_n ) );
+			CSRETRO_Backend_SampleProof( &after_tri_n );
+			if( s_tri_crc_logged != 1 && before_tri_n.crc != after_tri_n.crc
+				&& gHUD.m_Spectator.OverviewShouldDraw() )
+			{
+				s_tri_crc_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: offscreen tri proof before_crc=%08x after_crc=%08x differ=1 pass=normal\n",
+					before_tri_n.crc, after_tri_n.crc );
+			}
+		}
 		CSRETRO_Backend_PrepareImmediateDraw();
 		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 		CSRETRO_Brush_DrawPass( 0, &scene );
@@ -380,21 +401,35 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_Sprite_SetNoDepth( 0 );
 		{
 			CSRETRO_OffscreenProof after_sprites;
+			CSRETRO_OffscreenProof after_tri_t;
 			CSRETRO_OffscreenProof after_trans_efx;
 			memset( &after_sprites, 0, sizeof( after_sprites ) );
 			CSRETRO_Backend_SampleProof( &after_sprites );
+			CSRETRO_Backend_PrepareImmediateDraw();
+			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+			CSRETRO_ClientTriangles_DrawTransparentOnly();
+			memset( &after_tri_t, 0, sizeof( after_tri_t ) );
+			CSRETRO_Backend_SampleProof( &after_tri_t );
+			if( s_tri_crc_logged != 1 && after_sprites.crc != after_tri_t.crc
+				&& CSRETRO_ClientTriangles_ParticleCount() > 0 )
+			{
+				s_tri_crc_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: offscreen tri proof before_crc=%08x after_crc=%08x differ=1 pass=trans count=%i\n",
+					after_sprites.crc, after_tri_t.crc, CSRETRO_ClientTriangles_ParticleCount() );
+			}
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 			if( gRenderAPI.DrawEFX )
 				gRenderAPI.DrawEFX( rvp, 1, 1 );
 			memset( &after_trans_efx, 0, sizeof( after_trans_efx ) );
 			CSRETRO_Backend_SampleProof( &after_trans_efx );
-			if( s_efx_crc_logged != 1 && after_sprites.crc != after_trans_efx.crc )
+			if( s_efx_crc_logged != 1 && after_tri_t.crc != after_trans_efx.crc )
 			{
 				s_efx_crc_logged = 1;
 				gEngfuncs.Con_Printf(
 					"CS Retro: offscreen efx proof before_crc=%08x after_crc=%08x differ=1 pass=trans\n",
-					after_sprites.crc, after_trans_efx.crc );
+					after_tri_t.crc, after_trans_efx.crc );
 			}
 			{
 				CSRETRO_OffscreenProof after_studio;

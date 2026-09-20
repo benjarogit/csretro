@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.36 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- #7 Status synchronisiert: world dlights VERIFIED (`0dd936b` / v0.1.35), brush dlights implemented / runtime NOT REPRODUCIBLE, random tiled Follow-up. Issue bleibt offen.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.35 — 2026-09-20
 
 ### Renderer

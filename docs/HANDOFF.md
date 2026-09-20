@@ -17,7 +17,7 @@ Spectator-Overview Cert: `e917629` / v0.1.29. Sprite Completion: `ec42664` / v0.
 #7 Brush Special A: `b4e4bcd` / v0.1.31.
 #7 Brush Special B: `251491a` / v0.1.32.
 #7 Brush Special C: `42bb6df` / v0.1.33.
-#7 Brush Special D: dieser Stand / v0.1.35.
+#7 Brush Special D: `0dd936b` / v0.1.35. Docs dieser Stand / v0.1.36.
 `GL_RenderFrame` bleibt 0.
 
 ```

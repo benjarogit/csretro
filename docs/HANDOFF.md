@@ -15,17 +15,19 @@ r_csretro_renderer 1 → CS-Retro 512² offscreen + sichtbarer Xash, return 0
 r_csretro_renderer 2 → CS-Retro visible takeover candidate (PX6A)
 ```
 
-Produkt-Freeze: `cfbca8f` (PX6A Mode-2 Gate). Cert-Instrumentation folgt als eigener Commit
+Produkt-Freeze: `cfbca8f` (PX6A Mode-2 Gate). Cert-Instrumentation: `c5f8055`
 ohne Tag/Release. Visual-Cert: `./scripts/px6a-visual-cert.sh` → `build/px6a-cert-shots/`
 (nicht committen). Engine-`screenshot` ist die zuverlässige Pixelquelle unter headless gamescope.
 
-Event-Invariante: `return 1` + event-eligible → `first_rc=1` + `event_impl_runs=1`;
-`lost_eligible_event_frames=0`. Reject nur bei eligible=0 (z. B. reason=9 no-model, reason=4 thirdperson).
+Zertifiziert gegen `c5f8055`: `PX6A1_VISUAL_CERT PASS`, Movement Gate PASS,
+`lost_eligible_event_frames=0`, `fog_pre=1 fog_post=1`, Preview/Overview/Ripple Fallback,
+Postcommit-Fault-Latch, Mapchange, vid_setmode FBO==viewport (Gamescope-Clamp ok).
+Event-Rejects nur eligible=0 (reason=9 no-model, reason=4 thirdperson).
 
-**Nicht:** Mode 1 = visible custom; Default auf 2; Xash-Fallback entfernen; Release; #12 schließen
-ohne §28-DoD. Keine Promotion ohne neue Freigabe.
+**Nicht:** Mode 1 = visible custom; Default auf 2; Xash-Fallback entfernen; Release;
+Promotion ohne neue Freigabe.
 
-**Nächster Schritt:** PX6A.1 Cert-Report; #12 nur bei vollständiger DoD-PASS schließen.
+**Nächster Schritt:** #12 schließen nach Docs-Kommentar; Release-Entscheidung separat.
 #1 #2 #3 nicht schließen.
 
 ## Stand 2026-09-20 — PX6A Mode-2 Takeover Gate; #12 OPEN

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.33 — 2026-09-20
+
+### Renderer
+
+- #7 Brush Special C: vorhandene Xash-Surface-Decals (`msurface_t::pdecals`) im Offscreen-Pfad. Ein Draw in `render_decal.cpp`: vorberechnete `polys` read-only, Fallback nur auf lokaler Kopie. World-Bullet-Holes VERIFIED (Pixel-CRC differ). Brush-/Moving-Decal, `polys==NULL`-Fallback, Premultiplied-Runtime und transparent/stencil auf Stock-CS NOT REPRODUCIBLE. DLights unverändert DEFERRED. `GL_RenderFrame` bleibt 0. Issue #7 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.32 — 2026-09-20
 
 ### Renderer

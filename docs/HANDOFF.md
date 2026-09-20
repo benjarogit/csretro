@@ -3,7 +3,7 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
-## Stand 2026-09-20 — #7 Brush Special B (SURF_DRAWTURB/Water); Issue OPEN
+## Stand 2026-09-20 — #7 Brush Special C (Surface-Decals); Issue OPEN
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
 PX3B: `bbe418d` / v0.1.12, Cert `8443d0d` / v0.1.13, Issue #5 geschlossen.
@@ -15,7 +15,8 @@ PX4B.1: `344bf73` / v0.1.19. Issue #9 offen (ruhend).
 #7 Client-Triangles Split: `362f1dc` / v0.1.26. Offscreen `191651b` / v0.1.27. Docs `fede75a` / v0.1.28.
 Spectator-Overview Cert: `e917629` / v0.1.29. Sprite Completion: `ec42664` / v0.1.30.
 #7 Brush Special A: `b4e4bcd` / v0.1.31.
-#7 Brush Special B: dieser Stand.
+#7 Brush Special B: `251491a` / v0.1.32.
+#7 Brush Special C: dieser Stand.
 `GL_RenderFrame` bleibt 0.
 
 ```
@@ -31,7 +32,7 @@ Brush special:
     conveyor: VERIFIED (de_torn func_conveyor, UV offset, geom unchanged)
     fullbright: implemented, runtime NOT REPRODUCIBLE WITH CURRENT GAME CONTENT
     water/turb: qualified (capture+warp+wave implemented; brush water VERIFIED on de_torn; world opaque drawn, spawn FBO pixel N/R; transparent late / alpha_cap=0 N/R)
-    decals: DEFERRED
+    decals: world VERIFIED (bullet-hole pixel CRC differ); brush/moving-brush implemented / runtime NOT REPRODUCIBLE; fallback implemented / N/R; transparent/stencil N/R; premultiplied implemented / runtime N/R
     dlights: DEFERRED
 ```
 
@@ -53,7 +54,7 @@ Rolle: nur lesen. Clone ohne Submodule nach `refs/primext/` (gitignored).
 - Water-Alpha: `PARM_WATER_ALPHA` = Map-Capability 0/1. `PARM_WATER_ALPHA_VALUE` = IEEE-754-Bits der effective wateralpha (1.0 ohne Capability). `PARM_MAP_HAS_LITWATER` 0/1. Kein neuer Funktionsslot.
 
 **CVar:** `r_csretro_renderer` 0 = Xash-only. 1 = Offscreen World+Brush+Sprites+Non-Player-Studio+FOLLOW+draw-only EFX+draw-only Client-Triangles + sichtbarer Xash-Fallback.
-Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`, `./scripts/px7-efx-xash-gate.sh`, `./scripts/px7-efx-offscreen-probe.sh`, `./scripts/px7-tri-xash-gate.sh`, `./scripts/px7-tri-offscreen-probe.sh`, `./scripts/px7-tri-overview-cert.sh`, `./scripts/px7-sprite-completion-probe.sh`, `./scripts/px7-brush-special-a-probe.sh`, `./scripts/px7-brush-special-b-probe.sh`.
+Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`, `./scripts/px7-efx-xash-gate.sh`, `./scripts/px7-efx-offscreen-probe.sh`, `./scripts/px7-tri-xash-gate.sh`, `./scripts/px7-tri-offscreen-probe.sh`, `./scripts/px7-tri-overview-cert.sh`, `./scripts/px7-sprite-completion-probe.sh`, `./scripts/px7-brush-special-a-probe.sh`, `./scripts/px7-brush-special-b-probe.sh`, `./scripts/px7-brush-special-c-probe.sh`.
 Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts/px4a-visual-cert.sh` → `build/px4a-cert-shots/`; `./scripts/px7-brush-visual-cert.sh` → `build/px7-brush-cert-shots/` (nicht committed).
 
 **Callbacks an:** `Mod_ProcessUserData`, `R_NewMap`, `GL_BuildLightmaps`, `R_ClearScene` (additiv, nur CS-Retro-Liste).
@@ -66,7 +67,7 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Transform: GoldSrc `R_RotateForEntity` / `R_TranslateForEntity` (origin, yaw, −pitch, roll).
 - Opaque `kRenderNormal` + TransTexture/Color/Alpha/Add. Lightmaps über `PARM_TEX_LIGHTMAP`.
 - Probe PASS + Visual `./scripts/px7-brush-visual-cert.sh` PASS: aztec Welt/Viewmodel/HUD; assault `func_door_rotating *11` index 19 origin 696 2236 48 sichtbar geschlossen → Kante → offen. Mapchange dust + `vid_setmode`. Movement-Gate PASS. `GL_RenderFrame` immer 0.
-- Sonderflächen: Texture-Anim VERIFIED, Conveyor VERIFIED, Fullbright implemented / runtime N/R. Water/Turb: Capture + Warp + Wave im shared Mesh, Brush-Water VERIFIED (`de_torn` `*4`). World-opaque gezeichnet, Spawn-FBO-Pixel N/R. Transparent late / `alpha_cap=0` N/R. DEFERRED: decals, dlights.
+- Sonderflächen: Texture-Anim VERIFIED, Conveyor VERIFIED, Fullbright implemented / runtime N/R. Water/Turb: Capture + Warp + Wave im shared Mesh, Brush-Water VERIFIED (`de_torn` `*4`). World-opaque gezeichnet, Spawn-FBO-Pixel N/R. Transparent late / `alpha_cap=0` N/R. World-Decals VERIFIED. Brush-Decals implemented / N/R. DEFERRED: dlights.
 
 **#7 Engine-EFX (VERIFIED draw-only ownership 2026-09-20)**
 - Vertrag: `docs/research/px1-primext.md`. `GL_DrawParticles` bleibt unsicher (Advance). Produktpfad ist `DrawEFX(..., draw_only=1)`.
@@ -111,19 +112,30 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Static litwater: Capture hält LM-UV/Page. `litwater=0` Stock-CS. DLights/Decals unangetastet. Cache/live mutate=0. GL restore=1.
 - Probe: `./scripts/px7-brush-special-b-probe.sh` PASS. Special A weiter Anim/Conveyor PASS. vid_setmode + Movement-Gate PASS. `GL_RenderFrame` immer 0.
 
+**#7 Brush Special C (2026-09-20, Issue bleibt OPEN)**
+- Ein Draw-Pfad: `client/render/render_decal.cpp`. Xash bleibt Owner (creation/pool/linkage/lifetime). CS Retro: read-only `pdecals` → `polys`. Keine Decal-Pointer im BSP-Mesh.
+- ABI: `xr_decal_t` 88 Byte, Offsets gegen `engine/common/com_model.h` (amd64). `TF_PREMULTIPLIED` über `PARM_TEX_FLAGS`, kein neuer Slot.
+- World: Base → Decals → Fullbright. **VERIFIED** `de_aztec` AK-Löcher `before=31301f88 after=8fc0c012 differ=1` surfaces=6 decals=9 drawn=9. live mutate=0, gl_restore=1, stored_ptrs=0.
+- Brush / moving door `*11`: implementiert. Runtime **NOT REPRODUCIBLE** (Tür-Schuss erzeugte keine `entityIndex`-Decals in der Probe).
+- Fallback `R_DecalSetupVerts` nur auf lokaler Kopie: implementiert, Stock-CS `polys!=NULL` → **N/R**.
+- Transparent/stencil: inventarisiert (`transparent_decals=0`). **NOT REPRODUCIBLE**. Kein künstliches FBO-Stencil.
+- Premultiplied: Code-Pfad vorhanden, Runtime `premult=0` / std blend → **N/R**.
+- Special A weiter Anim/Conveyor PASS. Water capture weiter. Map aztec→assault→torn→dust, `vid_setmode`, Movement-Gate PASS.
+- Probe: `./scripts/px7-brush-special-c-probe.sh` PASS.
+
 **PX4B.1** (ruhend)
 - FOLLOW parent graph implementiert. Player-parent deferred. Stock-CS: **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT**.
 - Player bleibt C. Issue #9 offen, ruht bis A/B-Beweis. Kein Player-Produktcode in diesem Slice.
 - Read-only: Variante B kann `gait`/`player_info_t` nicht isolieren ohne GSMR- oder `PlayerInfo`-Änderung (`IEngineStudio.PlayerInfo()` ist Live-State).
 
 **Offen vor return 1**
-- [#7](https://github.com/benjarogit/csretro/issues/7): Brush VERIFIED, Engine-EFX VERIFIED, Client-Triangles VERIFIED draw-only, Sprite Completion (ANGLED implemented / runtime NOT REPRODUCIBLE, lerp VERIFIED, lighting VERIFIED). Brush Special A: Anim VERIFIED, Conveyor VERIFIED, Fullbright implemented / N/R. Brush Special B: water/turb qualified (capture+warp+wave, brush water VERIFIED, world opaque drawn / spawn pixel N/R, late alpha N/R). Random tiled follow-up bleibt. Decals DEFERRED, DLights DEFERRED. Issue bleibt OPEN
+- [#7](https://github.com/benjarogit/csretro/issues/7): Brush VERIFIED, Engine-EFX VERIFIED, Client-Triangles VERIFIED draw-only, Sprite Completion (ANGLED implemented / runtime NOT REPRODUCIBLE, lerp VERIFIED, lighting VERIFIED). Brush Special A: Anim VERIFIED, Conveyor VERIFIED, Fullbright implemented / N/R. Brush Special B: water/turb qualified (capture+warp+wave, brush water VERIFIED, world opaque drawn / spawn pixel N/R, late alpha N/R). Brush Special C: world decals VERIFIED, brush/moving-brush implemented / N/R. Random tiled follow-up bleibt. DLights DEFERRED. Issue bleibt OPEN
 - Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)) — Variante C, Blocker vor `return 1`
 - Player-parent FOLLOW (Slice in #9, hängt an Player-Safety)
 - Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10))
 - Vis
 
-**Nächster Schritt:** #7 Decals oder DLights — nur nach neuer Freigabe. Kein Viewmodel. `return 1` weiter gesperrt. Kein nächster Slice ohne neue Freigabe. #9/#10/#1/#2/#3 nicht anfassen. Decals/DLights in diesem Slice nicht implementieren.
+**Nächster Schritt:** #7 DLights — nur nach neuer Freigabe. Kein Viewmodel. `return 1` weiter gesperrt. Kein nächster Slice ohne neue Freigabe. #9/#10/#1/#2/#3 nicht anfassen. DLights in diesem Slice nicht implementieren.
 
 **PX0 bleibt offen**
 - #1 Movement Replay: https://github.com/benjarogit/csretro/issues/1

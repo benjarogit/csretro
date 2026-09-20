@@ -5,6 +5,7 @@
 // R_RenderFullbrights / EmitWaterPolys). PrimeXT pin 46fb05b is
 // semantics-only. No second BSP parser. No decals, no dlights, no second
 // ripple sim. Mesh is cached; animation/scroll/warp/wave resolve at draw.
+// Surface decals are not stored here; render_decal.cpp walks live pdecals.
 #include "render_bsp_mesh.h"
 #include "render_backend.h"
 #include "render_xash_brush.h"

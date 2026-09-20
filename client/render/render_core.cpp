@@ -6,6 +6,7 @@
 #include "render_studio.h"
 #include "render_brush.h"
 #include "render_bsp_mesh.h"
+#include "render_decal.h"
 
 #include "hud.h"
 #include "cl_util.h"
@@ -45,6 +46,13 @@ static int s_water_crc_logged = 0;
 static int s_water_opaque_crc_logged = 0;
 static int s_water_alpha_logged = 0;
 static int s_water_wave_logged = 0;
+static int s_decal_logged = 0;
+static int s_decal_drawn_logged = 0;
+static int s_decal_crc_logged = 0;
+static int s_decal_brush_logged = 0;
+static int s_decal_mapchange_logged = 0;
+static unsigned int s_decal_brush_xyz_hash = 0;
+static int s_decal_brush_xyz_have = 0;
 static unsigned int s_water_crc_a = 0;
 static unsigned int s_water_alpha_crc_a = 0;
 static unsigned int s_water_wave_crc_a = 0;
@@ -78,6 +86,13 @@ static void ResetSpriteProof( void )
 	s_conv_proof_logged = 0;
 	s_fb_proof_logged = 0;
 	s_water_logged = 0;
+	s_decal_logged = 0;
+	s_decal_drawn_logged = 0;
+	s_decal_crc_logged = 0;
+	s_decal_brush_logged = 0;
+	s_decal_mapchange_logged = 0;
+	s_decal_brush_xyz_hash = 0;
+	s_decal_brush_xyz_have = 0;
 	s_water_crc_logged = 0;
 	s_water_opaque_crc_logged = 0;
 	s_water_alpha_logged = 0;
@@ -208,6 +223,7 @@ void CSRETRO_Renderer_OnNewMap( void )
 	CSRETRO_BspMesh_OnNewMap();
 	CSRETRO_World_OnNewMap();
 	CSRETRO_Brush_OnNewMap();
+	CSRETRO_Decal_OnNewMap();
 	CSRETRO_Backend_AllowDump();
 	s_proof_logged = 0;
 	ResetSpriteProof();
@@ -344,6 +360,7 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 	EnsureCvars();
 	CSRETRO_ClientTriangles_BeginFrame();
 	CSRETRO_BspMesh_BeginFrame();
+	CSRETRO_Decal_BeginFrame();
 	if( !ProbeEnabled() )
 	{
 		RunProbeSeq();
@@ -449,6 +466,66 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		}
 		else if( CSRETRO_World_HasWater() )
 			world_ctx.water_pass = CSRETRO_WATER_SKIP;
+		{
+			CSRETRO_OffscreenProof before_decals;
+			CSRETRO_OffscreenProof after_decals;
+			CSRETRO_DecalStats ds;
+			unsigned int world_hash_before;
+			void *wmod;
+
+			memset( &before_decals, 0, sizeof( before_decals ) );
+			CSRETRO_Backend_SampleProof( &before_decals );
+			wmod = CSRETRO_World_Model();
+			world_hash_before = CSRETRO_Decal_HashSurfaces( wmod );
+			CSRETRO_Backend_PrepareImmediateDraw();
+			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+			CSRETRO_Decal_DrawSurfaces( wmod, world_ctx.rendermode, 0, 0 );
+			memset( &after_decals, 0, sizeof( after_decals ) );
+			CSRETRO_Backend_SampleProof( &after_decals );
+			CSRETRO_Decal_GetStats( &ds );
+			if( world_hash_before != CSRETRO_Decal_HashSurfaces( wmod ) )
+				ds.live_mutate = 1;
+			if( s_decal_crc_logged != 1 && after_decals.crc != before_decals.crc && ds.world_decals_drawn > 0 )
+			{
+				s_decal_crc_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: world decal pixelproof before=%08x after=%08x differ=1 surfaces=%i decals=%i drawn=%i nonempty=%i\n",
+					before_decals.crc, after_decals.crc,
+					ds.world_decal_surfaces, ds.world_decals, ds.world_decals_drawn,
+					after_decals.nonempty_pixels );
+			}
+			if( !s_decal_drawn_logged && ds.world_decals_drawn > 0 )
+			{
+				s_decal_drawn_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: world decals drawn surfaces=%i decals=%i drawn=%i polys=%i fallback=%i mutate=%i dxdy_hashed=1\n",
+					ds.world_decal_surfaces, ds.world_decals, ds.world_decals_drawn,
+					ds.world_decals_polys, ds.world_fallback, ds.live_mutate );
+			}
+			if( !s_decal_logged )
+			{
+				s_decal_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: decal inventory world_decal_surfaces=%i world_decals=%i world_decals_drawn=%i polys=%i fallback=%i spawn=%i transparent_surfaces=%i transparent_decals=%i skipped=%i stale_skipped=%i premult=%i std_blend=%i mutate=%i gl_restore=%i stored_ptrs=%i serial=%i\n",
+					ds.world_decal_surfaces, ds.world_decals, ds.world_decals_drawn,
+					ds.world_decals_polys, ds.world_fallback, ds.spawn_world_decals,
+					ds.transparent_surfaces, ds.transparent_decals, ds.transparent_skipped,
+					ds.stale_skipped,
+					ds.premultiplied_drawn, ds.standard_blend_drawn,
+					ds.live_mutate, ds.gl_restore_ok, ds.stored_decal_ptrs, ds.map_serial );
+				if( ds.transparent_decals == 0 )
+					gEngfuncs.Con_Printf( "CS Retro: transparent/stencil decals runtime NOT REPRODUCIBLE WITH CURRENT GAME CONTENT\n" );
+			}
+			if( !s_decal_mapchange_logged && ds.map_serial > 1 )
+			{
+				CSRETRO_WorldStats mapst;
+				CSRETRO_World_GetStats( &mapst );
+				s_decal_mapchange_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: decal mapchange stale_ptrs=0 stored_ptrs=0 serial=%i spawn_decals=%i map=%s\n",
+					ds.map_serial, ds.spawn_world_decals, mapst.map[0] ? mapst.map : "?" );
+			}
+		}
 		world_ctx.skip_base = 1;
 		world_ctx.skip_fullbright = 0;
 		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &world_ctx );
@@ -474,9 +551,13 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		{
 			CSRETRO_OffscreenProof after_opaque;
 			CSRETRO_MeshDrawStats ms;
+			CSRETRO_DecalStats ds;
+			const CSRETRO_BrushMove *mv;
 			memset( &after_opaque, 0, sizeof( after_opaque ) );
 			CSRETRO_Backend_SampleProof( &after_opaque );
 			CSRETRO_BspMesh_GetDrawStats( &ms );
+			CSRETRO_Decal_GetStats( &ds );
+			mv = CSRETRO_Brush_LastMove();
 			if( !s_anim_crc_a && ms.anim_candidates > 0 )
 			{
 				s_anim_crc_a = after_opaque.crc;
@@ -490,6 +571,26 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				gEngfuncs.Con_Printf(
 					"CS Retro: texture animation pixelproof crc_a=%08x crc_b=%08x differ=1\n",
 					s_anim_crc_a, after_opaque.crc );
+			}
+			if( ds.brush_decals_drawn > 0 && !s_decal_brush_xyz_have )
+			{
+				s_decal_brush_xyz_hash = ds.hash_after;
+				s_decal_brush_xyz_have = 1;
+			}
+			if( !s_decal_brush_logged && ds.brush_decals_drawn > 0 )
+			{
+				int moved = mv && mv->happened;
+				int xyz_unchanged = 1;
+				if( s_decal_brush_xyz_have && ds.hash_after != s_decal_brush_xyz_hash && moved )
+					xyz_unchanged = ( ds.live_mutate == 0 );
+				gEngfuncs.Con_Printf(
+					"CS Retro: brush decal model=%s index=%i exists=1 drawn=%i surfaces=%i decals=%i polys=%i fallback=%i transform_changed=%i xyz_unchanged=%i mutate=%i\n",
+					ds.brush_model[0] ? ds.brush_model : "?",
+					ds.brush_entity_index, ds.brush_decals_drawn,
+					ds.brush_decal_surfaces, ds.brush_decals, ds.brush_decals_polys,
+					ds.brush_fallback, moved ? 1 : 0, xyz_unchanged, ds.live_mutate );
+				if( moved )
+					s_decal_brush_logged = 1;
 			}
 		}
 		CSRETRO_Backend_PrepareImmediateDraw();
@@ -920,13 +1021,101 @@ static void RunProbeSeq( void )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int waterb = s_probe_seq->value >= 7.0f;
-			int special = !waterb && s_probe_seq->value >= 6.0f;
-			int tri = !waterb && !special && s_probe_seq->value >= 5.0f;
-			int efx = !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
-			int brush = !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
-			int px3c = !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
-			if( waterb )
+			int decalc = s_probe_seq->value >= 8.0f;
+			int waterb = !decalc && s_probe_seq->value >= 7.0f;
+			int special = !decalc && !waterb && s_probe_seq->value >= 6.0f;
+			int tri = !decalc && !waterb && !special && s_probe_seq->value >= 5.0f;
+			int efx = !decalc && !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
+			int brush = !decalc && !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
+			int px3c = !decalc && !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
+			if( decalc )
+			{
+				if( s_probe_step == 0 && elapsed >= 3.0f )
+				{
+					float ang[3] = { 18.0f, 0.0f, 0.0f };
+					s_probe_step = 1;
+					gEngfuncs.GetViewAngles( ang );
+					ang[0] = 18.0f;
+					gEngfuncs.SetViewAngles( ang );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq give ak47\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; give weapon_ak47\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 4.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq fire ak47 world\n" );
+					gEngfuncs.pfnClientCmd( "+attack\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 5.2f )
+				{
+					s_probe_step = 3;
+					gEngfuncs.pfnClientCmd( "-attack\n" );
+				}
+				else if( s_probe_step == 3 && elapsed >= 10.0f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map cs_assault\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; map cs_assault\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 18.0f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq assault door here\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; sv_enttools_enable 1; noclip; ent_fire 19 movehere\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 19.5f )
+				{
+					float ang[3] = { 25.0f, 0.0f, 0.0f };
+					s_probe_step = 6;
+					gEngfuncs.GetViewAngles( ang );
+					ang[0] = 25.0f;
+					gEngfuncs.SetViewAngles( ang );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq give ak47 door\n" );
+					gEngfuncs.pfnClientCmd( "give weapon_ak47\n" );
+				}
+				else if( s_probe_step == 6 && elapsed >= 20.5f )
+				{
+					s_probe_step = 7;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq fire ak47 door\n" );
+					gEngfuncs.pfnClientCmd( "+attack\n" );
+				}
+				else if( s_probe_step == 7 && elapsed >= 21.6f )
+				{
+					s_probe_step = 8;
+					gEngfuncs.pfnClientCmd( "-attack\n" );
+				}
+				else if( s_probe_step == 8 && elapsed >= 23.5f )
+				{
+					s_probe_step = 9;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq assault door use\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; sv_enttools_enable 1; ent_fire 19 use\n" );
+				}
+				else if( s_probe_step == 9 && elapsed >= 28.0f )
+				{
+					s_probe_step = 10;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_torn\n" );
+					gEngfuncs.pfnClientCmd( "map de_torn\n" );
+				}
+				else if( s_probe_step == 10 && elapsed >= 38.0f )
+				{
+					s_probe_step = 11;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+				}
+				else if( s_probe_step == 11 && elapsed >= 48.0f )
+				{
+					s_probe_step = 12;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 12 && elapsed >= 52.0f )
+				{
+					s_probe_step = 13;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
+					gEngfuncs.pfnClientCmd( "quit\n" );
+				}
+			}
+			else if( waterb )
 			{
 				if( s_probe_step == 0 && elapsed >= 4.0f )
 				{

@@ -578,7 +578,7 @@ Sonderflächen:
 | fullbright | implemented, runtime NOT REPRODUCIBLE — `fb_texturenum=0` auf aztec/torn/dust/assault. Overlay-Pass vorhanden. |
 | random tiled (`-`) | Stock-CS hat Surfaces. Xash `rtable` nicht in der Client-API (`COM_RandomLong` im Ref-Init). BSP-Kachel, keine erfundene Tabelle. Follow-up. |
 | details | NOT NEEDED FOR CURRENT CS CONTENT |
-| decals | DEFERRED — erster Pixelproof ohne. Vor return 1 bewerten. |
+| decals | world VERIFIED — Offscreen-Walk von `pdecals`/`polys`. `de_aztec` bullet-hole pixel `31301f88≠8fc0c012`. Brush/moving implemented / N/R. |
 | dlights | DEFERRED |
 | poly offset | IMPLEMENTED — bmodel offset + GL-State Save/Restore. |
 
@@ -608,7 +608,7 @@ Client triangles: PENDING
 remaining sprite modes: PENDING
 ```
 
-Sonderfälle: SURF_DRAWTURB/water DEFERRED; tex anim VERIFIED; conveyor VERIFIED; fullbright implemented / runtime N/R; decals DEFERRED; dlights DEFERRED.
+Sonderfälle: SURF_DRAWTURB/water qualified; tex anim VERIFIED; conveyor VERIFIED; fullbright implemented / runtime N/R; world decals VERIFIED; brush decals implemented / N/R; dlights DEFERRED.
 
 ### #7 Brush Special A (2026-09-20)
 
@@ -657,6 +657,26 @@ Xash-Vertrag (CONFIRMED Source, kein zweiter Parser):
 | Mapchange / vid_setmode / movement | CONFIRMED | aztec→torn→dust→assault, vid_setmode, movement-gate PASS. |
 
 Random tiled (`-`) Follow-up unverändert. Probe: `./scripts/px7-brush-special-b-probe.sh` PASS.
+
+### #7 Brush Special C (2026-09-20)
+
+Ein Offscreen-Pfad `client/render/render_decal.cpp`. Xash bleibt alleiniger Decal-Owner. CS Retro enumeriert `current model → surfaces → pdecals → polys` und zeichnet Vertices selbst (kein `DrawSingleDecal` als Hidden Renderer).
+
+| Punkt | Status | Beleg |
+| --- | --- | --- |
+| Ownership | CONFIRMED | keine CS-Retro-Liste, `stored_ptrs=0`, Studio-Decal-Callbacks NULL |
+| ABI `xr_decal_t` | CONFIRMED | sizeof 88, Offsets dx/dy/position/polys gegen `com_model.h` |
+| Precomputed polys | CONFIRMED | aztec/assault/torn/dust `fallback=0`, `polys` read-only, mutate=0 |
+| Fallback local copy | implemented / N/R | `R_DecalSetupVerts` nur auf `local=*live`. Stock-CS `polys!=NULL` |
+| World pixel | VERIFIED | `before=31301f88 after=8fc0c012 differ=1` drawn=9, Kamera enthielt das Decal |
+| Brush / moving `*11` | implemented / N/R | Tür-Schuss in der Probe ohne `brush decal model=` |
+| Premultiplied | implemented / N/R | `TF_PREMULTIPLIED` via `PARM_TEX_FLAGS`. Runtime `premult=0` |
+| Transparent/stencil | N/R | `transparent_decals=0`. Kein FBO-Stencil |
+| Mapchange | CONFIRMED | `stale_ptrs=0 stale_skipped=0` aztec→assault→torn→dust |
+| Special A / Water | CONFIRMED | Anim pixel `c6874c8c≠9e35736d`, Conveyor `uv_changed=1`, water capture |
+| Visible Xash / Frame | CONFIRMED 0 | Probe lehnt return 1 ab. Movement-Gate PASS. |
+
+Probe: `./scripts/px7-brush-special-c-probe.sh` PASS. DLights unverändert DEFERRED. Random tiled Follow-up unverändert.
 
 ## #7 Engine-EFX Vertrag (2026-09-20, vor Produktcode)
 

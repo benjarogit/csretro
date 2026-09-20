@@ -10,6 +10,7 @@
 #include "render_scene.h"
 #include "render_world.h"
 #include "render_xash_brush.h"
+#include "render_decal.h"
 #include "render_xash_sprite.h"
 
 #include "hud.h"
@@ -456,7 +457,14 @@ int CSRETRO_Brush_DrawPass( int opaque_only, CSRETRO_SceneStats *stats )
 			ctx.entity_mins[0] = mins[0];
 			ctx.entity_mins[1] = mins[1];
 			ctx.entity_mins[2] = mins[2];
+			ctx.skip_fullbright = 1;
 			CSRETRO_BspMesh_Draw( mesh, &ctx );
+			CSRETRO_Decal_DrawSurfaces( e->model, e->rendermode, 1, e->index );
+			ctx.skip_base = 1;
+			ctx.skip_fullbright = 0;
+			CSRETRO_BspMesh_Draw( mesh, &ctx );
+			ctx.skip_base = 0;
+			ctx.skip_fullbright = 0;
 			if( mesh->water_vert_count >= 3 )
 			{
 				s_bstats.turb_candidates += mesh->turb_surfaces;

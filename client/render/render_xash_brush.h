@@ -83,8 +83,26 @@ typedef struct xr_msurface_s
 	int cached_light[XR_MAXLIGHTMAPS];
 	void *info;
 	void *samples;
-	void *pdecals;
+	struct xr_decal_s *pdecals;
 } xr_msurface_t;
+
+// Xash engine/common/com_model.h decal_t on amd64. Size 88 CONFIRMED
+// (STATIC_CHECK_SIZEOF(decal_t, 60, 88)). Offsets checked against that layout.
+typedef struct xr_decal_s
+{
+	struct xr_decal_s *pnext;
+	xr_msurface_t *psurface;
+	float dx;
+	float dy;
+	float scale;
+	short texture;
+	short flags;
+	short entityIndex;
+	short _pad_ei;
+	float position[3];
+	xr_glpoly_t *polys;
+	intptr_t reserved[4];
+} xr_decal_t;
 
 typedef struct xr_vertex_s
 {
@@ -154,5 +172,17 @@ static_assert( offsetof( xr_model_t, surfaces ) == 240, "surfaces offset" );
 static_assert( offsetof( xr_model_t, numtextures ) == 488, "numtextures offset" );
 static_assert( offsetof( xr_msurface_t, polys ) == 48, "polys offset" );
 static_assert( offsetof( xr_msurface_t, lightmaptexturenum ) == 80, "lightmaptexturenum offset" );
+static_assert( offsetof( xr_msurface_t, pdecals ) == 120, "pdecals offset" );
 static_assert( offsetof( xr_texture_t, gl_texturenum ) == 24, "gl_texturenum offset" );
 static_assert( sizeof( xr_mplane_t ) == 20, "xr_mplane_t must match Xash 64-bit mplane_t" );
+static_assert( sizeof( xr_decal_t ) == 88, "xr_decal_t must match Xash 64-bit decal_t" );
+static_assert( offsetof( xr_decal_t, pnext ) == 0, "decal pnext" );
+static_assert( offsetof( xr_decal_t, psurface ) == 8, "decal psurface" );
+static_assert( offsetof( xr_decal_t, dx ) == 16, "decal dx" );
+static_assert( offsetof( xr_decal_t, dy ) == 20, "decal dy" );
+static_assert( offsetof( xr_decal_t, scale ) == 24, "decal scale" );
+static_assert( offsetof( xr_decal_t, texture ) == 28, "decal texture" );
+static_assert( offsetof( xr_decal_t, flags ) == 30, "decal flags" );
+static_assert( offsetof( xr_decal_t, entityIndex ) == 32, "decal entityIndex" );
+static_assert( offsetof( xr_decal_t, position ) == 36, "decal position" );
+static_assert( offsetof( xr_decal_t, polys ) == 48, "decal polys" );

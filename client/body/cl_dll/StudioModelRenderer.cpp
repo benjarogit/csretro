@@ -954,7 +954,7 @@ int CStudioModelRenderer::StudioDrawModel(int flags)
 
 	StudioSaveBones();
 
-	if (gEngfuncs.GetViewModel() == m_pCurrentEntity && m_pRenderModel && strstr(m_pRenderModel->name, "v_molotov"))
+	if (IsCurrentViewModelContext() && m_pRenderModel && strstr(m_pRenderModel->name, "v_molotov"))
 	{
 		int wick = -1;
 		for (int i = 0; i < m_nCachedBones; i++)
@@ -976,19 +976,33 @@ int CStudioModelRenderer::StudioDrawModel(int flags)
 				m_rgCachedBoneTransform[wick][1][3],
 				m_rgCachedBoneTransform[wick][2][3]
 			};
-			EV_CaptureMolotovWickOrigin(org, m_pCurrentEntity);
+			if (m_bOffscreenViewmodel)
+			{
+				m_nOffscreenWickAttempts++;
+			}
+			else
+			{
+				EV_CaptureMolotovWickOrigin(org, m_pCurrentEntity);
+			}
 		}
 	}
 
 	if (flags & STUDIO_EVENTS)
 	{
-		StudioCalcAttachments();
-		IEngineStudio.StudioClientEvents();
-
-		if (m_pCurrentEntity->index > 0)
+		if (m_bOffscreenViewmodel)
 		{
-			cl_entity_t *ent = gEngfuncs.GetEntityByIndex(m_pCurrentEntity->index);
-			memcpy(ent->attachment, m_pCurrentEntity->attachment, sizeof(vec3_t) * 4);
+			m_nOffscreenViewmodelEvents++;
+		}
+		else
+		{
+			StudioCalcAttachments();
+			IEngineStudio.StudioClientEvents();
+
+			if (m_pCurrentEntity->index > 0)
+			{
+				cl_entity_t *ent = gEngfuncs.GetEntityByIndex(m_pCurrentEntity->index);
+				memcpy(ent->attachment, m_pCurrentEntity->attachment, sizeof(vec3_t) * 4);
+			}
 		}
 	}
 

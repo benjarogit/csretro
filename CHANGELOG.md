@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.43 — 2026-09-20
+
+### Renderer
+
+- PX4C.1 Offscreen unterdrückt zusätzlichen Molotov-Wick-Capture und `STUDIO_EVENTS`. Sichtbares Xash bleibt Owner seiner bisherigen Wick-/Event-Aufrufe. Kein Inferno-Gameplay, kein #2-Close. `GL_RenderFrame` bleibt 0.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.42 — 2026-09-20
 
 ### Renderer

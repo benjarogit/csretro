@@ -129,6 +129,20 @@ void SpawnInfernoSprite(const Vector &origin, int weaponId, float remaining, flo
 }
 }
 
+void EV_ReadMolotovWickState(float origin[3], float *time, int *valid)
+{
+	if (origin)
+	{
+		origin[0] = g_molotovWickOrigin[0];
+		origin[1] = g_molotovWickOrigin[1];
+		origin[2] = g_molotovWickOrigin[2];
+	}
+	if (time)
+		*time = g_molotovWickTime;
+	if (valid)
+		*valid = g_molotovWickValid ? 1 : 0;
+}
+
 void EV_CaptureMolotovWickOrigin(const float origin[3], cl_entity_s *entity)
 {
 	if (!origin)

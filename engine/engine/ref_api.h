@@ -80,7 +80,10 @@ GNU General Public License for more details.
 //     Their entries never exceed 1023, so the narrowing is lossless.
 // 19. CS Retro: CL_DrawEFX / CL_DrawParticles / CL_DrawTracers / CL_DrawBeams take draw_only.
 //     draw_only draws without advancing simulation or freeing dead lists.
-#define REF_API_VERSION 19
+// 20. CS Retro: render_api_t tail slot BuildSurfaceLightmapReadOnly. GL surface
+//     lightmaps are evaluated read-only for the offscreen client. No ref_interface
+//     callback. Visible Xash still owns R_PushDlights / live dlightframe bits.
+#define REF_API_VERSION 20
 
 #define TF_SKY		(TF_SKYSIDE|TF_NOMIPMAP|TF_ALLOW_NEAREST)
 #define TF_FONT		(TF_NOMIPMAP|TF_CLAMP|TF_ALLOW_NEAREST)

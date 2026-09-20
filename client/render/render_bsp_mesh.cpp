@@ -3,12 +3,14 @@
 // conveyor UV, fullbright overlay and SURF_DRAWTURB water follow Xash
 // gl_rsurf.c draw semantics (R_TextureAnimation / DrawGLPoly /
 // R_RenderFullbrights / EmitWaterPolys). PrimeXT pin 46fb05b is
-// semantics-only. No second BSP parser. No decals, no dlights, no second
-// ripple sim. Mesh is cached; animation/scroll/warp/wave resolve at draw.
+// semantics-only. No second BSP parser. Surface spans select lighting at
+// draw (static engine LM page or CS-Retro transient dlight atlas). Mesh is
+// cached; animation/scroll/warp/wave/dlight patches resolve at draw.
 // Surface decals are not stored here; render_decal.cpp walks live pdecals.
 #include "render_bsp_mesh.h"
 #include "render_backend.h"
 #include "render_xash_brush.h"
+#include "render_dlight.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -323,22 +325,27 @@ static void NoteConveyor( float sOff, float tOff )
 		s_conv_uv_changed = 1;
 }
 
-static void DrawBatchTris( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *batch, float sOff, float tOff, int has_lm )
+static void DrawSpanTris( const CSRETRO_BspMesh *mesh, int first_tri, int tri_count, float sOff, float tOff, int has_lm, float lm_scale, float lm_bias_s, float lm_bias_t )
 {
 	int i;
-	if( !gXRGL.Begin )
+	if( !gXRGL.Begin || tri_count <= 0 )
 		return;
 	gXRGL.Begin( GL_TRIANGLES );
-	for( i = 0; i < batch->tri_count * 3; i++ )
+	for( i = 0; i < tri_count * 3; i++ )
 	{
-		const CSRETRO_MeshVert *v = &mesh->verts[batch->first_tri + i];
+		const CSRETRO_MeshVert *v = &mesh->verts[first_tri + i];
 		if( gXRGL.TexCoord2f )
 			gXRGL.TexCoord2f( v->st[0] + sOff, v->st[1] + tOff );
 		if( has_lm && gXRGL.MultiTexCoord2f )
-			gXRGL.MultiTexCoord2f( GL_TEXTURE1, v->lm[0], v->lm[1] );
+			gXRGL.MultiTexCoord2f( GL_TEXTURE1, v->lm[0] * lm_scale + lm_bias_s, v->lm[1] * lm_scale + lm_bias_t );
 		gXRGL.Vertex3f( v->xyz[0], v->xyz[1], v->xyz[2] );
 	}
 	gXRGL.End();
+}
+
+static void DrawBatchTris( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *batch, float sOff, float tOff, int has_lm )
+{
+	DrawSpanTris( mesh, batch->first_tri, batch->tri_count, sOff, tOff, has_lm, 1.0f, 0.0f, 0.0f );
 }
 
 void CSRETRO_BspMesh_Clear( CSRETRO_BspMesh *mesh )
@@ -347,6 +354,7 @@ void CSRETRO_BspMesh_Clear( CSRETRO_BspMesh *mesh )
 		return;
 	free( mesh->verts );
 	free( mesh->batches );
+	free( mesh->spans );
 	free( mesh->water_verts );
 	free( mesh->water_batches );
 	memset( mesh, 0, sizeof( *mesh ) );
@@ -377,6 +385,22 @@ static void InitBatch( CSRETRO_MeshBatch *batch, unsigned int tex, unsigned int 
 	}
 	if( surf->polys && surf->polys->numverts > 0 )
 		batch->surface_z0 = surf->polys->verts[0][2];
+}
+
+static void AddSpan( CSRETRO_BspMesh *mesh, int surface_index, int first_vert, int vert_count, int batch_index, const xr_msurface_t *surf, unsigned int lm )
+{
+	CSRETRO_SurfaceSpan *sp;
+	if( !mesh || !mesh->spans || vert_count < 3 || mesh->span_count >= mesh->span_cap )
+		return;
+	sp = &mesh->spans[mesh->span_count++];
+	sp->surface_index = surface_index;
+	sp->first_tri = first_vert;
+	sp->tri_count = vert_count / 3;
+	sp->batch_index = batch_index;
+	sp->light_s = surf->light_s;
+	sp->light_t = surf->light_t;
+	sp->lightmap = lm;
+	sp->flags = surf->flags;
 }
 
 int CSRETRO_BspMesh_Build( CSRETRO_BspMesh *mesh, void *modp )
@@ -442,7 +466,10 @@ int CSRETRO_BspMesh_Build( CSRETRO_BspMesh *mesh, void *modp )
 	{
 		mesh->verts = (CSRETRO_MeshVert *)malloc( sizeof( CSRETRO_MeshVert ) * (size_t)guess_verts );
 		mesh->batches = (CSRETRO_MeshBatch *)malloc( sizeof( CSRETRO_MeshBatch ) * XR_MESH_MAX_BATCH );
-		if( !mesh->verts || !mesh->batches )
+		mesh->spans = (CSRETRO_SurfaceSpan *)malloc( sizeof( CSRETRO_SurfaceSpan ) * (size_t)count );
+		mesh->span_cap = count;
+		mesh->span_count = 0;
+		if( !mesh->verts || !mesh->batches || !mesh->spans )
 		{
 			CSRETRO_BspMesh_Clear( mesh );
 			return 0;
@@ -559,6 +586,9 @@ int CSRETRO_BspMesh_Build( CSRETRO_BspMesh *mesh, void *modp )
 			InitBatch( batch, tex, lm, used, surf->flags, src, width, height, random_tile, surf, surface_index );
 		}
 
+		{
+			int start_used = used;
+
 		if( surf->polys )
 		{
 			for( p = surf->polys; p; p = p->next )
@@ -622,6 +652,10 @@ int CSRETRO_BspMesh_Build( CSRETRO_BspMesh *mesh, void *modp )
 			}
 		}
 
+			if( used - start_used >= 3 && mesh->batch_count > 0 )
+				AddSpan( mesh, surface_index, start_used, used - start_used, mesh->batch_count - 1, surf, lm );
+		}
+
 		if( (int)lm > lm_max )
 			lm_max = (int)lm;
 	}
@@ -683,6 +717,74 @@ static void UnbindLightmap( void )
 	if( gXRGL.Disable )
 		gXRGL.Disable( GL_TEXTURE_2D );
 	gXRGL.ActiveTexture( GL_TEXTURE0 );
+}
+
+static int BindAtlas( void )
+{
+	unsigned int tex = CSRETRO_DLight_AtlasTexnum();
+	if( tex == 0 || !gXRGL.ActiveTexture )
+		return 0;
+	CSRETRO_Backend_BindTexture( 1, tex );
+	gXRGL.ActiveTexture( GL_TEXTURE1 );
+	gXRGL.Enable( GL_TEXTURE_2D );
+	if( gXRGL.TexEnvi )
+		gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
+	gXRGL.ActiveTexture( GL_TEXTURE0 );
+	return 1;
+}
+
+static void DrawBatchLit( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *batch, int batch_index, const CSRETRO_MeshDrawContext *ctx, int bind_textures, float sOff, float tOff )
+{
+	int s, has_lm;
+	int block = CSRETRO_DLight_BlockSize();
+	int atlas = CSRETRO_DLight_AtlasSize();
+	float scale = ( atlas > 0 ) ? ( (float)block / (float)atlas ) : 1.0f;
+
+	if( mesh->span_count <= 0 )
+	{
+		has_lm = BindLightmap( mesh, batch, ctx, bind_textures );
+		DrawBatchTris( mesh, batch, sOff, tOff, has_lm );
+		if( has_lm )
+			UnbindLightmap();
+		return;
+	}
+
+	for( s = 0; s < mesh->span_count; )
+	{
+		const CSRETRO_SurfaceSpan *span = &mesh->spans[s];
+		CSRETRO_DLightPatch patch;
+
+		if( span->batch_index != batch_index )
+		{
+			s++;
+			continue;
+		}
+		if( CSRETRO_DLight_Lookup( mesh->model, span->surface_index, &patch ) && atlas > 0 )
+		{
+			float bias_s = ( (float)( patch.atlas_x - patch.light_s ) ) / (float)atlas;
+			float bias_t = ( (float)( patch.atlas_y - patch.light_t ) ) / (float)atlas;
+			has_lm = BindAtlas();
+			DrawSpanTris( mesh, span->first_tri, span->tri_count, sOff, tOff, has_lm, scale, bias_s, bias_t );
+			if( has_lm )
+				UnbindLightmap();
+			s++;
+		}
+		else
+		{
+			int first = span->first_tri;
+			int tris = 0;
+			has_lm = BindLightmap( mesh, batch, ctx, bind_textures );
+			while( s < mesh->span_count && mesh->spans[s].batch_index == batch_index
+				&& !CSRETRO_DLight_Lookup( mesh->model, mesh->spans[s].surface_index, NULL ) )
+			{
+				tris += mesh->spans[s].tri_count;
+				s++;
+			}
+			DrawSpanTris( mesh, first, tris, sOff, tOff, has_lm, 1.0f, 0.0f, 0.0f );
+			if( has_lm )
+				UnbindLightmap();
+		}
+	}
 }
 
 void CSRETRO_BspMesh_Draw( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshDrawContext *ctx )
@@ -750,7 +852,6 @@ void CSRETRO_BspMesh_Draw( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshDrawCo
 			xr_texture_t *base = (xr_texture_t *)batch->anim_source;
 			xr_texture_t *resolved;
 			unsigned int tex;
-			int has_lm;
 			float sOff = 0.0f, tOff = 0.0f;
 
 			if( batch->tri_count <= 0 )
@@ -766,7 +867,6 @@ void CSRETRO_BspMesh_Draw( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshDrawCo
 			tex = resolved ? (unsigned int)resolved->gl_texturenum : batch->tex;
 			if( bind_textures )
 				CSRETRO_Backend_BindTexture( 0, tex );
-			has_lm = BindLightmap( mesh, batch, ctx, bind_textures );
 
 			if( batch->flags & XR_SURF_CONVEYOR )
 			{
@@ -774,9 +874,7 @@ void CSRETRO_BspMesh_Draw( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshDrawCo
 				NoteConveyor( sOff, tOff );
 			}
 
-			DrawBatchTris( mesh, batch, sOff, tOff, has_lm );
-			if( has_lm )
-				UnbindLightmap();
+			DrawBatchLit( mesh, batch, b, ctx, bind_textures, sOff, tOff );
 		}
 
 		if( bind_textures )

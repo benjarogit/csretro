@@ -183,6 +183,8 @@ enum movie_parms_e
 struct movie_state_s;
 struct ref_viewpass_s;
 struct dlight_s;
+struct msurface_s;
+struct cl_entity_s;
 
 typedef struct render_api_s
 {
@@ -273,6 +275,11 @@ typedef struct render_api_s
 	// CS Retro extension after the frozen v37 prefix. Not in PrimeXT pin 46fb05b.
 	// trans_pass: false = solid EFX, true = transparent. draw_only: no simulation / no dead-list cleanup.
 	void		(*DrawEFX)( const struct ref_viewpass_s *rvp, qboolean trans_pass, qboolean draw_only );
+	// Read-only surface lightmap evaluator. No GL draw, no texture upload, no
+	// surface/dlight writes, no R_PushDlights. rgba is packed RGBA8, stride in bytes
+	// per row (0 = width*4). Returns 1 on success. *dynamic is 1 if any dlight
+	// contributed. Sample size is Mod_SampleSizeForFace. entity_or_null: NULL = world.
+	int		(*BuildSurfaceLightmapReadOnly)( const struct msurface_s *surf, const struct cl_entity_s *entity_or_null, byte *rgba, int stride, int capacity, int *width, int *height, int *dynamic );
 } render_api_t;
 
 // render callbacks

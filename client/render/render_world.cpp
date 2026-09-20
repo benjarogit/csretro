@@ -2,6 +2,7 @@
 #include "render_backend.h"
 #include "render_bsp_mesh.h"
 #include "render_xash_brush.h"
+#include "render_dlight.h"
 
 #include <string.h>
 
@@ -149,6 +150,8 @@ void CSRETRO_World_Draw( const float *vieworg, const float *viewangles, float fo
 		CSRETRO_Backend_ApplyView( vieworg, viewangles, fov_x, fov_y );
 	if( gXRGL.Color4f )
 		gXRGL.Color4f( 1.0f, 1.0f, 1.0f, 1.0f );
+	if( !ctx->skip_base )
+		CSRETRO_DLight_PrepareMesh( &s_world, NULL, 1 );
 	CSRETRO_BspMesh_Draw( &s_world, ctx );
 }
 

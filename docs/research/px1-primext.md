@@ -579,7 +579,7 @@ Sonderflächen:
 | random tiled (`-`) | Stock-CS hat Surfaces. Xash `rtable` nicht in der Client-API (`COM_RandomLong` im Ref-Init). BSP-Kachel, keine erfundene Tabelle. Follow-up. |
 | details | NOT NEEDED FOR CURRENT CS CONTENT |
 | decals | world VERIFIED — Offscreen-Walk von `pdecals`/`polys`. `de_aztec` bullet-hole pixel `31301f88≠8fc0c012`. Brush/moving implemented / N/R. |
-| dlights | DEFERRED |
+| dlights | world VERIFIED — HE `TE_EXPLOSION` `active=4` world `affected=48` patches=48 pixel `87aaaff8≠a2026c1c`. Brush/moving implemented / N/R. |
 | poly offset | IMPLEMENTED — bmodel offset + GL-State Save/Restore. |
 
 Offscreen-Reihenfolge (Probe): World → opaque Brush → trans Brush → Sprites → Studio → FOLLOW. Klassifikation (`kRenderNormal` vs rest) ist sortierbar. Später: opaque Studio vor trans Entities.
@@ -608,7 +608,7 @@ Client triangles: PENDING
 remaining sprite modes: PENDING
 ```
 
-Sonderfälle: SURF_DRAWTURB/water qualified; tex anim VERIFIED; conveyor VERIFIED; fullbright implemented / runtime N/R; world decals VERIFIED; brush decals implemented / N/R; dlights DEFERRED.
+Sonderfälle: SURF_DRAWTURB/water qualified; tex anim VERIFIED; conveyor VERIFIED; fullbright implemented / runtime N/R; world decals VERIFIED; brush decals implemented / N/R; world dlights VERIFIED; brush dlights implemented / N/R; random tiled Follow-up.
 
 ### #7 Brush Special A (2026-09-20)
 
@@ -676,7 +676,32 @@ Ein Offscreen-Pfad `client/render/render_decal.cpp`. Xash bleibt alleiniger Deca
 | Special A / Water | CONFIRMED | Anim pixel `c6874c8c≠9e35736d`, Conveyor `uv_changed=1`, water capture |
 | Visible Xash / Frame | CONFIRMED 0 | Probe lehnt return 1 ab. Movement-Gate PASS. |
 
-Probe: `./scripts/px7-brush-special-c-probe.sh` PASS. DLights unverändert DEFERRED. Random tiled Follow-up unverändert.
+Probe: `./scripts/px7-brush-special-c-probe.sh` PASS. DLights siehe Special D. Random tiled Follow-up unverändert.
+
+### #7 Brush Special D (2026-09-20)
+
+Klassische Surface-DLights, eine API. Xash bleibt Lifecycle-Owner (`CL_AllocDlight`, `CL_DecayLights`, sichtbarer Dynamic-LM-Pass). CS Retro: Snapshot + read-only Evaluator + transienter Atlas. Kein `R_PushDlights` / `R_MarkLights` offscreen.
+
+| Punkt | Status | Beleg |
+| --- | --- | --- |
+| Ownership | CONFIRMED | `GetDynamicLight` Snapshot. Kein neuer Slot für die Liste. Decay nie offscreen |
+| Engine helper | CONFIRMED | `BuildSurfaceLightmapReadOnly` Tail nach DrawEFX. `REF_API_VERSION` 20. v37-Prefix unverändert |
+| Live dlight / surface | CONFIRMED mutate=0 | `dlight_mutate=0` `surface_mutate=0`. Kein live origin/radius/die write, kein `dlightframe`/`dlightbits` |
+| Sample size | CONFIRMED | `Mod_SampleSizeForFace` im Helper, nicht hart 16 |
+| World intersection | CONFIRMED | `R_DLightHitsSurface` End-Check (plane, impact, lmvecs, mins/extents, radius) |
+| Brush transform | implemented / N/R | inverse `Matrix4x4_CreateFromEntity` (yaw, −pitch, roll). Runtime Tür-HE ohne `brush dlight affected>0` |
+| Transient atlas | CONFIRMED | `*csretro_dlight_atlas`, Shelf, `glTexSubImage2D`. Kein `tr.dlightTexture` |
+| Mesh rebuild | CONFIRMED 0 | `mesh_mutate=0`. Expiration `static LM path restored patches=0` |
+| World pixel | VERIFIED | HE `TE_EXPLOSION` `active_dlights=4` `affected=48` `patches=48` `87aaaff8≠a2026c1c` |
+| Inventur | CONFIRMED | AK-Muzzle = `EF_MUZZLEFLASH` (kein Surface-DLight). Reale `cl_dlights` = HE Explosion color 250/250/150 + 255/190/40 |
+| `r_dynamic` | CONFIRMED | 0 → `patches=0`; 1 → `patches=48` |
+| `dark` | CONFIRMED | klassischer GL-Pfad ignoriert `dlight.dark` (additiv). CS Retro ebenfalls nicht subtraktiv |
+| Dynamic litwater | implemented / N/R | Stock-CS `litwater=0`. Ripple Xash-owned |
+| Decal regression | CONFIRMED | Special C World-Decals weiter PASS auf torn |
+| Special A/B | CONFIRMED | Anim pixel `b2fb7384≠9e35736d`, Conveyor `uv_changed=1`, water capture |
+| Visible Xash / Frame | CONFIRMED 0 | Probe lehnt return 1 ab. Movement-Gate PASS. Mapchange + `vid_setmode` |
+
+Probe: `./scripts/px7-brush-special-d-dlights-probe.sh` PASS. PrimeXT-Shader-Lights/Shadowmaps/PBR nicht übernommen. Random tiled Follow-up unverändert. #7 bleibt OPEN.
 
 ## #7 Engine-EFX Vertrag (2026-09-20, vor Produktcode)
 

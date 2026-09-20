@@ -392,6 +392,7 @@ qboolean R_HasEnabledVBO( void );
 //
 void CL_DrawParticlesExternal( const ref_viewpass_t *rvp, qboolean trans_pass, float frametime );
 void CL_DrawEFXView( const ref_viewpass_t *rvp, qboolean trans_pass, qboolean draw_only );
+int R_BuildSurfaceLightmapReadOnly( const msurface_t *surf, const cl_entity_t *entity_or_null, byte *rgba, int stride, int capacity, int *width, int *height, int *dynamic );
 void CL_DrawParticles( double frametime, particle_t *cl_active_particles, float partsize, qboolean draw_only );
 void CL_DrawTracers( double frametime, particle_t *cl_active_tracers, qboolean draw_only );
 

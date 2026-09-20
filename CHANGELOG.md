@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.35 — 2026-09-20
+
+### Renderer
+
+- #7 Brush Special D: klassische Xash/GoldSrc Surface-DLights im Offscreen-Pfad. Eine API: Engine-Helper `BuildSurfaceLightmapReadOnly` (Tail nach DrawEFX, `REF_API_VERSION` 20) evaluiert die Lightmap read-only; CS Retro snapshotet `GetDynamicLight`, besitzt den transienten Atlas und den Draw. Kein `R_PushDlights`, keine live `dlightframe`/`dlightbits`, kein `tr.dlightTexture`. World-HE VERIFIED (Pixel-CRC differ). Brush-/Moving-DLights und dynamic litwater implemented / runtime NOT REPRODUCIBLE. `dlight.dark` bleibt klassisch additiv (ignoriert). Random tiled bleibt Follow-up. `GL_RenderFrame` bleibt 0. Issue #7 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.34 — 2026-09-20
 
 ### Architektur / Dokumentation

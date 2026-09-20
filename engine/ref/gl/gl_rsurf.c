@@ -563,21 +563,74 @@ static texture_t *R_TextureAnimation( msurface_t *s )
 
 /*
 ===============
-R_AddDynamicLights
+R_DLightHitsSurface
+
+Per-surface end-check from R_MarkLights (plane distance, projected impact,
+lmvecs, lightmapmins, lightextents, actual radius). r_dlight_virtual_radius
+is a BSP walk hint and is not applied here. Local bits only — no live write.
 ===============
 */
-static void R_AddDynamicLights( const msurface_t *surf, float sample_size, int smax, int tmax )
+static qboolean R_DLightHitsSurface( const dlight_t *light, const vec3_t origin, const msurface_t *surf )
+{
+	const mextrasurf_t *info;
+	vec3_t impact;
+	float dist, dist_sq, maxdist, s, t, l;
+
+	if( !light || !surf || !surf->plane || !surf->info )
+		return false;
+	if( FBitSet( surf->flags, SURF_DRAWTILED ))
+		return false;
+	if( light->radius == 0.0f )
+		return false;
+
+	info = surf->info;
+	maxdist = light->radius * light->radius;
+	dist = PlaneDiff( origin, surf->plane );
+	dist_sq = dist * dist;
+	if( dist_sq >= maxdist )
+		return false;
+
+	if( surf->plane->type < 3 )
+	{
+		VectorCopy( origin, impact );
+		impact[surf->plane->type] -= dist;
+	}
+	else VectorMA( origin, -dist, surf->plane->normal, impact );
+
+	l = DotProduct( impact, info->lmvecs[0] ) + info->lmvecs[0][3] - info->lightmapmins[0];
+	s = l + 0.5f;
+	s = bound( 0, s, info->lightextents[0] );
+	s = l - s;
+
+	l = DotProduct( impact, info->lmvecs[1] ) + info->lmvecs[1][3] - info->lightmapmins[1];
+	t = l + 0.5f;
+	t = bound( 0, t, info->lightextents[1] );
+	t = l - t;
+
+	return ( s * s + t * t + dist_sq < maxdist );
+}
+
+/*
+===============
+R_AddDynamicLights
+
+dlight.dark is ignored here — classic Xash GL surface lightmaps are additive only.
+local_origins: pre-transformed model-space origins, or NULL to use RI.objectMatrix
+like the visible GL path.
+===============
+*/
+static void R_AddDynamicLights( const msurface_t *surf, float sample_size, int smax, int tmax, int dlightbits, const vec3_t *local_origins )
 {
 	const mextrasurf_t *info = surf->info;
 	int sample_frac = 1.0;
 
 	// no dlighted surfaces here
-	if( !surf->dlightbits )
+	if( !dlightbits )
 		return;
 
 	mtexinfo_t *tex = surf->texinfo;
 
-	if( FBitSet( tex->flags, TEX_WORLD_LUXELS ))
+	if( tex && FBitSet( tex->flags, TEX_WORLD_LUXELS ))
 	{
 		if( surf->texinfo->faceinfo )
 			sample_frac = surf->texinfo->faceinfo->texture_step;
@@ -589,14 +642,16 @@ static void R_AddDynamicLights( const msurface_t *surf, float sample_size, int s
 	for( int lnum = 0; lnum < MAX_DLIGHTS; lnum++ )
 	{
 		vec3_t impact, origin_l;
+		const dlight_t *dl;
 
-		if( !FBitSet( surf->dlightbits, BIT( lnum )))
+		if( !FBitSet( dlightbits, BIT( lnum )))
 			continue;	// not lit by this light
 
-		dlight_t *dl = &gp_dlights[lnum];
+		dl = &gp_dlights[lnum];
 
-		// transform light origin to local bmodel space
-		if( !tr.modelviewIdentity )
+		if( local_origins )
+			VectorCopy( local_origins[lnum], origin_l );
+		else if( !tr.modelviewIdentity )
 			Matrix4x4_VectorITransform( RI.objectMatrix, dl->origin, origin_l );
 		else VectorCopy( dl->origin, origin_l );
 
@@ -714,15 +769,7 @@ static void LM_UploadBlock( qboolean dynamic )
 	}
 }
 
-/*
-=================
-R_BuildLightmap
-
-Combine and scale multiple lightmaps into the floating
-format in r_blocklights
-=================
-*/
-static void R_BuildLightMap( const msurface_t *surf, byte *restrict dest, int stride, qboolean dynamic )
+static void R_BuildLightMapBits( const msurface_t *surf, byte *restrict dest, int stride, int dlightbits, const vec3_t *local_origins )
 {
 	const mextrasurf_t *info = surf->info;
 	const qboolean turb = FBitSet( surf->flags, SURF_DRAWTURB );
@@ -785,9 +832,8 @@ static void R_BuildLightMap( const msurface_t *surf, byte *restrict dest, int st
 	else
 		memset( r_blocklights, 0, sizeof( uint ) * size * 3 );
 
-	// add all the dynamic lights
-	if( surf->dlightframe == tr.framecount && dynamic )
-		R_AddDynamicLights( surf, sample_size, smax, tmax );
+	if( dlightbits )
+		R_AddDynamicLights( surf, sample_size, smax, tmax, dlightbits, local_origins );
 
 	for( int t = 0; t < tmax; t++ )
 	{
@@ -819,6 +865,102 @@ static void R_BuildLightMap( const msurface_t *surf, byte *restrict dest, int st
 			dst[3] = 255;
 		}
 	}
+}
+
+static void R_BuildLightMap( const msurface_t *surf, byte *restrict dest, int stride, qboolean dynamic )
+{
+	int bits = 0;
+
+	if( dynamic && surf->dlightframe == tr.framecount )
+		bits = surf->dlightbits;
+
+	R_BuildLightMapBits( surf, dest, stride, bits, NULL );
+}
+
+/*
+=================
+R_BuildSurfaceLightmapReadOnly
+
+CS Retro offscreen helper. Same math as the visible GL R_BuildLightMap path,
+but intersection bits and transformed origins stay local. Does not draw,
+upload, or write live surfaces / dlights. Does not call R_PushDlights.
+=================
+*/
+int R_BuildSurfaceLightmapReadOnly( const msurface_t *surf, const cl_entity_t *entity_or_null, byte *rgba, int stride, int capacity, int *width, int *height, int *dynamic )
+{
+	const mextrasurf_t *info;
+	vec3_t local_origins[MAX_DLIGHTS];
+	int sample_size, smax, tmax, size, bits, lnum, need_transform;
+	double now;
+
+	if( width ) *width = 0;
+	if( height ) *height = 0;
+	if( dynamic ) *dynamic = 0;
+
+	if( !surf || !surf->info || !rgba || !width || !height || !dynamic )
+		return 0;
+	if( FBitSet( surf->flags, SURF_DRAWTILED ))
+		return 0;
+
+	info = surf->info;
+	sample_size = gEngfuncs.Mod_SampleSizeForFace( surf );
+	if( sample_size <= 0 )
+		return 0;
+
+	smax = ( info->lightextents[0] / sample_size ) + 1;
+	tmax = ( info->lightextents[1] / sample_size ) + 1;
+	if( smax <= 0 || tmax <= 0 )
+		return 0;
+	if( smax > BLOCK_SIZE_MAX || tmax > BLOCK_SIZE_MAX )
+		return 0;
+
+	size = smax * tmax;
+	if( size <= 0 || size > (int)( sizeof( r_blocklights ) / ( sizeof( uint ) * 3 )))
+		return 0;
+
+	if( stride <= 0 )
+		stride = smax * 4;
+	if( capacity < tmax * stride || stride < smax * 4 )
+		return 0;
+
+	*width = smax;
+	*height = tmax;
+
+	need_transform = 0;
+	if( entity_or_null && ( !VectorIsNull( entity_or_null->origin ) || !VectorIsNull( entity_or_null->angles )))
+		need_transform = 1;
+
+	now = gp_cl ? gp_cl->time : 0.0;
+	bits = 0;
+
+	{
+		matrix4x4 matrix;
+
+		if( need_transform )
+			Matrix4x4_CreateFromEntity( matrix, entity_or_null->angles, entity_or_null->origin, 1.0f );
+
+		for( lnum = 0; lnum < MAX_DLIGHTS; lnum++ )
+		{
+			const dlight_t *dl = &gp_dlights[lnum];
+
+			if( dl->die < now || !dl->radius )
+			{
+				VectorClear( local_origins[lnum] );
+				continue;
+			}
+
+			if( need_transform )
+				Matrix4x4_VectorITransform( matrix, dl->origin, local_origins[lnum] );
+			else VectorCopy( dl->origin, local_origins[lnum] );
+
+			if( r_dynamic && r_dynamic->value && R_DLightHitsSurface( dl, local_origins[lnum], surf ))
+				bits |= BIT( lnum );
+		}
+	}
+
+	*dynamic = ( bits != 0 ) ? 1 : 0;
+	R_BuildLightMapBits( surf, rgba, stride, bits, local_origins );
+	return 1;
 }
 
 /*

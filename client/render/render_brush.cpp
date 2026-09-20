@@ -11,10 +11,12 @@
 #include "render_world.h"
 #include "render_xash_brush.h"
 #include "render_decal.h"
+#include "render_dlight.h"
 #include "render_xash_sprite.h"
 
 #include "hud.h"
 #include "cl_util.h"
+#include "cl_entity.h"
 #include "const.h"
 #include "render_api.h"
 
@@ -458,6 +460,17 @@ int CSRETRO_Brush_DrawPass( int opaque_only, CSRETRO_SceneStats *stats )
 			ctx.entity_mins[1] = mins[1];
 			ctx.entity_mins[2] = mins[2];
 			ctx.skip_fullbright = 1;
+			{
+				cl_entity_t local_ent;
+				memset( (void *)&local_ent, 0, sizeof( local_ent ) );
+				local_ent.origin[0] = e->origin[0];
+				local_ent.origin[1] = e->origin[1];
+				local_ent.origin[2] = e->origin[2];
+				local_ent.angles[0] = e->angles[0];
+				local_ent.angles[1] = e->angles[1];
+				local_ent.angles[2] = e->angles[2];
+				CSRETRO_DLight_PrepareMesh( mesh, &local_ent, 0 );
+			}
 			CSRETRO_BspMesh_Draw( mesh, &ctx );
 			CSRETRO_Decal_DrawSurfaces( e->model, e->rendermode, 1, e->index );
 			ctx.skip_base = 1;

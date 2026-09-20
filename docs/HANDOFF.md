@@ -3,7 +3,7 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
-## Stand 2026-09-20 — #7 Brush Special C (Surface-Decals); Issue OPEN
+## Stand 2026-09-20 — #7 Brush Special D (Surface-DLights); Issue OPEN
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
 PX3B: `bbe418d` / v0.1.12, Cert `8443d0d` / v0.1.13, Issue #5 geschlossen.
@@ -17,6 +17,7 @@ Spectator-Overview Cert: `e917629` / v0.1.29. Sprite Completion: `ec42664` / v0.
 #7 Brush Special A: `b4e4bcd` / v0.1.31.
 #7 Brush Special B: `251491a` / v0.1.32.
 #7 Brush Special C: `42bb6df` / v0.1.33.
+#7 Brush Special D: dieser Stand / v0.1.35.
 `GL_RenderFrame` bleibt 0.
 
 ```
@@ -33,7 +34,7 @@ Brush special:
     fullbright: implemented, runtime NOT REPRODUCIBLE WITH CURRENT GAME CONTENT
     water/turb: qualified (capture+warp+wave implemented; brush water VERIFIED on de_torn; world opaque drawn, spawn FBO pixel N/R; transparent late / alpha_cap=0 N/R)
     decals: world VERIFIED (bullet-hole pixel CRC differ); brush/moving-brush implemented / runtime NOT REPRODUCIBLE; fallback implemented / N/R; transparent/stencil N/R; premultiplied implemented / runtime N/R
-    dlights: DEFERRED
+    dlights: world VERIFIED (HE TE_EXPLOSION, pixel CRC differ); brush/moving-brush implemented / runtime NOT REPRODUCIBLE; dynamic litwater implemented / runtime N/R; random tiled FOLLOW-UP OPEN
 ```
 
 **PrimeXT-Pin:** Tag `continious`, SHA `46fb05b41e58ed887718649e1720313baaac9a35` (2026-08-23).
@@ -44,17 +45,19 @@ Rolle: nur lesen. Clone ohne Submodule nach `refs/primext/` (gitignored).
 - GL/Offscreen: `client/render/render_backend.cpp` (FBO, Depth-Range, Polygon, Shade, Texenv, TMU, Poly-Offset, Fog Push/Pop, Restore)
 - Shared BSP-Mesh: `client/render/render_bsp_mesh.cpp` — ein Builder für World und Brush-Cache; normale Batches + Water-Batches
 - World/BSP: `client/render/render_world.cpp`
+- Surface-DLights: `client/render/render_dlight.cpp` — Snapshot `GetDynamicLight`, transienter Atlas `*csretro_dlight_atlas`, keine live dlight/surface writes
 - Brush offscreen: `client/render/render_brush.cpp` — Cache nach `model_t*`, GoldSrc-Transform, opaque + trans + Brush-Water
 - Entity-Spiegel: `client/render/render_scene.cpp` — volle `cl_entity_t`-Kopie inkl. latched, kein Steal
 - Sprite offscreen: `client/render/render_sprite.cpp` — eine Pipeline; SPR_ANGLED, Frame-Lerp und Xash sprite-lighting (LightAtPoint + Modulationspass, kein zweiter BSP-Atlas)
 - Studio offscreen: `client/render/render_studio.cpp` — GSMR `STUDIO_RENDER` only, Snapshot, CurrentEntity save/restore; FOLLOW child nur bei Non-Player-Parent in der Mirror-Liste
-- Engine-EFX: `gRenderAPI.DrawEFX(rvp, trans, draw_only)` — CS-Retro-Extension am Ende von `render_api_t` (v37-Prefix eingefroren). Intern Ref `REF_API_VERSION` 19
+- Engine-EFX: `gRenderAPI.DrawEFX(rvp, trans, draw_only)` — CS-Retro-Extension am Ende von `render_api_t` (v37-Prefix eingefroren). Intern Ref `REF_API_VERSION` 20
+- Surface-DLights: `gRenderAPI.BuildSurfaceLightmapReadOnly(...)` — Tail-Slot nach DrawEFX. Xash evaluiert die Lightmap read-only; CS Retro besitzt transienten Atlas und Draw. Kein `R_PushDlights` offscreen.
 - Client-Triangles: interne API `CSRETRO_ClientTriangles_*` in derselben `client_amd64.so` (kein neuer `render_api_t`-Slot). Xash-Exports `HUD_DrawNormalTriangles` / `HUD_DrawTransparentTriangles` bleiben Advance+Draw
 - Brücke: `cdll_int.cpp` — `GL_RenderFrame` void + `return 0`; `HUD_AddEntity` spiegelt und behält Return
 - Water-Alpha: `PARM_WATER_ALPHA` = Map-Capability 0/1. `PARM_WATER_ALPHA_VALUE` = IEEE-754-Bits der effective wateralpha (1.0 ohne Capability). `PARM_MAP_HAS_LITWATER` 0/1. Kein neuer Funktionsslot.
 
 **CVar:** `r_csretro_renderer` 0 = Xash-only. 1 = Offscreen World+Brush+Sprites+Non-Player-Studio+FOLLOW+draw-only EFX+draw-only Client-Triangles + sichtbarer Xash-Fallback.
-Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`, `./scripts/px7-efx-xash-gate.sh`, `./scripts/px7-efx-offscreen-probe.sh`, `./scripts/px7-tri-xash-gate.sh`, `./scripts/px7-tri-offscreen-probe.sh`, `./scripts/px7-tri-overview-cert.sh`, `./scripts/px7-sprite-completion-probe.sh`, `./scripts/px7-brush-special-a-probe.sh`, `./scripts/px7-brush-special-b-probe.sh`, `./scripts/px7-brush-special-c-probe.sh`.
+Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`, `./scripts/px7-efx-xash-gate.sh`, `./scripts/px7-efx-offscreen-probe.sh`, `./scripts/px7-tri-xash-gate.sh`, `./scripts/px7-tri-offscreen-probe.sh`, `./scripts/px7-tri-overview-cert.sh`, `./scripts/px7-sprite-completion-probe.sh`, `./scripts/px7-brush-special-a-probe.sh`, `./scripts/px7-brush-special-b-probe.sh`, `./scripts/px7-brush-special-c-probe.sh`, `./scripts/px7-brush-special-d-dlights-probe.sh`.
 Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts/px4a-visual-cert.sh` → `build/px4a-cert-shots/`; `./scripts/px7-brush-visual-cert.sh` → `build/px7-brush-cert-shots/` (nicht committed).
 
 **Callbacks an:** `Mod_ProcessUserData`, `R_NewMap`, `GL_BuildLightmaps`, `R_ClearScene` (additiv, nur CS-Retro-Liste).
@@ -67,7 +70,7 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Transform: GoldSrc `R_RotateForEntity` / `R_TranslateForEntity` (origin, yaw, −pitch, roll).
 - Opaque `kRenderNormal` + TransTexture/Color/Alpha/Add. Lightmaps über `PARM_TEX_LIGHTMAP`.
 - Probe PASS + Visual `./scripts/px7-brush-visual-cert.sh` PASS: aztec Welt/Viewmodel/HUD; assault `func_door_rotating *11` index 19 origin 696 2236 48 sichtbar geschlossen → Kante → offen. Mapchange dust + `vid_setmode`. Movement-Gate PASS. `GL_RenderFrame` immer 0.
-- Sonderflächen: Texture-Anim VERIFIED, Conveyor VERIFIED, Fullbright implemented / runtime N/R. Water/Turb: Capture + Warp + Wave im shared Mesh, Brush-Water VERIFIED (`de_torn` `*4`). World-opaque gezeichnet, Spawn-FBO-Pixel N/R. Transparent late / `alpha_cap=0` N/R. World-Decals VERIFIED. Brush-Decals implemented / N/R. DEFERRED: dlights.
+- Sonderflächen: Texture-Anim VERIFIED, Conveyor VERIFIED, Fullbright implemented / runtime N/R. Water/Turb: Capture + Warp + Wave im shared Mesh, Brush-Water VERIFIED (`de_torn` `*4`). World-opaque gezeichnet, Spawn-FBO-Pixel N/R. Transparent late / `alpha_cap=0` N/R. World-Decals VERIFIED. Brush-Decals implemented / N/R. World-DLights VERIFIED. Brush-DLights implemented / N/R. Random tiled Follow-up.
 
 **#7 Engine-EFX (VERIFIED draw-only ownership 2026-09-20)**
 - Vertrag: `docs/research/px1-primext.md`. `GL_DrawParticles` bleibt unsicher (Advance). Produktpfad ist `DrawEFX(..., draw_only=1)`.
@@ -123,19 +126,30 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Special A weiter Anim/Conveyor PASS. Water capture weiter. Map aztec→assault→torn→dust, `vid_setmode`, Movement-Gate PASS.
 - Probe: `./scripts/px7-brush-special-c-probe.sh` PASS.
 
+**#7 Brush Special D (2026-09-20, Issue bleibt OPEN)**
+- Eine API: Xash besitzt Allocation/Decay/`die`/sichtbaren Dynamic-LM-Pass. CS Retro snapshotet `gRenderAPI.GetDynamicLight(i)` read-only. Kein `R_PushDlights` / `R_MarkLights` offscreen, kein live `dlightframe`/`dlightbits`, kein `tr.dlightTexture`, kein zweiter statischer BSP-LM-Atlas, kein Blob/Vertex-Light.
+- Engine-Helper `BuildSurfaceLightmapReadOnly` (Tail nach DrawEFX, `REF_API_VERSION` 20). Dieselbe Mathematik wie sichtbares `R_BuildLightMap` / `R_AddDynamicLights`, lokale Bits/Origins. `Mod_SampleSizeForFace`. `dlight.dark` wird wie der klassische GL-Pfad ignoriert (additiv).
+- Client: transienter Atlas `*csretro_dlight_atlas` (Shelf + `glTexSubImage2D`), nur `dynamic==1`. Mesh-Cache unverändert. `r_dynamic 0` → keine Patches.
+- Inventur Stock-CS: AK-Muzzle ist `EF_MUZZLEFLASH` (ELight), kein Surface-DLight. Reale `cl_dlights`: HE `TE_EXPLOSION` (`TE_EXPLFLAG_NONE`).
+- World **VERIFIED** `de_aztec` HE: `active_dlights=4` `affected_world_surfaces=48` `patches=48` pixel `87aaaff8≠a2026c1c` `dlight_mutate=0` `surface_mutate=0` `mesh_mutate=0`. Expiration stellt den statischen Engine-LM-Pfad wieder her.
+- Brush / moving door: Transform (yaw, −pitch, roll) implementiert. Runtime **NOT REPRODUCIBLE** in der Probe (Tür-HE ohne `brush dlight affected>0`).
+- Dynamic litwater: Pfad vorhanden, Stock-CS `litwater=0` → **N/R**. Ripple bleibt Xash.
+- `r_dynamic 0` disables / `r_dynamic 1` enables. Visible Xash PASS. Mapchange aztec→assault→torn→dust + `vid_setmode` PASS. Movement-Gate PASS. `GL_RenderFrame` immer 0.
+- Probe: `./scripts/px7-brush-special-d-dlights-probe.sh` PASS. Random tiled bleibt Follow-up. PrimeXT-Shader-Lights nicht übernommen.
+
 **PX4B.1** (ruhend)
 - FOLLOW parent graph implementiert. Player-parent deferred. Stock-CS: **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT**.
 - Player bleibt C. Issue #9 offen, ruht bis A/B-Beweis. Kein Player-Produktcode in diesem Slice.
 - Read-only: Variante B kann `gait`/`player_info_t` nicht isolieren ohne GSMR- oder `PlayerInfo`-Änderung (`IEngineStudio.PlayerInfo()` ist Live-State).
 
 **Offen vor return 1**
-- [#7](https://github.com/benjarogit/csretro/issues/7): Brush VERIFIED, Engine-EFX VERIFIED, Client-Triangles VERIFIED draw-only, Sprite Completion (ANGLED implemented / runtime NOT REPRODUCIBLE, lerp VERIFIED, lighting VERIFIED). Brush Special A: Anim VERIFIED, Conveyor VERIFIED, Fullbright implemented / N/R. Brush Special B: water/turb qualified (capture+warp+wave, brush water VERIFIED, world opaque drawn / spawn pixel N/R, late alpha N/R). Brush Special C: world decals VERIFIED, brush/moving-brush implemented / N/R. Random tiled follow-up bleibt. DLights DEFERRED. Issue bleibt OPEN
+- [#7](https://github.com/benjarogit/csretro/issues/7): Brush VERIFIED, Engine-EFX VERIFIED, Client-Triangles VERIFIED draw-only, Sprite Completion (ANGLED implemented / runtime NOT REPRODUCIBLE, lerp VERIFIED, lighting VERIFIED). Brush Special A: Anim VERIFIED, Conveyor VERIFIED, Fullbright implemented / N/R. Brush Special B: water/turb qualified. Brush Special C: world decals VERIFIED, brush/moving-brush implemented / N/R. Brush Special D: world dlights VERIFIED, brush/moving-brush implemented / N/R. Random tiled follow-up bleibt. Issue bleibt OPEN
 - Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)) — Variante C, Blocker vor `return 1`
 - Player-parent FOLLOW (Slice in #9, hängt an Player-Safety)
 - Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10))
 - Vis
 
-**Nächster Schritt:** #7 DLights — nur nach neuer Freigabe. Kein Viewmodel. `return 1` weiter gesperrt. Kein nächster Slice ohne neue Freigabe. #9/#10/#1/#2/#3 nicht anfassen. DLights in diesem Slice nicht implementieren.
+**Nächster Schritt:** nur nach neuer Freigabe. Random tiled / Player / Viewmodel / Vis / `return 1` nicht starten. #9/#10/#1/#2/#3 nicht anfassen. #7 bleibt OPEN.
 
 **PX0 bleibt offen**
 - #1 Movement Replay: https://github.com/benjarogit/csretro/issues/1

@@ -414,6 +414,7 @@ static void R_FillRenderAPI( render_api_t *api )
 	api->GL_UpdateTexSize         = GL_UpdateTexSize;
 	api->GL_DrawParticles         = CL_DrawParticlesExternal;
 	api->DrawEFX                  = CL_DrawEFXView;
+	api->BuildSurfaceLightmapReadOnly = NULL; // GL surface evaluator only
 	api->LightVec                 = R_LightVec;
 	api->StudioGetTexture         = R_StudioGetTexture;
 	api->GL_GetProcAddress        = R_GetProcAddress;

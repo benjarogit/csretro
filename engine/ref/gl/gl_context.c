@@ -22,7 +22,8 @@ GNU General Public License for more details.
 #include "gl4es/include/gl4esinit.h"
 #endif
 
-
+_Static_assert( offsetof( render_api_t, BuildSurfaceLightmapReadOnly ) == offsetof( render_api_t, DrawEFX ) + sizeof( void * ),
+	"v37 prefix: BuildSurfaceLightmapReadOnly must be the tail slot after DrawEFX" );
 
 static void R_ClearScreen( void )
 {
@@ -459,6 +460,7 @@ static void R_FillRenderAPI( render_api_t *api )
 	api->GL_UpdateTexSize         = GL_UpdateTexSize;
 	api->GL_DrawParticles         = CL_DrawParticlesExternal;
 	api->DrawEFX                  = CL_DrawEFXView;
+	api->BuildSurfaceLightmapReadOnly = R_BuildSurfaceLightmapReadOnly;
 	api->LightVec                 = R_LightVec;
 	api->StudioGetTexture         = R_StudioGetTexture;
 	api->GL_GetProcAddress        = R_GetProcAddress;

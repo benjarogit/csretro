@@ -39,6 +39,18 @@ typedef struct CSRETRO_MeshBatch_s
 	float surface_z0;
 } CSRETRO_MeshBatch;
 
+typedef struct CSRETRO_SurfaceSpan_s
+{
+	int surface_index;
+	int first_tri;
+	int tri_count;
+	int batch_index;
+	int light_s;
+	int light_t;
+	unsigned int lightmap;
+	int flags;
+} CSRETRO_SurfaceSpan;
+
 typedef struct CSRETRO_BspMesh_s
 {
 	void *model;
@@ -48,6 +60,9 @@ typedef struct CSRETRO_BspMesh_s
 	int vert_count;
 	CSRETRO_MeshBatch *batches;
 	int batch_count;
+	CSRETRO_SurfaceSpan *spans;
+	int span_count;
+	int span_cap;
 	CSRETRO_MeshVert *water_verts;
 	int water_vert_count;
 	CSRETRO_MeshBatch *water_batches;

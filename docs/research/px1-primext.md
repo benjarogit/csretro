@@ -470,7 +470,7 @@ Zweiter offscreen GSMR-Aufruf im selben Frame ist **nicht** nebenwirkungsfrei. G
 
 Spiegel = Kopie, keine Live-Pointer über Frames. Model-Pointer nur im Map-/Frame-Lifecycle.
 
-**Player:** PX4B.2 Remote Variante B. PX4B.3 Local Xash-Eligibility + explizite Player-Shadows VERIFIED, #9 CLOSED. Sichtbares GSMR: `m_bLocal` false, `SetupClientAnimation` inaktiv. **Viewmodel:** #10 PX4C.1 Body VERIFIED (Event-Ownership PENDING). **FOLLOW:** Non-Player PX4B.1; Player-parent PX4B.2/PX4B.3 implemented / N/R. **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
+**Player:** PX4B.2 Remote Variante B. PX4B.3 Local Xash-Eligibility + explizite Player-Shadows VERIFIED, #9 CLOSED. Sichtbares GSMR: `m_bLocal` false, `SetupClientAnimation` inaktiv. **Viewmodel:** #10 CLOSED. PX4C.1 Body VERIFIED. PX4C.2 Event-Ownership VERIFIED (`RunViewmodelEventsOnce`, exactly-one). **FOLLOW:** Non-Player PX4B.1; Player-parent PX4B.2/PX4B.3 implemented / N/R. **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
 
 Erster Draw-Slice (PX4A.1): `ET_NORMAL` + `mod_studio`, kein Viewmodel, kein Player, kein `MOVETYPE_FOLLOW`, nur `STUDIO_RENDER`.
 
@@ -525,7 +525,7 @@ CS-Inhalt: `CBasePlayerItem::AttachToPlayer` setzt `MOVETYPE_FOLLOW` + `EF_NODRA
 
 **A** braucht nachweisbares snapshot/restore von `player_info_t` + gait **und** keine Schatten-Zweitzeichnung. **B** isolierter Offscreen-State, kein zweiter Renderer. **C** bleibt gültig — Player ist dann expliziter Blocker vor `return 1`. Kein Fortschritts-A ohne Beweis.
 
-`CL_UpdateLatchedVars` weiter NULL. Viewmodel #10. Previews nicht in World-Offscreen.
+`CL_UpdateLatchedVars` weiter NULL. Viewmodel #10 CLOSED. Previews nicht in World-Offscreen.
 
 **PX4B.1 Implementation 2026-09-20**
 
@@ -581,7 +581,7 @@ Sichtbares Xash/GSMR Local: `m_bLocal` bleibt false, `SetupClientAnimation` inak
 | Visible Xash | CONFIRMED | Fallback-Log, kein return 1, Movement-Gate PASS |
 | `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab |
 
-Variante C ist nicht mehr festgeschrieben. #9 CLOSED. Viewmodel #10: PX4C.1 Body VERIFIED, Event-Ownership PENDING. Vis unberührt. PrimeXT-Studio nicht übernommen.
+Variante C ist nicht mehr festgeschrieben. #9 CLOSED. Viewmodel #10 CLOSED (PX4C.1 Body + PX4C.2 Events VERIFIED). Vis unberührt. PrimeXT-Studio nicht übernommen.
 
 ### #7 Brush-Entity Draw (2026-09-20)
 
@@ -761,7 +761,7 @@ Eine Resolver-Implementierung. `R_ResolveSurfaceTexture` in `engine/ref/common/r
 | Conveyor / Anim | CONFIRMED | torn `uv_changed=1`, assault anim proof |
 | Visible Xash / Frame | CONFIRMED 0 | Probe lehnt return 1 ab. Movement-Gate PASS |
 
-Probe: `./scripts/px7-random-tiled-probe.sh` PASS. #7 CLOSED. Player #9, Viewmodel #10, Vis unberührt.
+Probe: `./scripts/px7-random-tiled-probe.sh` PASS. #7 CLOSED. Player #9 CLOSED. Viewmodel #10 CLOSED. Vis unberührt.
 
 ## #7 Engine-EFX Vertrag (2026-09-20, vor Produktcode)
 
@@ -856,7 +856,7 @@ Kein Produktcode. Quellen: `client/body/cl_dll/tri.cpp`, `particleman/IParticleM
 
 **Environment update ownership:** `g_Environment.Update()` Wind + Rain/Snow-Spawn (`updateTime` / `m_flOldTime`). Doppelt aufrufen = doppelte Spawns und doppelte Wind-Schritte.
 
-**Molotov-held ownership:** `EV_UpdateMolotovHeld()` Wick-`TEMPENTITY` (Alloc, origin, die). Nicht 2×/Frame. PX4C.1 Offscreen-Body unterdrückt zusätzlichen `EV_CaptureMolotovWickOrigin`. Sichtbares Xash bleibt Wick-Owner. Event-Ownership für return 1 bleibt #10 PENDING.
+**Molotov-held ownership:** `EV_UpdateMolotovHeld()` Wick-`TEMPENTITY` (Alloc, origin, die). Nicht 2×/Frame. PX4C.1 Offscreen-Body unterdrückt zusätzlichen `EV_CaptureMolotovWickOrigin`. PX4C.2: Event-Phase darf Wick capturen (Owner); Offscreen-Body bleibt 0. Sichtbarer Xash-Body darf Legacy-Capture unter return 0. `HUD_GetWeapon()==WEAPON_MOLOTOV` (32) in der Probe oft 9 (Smoke) — source=captured NOT REPRODUCIBLE, nicht #2.
 
 **exact current call order** (`gl_rmain.c` `R_DrawEntitiesOnList`):
 
@@ -912,7 +912,7 @@ Xash R_DrawEntitiesOnList = einziges Advance+Draw
 | Visibility | CONFIRMED | `EvaluateVisibilityForRender(update_pvs_cache)`. Offscreen schreibt PVS-Cache nicht |
 | FacePlayer Draw | CONFIRMED | lokale `drawAngles`; `m_vAngles` unverändert. Keine weiteren `Draw()`-Overrides im Baum |
 | Environment | CONFIRMED | offscreen 0×, sichtbares Xash 1× |
-| Molotov-held | CONFIRMED | offscreen 0×, sichtbares Xash 1×. Nicht PX4C / #10 |
+| Molotov-held | CONFIRMED | offscreen 0×, sichtbares Xash 1×. Event-phase Wick PX4C.2; source=captured N/R (HUD id). Nicht #2 |
 | Fog | CONFIRMED reviewed | Render-State, Backend Push/Pop + Save/Restore. Xash-visible Fog bleibt beim Restore |
 | Xash-only Gate | CONFIRMED | `./scripts/px7-tri-xash-gate.sh` PASS: normal=1 trans=1 pman_adv=1 env=1 molotov=1, kein draw-only |
 | Offscreen state hash | CONFIRMED | 150 Wetterpartikel `before=be0874ae after=be0874ae mutate=0` |
@@ -956,7 +956,7 @@ Live latched before == after, mutate=0
 
 Probe: `./scripts/px7-sprite-completion-probe.sh`. Shots `build/px7-sprite-cert-shots/` (nicht committed).
 
-#7 CLOSED (Special A/B/C/D/E complete). Player #9 CLOSED (PX4B.3 Local + Shadows VERIFIED). Viewmodel #10: PX4C.1 Body VERIFIED, Event-Ownership PENDING. Vis unberührt.
+#7 CLOSED (Special A/B/C/D/E complete). Player #9 CLOSED (PX4B.3 Local + Shadows VERIFIED). Viewmodel #10 CLOSED (PX4C.1 Body + PX4C.2 Event-Ownership VERIFIED). Vis unberührt.
 
 ### PX4C.1 — Viewmodel studio body (2026-09-20)
 
@@ -983,16 +983,33 @@ Probe: `./scripts/px7-sprite-completion-probe.sh`. Shots `build/px7-sprite-cert-
 
 Probe: `./scripts/px4c1-viewmodel-body-probe.sh` PASS. Shots `build/px4c1-viewmodel-shots/` (nicht committed).
 
-### PX4C.2 — Event-Ownership Research (read-only, 2026-09-20)
+### PX4C.2 — Viewmodel Event-Ownership (2026-09-20)
 
-Kein Produktcode in PX4C.1. Kein zweiter `StudioDrawModel(STUDIO_EVENTS)` unter return 0.
+`GL_RenderFrame` bleibt 0. Eine Impl: Xash `R_RunViewmodelEventsImpl`. Wrapper `R_RunViewmodelEventsOnce`. `REF_API_VERSION` 22. v37-Prefix unverändert. Soft teilt dasselbe Tabellenlayout.
 
-Gewünschter späterer Vertrag:
+| Nachweis | Status | Beleg |
+| --- | --- | --- |
+| Tail API | VERIFIED | `RunViewmodelEventsOnce` nach `ResolveSurfaceTextureReadOnly` |
+| Frame claim | VERIFIED | Reset vor `GL_RenderFrame`; 1=eligible pass, 0=reject, −1=already claimed |
+| Renderer 0 | VERIFIED | `owner=xash client_claims=0 event_impl_runs=1` |
+| Renderer 1 | VERIFIED | `owner=client client_claims=1 event_impl_runs=1 default_duplicate_skips=1` |
+| Double-call | VERIFIED | `first=1 second=-1 attach_b_eq_c=1` |
+| Attachments | VERIFIED | A darf ≠ B; B==C; kein zweiter Writeback |
+| Studio deliveries | VERIFIED | `delivered=20` in einem Pass; never `event_impl_runs=2` |
+| Muzzle / ELight | VERIFIED | `muzzle elight=1 once=1` |
+| Event Wick | VERIFIED | `event_wick_capture=5` |
+| Offscreen-body Wick | VERIFIED | `offscreen_body_wick_capture=0` |
+| Visible-body Wick | VERIFIED | `visible_body_wick_capture=4` (Legacy unter return 0) |
+| `EV_UpdateMolotovHeld` | VERIFIED once | `held_advances=132`; source=captured **NOT REPRODUCIBLE** (`weapon=9` vs `WEAPON_MOLOTOV=32`) |
+| CurrentEntity/GL | VERIFIED | `currententity_restore=1 gl_restore=1` |
+| PX4C.1 Body | VERIFIED | `live_mutate=0 events=0 DepthRange restore=1` |
+| `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab |
 
-- return 0 / Strategie C: Offscreen-Body only; Xash `R_RunViewmodelEvents` genau einmal; Xash sichtbarer Body.
-- zukünftiger Custom-Frame: CS Retro/Engine-Handoff führt Viewmodel-Events genau einmal aus; CS Retro Body genau einmal; Xash-Default Events/Body übersprungen.
+**GetViewInfo-Timing (Vis-Slice):** `R_SetupRefParams` kopiert `rvp` vor dem Callback. `RI.vforward/vright/vup` setzt `R_SetupFrustum` erst in `R_RenderScene`. Events liefen schon immer davor — PX4C.2 teilt diesen Zeitpunkt. Vor return 1: `R_SetupFrustum` / `R_SetupGL` / `R_MarkLeaves` im Vis-Slice. PX4C.2 ruft sie nicht.
 
-Schmaler Engine-Vertrag kann sinnvoll sein: Client beansprucht Viewmodel-Events explizit; Xash überspringt bei return 0 den normalen Event-Aufruf nur wenn derselbe Frame bereits vom Client übernommen wurde. Ziel: Event-Ownership **vor** erstem return 1 testen. Kein Code dafür in PX4C.1.
+Probe: `./scripts/px4c2-viewmodel-events-probe.sh` PASS. PX4C.1 weiter PASS. Shots `build/px4c2-viewmodel-shots/` (nicht committed).
+
+#10 CLOSED. Bekannter Blocker vor return 1: Vis. Vis nicht gestartet. Inferno nicht #2.
 
 
 

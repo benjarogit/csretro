@@ -3,6 +3,36 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
+## Stand 2026-09-20 — PX4C.2 Event-Ownership VERIFIED; #10 CLOSED
+
+Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
+`GL_RenderFrame` bleibt 0. Issue #7 geschlossen. Issue #9 geschlossen. Issue #10 geschlossen.
+Bekannter Blocker vor erstem sichtbaren Takeover: **Vis**. Vis nicht gestartet. Kein return 1.
+
+```
+Viewmodel studio body: VERIFIED offscreen (PX4C.1 unverändert)
+Event ownership: VERIFIED exactly-one (PX4C.2)
+  renderer 0: Xash default first claim, event_impl_runs=1, client_claims=0
+  renderer 1: Client claim first, event_impl_runs=1, default_duplicate_skips=1
+  double-call: first=1, second=-1, attach B==C
+Attachments: exactly-once VERIFIED
+Muzzle / ELight: once VERIFIED
+Studio deliveries: VERIFIED (pass once; mehrere Events im Modell erlaubt)
+Molotov: event_wick_capture>0, offscreen_body_wick_capture=0, visible_body_wick_capture=legacy Xash
+EV_UpdateMolotovHeld: once per visible frame; source=captured NOT REPRODUCIBLE
+  (HUD_GetWeapon=9 / SMOKE vs WEAPON_MOLOTOV=32 — bestehende Held-Semantik, nicht #2)
+GL_RenderFrame: always 0
+```
+
+**Produktpfad Events:** eine Impl `R_RunViewmodelEventsImpl`. Wrapper `R_RunViewmodelEventsOnce` besitzt das Frame-Claim-Gate. Client (`r_csretro_renderer 1`) claimt früh in `CSRETRO_Renderer_Frame` vor BeginOffscreen; CurrentEntity/Model save/restore. Xash-Default nach `GL_RenderFrame` ruft dieselbe Once-Funktion und wird zum No-Op. Eligibility bleibt Xash. LIVE Viewmodel (keine Snapshot-Isolation). Body weiter Snapshot + `STUDIO_RENDER` only.
+
+**GetViewInfo / Vis:** `R_SetupRefParams` kopiert `rvp` vor dem Callback. `RI.vforward/vright/vup` kommen erst in `R_SetupFrustum` innerhalb von `R_RenderScene`. Events laufen wie bisher vor Vis. Vor return 1 muss der Vis-Slice Frustum/GL/MarkLeaves setzen. PX4C.2 ruft diese Helper nicht.
+
+Probe: `./scripts/px4c2-viewmodel-events-probe.sh` PASS. PX4C.1 `./scripts/px4c1-viewmodel-body-probe.sh` PASS. Movement-Gate PASS. Shots `build/px4c2-viewmodel-shots/` (nicht committed).
+
+**Nächster Schritt:** nur nach neuer Freigabe. Vis / `return 1` nicht starten.
+#1 #2 #3 #7 #9 nicht schließen. #7 #9 #10 nicht wieder öffnen ohne konkretes Bug-Issue.
+
 ## Stand 2026-09-20 — PX4C.1 Viewmodel BODY VERIFIED; #10 bleibt OPEN
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
@@ -126,16 +156,17 @@ Rolle: nur lesen. Clone ohne Submodule nach `refs/primext/` (gitignored).
 - Brush offscreen: `client/render/render_brush.cpp` — Cache nach `model_t*`, GoldSrc-Transform, opaque + trans + Brush-Water
 - Entity-Spiegel: `client/render/render_scene.cpp` — volle `cl_entity_t`-Kopie inkl. latched, kein Steal
 - Sprite offscreen: `client/render/render_sprite.cpp` — eine Pipeline; SPR_ANGLED, Frame-Lerp und Xash sprite-lighting (LightAtPoint + Modulationspass, kein zweiter BSP-Atlas)
-- Studio offscreen: `client/render/render_studio.cpp` — Non-Player `StudioDrawModel(STUDIO_RENDER)`; Remote + eligible Local `StudioDrawPlayerOffscreen` auf lokaler `player_info_t`; expliziter `StudioDrawPlayerShadow` nach Body wenn `r_shadows`; FOLLOW non-player `StudioDrawModel(0)`, player-parent `StudioDrawPlayerOffscreen(0)` ohne Shadow; Viewmodel `StudioDrawViewmodelOffscreen(STUDIO_RENDER)` auf Snapshot nach Trans-EFX / vor Late Water; CurrentEntity save/restore
-- Engine-EFX: `gRenderAPI.DrawEFX(rvp, trans, draw_only)` — CS-Retro-Extension am Ende von `render_api_t` (v37-Prefix eingefroren). Intern Ref `REF_API_VERSION` 21
+- Studio offscreen: `client/render/render_studio.cpp` — Non-Player `StudioDrawModel(STUDIO_RENDER)`; Remote + eligible Local `StudioDrawPlayerOffscreen` auf lokaler `player_info_t`; expliziter `StudioDrawPlayerShadow` nach Body wenn `r_shadows`; FOLLOW non-player `StudioDrawModel(0)`, player-parent `StudioDrawPlayerOffscreen(0)` ohne Shadow; Viewmodel-Events `RunViewmodelEventsOnce` (LIVE, vor Offscreen); Viewmodel-Body `StudioDrawViewmodelOffscreen(STUDIO_RENDER)` auf Snapshot nach Trans-EFX / vor Late Water; CurrentEntity save/restore
+- Engine-EFX: `gRenderAPI.DrawEFX(rvp, trans, draw_only)` — CS-Retro-Extension am Ende von `render_api_t` (v37-Prefix eingefroren). Intern Ref `REF_API_VERSION` 22
 - Surface-DLights: `gRenderAPI.BuildSurfaceLightmapReadOnly(...)` — Tail-Slot nach DrawEFX. Xash evaluiert die Lightmap read-only; CS Retro besitzt transienten Atlas und Draw. Kein `R_PushDlights` offscreen.
 - Random tiled: `gRenderAPI.ResolveSurfaceTextureReadOnly(surface, entity_frame)` — Tail-Slot nach BuildSurfaceLightmapReadOnly. Eine Implementierung `R_ResolveSurfaceTexture`. Sichtbares `R_TextureAnimation` ist Wrapper. Keine Client-RNG, keine rtable-Export.
+- Viewmodel-Events: `gRenderAPI.RunViewmodelEventsOnce()` — Tail-Slot nach ResolveSurfaceTextureReadOnly. Eine Impl `R_RunViewmodelEventsImpl`. Frame-Claim-Gate. Client und Xash-Default teilen denselben Wrapper.
 - Client-Triangles: interne API `CSRETRO_ClientTriangles_*` in derselben `client_amd64.so` (kein neuer `render_api_t`-Slot). Xash-Exports `HUD_DrawNormalTriangles` / `HUD_DrawTransparentTriangles` bleiben Advance+Draw
 - Brücke: `cdll_int.cpp` — `GL_RenderFrame` void + `return 0`; `HUD_AddEntity` spiegelt und behält Return
 - Water-Alpha: `PARM_WATER_ALPHA` = Map-Capability 0/1. `PARM_WATER_ALPHA_VALUE` = IEEE-754-Bits der effective wateralpha (1.0 ohne Capability). `PARM_MAP_HAS_LITWATER` 0/1. Kein neuer Funktionsslot.
 
-**CVar:** `r_csretro_renderer` 0 = Xash-only. 1 = Offscreen World+Brush+Sprites+Non-Player-Studio+Remote/eligible-Local-Player-Studio (B)+explizite Player-Shadows+FOLLOW+Viewmodel-Body+draw-only EFX+draw-only Client-Triangles + sichtbarer Xash-Fallback. Keine eigene Viewmodel-CVar; `r_drawviewmodel` steuert Offscreen wie Xash.
-Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px4b2-player-probe.sh`, `./scripts/px4c1-viewmodel-body-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`, `./scripts/px7-efx-xash-gate.sh`, `./scripts/px7-efx-offscreen-probe.sh`, `./scripts/px7-tri-xash-gate.sh`, `./scripts/px7-tri-offscreen-probe.sh`, `./scripts/px7-tri-overview-cert.sh`, `./scripts/px7-sprite-completion-probe.sh`, `./scripts/px7-brush-special-a-probe.sh`, `./scripts/px7-brush-special-b-probe.sh`, `./scripts/px7-brush-special-c-probe.sh`, `./scripts/px7-brush-special-d-dlights-probe.sh`, `./scripts/px7-random-tiled-probe.sh`.
+**CVar:** `r_csretro_renderer` 0 = Xash-only (Xash bleibt Event-Owner). 1 = Offscreen World+Brush+Sprites+Non-Player-Studio+Remote/eligible-Local-Player-Studio (B)+explizite Player-Shadows+FOLLOW+Viewmodel-Events (Claim)+Viewmodel-Body+draw-only EFX+draw-only Client-Triangles + sichtbarer Xash-Fallback. Keine eigene Viewmodel-CVar; `r_drawviewmodel` steuert Offscreen wie Xash.
+Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px4b2-player-probe.sh`, `./scripts/px4c1-viewmodel-body-probe.sh`, `./scripts/px4c2-viewmodel-events-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`, `./scripts/px7-efx-xash-gate.sh`, `./scripts/px7-efx-offscreen-probe.sh`, `./scripts/px7-tri-xash-gate.sh`, `./scripts/px7-tri-offscreen-probe.sh`, `./scripts/px7-tri-overview-cert.sh`, `./scripts/px7-sprite-completion-probe.sh`, `./scripts/px7-brush-special-a-probe.sh`, `./scripts/px7-brush-special-b-probe.sh`, `./scripts/px7-brush-special-c-probe.sh`, `./scripts/px7-brush-special-d-dlights-probe.sh`, `./scripts/px7-random-tiled-probe.sh`.
 Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts/px4a-visual-cert.sh` → `build/px4a-cert-shots/`; `./scripts/px7-brush-visual-cert.sh` → `build/px7-brush-cert-shots/` (nicht committed).
 
 **Callbacks an:** `Mod_ProcessUserData`, `R_NewMap`, `GL_BuildLightmaps`, `R_ClearScene` (additiv, nur CS-Retro-Liste).
@@ -236,10 +267,10 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 **Offen vor return 1**
 - [#7](https://github.com/benjarogit/csretro/issues/7): **CLOSED**. Brush Special A/B/C/D/E complete. Qualifizierte N/R sind Content-Limits, kein offener Produkt-Unterpunkt.
 - Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)) — **CLOSED** (Remote B, Local Eligibility, Shadows VERIFIED; Player-parent FOLLOW implemented / runtime N/R)
-- Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10)) — PX4C.1 Body VERIFIED; Event-Ownership PENDING. Issue bleibt OPEN.
-- Vis
+- Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10)) — **CLOSED** (PX4C.1 Body VERIFIED, PX4C.2 Event-Ownership VERIFIED)
+- Vis — bekannter Blocker vor return 1
 
-**Nächster Schritt:** nur nach neuer Freigabe. Vis / Event-Handoff / `return 1` nicht starten. #1 #2 #3 #7 #9 nicht schließen. #10 nicht schließen.
+**Nächster Schritt:** nur nach neuer Freigabe. Vis / `return 1` nicht starten. #1 #2 #3 #7 #9 nicht schließen. #7 #9 #10 nicht wieder öffnen ohne konkretes Bug-Issue.
 
 **PX0 bleibt offen**
 - #1 Movement Replay: https://github.com/benjarogit/csretro/issues/1

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.47 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- PX4C.2 Event-Ownership VERIFIED (`0bea8e5` / v0.1.46). Renderer 0/1 exactly-once, Attachments, Muzzle, Event-Wick, Offscreen-Body-Wick=0. #10 geschlossen. Vis bleibt der bekannte Takeover-Blocker. Inferno/#2 unberührt.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.46 — 2026-09-20
 
 ### Renderer

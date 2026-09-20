@@ -1586,6 +1586,25 @@ static bool s_overviewGlClearForce = false;
 static float s_overviewOldGlClearValue;
 static int s_overview_gl_clear_restore_logged;
 
+static void RestoreOverviewGlClearIfNeeded( void )
+{
+	if ( !s_overviewGlClearForce )
+		return;
+	{
+		float now;
+		gEngfuncs.Cvar_SetValue( "gl_clear", s_overviewOldGlClearValue );
+		s_overviewGlClearForce = false;
+		if ( !s_overview_gl_clear_restore_logged )
+		{
+			s_overview_gl_clear_restore_logged = 1;
+			now = CVAR_GET_FLOAT( "gl_clear" );
+			gEngfuncs.Con_Printf(
+				"CS Retro: tri overview gl_clear restore old=%.0f now=%.0f\n",
+				s_overviewOldGlClearValue, now );
+		}
+	}
+}
+
 bool CHudSpectator::OverviewShouldDraw() const
 {
 	if ( !g_iUser1 )
@@ -1597,24 +1616,16 @@ bool CHudSpectator::OverviewShouldDraw() const
 	return true;
 }
 
+void CHudSpectator::ForceOverviewGlClearRestore( void )
+{
+	RestoreOverviewGlClearIfNeeded();
+}
+
 void CHudSpectator::AdvanceOverviewState()
 {
 	if ( !OverviewShouldDraw() )
 	{
-		if ( s_overviewGlClearForce )
-		{
-			float now;
-			gEngfuncs.Cvar_SetValue( "gl_clear", s_overviewOldGlClearValue );
-			s_overviewGlClearForce = false;
-			if ( !s_overview_gl_clear_restore_logged )
-			{
-				s_overview_gl_clear_restore_logged = 1;
-				now = CVAR_GET_FLOAT( "gl_clear" );
-				gEngfuncs.Con_Printf(
-					"CS Retro: tri overview gl_clear restore old=%.0f now=%.0f\n",
-					s_overviewOldGlClearValue, now );
-			}
-		}
+		RestoreOverviewGlClearIfNeeded();
 		return;
 	}
 
@@ -1623,6 +1634,12 @@ void CHudSpectator::AdvanceOverviewState()
 		s_overviewOldGlClearValue = CVAR_GET_FLOAT( "gl_clear" );
 		gEngfuncs.Cvar_Set( "gl_clear", "1" );
 		s_overviewGlClearForce = true;
+		static int s_force_arm_logged;
+		if ( !s_force_arm_logged )
+		{
+			s_force_arm_logged = 1;
+			gEngfuncs.Con_Printf( "CS Retro: tri overview gl_clear force armed old=%.0f\n", s_overviewOldGlClearValue );
+		}
 	}
 
 	CheckOverviewEntities();

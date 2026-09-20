@@ -26,6 +26,8 @@ typedef struct CSRETRO_TakeoverProof_s
 	int tri_normal_owned;
 	int tri_trans_owned;
 	int extra_updates;
+	int fog_pre;
+	int fog_post;
 	int fault_latched;
 	int reject_reason; // CSRETRO_TAKEOVER_REJECT_*
 } CSRETRO_TakeoverProof;

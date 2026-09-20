@@ -69,6 +69,7 @@ public:
 	void DrawOverview();
 	bool OverviewShouldDraw() const;
 	void AdvanceOverviewState();
+	void ForceOverviewGlClearRestore();
 	void DrawOverviewReadOnly( bool writeHudPlayerPos );
 	unsigned int OverviewStateHash() const;
 	unsigned int OverviewListHash() const;

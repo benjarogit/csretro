@@ -1346,7 +1346,10 @@ int CSRETRO_Studio_ClaimViewmodelEvents( const ref_viewpass_t *rvp )
 	int flags;
 	int first_rc;
 	int second_rc = -2;
+	int eligible = 0;
+	int reason = CSRETRO_VM_EVENT_OK;
 	static int s_stress_done = 0;
+	static unsigned int s_reject_logged_mask = 0;
 
 	if( !gRenderAPI.RunViewmodelEventsOnce )
 		return 0;
@@ -1354,6 +1357,8 @@ int CSRETRO_Studio_ClaimViewmodelEvents( const ref_viewpass_t *rvp )
 	flags = rvp ? rvp->flags : 0;
 	if( flags & RF_ONLY_CLIENTDRAW )
 		return 0;
+
+	eligible = CSRETRO_Studio_EventEligible( rvp, &reason );
 
 	live_vm = gEngfuncs.GetViewModel();
 	if( IEngineStudio.GetCurrentEntity )
@@ -1408,6 +1413,8 @@ int CSRETRO_Studio_ClaimViewmodelEvents( const ref_viewpass_t *rvp )
 	s_vm_proof.event_claimed = 1;
 	s_vm_proof.event_first_rc = first_rc;
 	s_vm_proof.event_impl_ran = ( first_rc == 1 ) ? 1 : 0;
+	s_vm_proof.event_eligible = eligible;
+	s_vm_proof.event_reject_reason = reason;
 	s_vm_proof.attach_b_eq_c = ( s_vm_proof.attach_hash_b == s_vm_proof.attach_hash_c ) ? 1 : 0;
 	s_vm_proof.event_currententity_restore = ( !IEngineStudio.GetCurrentEntity
 		|| IEngineStudio.GetCurrentEntity() == saved_ent ) ? 1 : 0;
@@ -1420,8 +1427,92 @@ int CSRETRO_Studio_ClaimViewmodelEvents( const ref_viewpass_t *rvp )
 	s_vm_proof.event_wick_captures = g_StudioRenderer.EventWickCaptures();
 	s_vm_proof.visible_body_wick_captures = g_StudioRenderer.VisibleBodyWickCaptures();
 	s_vm_proof.studio_event_deliveries = CSRETRO_ViewmodelStudioEventsDelivered();
+
+	if( first_rc == 0 )
+	{
+		unsigned int bit = 1u << (unsigned)reason;
+		if( !( s_reject_logged_mask & bit ) )
+		{
+			cvar_t *drawvm = gEngfuncs.pfnGetCvarPointer( "r_drawviewmodel" );
+			cl_entity_t *local = gEngfuncs.GetLocalPlayer();
+			s_reject_logged_mask |= bit;
+			gEngfuncs.Con_Printf(
+				"CS Retro: viewmodel events reject reason=%i eligible=%i draw_world=%i only_clientdraw=%i cubemap=%i thirdperson=%i health=%i viewentity=%i local=%i viewmodel=%i model_type=%i r_drawviewmodel=%.0f event_impl_runs=0\n",
+				reason, eligible,
+				( flags & RF_DRAW_WORLD ) ? 1 : 0,
+				( flags & RF_ONLY_CLIENTDRAW ) ? 1 : 0,
+				( flags & RF_DRAW_CUBEMAP ) ? 1 : 0,
+				gRenderAPI.RenderGetParm ? (int)gRenderAPI.RenderGetParm( PARM_THIRDPERSON, 0 ) : -1,
+				gRenderAPI.RenderGetParm ? (int)gRenderAPI.RenderGetParm( PARM_LOCAL_HEALTH, 0 ) : -1,
+				rvp ? rvp->viewentity : 0,
+				local ? local->index : 0,
+				live_vm ? 1 : 0,
+				( live_vm && live_vm->model ) ? live_vm->model->type : -1,
+				drawvm ? drawvm->value : -1.0f );
+		}
+	}
+
 	(void)second_rc;
 	return first_rc;
+}
+
+static int s_lost_eligible_event_frames = 0;
+
+int CSRETRO_Studio_EventEligible( const ref_viewpass_t *rvp, int *reason_out )
+{
+	int flags = rvp ? rvp->flags : 0;
+	int thirdperson = 0;
+	int health = 0;
+	cvar_t *drawvm;
+	cl_entity_t *local;
+	cl_entity_t *live_vm;
+	int reason = CSRETRO_VM_EVENT_OK;
+
+	/* Mirrors R_RunViewmodelEventsImpl (+ client-only ONLY_CLIENTDRAW skip). */
+	if( flags & RF_ONLY_CLIENTDRAW )
+		reason = CSRETRO_VM_EVENT_REJECT_CLIENTDRAW;
+	else if( flags & RF_DRAW_CUBEMAP )
+		reason = CSRETRO_VM_EVENT_REJECT_CUBEMAP;
+	else
+	{
+		if( gRenderAPI.RenderGetParm )
+		{
+			thirdperson = (int)gRenderAPI.RenderGetParm( PARM_THIRDPERSON, 0 );
+			health = (int)gRenderAPI.RenderGetParm( PARM_LOCAL_HEALTH, 0 );
+		}
+		drawvm = gEngfuncs.pfnGetCvarPointer( "r_drawviewmodel" );
+		local = gEngfuncs.GetLocalPlayer();
+		live_vm = gEngfuncs.GetViewModel();
+		if( thirdperson )
+			reason = CSRETRO_VM_EVENT_REJECT_THIRDPERSON;
+		else if( health <= 0 )
+			reason = CSRETRO_VM_EVENT_REJECT_HEALTH;
+		else if( !local || !rvp || rvp->viewentity != local->index )
+			reason = CSRETRO_VM_EVENT_REJECT_VIEWENTITY;
+		else if( !drawvm || drawvm->value == 0.0f )
+			reason = CSRETRO_VM_EVENT_REJECT_DRAWVIEWMODEL;
+		else if( !live_vm )
+			reason = CSRETRO_VM_EVENT_REJECT_NO_VIEWMODEL;
+		else if( !live_vm->model || live_vm->model->type != mod_studio )
+			reason = CSRETRO_VM_EVENT_REJECT_MODEL_TYPE;
+	}
+
+	if( reason_out )
+		*reason_out = reason;
+	return reason == CSRETRO_VM_EVENT_OK ? 1 : 0;
+}
+
+int CSRETRO_Studio_LostEligibleEventFrames( void )
+{
+	return s_lost_eligible_event_frames;
+}
+
+void CSRETRO_Studio_NoteLostEligibleEventFrame( void )
+{
+	s_lost_eligible_event_frames++;
+	gEngfuncs.Con_Printf(
+		"CS Retro: viewmodel events LOST eligible frame lost_eligible_event_frames=%i (return 1 without event_impl)\n",
+		s_lost_eligible_event_frames );
 }
 
 void CSRETRO_Studio_LogMolotovEventWick( void )

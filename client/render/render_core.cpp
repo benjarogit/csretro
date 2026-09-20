@@ -48,6 +48,7 @@ static_assert( offsetof( render_api_t, CustomFrameExtraUpdate ) == offsetof( ren
 static cvar_t *s_renderer = NULL;
 static cvar_t *s_dump = NULL;
 static cvar_t *s_probe_seq = NULL;
+static cvar_t *s_force_fault = NULL;
 static int s_inited = 0;
 static int s_backend_ok = 0;
 static int s_proof_logged = 0;
@@ -261,6 +262,8 @@ static void EnsureCvars( void )
 		s_dump = CVAR_CREATE( "r_csretro_offscreen_dump", "0", 0 );
 	if( !s_probe_seq )
 		s_probe_seq = CVAR_CREATE( "r_csretro_probe_seq", "0", 0 );
+	if( !s_force_fault )
+		s_force_fault = CVAR_CREATE( "r_csretro_takeover_force_fault", "0", 0 );
 }
 
 void CSRETRO_Renderer_Init( void )
@@ -294,6 +297,7 @@ void CSRETRO_Renderer_VidInit( void )
 
 void CSRETRO_Renderer_Shutdown( void )
 {
+	gHUD.m_Spectator.ForceOverviewGlClearRestore();
 	CSRETRO_World_Release();
 	CSRETRO_Brush_Release();
 	CSRETRO_Scene_Clear();
@@ -549,7 +553,8 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		{
 			s_vm_event_reject_logged = 1;
 			gEngfuncs.Con_Printf(
-				"CS Retro: viewmodel events client claim rejected first_rc=0 event_impl_runs=0\n" );
+				"CS Retro: viewmodel events client claim rejected first_rc=0 event_impl_runs=0 eligible=%i reason=%i\n",
+				evp.event_eligible, evp.event_reject_reason );
 		}
 	}
 
@@ -727,7 +732,10 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			const csretro_frame_vis_t *vi = CSRETRO_Vis_Info();
 
 			if( takeover && gRenderAPI.CustomFrameFogPre )
+			{
 				gRenderAPI.CustomFrameFogPre();
+				tp.fog_pre++;
+			}
 
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
@@ -763,7 +771,10 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_Backend_SampleProof( &world_base_proof );
 		CSRETRO_DLight_NoteWorldCrc( world_base_proof.crc, CSRETRO_DLight_PatchCount() );
 		if( takeover && gRenderAPI.CustomFrameFogPost )
+		{
 			gRenderAPI.CustomFrameFogPost();
+			tp.fog_post++;
+		}
 		if( takeover && gRenderAPI.CustomFrameExtraUpdate )
 		{
 			gRenderAPI.CustomFrameExtraUpdate();
@@ -1394,9 +1405,19 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 						tp.extra_updates++;
 					}
 					CSRETRO_Backend_SampleProof( &proof );
-					present_ok = CSRETRO_Backend_PresentTakeover(
-						rvp->viewport[0], rvp->viewport[1],
-						rvp->viewport[2], rvp->viewport[3] );
+					if( s_force_fault && s_force_fault->value != 0.0f )
+					{
+						present_ok = 0;
+						gEngfuncs.Cvar_SetValue( "r_csretro_takeover_force_fault", 0.0f );
+						gEngfuncs.Con_Printf(
+							"CS Retro: PX6A postcommit force_fault=1 committed=1 same_frame_return=1\n" );
+					}
+					else
+					{
+						present_ok = CSRETRO_Backend_PresentTakeover(
+							rvp->viewport[0], rvp->viewport[1],
+							rvp->viewport[2], rvp->viewport[3] );
+					}
 					tp.present_ok = present_ok;
 					if( !present_ok )
 					{
@@ -1413,13 +1434,13 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 						s_px6a_last_fw = tp.fbo_w;
 						s_px6a_last_fh = tp.fbo_h;
 						gEngfuncs.Con_Printf(
-							"CS Retro: PX6A takeover present=%i fbo=%ix%i viewport=%ix%i framecount=%i→%i dlight=%i efx_s=%i efx_t=%i tri_n=%i tri_t=%i extra=%i\n",
+							"CS Retro: PX6A takeover present=%i fbo=%ix%i viewport=%ix%i framecount=%i→%i dlight=%i efx_s=%i efx_t=%i tri_n=%i tri_t=%i extra=%i fog_pre=%i fog_post=%i\n",
 							present_ok, tp.fbo_w, tp.fbo_h, tp.viewport_w, tp.viewport_h,
 							tp.framecount_before, tp.framecount_after, tp.dlight_pushes,
 							tp.efx_solid, tp.efx_trans,
 							CSRETRO_ClientTriangles_OwnedNormalCount(),
 							CSRETRO_ClientTriangles_OwnedTransparentCount(),
-							tp.extra_updates );
+							tp.extra_updates, tp.fog_pre, tp.fog_post );
 					}
 				}
 				else
@@ -1619,10 +1640,14 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 
 	if( takeover && committed )
 	{
+		CSRETRO_StudioViewmodelProof evp_end;
 		tp.tri_normal_owned = CSRETRO_ClientTriangles_OwnedNormalCount();
 		tp.tri_trans_owned = CSRETRO_ClientTriangles_OwnedTransparentCount();
 		tp.return_code = 1;
 		CSRETRO_Takeover_NoteProof( &tp );
+		CSRETRO_Studio_GetViewmodelProof( &evp_end );
+		if( evp_end.event_eligible && evp_end.event_first_rc != 1 )
+			CSRETRO_Studio_NoteLostEligibleEventFrame();
 		return 1;
 	}
 	if( mode != 2 && CSRETRO_Takeover_FaultLatched() )
@@ -1639,10 +1664,11 @@ static void RunProbeSeq( void )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int takeoverc = s_probe_seq->value >= 15.0f;
-			int visc = !takeoverc && s_probe_seq->value >= 14.0f;
-			int viewmodelc = !takeoverc && !visc && s_probe_seq->value >= 12.0f;
-			int playerc = !takeoverc && !visc && !viewmodelc && s_probe_seq->value >= 11.0f;
+			int viscert = s_probe_seq->value >= 16.0f;
+			int takeoverc = !viscert && s_probe_seq->value >= 15.0f;
+			int visc = !viscert && !takeoverc && s_probe_seq->value >= 14.0f;
+			int viewmodelc = !viscert && !takeoverc && !visc && s_probe_seq->value >= 12.0f;
+			int playerc = !viscert && !takeoverc && !visc && !viewmodelc && s_probe_seq->value >= 11.0f;
 			int randomc = !viewmodelc && !playerc && s_probe_seq->value >= 10.0f;
 			int dlightc = !viewmodelc && !playerc && !randomc && s_probe_seq->value >= 9.0f;
 			int decalc = !viewmodelc && !playerc && !dlightc && !randomc && s_probe_seq->value >= 8.0f;
@@ -1652,7 +1678,262 @@ static void RunProbeSeq( void )
 			int efx = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
 			int brush = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
 			int px3c = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
-			if( takeoverc )
+			if( viscert )
+			{
+				/* Engine framebuffer shots (reliable under headless gamescope). */
+#define PX6A1_SHOT( path ) gEngfuncs.pfnClientCmd( "screenshot " path "\n" )
+				if( s_probe_step == 0 && elapsed >= 2.0f )
+				{
+					s_probe_step = 1;
+					gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 2.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert renderer 2 sha-ready\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 5.0f )
+				{
+					float ang[3] = { -20.0f, 130.0f, 0.0f };
+					s_probe_step = 2;
+					gEngfuncs.SetViewAngles( ang );
+					PX6A1_SHOT( "scrshots/px6a1_02_sky.png" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert sky look\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 8.0f )
+				{
+					s_probe_step = 3;
+					PX6A1_SHOT( "scrshots/px6a1_01_world_hud.png" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert hud world shot\n" );
+				}
+				else if( s_probe_step == 3 && elapsed >= 10.0f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.pfnClientCmd( "toggleconsole\n" );
+					PX6A1_SHOT( "scrshots/px6a1_03_console.png" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert console open\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 12.0f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.pfnClientCmd( "toggleconsole\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert console close\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 14.0f )
+				{
+					s_probe_step = 6;
+					gEngfuncs.pfnClientCmd( "+showscores\n" );
+					PX6A1_SHOT( "scrshots/px6a1_04_scoreboard.png" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert scoreboard open\n" );
+				}
+				else if( s_probe_step == 6 && elapsed >= 16.0f )
+				{
+					s_probe_step = 7;
+					gEngfuncs.pfnClientCmd( "-showscores\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert scoreboard close\n" );
+				}
+				else if( s_probe_step == 7 && elapsed >= 18.0f )
+				{
+					s_probe_step = 8;
+					gEngfuncs.pfnClientCmd( "chooseteam\n" );
+					PX6A1_SHOT( "scrshots/px6a1_05_preview.png" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert preview chooseteam\n" );
+				}
+				else if( s_probe_step == 8 && elapsed >= 22.0f )
+				{
+					s_probe_step = 9;
+					gEngfuncs.pfnClientCmd( "jointeam 2; joinclass 1\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert preview leave\n" );
+				}
+				else if( s_probe_step == 9 && elapsed >= 26.0f )
+				{
+					s_probe_step = 10;
+					gEngfuncs.pfnClientCmd( "give weapon_glock18; weapon_glock18\n" );
+					PX6A1_SHOT( "scrshots/px6a1_06_pistol.png" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert viewmodel pistol\n" );
+				}
+				else if( s_probe_step == 10 && elapsed >= 28.0f )
+				{
+					s_probe_step = 11;
+					gEngfuncs.pfnClientCmd( "give weapon_ak47; weapon_ak47; +attack\n" );
+					PX6A1_SHOT( "scrshots/px6a1_07_ak.png" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert ak fire\n" );
+				}
+				else if( s_probe_step == 11 && elapsed >= 31.0f )
+				{
+					s_probe_step = 12;
+					gEngfuncs.pfnClientCmd( "-attack; give weapon_knife; weapon_knife\n" );
+					PX6A1_SHOT( "scrshots/px6a1_08_knife.png" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert knife\n" );
+				}
+				else if( s_probe_step == 12 && elapsed >= 33.0f )
+				{
+					s_probe_step = 13;
+					gEngfuncs.pfnClientCmd( "give weapon_hegrenade; weapon_hegrenade; +attack; wait; -attack; +attack; wait; -attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert he throw\n" );
+				}
+				else if( s_probe_step == 13 && elapsed >= 38.0f )
+				{
+					s_probe_step = 14;
+					PX6A1_SHOT( "scrshots/px6a1_09_he.png" );
+					gEngfuncs.pfnClientCmd( "give weapon_smokegrenade; weapon_smokegrenade; +attack; wait; -attack; +attack; wait; -attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert smoke throw\n" );
+				}
+				else if( s_probe_step == 14 && elapsed >= 43.0f )
+				{
+					s_probe_step = 15;
+					PX6A1_SHOT( "scrshots/px6a1_10_smoke.png" );
+					gEngfuncs.pfnClientCmd( "give weapon_flashbang; weapon_flashbang; +attack; wait; -attack; +attack; wait; -attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert flash throw\n" );
+				}
+				else if( s_probe_step == 15 && elapsed >= 47.0f )
+				{
+					s_probe_step = 16;
+					PX6A1_SHOT( "scrshots/px6a1_11_flash.png" );
+					gEngfuncs.pfnClientCmd( "thirdperson\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert thirdperson\n" );
+				}
+				else if( s_probe_step == 16 && elapsed >= 50.0f )
+				{
+					s_probe_step = 17;
+					PX6A1_SHOT( "scrshots/px6a1_12_thirdperson.png" );
+					gEngfuncs.pfnClientCmd( "firstperson\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert firstperson\n" );
+				}
+				else if( s_probe_step == 17 && elapsed >= 52.0f )
+				{
+					s_probe_step = 18;
+					gEngfuncs.Cvar_SetValue( "r_dynamic", 0.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert r_dynamic 0\n" );
+				}
+				else if( s_probe_step == 18 && elapsed >= 54.0f )
+				{
+					s_probe_step = 19;
+					gEngfuncs.Cvar_SetValue( "r_dynamic", 1.0f );
+					gEngfuncs.pfnClientCmd( "give weapon_hegrenade; weapon_hegrenade; +attack; wait; -attack; +attack; wait; -attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert he r_dynamic 1\n" );
+				}
+				else if( s_probe_step == 19 && elapsed >= 58.0f )
+				{
+					s_probe_step = 20;
+					gEngfuncs.pfnClientCmd( "dev_overview 1\n" );
+					PX6A1_SHOT( "scrshots/px6a1_13_overview.png" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert overview 1\n" );
+				}
+				else if( s_probe_step == 20 && elapsed >= 61.0f )
+				{
+					s_probe_step = 21;
+					gEngfuncs.pfnClientCmd( "dev_overview 0\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert overview 0\n" );
+				}
+				else if( s_probe_step == 21 && elapsed >= 63.0f )
+				{
+					s_probe_step = 22;
+					gEngfuncs.Cvar_SetValue( "r_ripple", 1.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert ripple 1\n" );
+				}
+				else if( s_probe_step == 22 && elapsed >= 66.0f )
+				{
+					s_probe_step = 23;
+					gEngfuncs.Cvar_SetValue( "r_ripple", 0.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert ripple 0\n" );
+				}
+				else if( s_probe_step == 23 && elapsed >= 68.0f )
+				{
+					s_probe_step = 24;
+					gEngfuncs.Cvar_SetValue( "r_csretro_takeover_force_fault", 1.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert force_fault arm\n" );
+				}
+				else if( s_probe_step == 24 && elapsed >= 70.0f )
+				{
+					s_probe_step = 25;
+					CSRETRO_Takeover_ClearFault();
+					gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 2.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert force_fault clear\n" );
+				}
+				else if( s_probe_step == 25 && elapsed >= 72.0f )
+				{
+					s_probe_step = 26;
+					gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 0.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert mode 2→0\n" );
+				}
+				else if( s_probe_step == 26 && elapsed >= 74.0f )
+				{
+					s_probe_step = 27;
+					gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 2.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert mode 0→2\n" );
+				}
+				else if( s_probe_step == 27 && elapsed >= 76.0f )
+				{
+					s_probe_step = 28;
+					gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 1.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert mode 2→1\n" );
+				}
+				else if( s_probe_step == 28 && elapsed >= 78.0f )
+				{
+					s_probe_step = 29;
+					gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 2.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert mode 1→2\n" );
+				}
+				else if( s_probe_step == 29 && elapsed >= 80.0f )
+				{
+					s_probe_step = 30;
+					gEngfuncs.pfnClientCmd( "map de_torn\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert map de_torn\n" );
+				}
+				else if( s_probe_step == 30 && elapsed >= 88.0f )
+				{
+					s_probe_step = 31;
+					PX6A1_SHOT( "scrshots/px6a1_14_torn_water.png" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert water torn look\n" );
+				}
+				else if( s_probe_step == 31 && elapsed >= 92.0f )
+				{
+					s_probe_step = 32;
+					gEngfuncs.pfnClientCmd( "map cs_assault\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert map cs_assault\n" );
+				}
+				else if( s_probe_step == 32 && elapsed >= 100.0f )
+				{
+					s_probe_step = 33;
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; sv_enttools_enable 1; noclip; ent_fire 19 movehere\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert assault door here\n" );
+				}
+				else if( s_probe_step == 33 && elapsed >= 103.0f )
+				{
+					s_probe_step = 34;
+					PX6A1_SHOT( "scrshots/px6a1_15_door_closed.png" );
+					gEngfuncs.pfnClientCmd( "+use\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert assault door use\n" );
+				}
+				else if( s_probe_step == 34 && elapsed >= 106.0f )
+				{
+					s_probe_step = 35;
+					PX6A1_SHOT( "scrshots/px6a1_15b_door_open.png" );
+					gEngfuncs.pfnClientCmd( "-use; noclip\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert assault door done\n" );
+				}
+				else if( s_probe_step == 35 && elapsed >= 108.0f )
+				{
+					s_probe_step = 36;
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert map de_dust\n" );
+				}
+				else if( s_probe_step == 36 && elapsed >= 116.0f )
+				{
+					s_probe_step = 37;
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+					PX6A1_SHOT( "scrshots/px6a1_16_dust_vid.png" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 37 && elapsed >= 120.0f )
+				{
+					s_probe_step = 38;
+					gEngfuncs.Con_Printf(
+						"CS Retro: probe_seq PX6A1 cert lost_eligible_event_frames=%i\n",
+						CSRETRO_Studio_LostEligibleEventFrames() );
+					gEngfuncs.pfnClientCmd( "quit\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A1 cert quit\n" );
+				}
+#undef PX6A1_SHOT
+			}
+			else if( takeoverc )
 			{
 				if( s_probe_step == 0 && elapsed >= 2.0f )
 				{

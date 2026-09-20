@@ -137,6 +137,8 @@ typedef struct CSRETRO_StudioViewmodelProof_s
 	int event_first_rc;
 	int event_second_rc;
 	int event_impl_ran;
+	int event_eligible;
+	int event_reject_reason; // CSRETRO_VM_EVENT_REJECT_*
 	int event_currententity_restore;
 	int event_gl_restore;
 	unsigned int attach_hash_a;
@@ -151,8 +153,25 @@ typedef struct CSRETRO_StudioViewmodelProof_s
 	float wick_age;
 } CSRETRO_StudioViewmodelProof;
 
+enum
+{
+	CSRETRO_VM_EVENT_OK = 0,
+	CSRETRO_VM_EVENT_REJECT_DRAW_WORLD = 1,
+	CSRETRO_VM_EVENT_REJECT_CLIENTDRAW = 2,
+	CSRETRO_VM_EVENT_REJECT_CUBEMAP = 3,
+	CSRETRO_VM_EVENT_REJECT_THIRDPERSON = 4,
+	CSRETRO_VM_EVENT_REJECT_HEALTH = 5,
+	CSRETRO_VM_EVENT_REJECT_VIEWENTITY = 6,
+	CSRETRO_VM_EVENT_REJECT_DRAWVIEWMODEL = 7,
+	CSRETRO_VM_EVENT_REJECT_NO_VIEWMODEL = 8,
+	CSRETRO_VM_EVENT_REJECT_MODEL_TYPE = 9
+};
+
 int CSRETRO_Studio_DrawViewmodel( const struct ref_viewpass_s *rvp );
 int CSRETRO_Studio_ClaimViewmodelEvents( const struct ref_viewpass_s *rvp );
 void CSRETRO_Studio_GetViewmodelProof( CSRETRO_StudioViewmodelProof *out );
 void CSRETRO_Studio_ResetViewmodelProof( void );
 void CSRETRO_Studio_LogMolotovEventWick( void );
+int CSRETRO_Studio_EventEligible( const struct ref_viewpass_s *rvp, int *reason_out );
+int CSRETRO_Studio_LostEligibleEventFrames( void );
+void CSRETRO_Studio_NoteLostEligibleEventFrame( void );

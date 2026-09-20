@@ -3,6 +3,31 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
+## Stand 2026-09-20 — PX6A.1 Visual Cert / #12 DoD-Rest (OPEN bis Report)
+
+Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
+Issue #7/#9/#10/#11 geschlossen. #1 #2 #3 unverändert OPEN.
+Issue #12 OPEN bis vollständiges DoD (dieser Slice: Commit ja, **Release nein**).
+
+```
+r_csretro_renderer 0 → Xash only, GL_RenderFrame = 0
+r_csretro_renderer 1 → CS-Retro 512² offscreen + sichtbarer Xash, return 0
+r_csretro_renderer 2 → CS-Retro visible takeover candidate (PX6A)
+```
+
+Produkt-Freeze: `cfbca8f` (PX6A Mode-2 Gate). Cert-Instrumentation folgt als eigener Commit
+ohne Tag/Release. Visual-Cert: `./scripts/px6a-visual-cert.sh` → `build/px6a-cert-shots/`
+(nicht committen). Engine-`screenshot` ist die zuverlässige Pixelquelle unter headless gamescope.
+
+Event-Invariante: `return 1` + event-eligible → `first_rc=1` + `event_impl_runs=1`;
+`lost_eligible_event_frames=0`. Reject nur bei eligible=0 (z. B. reason=9 no-model, reason=4 thirdperson).
+
+**Nicht:** Mode 1 = visible custom; Default auf 2; Xash-Fallback entfernen; Release; #12 schließen
+ohne §28-DoD. Keine Promotion ohne neue Freigabe.
+
+**Nächster Schritt:** PX6A.1 Cert-Report; #12 nur bei vollständiger DoD-PASS schließen.
+#1 #2 #3 nicht schließen.
+
 ## Stand 2026-09-20 — PX6A Mode-2 Takeover Gate; #12 OPEN
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.

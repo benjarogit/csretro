@@ -70,6 +70,9 @@ void CSRETRO_ClientTriangles_BeginFrame( void )
 	s_tri_owned_normal = 0;
 	s_tri_owned_trans = 0;
 	s_tri_frame_noted = 1;
+	/* Restore overview gl_clear as soon as overview is inactive. */
+	if( !gHUD.m_Spectator.OverviewShouldDraw() )
+		CSRETRO_ClientTriangles_AdvanceNormal();
 }
 
 void RenderFog()
@@ -106,6 +109,14 @@ void CSRETRO_ClientTriangles_DrawNormalOnly( void )
 	float gl_before = 0.0f, gl_after = 0.0f;
 	int count_before = 0, count_after = 0;
 	const int wants = gHUD.m_Spectator.OverviewShouldDraw() ? 1 : 0;
+
+	/*
+	 * Mode-1 offscreen is draw-only while overview is active. When overview
+	 * is no longer active, AdvanceOverviewState only restores gl_clear if a
+	 * prior Xash Advance armed the force flag — safe and required for leave.
+	 */
+	if( !wants )
+		CSRETRO_ClientTriangles_AdvanceNormal();
 
 	s_tri_drawonly_normal++;
 	if ( wants && !s_tri_overview_drawonly_logged )

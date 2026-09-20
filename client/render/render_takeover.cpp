@@ -107,7 +107,12 @@ int CSRETRO_Takeover_Eligible( const struct ref_viewpass_s *rvp, int *reason_out
 		if( !( s_reject_logged_mask & bit ) )
 		{
 			s_reject_logged_mask |= bit;
-			gEngfuncs.Con_Printf( "CS Retro: PX6A takeover reject reason=%i (pre-commit, advances=0)\n", reason );
+			if( reason == CSRETRO_TAKEOVER_REJECT_FLAGS && rvp && !( rvp->flags & RF_DRAW_WORLD ) )
+				gEngfuncs.Con_Printf(
+					"CS Retro: PX6A takeover reject reason=%i pass=preview/non-world (pre-commit, advances=0)\n",
+					reason );
+			else
+				gEngfuncs.Con_Printf( "CS Retro: PX6A takeover reject reason=%i (pre-commit, advances=0)\n", reason );
 		}
 	}
 	return reason == CSRETRO_TAKEOVER_OK ? 1 : 0;

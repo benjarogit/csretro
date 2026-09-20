@@ -45,7 +45,7 @@ CL_DrawParticles
 update particle color, position, free expired and draw it
 ================
 */
-void CL_DrawParticles( double frametime, particle_t *cl_active_particles, float partsize )
+void CL_DrawParticles( double frametime, particle_t *cl_active_particles, float partsize, qboolean draw_only )
 {
 	if( !cl_active_particles )
 		return;	// nothing to draw?
@@ -79,8 +79,10 @@ void CL_DrawParticles( double frametime, particle_t *cl_active_particles, float 
 			VectorScale( RI.cull_vright, size, right );
 			VectorScale( RI.cull_vup, size, up );
 
-			p->color = bound( 0, p->color, 255 );
-			color24 color = tr.palette[p->color];
+			short color_index = (short)bound( 0, p->color, 255 );
+			if( !draw_only )
+				p->color = color_index;
+			color24 color = tr.palette[color_index];
 
 			int alpha = 255 * (p->die - gp_cl->time) * 16.0f;
 			if( alpha > 255 || p->type == pt_static )
@@ -99,7 +101,8 @@ void CL_DrawParticles( double frametime, particle_t *cl_active_particles, float 
 			r_stats.c_particle_count++;
 		}
 
-		gEngfuncs.CL_ThinkParticle( frametime, p );
+		if( !draw_only )
+			gEngfuncs.CL_ThinkParticle( frametime, p );
 	}
 
 	pglEnd();
@@ -149,10 +152,10 @@ CL_DrawTracers
 update tracer color, position, free expired and draw it
 ================
 */
-void CL_DrawTracers( double frametime, particle_t *cl_active_tracers )
+void CL_DrawTracers( double frametime, particle_t *cl_active_tracers, qboolean draw_only )
 {
-	// update tracer color if this is changed
-	if( FBitSet( tracerred->flags|tracergreen->flags|tracerblue->flags|traceralpha->flags, FCVAR_CHANGED ))
+	// update tracer color if this is changed (advance owns the cvar flags)
+	if( !draw_only && FBitSet( tracerred->flags|tracergreen->flags|tracerblue->flags|traceralpha->flags, FCVAR_CHANGED ))
 	{
 		color24 *customColors = &gTracerColors[4];
 		customColors->r = (byte)(tracerred->value * traceralpha->value * 255);
@@ -220,12 +223,15 @@ void CL_DrawTracers( double frametime, particle_t *cl_active_tracers )
 			VectorAdd( verts[0], delta, verts[2] );
 			VectorAdd( verts[1], delta, verts[3] );
 
-			if( p->color < 0 || p->color >= sizeof( gTracerColors ) / sizeof( gTracerColors[0] ))
+			int color_index = p->color;
+			if( color_index < 0 || color_index >= (int)( sizeof( gTracerColors ) / sizeof( gTracerColors[0] )) )
 			{
-				p->color = TRACER_COLORINDEX_DEFAULT;
+				color_index = TRACER_COLORINDEX_DEFAULT;
+				if( !draw_only )
+					p->color = TRACER_COLORINDEX_DEFAULT;
 			}
 
-			color24 color = gTracerColors[p->color];
+			color24 color = gTracerColors[color_index];
 			pglColor4ub( color.r, color.g, color.b, p->unused );
 
 				pglTexCoord2f( 0.0f, 0.8f );
@@ -238,21 +244,24 @@ void CL_DrawTracers( double frametime, particle_t *cl_active_tracers )
 				pglVertex3fv( verts[0] );
 		}
 
-		// evaluate position
-		VectorMA( p->org, frametime, p->vel, p->org );
-
-		if( p->type == pt_grav )
+		if( !draw_only )
 		{
-			p->vel[0] *= scale;
-			p->vel[1] *= scale;
-			p->vel[2] -= gravity;
+			// evaluate position
+			VectorMA( p->org, frametime, p->vel, p->org );
 
-			p->unused = 255 * (p->die - gp_cl->time) * 2;
-			if( p->unused > 255 ) p->unused = 255;
-		}
-		else if( p->type == pt_slowgrav )
-		{
-			p->vel[2] = gravity * 0.05f;
+			if( p->type == pt_grav )
+			{
+				p->vel[0] *= scale;
+				p->vel[1] *= scale;
+				p->vel[2] -= gravity;
+
+				p->unused = 255 * (p->die - gp_cl->time) * 2;
+				if( p->unused > 255 ) p->unused = 255;
+			}
+			else if( p->type == pt_slowgrav )
+			{
+				p->vel[2] = gravity * 0.05f;
+			}
 		}
 	}
 	pglEnd();
@@ -277,8 +286,22 @@ void CL_DrawParticlesExternal( const ref_viewpass_t *rvp, qboolean trans_pass, f
 	R_SetupGL( false );	// don't touch GL-states
 	tr.frametime = frametime;
 
-	gEngfuncs.CL_DrawEFX( frametime, trans_pass );
+	gEngfuncs.CL_DrawEFX( frametime, trans_pass, false );
 
 	// restore internal state
+	RI = oldRI;
+}
+
+void CL_DrawEFXView( const ref_viewpass_t *rvp, qboolean trans_pass, qboolean draw_only )
+{
+	ref_instance_t oldRI = RI;
+
+	if( !rvp )
+		return;
+
+	R_SetupRefParams( rvp );
+	R_SetupFrustum();
+	R_SetupGL( false );
+	gEngfuncs.CL_DrawEFX( tr.frametime, trans_pass, draw_only );
 	RI = oldRI;
 }

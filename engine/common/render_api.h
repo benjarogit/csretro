@@ -264,6 +264,9 @@ typedef struct render_api_s
 	// a1ba: changed long to int
 	void		(*SetRandomSeed)( int lSeed );		// set custom seed for RANDOM_FLOAT\RANDOM_LONG for predictable random
 	// ONLY ADD NEW FUNCTIONS TO THE END OF THIS STRUCT.  INTERFACE VERSION IS FROZEN AT 37
+	// CS Retro extension after the frozen v37 prefix. Not in PrimeXT pin 46fb05b.
+	// trans_pass: false = solid EFX, true = transparent. draw_only: no simulation / no dead-list cleanup.
+	void		(*DrawEFX)( const struct ref_viewpass_s *rvp, qboolean trans_pass, qboolean draw_only );
 } render_api_t;
 
 // render callbacks

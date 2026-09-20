@@ -31,6 +31,9 @@ static particle_t	*cl_free_particles;
 static particle_t	*cl_particles = NULL;	// particle pool
 static vec3_t	cl_avelocities[NUMVERTEXNORMALS];
 static float	cl_lasttimewarn = 0.0f;
+static int	s_efx_drawonly_logged;
+static int	s_efx_advance_logged;
+static unsigned int s_efx_drawonly_hash;
 
 // expand debugging BBOX particle hulls by this many units.
 #define BOX_GAP	0.0f
@@ -115,6 +118,9 @@ void CL_ClearParticles( void )
 	cl_free_particles = cl_particles;
 	cl_active_particles = NULL;
 	cl_active_tracers = NULL;
+	s_efx_drawonly_logged = 0;
+	s_efx_advance_logged = 0;
+	s_efx_drawonly_hash = 0;
 
 	for( int i = 0; i < GI->max_particles - 1; i++ )
 		cl_particles[i].next = &cl_particles[i+1];
@@ -2076,20 +2082,147 @@ static void CL_FreeDeadBeams( void )
 	}
 }
 
-void CL_DrawEFX( float time, qboolean fTrans )
+static unsigned int EFX_Mix( unsigned int h, unsigned int v )
 {
-	CL_FreeDeadBeams();
+	h ^= v;
+	h *= 16777619u;
+	return h;
+}
+
+static unsigned int EFX_HashFloat( unsigned int h, float f )
+{
+	union { float f; unsigned int u; } x;
+	x.f = f;
+	return EFX_Mix( h, x.u );
+}
+
+static int EFX_CountParticles( const particle_t *p )
+{
+	int n = 0;
+	for( ; p; p = p->next )
+		n++;
+	return n;
+}
+
+static int EFX_CountBeams( const BEAM *b )
+{
+	int n = 0;
+	for( ; b; b = b->next )
+		n++;
+	return n;
+}
+
+static unsigned int EFX_HashParticles( const particle_t *p )
+{
+	unsigned int h = 2166136261u;
+	int n = 0;
+	for( ; p; p = p->next, n++ )
+	{
+		h = EFX_HashFloat( h, p->org[0] );
+		h = EFX_HashFloat( h, p->org[1] );
+		h = EFX_HashFloat( h, p->org[2] );
+		h = EFX_HashFloat( h, p->vel[0] );
+		h = EFX_HashFloat( h, p->vel[1] );
+		h = EFX_HashFloat( h, p->vel[2] );
+		h = EFX_Mix( h, (unsigned int)(short)p->color );
+		h = EFX_Mix( h, (unsigned int)(short)p->unused );
+		h = EFX_HashFloat( h, p->ramp );
+		h = EFX_HashFloat( h, p->die );
+		h = EFX_Mix( h, (unsigned int)p->type );
+	}
+	return EFX_Mix( h, (unsigned int)n );
+}
+
+static unsigned int EFX_HashBeams( const BEAM *b )
+{
+	unsigned int h = 2166136261u;
+	int n = 0;
+	for( ; b; b = b->next, n++ )
+	{
+		h = EFX_Mix( h, (unsigned int)b->type );
+		h = EFX_Mix( h, (unsigned int)b->flags );
+		h = EFX_HashFloat( h, b->source[0] );
+		h = EFX_HashFloat( h, b->source[1] );
+		h = EFX_HashFloat( h, b->source[2] );
+		h = EFX_HashFloat( h, b->target[0] );
+		h = EFX_HashFloat( h, b->target[1] );
+		h = EFX_HashFloat( h, b->target[2] );
+		h = EFX_HashFloat( h, b->delta[0] );
+		h = EFX_HashFloat( h, b->delta[1] );
+		h = EFX_HashFloat( h, b->delta[2] );
+		h = EFX_HashFloat( h, b->t );
+		h = EFX_HashFloat( h, b->freq );
+		h = EFX_HashFloat( h, b->die );
+		h = EFX_HashFloat( h, b->width );
+		h = EFX_HashFloat( h, b->amplitude );
+		h = EFX_HashFloat( h, b->r );
+		h = EFX_HashFloat( h, b->g );
+		h = EFX_HashFloat( h, b->b );
+		h = EFX_HashFloat( h, b->brightness );
+		h = EFX_HashFloat( h, b->speed );
+		h = EFX_HashFloat( h, b->frame );
+		h = EFX_Mix( h, (unsigned int)b->segments );
+	}
+	return EFX_Mix( h, (unsigned int)n );
+}
+
+static unsigned int EFX_StateHash( void )
+{
+	unsigned int h = 2166136261u;
+	h = EFX_Mix( h, EFX_HashParticles( cl_active_particles ) );
+	h = EFX_Mix( h, EFX_HashParticles( cl_active_tracers ) );
+	h = EFX_Mix( h, EFX_HashBeams( cl_active_beams ) );
+	return h;
+}
+
+void CL_DrawEFX( float time, qboolean fTrans, qboolean draw_only )
+{
+	unsigned int before = 0, after = 0;
+	int np, nt, nb;
+	int log_drawonly;
+
+	np = EFX_CountParticles( cl_active_particles );
+	nt = EFX_CountParticles( cl_active_tracers );
+	nb = EFX_CountBeams( cl_active_beams );
+	/* Think/org/vel live on the trans pass. Solid pass is beams-only. */
+	log_drawonly = draw_only && !s_efx_drawonly_logged && fTrans && ( np + nt ) > 0;
+	if( log_drawonly )
+		before = EFX_StateHash();
+
+	if( !draw_only )
+		CL_FreeDeadBeams();
 	if( cl_draw_beams.value )
-		ref.dllFuncs.CL_DrawBeams( fTrans, cl_active_beams );
+		ref.dllFuncs.CL_DrawBeams( fTrans, cl_active_beams, draw_only );
 
 	if( fTrans )
 	{
-		R_FreeDeadParticles( &cl_active_particles );
+		if( !draw_only )
+			R_FreeDeadParticles( &cl_active_particles );
 		if( cl_draw_particles.value )
-			ref.dllFuncs.CL_DrawParticles( time, cl_active_particles, PART_SIZE );
-		R_FreeDeadParticles( &cl_active_tracers );
+			ref.dllFuncs.CL_DrawParticles( time, cl_active_particles, PART_SIZE, draw_only );
+		if( !draw_only )
+			R_FreeDeadParticles( &cl_active_tracers );
 		if( cl_draw_tracers.value )
-			ref.dllFuncs.CL_DrawTracers( time, cl_active_tracers );
+			ref.dllFuncs.CL_DrawTracers( time, cl_active_tracers, draw_only );
+	}
+
+	if( log_drawonly )
+	{
+		after = EFX_StateHash();
+		s_efx_drawonly_logged = 1;
+		s_efx_drawonly_hash = after;
+		Con_Printf( "CS Retro: efx draw-only reached trans=%i particles=%i tracers=%i beams=%i\n",
+			fTrans ? 1 : 0, np, nt, nb );
+		Con_Printf( "CS Retro: efx state before=%08x after=%08x mutate=%i particles=%i tracers=%i beams=%i\n",
+			before, after, before != after ? 1 : 0, np, nt, nb );
+	}
+	else if( !draw_only && !s_efx_advance_logged && fTrans && ( np + nt ) > 0 )
+	{
+		after = EFX_StateHash();
+		s_efx_advance_logged = 1;
+		Con_Printf( "CS Retro: efx advance reached trans=%i particles=%i tracers=%i beams=%i hash=%08x vs_drawonly=%08x advanced=%i\n",
+			fTrans ? 1 : 0, np, nt, nb, after, s_efx_drawonly_hash,
+			s_efx_drawonly_hash ? ( after != s_efx_drawonly_hash ? 1 : 0 ) : 1 );
 	}
 }
 

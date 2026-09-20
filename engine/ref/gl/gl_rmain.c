@@ -861,7 +861,7 @@ static void R_DrawEntitiesOnList( void )
 
 	if( !FBitSet( RI.rvp.flags, RF_ONLY_CLIENTDRAW ))
 	{
-		gEngfuncs.CL_DrawEFX( tr.frametime, false );
+		gEngfuncs.CL_DrawEFX( tr.frametime, false, false );
 	}
 
 	GL_CheckForErrors();
@@ -922,7 +922,7 @@ static void R_DrawEntitiesOnList( void )
 	if( !FBitSet( RI.rvp.flags, RF_ONLY_CLIENTDRAW ))
 	{
 		R_AllowFog( false );
-		gEngfuncs.CL_DrawEFX( tr.frametime, true );
+		gEngfuncs.CL_DrawEFX( tr.frametime, true, false );
 		R_AllowFog( true );
 	}
 

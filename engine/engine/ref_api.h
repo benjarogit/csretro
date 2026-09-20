@@ -78,7 +78,9 @@ GNU General Public License for more details.
 //     <= 255 bytes, dropping per-allocation filename/fileline tracking.
 // 18. PARM_GET_{LIGHT,SCREEN,LINEAR}GAMMATABLE_PTR now point to uint16_t arrays instead of uint.
 //     Their entries never exceed 1023, so the narrowing is lossless.
-#define REF_API_VERSION 18
+// 19. CS Retro: CL_DrawEFX / CL_DrawParticles / CL_DrawTracers / CL_DrawBeams take draw_only.
+//     draw_only draws without advancing simulation or freeing dead lists.
+#define REF_API_VERSION 19
 
 #define TF_SKY		(TF_SKYSIDE|TF_NOMIPMAP|TF_ALLOW_NEAREST)
 #define TF_FONT		(TF_NOMIPMAP|TF_CLAMP|TF_ALLOW_NEAREST)
@@ -414,7 +416,7 @@ typedef struct ref_api_s
 	void	(*pfnStudioEvent)( const struct mstudioevent_s *event, const cl_entity_t *entity );
 
 	// efx
-	void (*CL_DrawEFX)( float time, qboolean fTrans );
+	void (*CL_DrawEFX)( float time, qboolean fTrans, qboolean draw_only );
 	void (*CL_ThinkParticle)( double frametime, particle_t *p );
 	void (*R_FreeDeadParticles)( particle_t **ppparticles );
 	particle_t *(*CL_AllocParticleFast)( void ); // unconditionally give new particle pointer from cl_free_particles
@@ -601,9 +603,9 @@ typedef struct ref_interface_s
 	void (*Mod_StudioLoadTextures)( model_t *mod, void *data );
 
 	// efx implementation
-	void (*CL_DrawParticles)( double frametime, particle_t *particles, float partsize );
-	void (*CL_DrawTracers)( double frametime, particle_t *tracers );
-	void (*CL_DrawBeams)( int fTrans , BEAM *beams );
+	void (*CL_DrawParticles)( double frametime, particle_t *particles, float partsize, qboolean draw_only );
+	void (*CL_DrawTracers)( double frametime, particle_t *tracers, qboolean draw_only );
+	void (*CL_DrawBeams)( int fTrans , BEAM *beams, qboolean draw_only );
 
 	// Xash3D Render Interface
 	intptr_t		(*RefGetParm)( int parm, int arg );	// generic

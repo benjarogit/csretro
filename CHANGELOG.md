@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.22 — 2026-09-20
+
+### Renderer
+
+- #7 Engine-EFX intern split: `CL_DrawEFX` / Particles / Tracers / Beams bekommen `draw_only`. Draw liest Live-State, Advance (Think, org/vel, Beam-freq, Dead-listen) bleibt beim normalen Xash-Zyklus. `REF_API_VERSION` 19. `r_csretro_renderer 0` Gate: ein AK-Schuss erzeugt Particles+Tracer, kein Offscreen-Draw. Issue #7 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.21 — 2026-09-20
 
 ### Architektur / Dokumentation

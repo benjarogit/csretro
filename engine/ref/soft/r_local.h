@@ -314,7 +314,7 @@ typedef struct image_s
 //
 // gl_beams.c
 //
-void CL_DrawBeams( int fTrans, BEAM *active_beams );
+void CL_DrawBeams( int fTrans, BEAM *active_beams, qboolean draw_only );
 
 //
 // gl_decals.c
@@ -379,8 +379,9 @@ void R_DrawFog( void );
 // gl_rpart.c
 //
 void CL_DrawParticlesExternal( const ref_viewpass_t *rvp, qboolean trans_pass, float frametime );
-void CL_DrawParticles( double frametime, particle_t *cl_active_particles, float partsize );
-void CL_DrawTracers( double frametime, particle_t *cl_active_tracers );
+void CL_DrawEFXView( const ref_viewpass_t *rvp, qboolean trans_pass, qboolean draw_only );
+void CL_DrawParticles( double frametime, particle_t *cl_active_particles, float partsize, qboolean draw_only );
+void CL_DrawTracers( double frametime, particle_t *cl_active_tracers, qboolean draw_only );
 
 
 //

@@ -1106,7 +1106,7 @@ void CL_KillDeadBeams( cl_entity_t *pDeadEntity );
 void CL_ParseViewBeam( sizebuf_t *msg, int beamType );
 void CL_LoadClientSprites( void );
 void CL_ReadPointFile_f( void );
-void CL_DrawEFX( float time, qboolean fTrans );
+void CL_DrawEFX( float time, qboolean fTrans, qboolean draw_only );
 void CL_ThinkParticle( double frametime, particle_t *p );
 void CL_ReadLineFile_f( void );
 

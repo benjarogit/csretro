@@ -209,19 +209,19 @@ static void Mod_StudioLoadTextures( model_t *mod, void *data )
 	;
 }
 
-static void CL_DrawParticles( double frametime, particle_t *particles, float partsize )
+static void CL_DrawParticles( double frametime, particle_t *particles, float partsize, qboolean draw_only )
 {
-	;
+	(void)frametime; (void)particles; (void)partsize; (void)draw_only;
 }
 
-static void CL_DrawTracers( double frametime, particle_t *tracers )
+static void CL_DrawTracers( double frametime, particle_t *tracers, qboolean draw_only )
 {
-	;
+	(void)frametime; (void)tracers; (void)draw_only;
 }
 
-static void CL_DrawBeams( int fTrans, BEAM *beams )
+static void CL_DrawBeams( int fTrans, BEAM *beams, qboolean draw_only )
 {
-	;
+	(void)fTrans; (void)beams; (void)draw_only;
 }
 
 static intptr_t RefGetParm( int parm, int arg )

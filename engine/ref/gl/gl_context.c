@@ -458,6 +458,7 @@ static void R_FillRenderAPI( render_api_t *api )
 	api->GL_TexCoordArrayMode     = GL_SetTexCoordArrayMode;
 	api->GL_UpdateTexSize         = GL_UpdateTexSize;
 	api->GL_DrawParticles         = CL_DrawParticlesExternal;
+	api->DrawEFX                  = CL_DrawEFXView;
 	api->LightVec                 = R_LightVec;
 	api->StudioGetTexture         = R_StudioGetTexture;
 	api->GL_GetProcAddress        = R_GetProcAddress;

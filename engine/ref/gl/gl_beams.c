@@ -39,12 +39,18 @@ FRACTAL NOISE
 ==============================================================
 */
 static float	rgNoise[NOISE_DIVISIONS+1];	// global noise array
+static qboolean	s_beam_draw_only;
 
 // freq2 += step * 0.1;
 // Fractal noise generator, power of 2 wavelength
 static void FracNoise( float *noise, int divs )
 {
-	int div2 = divs >> 1;
+	int div2;
+
+	if( s_beam_draw_only )
+		return;
+
+	div2 = divs >> 1;
 	if( divs < 2 ) return;
 
 	// noise is normalized to +/- scale
@@ -537,7 +543,8 @@ drawi followed beam
 */
 static void R_DrawBeamFollow( BEAM *pbeam, float frametime )
 {
-	gEngfuncs.R_FreeDeadParticles( &pbeam->particles );
+	if( !s_beam_draw_only )
+		gEngfuncs.R_FreeDeadParticles( &pbeam->particles );
 
 	particle_t *particles = pbeam->particles;
 	particle_t *pnew = NULL;
@@ -551,12 +558,12 @@ static void R_DrawBeamFollow( BEAM *pbeam, float frametime )
 			VectorSubtract( particles->org, pbeam->source, delta );
 			div = VectorLength( delta );
 
-			if( div >= 32 )
+			if( div >= 32 && !s_beam_draw_only )
 			{
 				pnew = gEngfuncs.CL_AllocParticleFast();
 			}
 		}
-		else
+		else if( !s_beam_draw_only )
 		{
 			pnew = gEngfuncs.CL_AllocParticleFast();
 		}
@@ -664,12 +671,15 @@ static void R_DrawBeamFollow( BEAM *pbeam, float frametime )
 	}
 
 	// drift popcorn trail if there is a velocity
-	particles = pbeam->particles;
-
-	while( particles )
+	if( !s_beam_draw_only )
 	{
-		VectorMA( particles->org, frametime, particles->vel, particles->org );
-		particles = particles->next;
+		particles = pbeam->particles;
+
+		while( particles )
+		{
+			VectorMA( particles->org, frametime, particles->vel, particles->org );
+			particles = particles->next;
+		}
 	}
 }
 
@@ -896,22 +906,26 @@ static void R_BeamDraw( BEAM *pbeam, float frametime )
 
 	if( !model || model->type != mod_sprite )
 	{
-		pbeam->flags &= ~FBEAM_ISACTIVE; // force to ignore
-		pbeam->die = gp_cl->time;
+		if( !s_beam_draw_only )
+		{
+			pbeam->flags &= ~FBEAM_ISACTIVE; // force to ignore
+			pbeam->die = gp_cl->time;
+		}
 		return;
 	}
 
 	// update frequency
-	pbeam->freq += frametime;
+	if( !s_beam_draw_only )
+		pbeam->freq += frametime;
 
 	// generate fractal noise
-	if( frametime != 0.0f )
+	if( !s_beam_draw_only && frametime != 0.0f )
 	{
 		rgNoise[0] = 0;
 		rgNoise[NOISE_DIVISIONS] = 0;
 	}
 
-	if( pbeam->amplitude != 0 && frametime != 0.0f )
+	if( !s_beam_draw_only && pbeam->amplitude != 0 && frametime != 0.0f )
 	{
 		if( FBitSet( pbeam->flags, FBEAM_SINENOISE ))
 			SineNoise( rgNoise, NOISE_DIVISIONS );
@@ -1199,8 +1213,9 @@ CL_DrawBeams
 draw beam loop
 ==============
 */
-void CL_DrawBeams( int fTrans, BEAM *active_beams )
+void CL_DrawBeams( int fTrans, BEAM *active_beams, qboolean draw_only )
 {
+	s_beam_draw_only = draw_only;
 	pglShadeModel( GL_SMOOTH );
 	pglDepthMask( fTrans ? GL_FALSE : GL_TRUE );
 
@@ -1232,9 +1247,16 @@ void CL_DrawBeams( int fTrans, BEAM *active_beams )
 		if( !fTrans && !FBitSet( pBeam->flags, FBEAM_SOLID ))
 			continue;
 
-		R_BeamDraw( pBeam, gp_cl->time -   gp_cl->oldtime );
+		if( draw_only )
+		{
+			BEAM copy = *pBeam;
+			R_BeamDraw( &copy, gp_cl->time - gp_cl->oldtime );
+		}
+		else
+			R_BeamDraw( pBeam, gp_cl->time -   gp_cl->oldtime );
 	}
 
 	pglShadeModel( GL_FLAT );
 	pglDepthMask( GL_TRUE );
+	s_beam_draw_only = false;
 }

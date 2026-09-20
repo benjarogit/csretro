@@ -813,7 +813,7 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 	return 1;
 }
 
-int CSRETRO_Sprite_DrawList( const float *vieworg, const float *viewangles, CSRETRO_SceneStats *stats )
+static int DrawSpriteRange( int only_index, const float *vieworg, const float *viewangles, CSRETRO_SceneStats *stats )
 {
 	float vforward[3], vright[3], vup[3];
 	float cl_time;
@@ -842,6 +842,8 @@ int CSRETRO_Sprite_DrawList( const float *vieworg, const float *viewangles, CSRE
 	for( i = 0; i < n; i++ )
 	{
 		e = CSRETRO_Scene_Get( i );
+		if( only_index >= 0 && i != only_index )
+			continue;
 		if( !e )
 			continue;
 		if( e->kind != CSRETRO_KIND_TENT_SPRITE && e->kind != CSRETRO_KIND_NORMAL_SPRITE )
@@ -900,4 +902,14 @@ int CSRETRO_Sprite_DrawList( const float *vieworg, const float *viewangles, CSRE
 		gXRGL.Disable( GL_ALPHA_TEST );
 	}
 	return drawn;
+}
+
+int CSRETRO_Sprite_DrawList( const float *vieworg, const float *viewangles, CSRETRO_SceneStats *stats )
+{
+	return DrawSpriteRange( -1, vieworg, viewangles, stats );
+}
+
+int CSRETRO_Sprite_DrawOne( int scene_index, const float *vieworg, const float *viewangles, CSRETRO_SceneStats *stats )
+{
+	return DrawSpriteRange( scene_index, vieworg, viewangles, stats );
 }

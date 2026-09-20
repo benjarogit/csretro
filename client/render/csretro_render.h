@@ -22,6 +22,7 @@ void CSRETRO_Renderer_OnNewMap( void );
 void CSRETRO_Renderer_OnLightmaps( void );
 void CSRETRO_Renderer_OnModel( struct model_s *mod, int create, const unsigned char *buffer );
 void CSRETRO_Renderer_ClearScene( void );
+unsigned char *CSRETRO_Mod_GetCurrentVis( void );
 
 // Mirror only. Does not change HUD_AddEntity's return value.
 void CSRETRO_Renderer_AddEntity( int type, struct cl_entity_s *ent );

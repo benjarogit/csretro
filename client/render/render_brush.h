@@ -37,3 +37,4 @@ const CSRETRO_BrushMove *CSRETRO_Brush_LastMove( void );
 
 // opaque_only: 1 = kRenderNormal, 0 = trans modes. Classification is sortable.
 int CSRETRO_Brush_DrawPass( int opaque_only, struct CSRETRO_SceneStats_s *stats );
+int CSRETRO_Brush_DrawOne( int scene_index, struct CSRETRO_SceneStats_s *stats );

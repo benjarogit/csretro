@@ -3857,6 +3857,8 @@ void R_MarkLeaves( void )
 	qboolean	force = false;
 	mleaf_t	*leaf = NULL;
 
+	tr.csretro_cross_leaf = false;
+
 	if( !FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
 		return;
 
@@ -3881,7 +3883,10 @@ void R_MarkLeaves( void )
 		leaf = gEngfuncs.Mod_PointInLeaf( test, WORLDMODEL->nodes, WORLDMODEL );
 
 		if(( leaf->contents != CONTENTS_SOLID ) && ( RI.viewleaf != leaf ))
+		{
 			force = true;
+			tr.csretro_cross_leaf = true;
+		}
 	}
 
 	if( RI.viewleaf == RI.oldviewleaf && RI.viewleaf != NULL && !force )
@@ -4083,4 +4088,407 @@ void GL_BuildLightmaps( void )
 		// build lightmaps on the client-side
 		gEngfuncs.drawFuncs->GL_BuildLightmaps( );
 	}
+}
+
+typedef struct
+{
+	csretro_vis_request_t	*req;
+	csretro_frame_vis_t	*info;
+	byte		*leaf_marked;
+	int		marked_bytes;
+	byte		*classified;
+	int		collect_surf;
+	int		collect_efrag;
+	unsigned int	sel_hash;
+} csretro_collect_t;
+
+static void R_VisSetBit( byte *mask, int bit )
+{
+	if( !mask || bit < 0 )
+		return;
+	mask[bit >> 3] |= (byte)( 1 << ( bit & 7 ));
+}
+
+static int R_VisTestBit( const byte *mask, int bytes, int bit )
+{
+	int b = bit >> 3;
+
+	if( !mask || bit < 0 || b >= bytes )
+		return 0;
+	return ( mask[b] >> ( bit & 7 ) ) & 1;
+}
+
+static int R_ClassifyPreparedSurface( const msurface_t *surf, uint clipflags )
+{
+	if( unlikely( !surf->texinfo || !surf->texinfo->texture ))
+		return CULL_OTHER;
+
+	if( unlikely( r_nocull.value ))
+		return CULL_VISIBLE;
+
+	if( surf->plane && !VectorIsNull( surf->plane->normal ))
+	{
+		float	dist;
+		int	face = glState.faceCull;
+
+		// Prepare runs before R_SetupGL. World default is front-face cull.
+		if( face == GL_NONE )
+			face = GL_FRONT;
+
+		if( FBitSet( RI.rvp.flags, RF_DRAW_OVERVIEW ))
+		{
+			vec3_t	orthonormal;
+
+			if( RI.currententity == CL_GetEntityByIndex( 0 ))
+				orthonormal[2] = surf->plane->normal[2];
+			else Matrix4x4_VectorRotate( RI.objectMatrix, surf->plane->normal, orthonormal );
+			dist = orthonormal[2];
+		}
+		else dist = PlaneDiff( tr.modelorg, surf->plane );
+
+		if( FBitSet( surf->flags, SURF_PLANEBACK ))
+			dist = -dist;
+
+		if( face == GL_FRONT )
+		{
+			if( dist <= BACKFACE_EPSILON )
+				return CULL_BACKSIDE;
+		}
+		else if( dist >= -BACKFACE_EPSILON )
+			return CULL_BACKSIDE;
+	}
+
+	if( clipflags && surf->info && GL_FrustumCullBox( &RI.frustum, surf->info->mins, surf->info->maxs, clipflags ))
+		return CULL_FRUSTUM;
+
+	return CULL_VISIBLE;
+}
+
+static void R_CollectLeafEfrags( mleaf_t *pleaf, csretro_collect_t *st )
+{
+	efrag_t *pefrag;
+
+	if( !st->collect_efrag || !pleaf->efrags )
+		return;
+
+	for( pefrag = pleaf->efrags; pefrag; pefrag = pefrag->leafnext )
+	{
+		cl_entity_t *pent = pefrag->entity;
+		int i, dup = 0;
+
+		if( !pent || !pent->model )
+			continue;
+		if( pent->model->type < mod_brush || pent->model->type > mod_studio )
+			continue;
+
+		for( i = 0; i < st->info->efrag_count; i++ )
+		{
+			if( st->req->efrag_out && i < st->req->efrag_capacity
+				&& st->req->efrag_out[i].entity_index == pent->index )
+			{
+				dup = 1;
+				break;
+			}
+		}
+		if( dup )
+			continue;
+
+		if( st->req->efrag_out && st->info->efrag_count < st->req->efrag_capacity )
+		{
+			csretro_efrag_info_t *e = &st->req->efrag_out[st->info->efrag_count];
+
+			e->entity_index = pent->index;
+			e->model_type = pent->model->type;
+			e->leaf = (int)( pleaf - WORLDMODEL->leafs );
+			e->origin[0] = pent->origin[0];
+			e->origin[1] = pent->origin[1];
+			e->origin[2] = pent->origin[2];
+		}
+		st->info->efrag_count++;
+	}
+}
+
+static void R_AcceptPreparedSurface( int surf_index, msurface_t *surf, csretro_collect_t *st )
+{
+	if( surf->flags & SURF_DRAWSKY )
+		st->info->sky_candidates++;
+
+	if( st->collect_surf && st->req->surf_mask_out && st->req->mask_capacity > ( surf_index >> 3 ))
+		R_VisSetBit( st->req->surf_mask_out, surf_index );
+
+	st->sel_hash = ( st->sel_hash ^ (unsigned int)( surf_index + 1 ) ) * 16777619u;
+	st->info->drawn++;
+}
+
+static void R_ClassifyMarkedSurface( int surf_index, msurface_t *surf, uint clipflags, csretro_collect_t *st )
+{
+	int cull;
+
+	if( surf_index < 0 || surf_index >= WORLDMODEL->numsurfaces )
+		return;
+	if( R_VisTestBit( st->classified, st->marked_bytes, surf_index ))
+		return;
+	R_VisSetBit( st->classified, surf_index );
+
+	if( !R_VisTestBit( st->leaf_marked, st->marked_bytes, surf_index ))
+	{
+		st->info->pvs_rejected++;
+		return;
+	}
+
+	cull = R_ClassifyPreparedSurface( surf, clipflags );
+	if( cull == CULL_BACKSIDE )
+	{
+		st->info->backface_rejected++;
+		return;
+	}
+	if( cull == CULL_FRUSTUM || cull == CULL_OTHER )
+	{
+		st->info->frustum_rejected++;
+		return;
+	}
+	R_AcceptPreparedSurface( surf_index, surf, st );
+}
+
+static void R_CollectRecursive( mnode_t *node, uint clipflags, csretro_collect_t *st )
+{
+loc0:
+	if( !node || node->contents == CONTENTS_SOLID )
+		return;
+	if( node->visframe != tr.visframecount )
+		return;
+
+	if( clipflags && !r_nocull.value )
+	{
+		int i;
+
+		for( i = 0; i < 6; i++ )
+		{
+			const mplane_t *p = &RI.frustum.planes[i];
+			int clipped;
+
+			if( !FBitSet( clipflags, BIT( i )))
+				continue;
+			clipped = BOX_ON_PLANE_SIDE( node->minmaxs, node->minmaxs + 3, p );
+			if( clipped == 2 )
+				return;
+			if( clipped == 1 )
+				ClearBits( clipflags, BIT( i ));
+		}
+	}
+
+	if( node->contents < 0 )
+	{
+		mleaf_t *pleaf = (mleaf_t *)node;
+		msurface_t **mark = pleaf->firstmarksurface;
+		int i;
+
+		for( i = 0; i < pleaf->nummarksurfaces; i++ )
+		{
+			int idx = (int)( mark[i] - WORLDMODEL->surfaces );
+
+			if( idx >= 0 && idx < WORLDMODEL->numsurfaces )
+				R_VisSetBit( st->leaf_marked, idx );
+		}
+		R_CollectLeafEfrags( pleaf, st );
+		st->info->visleafs++;
+		return;
+	}
+
+	{
+		float dot = PlaneDiff( tr.modelorg, node->plane );
+		int side = ( dot >= 0.0f ) ? 0 : 1;
+		int firstsurface = node_firstsurface( node, WORLDMODEL );
+		int numsurfaces = node_numsurfaces( node, WORLDMODEL );
+		int i;
+
+		R_CollectRecursive( node_child( node, side, WORLDMODEL ), clipflags, st );
+		for( i = firstsurface; i < firstsurface + numsurfaces; i++ )
+			R_ClassifyMarkedSurface( i, &WORLDMODEL->surfaces[i], clipflags, st );
+		node = node_child( node, !side, WORLDMODEL );
+		goto loc0;
+	}
+}
+
+static qboolean R_CollectCullNodeTopView( mnode_t *node )
+{
+	vec2_t	delta, size;
+	vec3_t	center, half;
+
+	VectorAverage( node->minmaxs, node->minmaxs + 3, center );
+	VectorSubtract( node->minmaxs + 3, center, half );
+	Vector2Subtract( center, world_orthocenter, delta );
+	Vector2Add( half, world_orthohalf, size );
+	return ( fabs( delta[0] ) > size[0] ) || ( fabs( delta[1] ) > size[1] );
+}
+
+static void R_CollectTopView( mnode_t *node, uint clipflags, csretro_collect_t *st )
+{
+	do
+	{
+		int i, firstsurface, numsurfaces;
+
+		if( !node || node->contents == CONTENTS_SOLID )
+			return;
+		if( node->visframe != tr.visframecount )
+			return;
+
+		if( clipflags && !r_nocull.value )
+		{
+			for( i = 0; i < 6; i++ )
+			{
+				const mplane_t *p = &RI.frustum.planes[i];
+				int clipped;
+
+				if( !FBitSet( clipflags, BIT( i )))
+					continue;
+				clipped = BOX_ON_PLANE_SIDE( node->minmaxs, node->minmaxs + 3, p );
+				if( clipped == 2 )
+					return;
+				if( clipped == 1 )
+					ClearBits( clipflags, BIT( i ));
+			}
+		}
+
+		if( R_CollectCullNodeTopView( node ))
+			return;
+
+		if( node->contents < 0 )
+		{
+			mleaf_t *pleaf = (mleaf_t *)node;
+			msurface_t **mark = pleaf->firstmarksurface;
+
+			for( i = 0; i < pleaf->nummarksurfaces; i++ )
+			{
+				msurface_t *surf = mark[i];
+				int idx = (int)( surf - WORLDMODEL->surfaces );
+
+				R_VisSetBit( st->leaf_marked, idx );
+				R_ClassifyMarkedSurface( idx, surf, clipflags, st );
+			}
+			R_CollectLeafEfrags( pleaf, st );
+			st->info->visleafs++;
+			return;
+		}
+
+		numsurfaces = node_numsurfaces( node, WORLDMODEL );
+		firstsurface = node_firstsurface( node, WORLDMODEL );
+		for( i = 0; i < numsurfaces; i++ )
+		{
+			msurface_t *surf = &WORLDMODEL->surfaces[firstsurface + i];
+
+			R_VisSetBit( st->leaf_marked, firstsurface + i );
+			R_ClassifyMarkedSurface( firstsurface + i, surf, clipflags, st );
+		}
+
+		R_CollectTopView( node_child( node, 0, WORLDMODEL ), clipflags, st );
+		node = node_child( node, 1, WORLDMODEL );
+	} while( node );
+}
+
+void R_CollectWorldVisibility( csretro_vis_request_t *req, csretro_frame_vis_t *info )
+{
+	static byte	s_bits[16384];
+	csretro_collect_t st;
+	cl_entity_t *oldent;
+	model_t *oldmod;
+	vec3_t oldorg;
+	int bytes;
+	int nsurf;
+	int heap = 0;
+
+	if( !req || !info || !WORLDMODEL || !FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
+		return;
+
+	nsurf = WORLDMODEL->numsurfaces;
+	if( nsurf <= 0 )
+		return;
+
+	bytes = ( nsurf + 7 ) >> 3;
+	memset( &st, 0, sizeof( st ) );
+	st.req = req;
+	st.info = info;
+	st.marked_bytes = bytes;
+	if( bytes * 2 <= (int)sizeof( s_bits ))
+		st.leaf_marked = s_bits;
+	else
+	{
+		st.leaf_marked = (byte *)Mem_Malloc( r_temppool, (size_t)bytes * 2 );
+		if( !st.leaf_marked )
+			return;
+		heap = 1;
+	}
+	memset( st.leaf_marked, 0, (size_t)bytes * 2 );
+	st.classified = st.leaf_marked + bytes;
+	st.collect_surf = !req->flags || FBitSet( req->flags, CSRETRO_VIS_COLLECT_SURF );
+	st.collect_efrag = !req->flags || FBitSet( req->flags, CSRETRO_VIS_COLLECT_EFRAG );
+	st.sel_hash = 2166136261u;
+
+	if( st.collect_surf && req->surf_mask_out && req->mask_capacity > 0 )
+		memset( req->surf_mask_out, 0, (size_t)Q_min( req->mask_capacity, bytes ) );
+
+	oldent = RI.currententity;
+	oldmod = RI.currentmodel;
+	VectorCopy( tr.modelorg, oldorg );
+	RI.currententity = CL_GetEntityByIndex( 0 );
+	RI.currentmodel = RI.currententity ? RI.currententity->model : WORLDMODEL;
+	VectorCopy( RI.cullorigin, tr.modelorg );
+
+	if( FBitSet( RI.rvp.flags, RF_DRAW_OVERVIEW ))
+		R_CollectTopView( WORLDMODEL->nodes, RI.frustum.clipFlags, &st );
+	else R_CollectRecursive( WORLDMODEL->nodes, RI.frustum.clipFlags, &st );
+
+	info->selection_hash = st.sel_hash;
+	info->world_surfaces = nsurf;
+	RI.currententity = oldent;
+	RI.currentmodel = oldmod;
+	VectorCopy( oldorg, tr.modelorg );
+	if( heap )
+		Mem_Free( st.leaf_marked );
+}
+
+int R_DrawPreparedSky( const byte *mask, int mask_bytes, csretro_frame_vis_t *info )
+{
+	cl_entity_t *oldent;
+	model_t *oldmod;
+	int i, candidates = 0, drawn = 0;
+
+	if( !WORLDMODEL || !FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
+		return 0;
+	if( ENGINE_GET_PARM( PARM_DEV_OVERVIEW ))
+		return 1;
+
+	oldent = RI.currententity;
+	oldmod = RI.currentmodel;
+	RI.currententity = CL_GetEntityByIndex( 0 );
+	RI.currentmodel = RI.currententity ? RI.currententity->model : WORLDMODEL;
+	VectorCopy( RI.cullorigin, tr.modelorg );
+
+	R_ClearSkyBox();
+	for( i = 0; i < WORLDMODEL->numsurfaces; i++ )
+	{
+		msurface_t *surf = &WORLDMODEL->surfaces[i];
+
+		if( !( surf->flags & SURF_DRAWSKY ))
+			continue;
+		if( mask && mask_bytes > 0 && !R_VisTestBit( mask, mask_bytes, i ))
+			continue;
+		candidates++;
+		R_AddSkyBoxSurface( surf );
+	}
+	if( candidates > 0 )
+	{
+		R_DrawSkyBox();
+		drawn = candidates;
+	}
+	R_ClearSkyBox();
+
+	RI.currententity = oldent;
+	RI.currentmodel = oldmod;
+	if( info )
+	{
+		info->sky_candidates = candidates;
+		info->sky_drawn = drawn;
+	}
+	return candidates > 0 ? 1 : 0;
 }

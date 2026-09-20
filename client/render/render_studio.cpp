@@ -454,7 +454,7 @@ static void FinishPendingVisible( void )
 	s_pending_visible = 0;
 }
 
-int CSRETRO_Studio_DrawList( CSRETRO_SceneStats *stats )
+static int DrawStudioRange( int only_index, CSRETRO_SceneStats *stats )
 {
 	cl_entity_t *saved_ent = NULL;
 	struct model_s *saved_model = NULL;
@@ -476,7 +476,11 @@ int CSRETRO_Studio_DrawList( CSRETRO_SceneStats *stats )
 		cl_entity_t *snap;
 		int ok;
 
+		if( only_index >= 0 && i != only_index )
+			continue;
 		if( !Eligible( e ) )
+			continue;
+		if( only_index < 0 && e->rendermode != kRenderNormal && e->rendermode != 0 )
 			continue;
 		snap = CSRETRO_Scene_StudioSnap( e->snap_index );
 		if( !snap || !snap->model )
@@ -509,6 +513,16 @@ int CSRETRO_Studio_DrawList( CSRETRO_SceneStats *stats )
 	if( stats )
 		CSRETRO_Scene_GetStats( stats );
 	return drawn;
+}
+
+int CSRETRO_Studio_DrawList( CSRETRO_SceneStats *stats )
+{
+	return DrawStudioRange( -1, stats );
+}
+
+int CSRETRO_Studio_DrawOne( int scene_index, CSRETRO_SceneStats *stats )
+{
+	return DrawStudioRange( scene_index, stats );
 }
 
 static int MaybeExplicitShadow( int is_follow_bones )

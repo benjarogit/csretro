@@ -505,14 +505,28 @@ void R_FindViewLeaf( void )
 
 /*
 ===============
-R_SetupFrame
+R_PrepareViewState
+
+Frustum + viewleaf only. No GL write, no clear, no dlight advance.
 ===============
 */
-static void R_SetupFrame( void )
+void R_PrepareViewState( void )
 {
-	// setup viewplane dist
+	R_SetupFrustum();
 	RI.viewplanedist = DotProduct( RI.rvp.vieworigin, RI.vforward );
+	if( FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
+		R_FindViewLeaf();
+}
 
+/*
+===============
+R_SetupFrameDrawState
+
+Visible-path remainder of R_SetupFrame. Safe to run after vis prepare.
+===============
+*/
+static void R_SetupFrameDrawState( void )
+{
 	// NOTE: this request is the fps-killer on some NVidia drivers
 	glState.isFogEnabled = pglIsEnabled( GL_FOG );
 
@@ -521,11 +535,8 @@ static void R_SetupFrame( void )
 		// sort translucents entities by rendermode and distance
 		qsort( tr.draw_list->trans_entities, tr.draw_list->num_trans_entities, sizeof( cl_entity_t* ), R_TransEntityCompare );
 	}
-
-	// current viewleaf
-	if( FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
-		R_FindViewLeaf();
 }
+
 
 /*
 =============
@@ -937,6 +948,162 @@ static void R_DrawEntitiesOnList( void )
 	GL_CheckForErrors();
 }
 
+static unsigned int R_HashBytes( const byte *p, int n )
+{
+	unsigned int h = 2166136261u;
+	int i;
+
+	for( i = 0; i < n; i++ )
+		h = ( h ^ p[i] ) * 16777619u;
+	return h;
+}
+
+static unsigned int R_HashFloats( unsigned int h, const float *v, int n )
+{
+	int i;
+
+	for( i = 0; i < n; i++ )
+	{
+		union { float f; unsigned int u; } u;
+		u.f = v[i];
+		h = ( h ^ u.u ) * 16777619u;
+	}
+	return h;
+}
+
+static int R_LeafNum( const mleaf_t *leaf )
+{
+	if( !leaf || !WORLDMODEL || !WORLDMODEL->leafs )
+		return -1;
+	return (int)( leaf - WORLDMODEL->leafs );
+}
+
+static void R_FillPreparedVisInfo( csretro_frame_vis_t *info, int pvsbytes )
+{
+	int i;
+
+	info->version = CSRETRO_FRAME_VIS_VERSION;
+	info->prepared = 1;
+	info->pvsbytes = pvsbytes;
+	info->viewleaf = R_LeafNum( RI.viewleaf );
+	info->oldviewleaf = R_LeafNum( RI.oldviewleaf );
+	info->overview = FBitSet( RI.rvp.flags, RF_DRAW_OVERVIEW ) ? 1 : 0;
+	info->novis = ( r_novis.value || info->overview || !RI.viewleaf || !WORLDMODEL || !WORLDMODEL->visdata ) ? 1 : 0;
+	info->lockpvs = r_lockpvs.value ? 1 : 0;
+	info->cross_leaf = tr.csretro_cross_leaf ? 1 : 0;
+	VectorCopy( RI.rvp.vieworigin, info->origin );
+	VectorCopy( RI.rvp.viewangles, info->angles );
+	VectorCopy( RI.vforward, info->vforward );
+	VectorCopy( RI.vright, info->vright );
+	VectorCopy( RI.vup, info->vup );
+	info->pvs_hash = ( pvsbytes > 0 ) ? R_HashBytes( RI.visbytes, pvsbytes ) : 0;
+	info->frustum_sig = 2166136261u;
+	for( i = 0; i < 6; i++ )
+	{
+		info->frustum_sig = R_HashFloats( info->frustum_sig, RI.frustum.planes[i].normal, 3 );
+		info->frustum_sig = R_HashFloats( info->frustum_sig, &RI.frustum.planes[i].dist, 1 );
+	}
+	if( WORLDMODEL )
+		info->world_surfaces = WORLDMODEL->numsurfaces;
+
+	if( WORLDMODEL && pvsbytes > 0 )
+	{
+		vec3_t mins, maxs;
+
+		VectorCopy( RI.rvp.vieworigin, mins );
+		VectorCopy( RI.rvp.vieworigin, maxs );
+		mins[0] -= 8.0f; mins[1] -= 8.0f; mins[2] -= 8.0f;
+		maxs[0] += 8.0f; maxs[1] += 8.0f; maxs[2] += 8.0f;
+		info->box_visible = gEngfuncs.Mod_BoxVisible( mins, maxs, RI.visbytes ) ? 1 : 0;
+		info->box_hidden = 0;
+		if( !info->novis )
+		{
+			for( i = 0; i < WORLDMODEL->numleafs; i++ )
+			{
+				mleaf_t *leaf;
+
+				if( CHECKVISBIT( RI.visbytes, i ))
+					continue;
+				leaf = &WORLDMODEL->leafs[i + 1];
+				if( leaf->contents == CONTENTS_SOLID )
+					continue;
+				if( !gEngfuncs.Mod_BoxVisible( leaf->minmaxs, leaf->minmaxs + 3, RI.visbytes ))
+				{
+					info->box_hidden = 1;
+					break;
+				}
+			}
+		}
+	}
+}
+
+/*
+===============
+R_PrepareCurrentFrameVis
+
+Canonical current-frame vis. No visible draw/clear/fog/ripple/dlight.
+===============
+*/
+int R_PrepareCurrentFrameVis( csretro_vis_request_t *req )
+{
+	csretro_frame_vis_t local;
+	csretro_frame_vis_t *info;
+	int flags;
+	int pvsbytes = 0;
+
+	if( !req || req->version != CSRETRO_FRAME_VIS_VERSION )
+		return 0;
+
+	if( req->rvp )
+		RI.rvp = *req->rvp;
+
+	flags = req->flags;
+	if( !flags )
+		flags = CSRETRO_VIS_PREPARE | CSRETRO_VIS_COLLECT_SURF | CSRETRO_VIS_COLLECT_EFRAG;
+
+	info = req->info ? req->info : &local;
+	if( req->info )
+		memset( info, 0, sizeof( *info ));
+	else
+		memset( &local, 0, sizeof( local ));
+
+	if( flags & CSRETRO_VIS_DRAW_SKY )
+		return R_DrawPreparedSky( req->surf_mask_out, req->mask_capacity, info );
+
+	if( tr.csretro_vis_prepared )
+		info->reused = 1;
+	else
+	{
+		R_PrepareViewState();
+		R_MarkLeaves();
+		tr.csretro_vis_prepared = true;
+	}
+
+	if( gpGlobals->visbytes > 0 )
+		pvsbytes = (int)gpGlobals->visbytes;
+	else if( WORLDMODEL && WORLDMODEL->numleafs > 0 )
+		pvsbytes = ( WORLDMODEL->numleafs + 7 ) >> 3;
+
+	if( req->pvs_out && req->pvs_capacity > 0 )
+	{
+		int n = Q_min( pvsbytes, req->pvs_capacity );
+
+		if( n > 0 )
+			memcpy( req->pvs_out, RI.visbytes, n );
+		if( n < req->pvs_capacity )
+			memset( req->pvs_out + n, 0, (size_t)( req->pvs_capacity - n ));
+	}
+
+	R_FillPreparedVisInfo( info, pvsbytes );
+
+	if( flags & ( CSRETRO_VIS_COLLECT_SURF | CSRETRO_VIS_COLLECT_EFRAG ))
+		R_CollectWorldVisibility( req, info );
+
+	if( req->info )
+		*req->info = *info;
+	return 1;
+}
+
 /*
 ================
 R_RenderScene
@@ -959,12 +1126,17 @@ void R_RenderScene( void )
 
 	tr.dlightframecount = R_PushDlights( WORLDMODEL, tr.framecount );
 
-	R_SetupFrustum();
-	R_SetupFrame();
+	if( !tr.csretro_vis_prepared )
+	{
+		R_PrepareViewState();
+		R_MarkLeaves();
+	}
+	tr.csretro_vis_prepared = false;
+
+	R_SetupFrameDrawState();
 	R_SetupGL( true );
 	R_Clear( ~0 );
 
-	R_MarkLeaves();
 	R_DrawFog ();
 	if( FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
 		R_AnimateRipples();

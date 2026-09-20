@@ -187,6 +187,67 @@ struct msurface_s;
 struct cl_entity_s;
 struct texture_s;
 
+#define CSRETRO_FRAME_VIS_VERSION	1
+#define CSRETRO_VIS_PREPARE		1
+#define CSRETRO_VIS_COLLECT_SURF	2
+#define CSRETRO_VIS_COLLECT_EFRAG	4
+#define CSRETRO_VIS_DRAW_SKY		8
+
+typedef struct csretro_efrag_info_s
+{
+	int		entity_index;
+	int		model_type;
+	int		leaf;
+	float		origin[3];
+} csretro_efrag_info_t;
+
+typedef struct csretro_frame_vis_s
+{
+	int		version;
+	int		prepared;
+	int		pvsbytes;
+	int		visleafs;
+	int		viewleaf;
+	int		oldviewleaf;
+	int		overview;
+	int		novis;
+	int		lockpvs;
+	int		cross_leaf;
+	unsigned int	pvs_hash;
+	unsigned int	frustum_sig;
+	float		origin[3];
+	float		angles[3];
+	float		vforward[3];
+	float		vright[3];
+	float		vup[3];
+	int		world_surfaces;
+	int		pvs_rejected;
+	int		frustum_rejected;
+	int		backface_rejected;
+	int		drawn;
+	unsigned int	selection_hash;
+	int		efrag_count;
+	int		sky_candidates;
+	int		sky_drawn;
+	int		box_visible;
+	int		box_hidden;
+	int		reused;
+} csretro_frame_vis_t;
+
+typedef struct csretro_vis_request_s
+{
+	int		version;
+	int		flags;
+	const struct ref_viewpass_s *rvp;
+	byte		*pvs_out;
+	int		pvs_capacity;
+	byte		*surf_mask_out;
+	int		mask_capacity;
+	struct csretro_efrag_info_s *efrag_out;
+	int		efrag_capacity;
+	struct csretro_frame_vis_s *info;
+} csretro_vis_request_t;
+
 typedef struct render_api_s
 {
 	// Get renderer info (doesn't changes engine state at all)
@@ -289,6 +350,13 @@ typedef struct render_api_s
 	// render frame. 1 = first claim, eligible Studio pass ran; 0 = first
 	// claim, eligibility rejected / no Studio VM; -1 = already claimed.
 	int		(*RunViewmodelEventsOnce)( void );
+	// Prepare current-frame frustum / viewleaf / PVS without visible
+	// draw, clear, fog, ripple, or R_PushDlights. Copies PVS into a
+	// client-owned buffer. Optional surface mask and efrag inventory
+	// use the same R_RecursiveWorldNode semantics without mutating
+	// surfaces or calling CL_AddVisibleEntity. CSRETRO_VIS_DRAW_SKY
+	// draws prepared sky surfaces when the caller already owns GL.
+	int		(*PrepareCurrentFrameVis)( struct csretro_vis_request_s *req );
 } render_api_t;
 
 // render callbacks

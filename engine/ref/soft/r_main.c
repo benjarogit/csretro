@@ -1046,6 +1046,57 @@ static void R_MarkLeaves( void )
 	}
 }
 
+int R_PrepareCurrentFrameVis( csretro_vis_request_t *req )
+{
+	csretro_frame_vis_t *info;
+	int pvsbytes = 0;
+
+	if( !req || req->version != CSRETRO_FRAME_VIS_VERSION )
+		return 0;
+	if( req->rvp )
+		RI.rvp = *req->rvp;
+	if( req->flags & CSRETRO_VIS_DRAW_SKY )
+		return 0;
+
+	if( !tr.csretro_vis_prepared )
+	{
+		R_SetupFrustum();
+		R_MarkLeaves();
+		tr.csretro_vis_prepared = true;
+	}
+
+	if( gpGlobals->visbytes > 0 )
+		pvsbytes = (int)gpGlobals->visbytes;
+	else if( WORLDMODEL && WORLDMODEL->numleafs > 0 )
+		pvsbytes = ( WORLDMODEL->numleafs + 7 ) >> 3;
+
+	if( req->pvs_out && req->pvs_capacity > 0 )
+	{
+		int n = Q_min( pvsbytes, req->pvs_capacity );
+
+		if( n > 0 )
+			memcpy( req->pvs_out, RI.visbytes, n );
+		if( n < req->pvs_capacity )
+			memset( req->pvs_out + n, 0, (size_t)( req->pvs_capacity - n ));
+	}
+
+	info = req->info;
+	if( info )
+	{
+		memset( info, 0, sizeof( *info ));
+		info->version = CSRETRO_FRAME_VIS_VERSION;
+		info->prepared = 1;
+		info->pvsbytes = pvsbytes;
+		info->novis = r_novis.value ? 1 : 0;
+		VectorCopy( RI.rvp.vieworigin, info->origin );
+		VectorCopy( RI.rvp.viewangles, info->angles );
+		VectorCopy( RI.vforward, info->vforward );
+		VectorCopy( RI.vright, info->vright );
+		VectorCopy( RI.vup, info->vup );
+	}
+	return 1;
+}
+
 /*
 ================
 R_RenderScene
@@ -1071,7 +1122,8 @@ void GAME_EXPORT R_RenderScene( void )
 	}
 
 
-	R_SetupFrustum();
+	if( !tr.csretro_vis_prepared )
+		R_SetupFrustum();
 	R_SetupFrame();
 
 	tr.dlightframecount = R_PushDlights( WORLDMODEL, tr.framecount );
@@ -1084,7 +1136,9 @@ void GAME_EXPORT R_RenderScene( void )
 //	R_SetupGL( true );
 	// R_Clear( ~0 );
 
-	R_MarkLeaves();
+	if( !tr.csretro_vis_prepared )
+		R_MarkLeaves();
+	tr.csretro_vis_prepared = false;
 	// R_PushDlights (r_worldmodel); ??
 	// R_DrawWorld();
 	R_EdgeDrawing();

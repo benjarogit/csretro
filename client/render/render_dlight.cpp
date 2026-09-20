@@ -614,12 +614,13 @@ int CSRETRO_DLight_Lookup( void *model, int surface_index, CSRETRO_DLightPatch *
 	int i;
 	for( i = 0; i < s_patch_n; i++ )
 	{
-		if( s_patches[i].used && s_patches[i].model == model && s_patches[i].surface_index == surface_index )
-		{
-			if( out )
-				*out = s_patches[i];
-			return 1;
-		}
+		if( !s_patches[i].used || s_patches[i].surface_index != surface_index )
+			continue;
+		if( model && s_patches[i].model != model )
+			continue;
+		if( out )
+			*out = s_patches[i];
+		return 1;
 	}
 	return 0;
 }

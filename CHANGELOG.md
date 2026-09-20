@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.49 — 2026-09-20
+
+### Renderer
+
+- PX5 Vis-Seam hinter `return 0`: Tail-API `PrepareCurrentFrameVis` (`REF_API_VERSION` 23), `Mod_GetCurrentVis` auf einem Client-PVS-Puffer, World-Surface-Maske auf `CSRETRO_BspMesh`, efrag-Inventar ohne Live-Steal, Xash-Sky-Draw aus der Maske, eine globale Trans-Liste. `R_RenderScene` reused den vorbereiteten Zustand. `GL_RenderFrame` bleibt 0. Issue #11 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.48 — 2026-09-20
 
 ### Architektur / Dokumentation

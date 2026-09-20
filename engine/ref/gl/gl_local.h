@@ -209,6 +209,8 @@ typedef struct
 	qboolean		fCustomRendering;
 	qboolean		fResetVis;
 	qboolean		fFlipViewModel;
+	qboolean		csretro_vis_prepared;
+	qboolean		csretro_cross_leaf;
 
 	byte		visbytes[(MAX_MAP_LEAFS+7)/8];	// member custom PVS
 	int		block_size;			// lightmap blocksize
@@ -370,6 +372,10 @@ int CL_FxBlend( cl_entity_t *e );
 // gl_rsurf.c
 //
 void R_MarkLeaves( void );
+void R_PrepareViewState( void );
+int R_PrepareCurrentFrameVis( struct csretro_vis_request_s *req );
+void R_CollectWorldVisibility( struct csretro_vis_request_s *req, struct csretro_frame_vis_s *info );
+int R_DrawPreparedSky( const byte *mask, int mask_bytes, struct csretro_frame_vis_s *info );
 void R_DrawWorld( void );
 void R_DrawWaterSurfaces( void );
 void R_DrawBrushModel( cl_entity_t *e );

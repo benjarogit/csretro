@@ -870,6 +870,22 @@ static int BindAtlas( void )
 	return 1;
 }
 
+static int SpanVisible( const CSRETRO_MeshDrawContext *ctx, int surface_index )
+{
+	int b;
+
+	if( !ctx || !ctx->surf_mask || ctx->surf_mask_bytes <= 0 )
+		return 1;
+	if( surface_index < 0 )
+		return 0;
+	if( CSRETRO_DLight_Lookup( NULL, surface_index, NULL ) )
+		return 1;
+	b = surface_index >> 3;
+	if( b >= ctx->surf_mask_bytes )
+		return 0;
+	return ( ctx->surf_mask[b] >> ( surface_index & 7 ) ) & 1;
+}
+
 static void DrawSpanLit( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *batch, const CSRETRO_SurfaceSpan *span, const CSRETRO_MeshDrawContext *ctx, int bind_textures, float sOff, float tOff )
 {
 	int has_lm;
@@ -917,6 +933,8 @@ static void DrawBatchLit( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *
 
 			if( span->batch_index != batch_index )
 				continue;
+			if( !SpanVisible( ctx, span->surface_index ) )
+				continue;
 			resolved = ResolveDrawTexture( mesh, batch, span->surface_index, ctx );
 			if( resolved && resolved->fb_texturenum )
 				s_random_any_fb = 1;
@@ -937,6 +955,11 @@ static void DrawBatchLit( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *
 			s++;
 			continue;
 		}
+		if( !SpanVisible( ctx, span->surface_index ) )
+		{
+			s++;
+			continue;
+		}
 		if( CSRETRO_DLight_Lookup( mesh->model, span->surface_index, &patch ) && atlas > 0 )
 		{
 			DrawSpanLit( mesh, batch, span, ctx, bind_textures, sOff, tOff );
@@ -948,6 +971,7 @@ static void DrawBatchLit( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *
 			int tris = 0;
 			has_lm = BindLightmap( mesh, batch, ctx, bind_textures );
 			while( s < mesh->span_count && mesh->spans[s].batch_index == batch_index
+				&& SpanVisible( ctx, mesh->spans[s].surface_index )
 				&& !CSRETRO_DLight_Lookup( mesh->model, mesh->spans[s].surface_index, NULL ) )
 			{
 				tris += mesh->spans[s].tri_count;
@@ -1143,6 +1167,8 @@ void CSRETRO_BspMesh_Draw( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshDrawCo
 				{
 					const CSRETRO_SurfaceSpan *span = &mesh->spans[s];
 					if( span->batch_index != b )
+						continue;
+					if( !SpanVisible( ctx, span->surface_index ) )
 						continue;
 					resolved = ResolveRandomSilent( mesh, base, span->surface_index, ctx );
 					if( !resolved || !resolved->fb_texturenum )
@@ -1423,6 +1449,8 @@ void CSRETRO_BspMesh_DrawWater( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshD
 		int has_lm = 0;
 
 		if( batch->tri_count <= 0 )
+			continue;
+		if( !ctx->is_brush && !SpanVisible( ctx, batch->surface_index ) )
 			continue;
 
 		if( ctx->is_brush )

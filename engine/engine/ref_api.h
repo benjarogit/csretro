@@ -88,7 +88,9 @@ GNU General Public License for more details.
 // 22. CS Retro: render_api_t tail RunViewmodelEventsOnce. Client can claim the
 //     existing Xash viewmodel-event path once for the active render frame.
 //     Default Xash invocation becomes idempotent for that frame.
-#define REF_API_VERSION 22
+// 23. CS Retro: render_api_t tail PrepareCurrentFrameVis. Xash owns frustum /
+//     viewleaf / PVS. Client copies current-frame vis; R_RenderScene reuses it.
+#define REF_API_VERSION 23
 
 #define TF_SKY		(TF_SKYSIDE|TF_NOMIPMAP|TF_ALLOW_NEAREST)
 #define TF_FONT		(TF_NOMIPMAP|TF_CLAMP|TF_ALLOW_NEAREST)

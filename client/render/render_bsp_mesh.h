@@ -107,6 +107,8 @@ typedef struct CSRETRO_MeshDrawContext_s
 	float entity_mins[3];
 	int random_force_base;
 	int random_only;
+	const unsigned char *surf_mask;
+	int surf_mask_bytes;
 } CSRETRO_MeshDrawContext;
 
 typedef struct CSRETRO_MeshDrawStats_s

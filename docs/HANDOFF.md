@@ -3,11 +3,11 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
-## Stand 2026-09-20 — PX5 Vis gestartet; #11 OPEN
+## Stand 2026-09-20 — PX5 Vis-Seam hinter return 0; #11 bleibt OPEN
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
-`GL_RenderFrame` bleibt 0. Issue #7/#9/#10 geschlossen. Issue #11 offen bis PX5-DoD.
-#1 #2 #3 unverändert OPEN.
+`GL_RenderFrame` bleibt 0. Issue #7/#9/#10 geschlossen. Issue #11 offen bis komplettes DoD.
+#1 #2 #3 unverändert OPEN. `return 1` nicht starten.
 
 ```
 r_csretro_renderer 0 → Xash sichtbar
@@ -15,15 +15,29 @@ r_csretro_renderer 1 → CS-Retro offscreen + sichtbarer Xash-Fallback
 GL_RenderFrame        → immer 0
 ```
 
-**Vertrag:** Xash/ref besitzt kanonische Frame-/Vis-Berechnung. Eine Tail-API
-(`PrepareCurrentFrameVis`) liefert current-frame Frustum/PVS/Surface-Maske/efrag-Inventar.
-Client kopiert PVS in einen eigenen Frame-Puffer. `Mod_GetCurrentVis` gibt genau diesen
-Puffer zurück. Keine zweite Client-PVS-Formel. `return 1` nicht starten.
+**Vertrag:** eine Tail-API `PrepareCurrentFrameVis` (`REF_API_VERSION` 23). Xash berechnet
+Frustum/Viewleaf/PVS (`R_SetupFrustum` / `R_FindViewLeaf` / `R_MarkLeaves`). Client kopiert
+PVS in einen eigenen Frame-Puffer. `Mod_GetCurrentVis` gibt genau diesen Puffer zurück.
+`R_RenderScene` nach return 0 reused denselben Zustand (kein zweites MarkLeaves).
+World-Draw nutzt eine Surface-Maske auf `CSRETRO_BspMesh`. Keine zweite PVS-Formel.
 
+```
+current-frame Frustum/PVS/Mod_GetCurrentVis: VERIFIED (pvs_match=1, reused=1)
+world PVS+frustum selection: VERIFIED (drawn≠all, selection_hash ändert sich)
+efrag: implemented safety contract / runtime NOT REPRODUCIBLE (count=0 auf aztec/torn/assault/dust)
+sky: implemented (candidates/drawn>0); FBO pixelproof differ=0 nonempty=0 — verification pending
+trans order: implemented (eine Liste, Brush/Sprite/Studio-Dispatch); overlapping Teilfälle N/R
+fog: explicit safe contract — visible Xash R_DrawFog/R_CheckFog; client triangle fog = draw-only
+ripple: explicit safe contract — visible Xash R_AnimateRipples
+alias: NOT REPRODUCIBLE WITH CURRENT GAME CONTENT
+```
+
+Probe: `./scripts/px5-vis-probe.sh` PASS. Shots `build/px5-vis-shots/` (nicht committed).
+Pflicht-Gates PASS: movement, px7-tri-overview, sprite, brush A/B/C/D, random-tiled, px4b2, px4c1, px4c2.
 Issue: https://github.com/benjarogit/csretro/issues/11
 
-**Nächster Schritt:** PX5A–G hinter `return 0` fertigmachen. Kein sichtbarer Takeover.
-#1 #2 #3 nicht schließen. #7 #9 #10 nicht wieder öffnen.
+**Nächster Schritt:** nur nach neuer Freigabe. `return 1` nicht starten.
+#1 #2 #3 nicht schließen. #7 #9 #10 nicht wieder öffnen. #11 nicht schließen ohne DoD.
 
 ## Stand 2026-09-20 — PX4C.2 Event-Ownership VERIFIED; #10 CLOSED
 

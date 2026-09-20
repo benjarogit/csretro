@@ -8,6 +8,8 @@
 #include "render_bsp_mesh.h"
 #include "render_decal.h"
 #include "render_dlight.h"
+#include "render_vis.h"
+#include "render_trans.h"
 
 #include "hud.h"
 #include "cl_util.h"
@@ -27,6 +29,8 @@ static_assert( offsetof( render_api_t, ResolveSurfaceTextureReadOnly ) == offset
 	"v37 prefix: ResolveSurfaceTextureReadOnly must follow BuildSurfaceLightmapReadOnly" );
 static_assert( offsetof( render_api_t, RunViewmodelEventsOnce ) == offsetof( render_api_t, ResolveSurfaceTextureReadOnly ) + sizeof( void * ),
 	"v37 prefix: RunViewmodelEventsOnce must be the tail slot after ResolveSurfaceTextureReadOnly" );
+static_assert( offsetof( render_api_t, PrepareCurrentFrameVis ) == offsetof( render_api_t, RunViewmodelEventsOnce ) + sizeof( void * ),
+	"v37 prefix: PrepareCurrentFrameVis must be the tail slot after RunViewmodelEventsOnce" );
 
 static cvar_t *s_renderer = NULL;
 static cvar_t *s_dump = NULL;
@@ -75,6 +79,7 @@ static int s_water_crc_logged = 0;
 static int s_water_opaque_crc_logged = 0;
 static int s_water_alpha_logged = 0;
 static int s_water_wave_logged = 0;
+static int s_sky_crc_logged = 0;
 static int s_decal_logged = 0;
 static int s_decal_drawn_logged = 0;
 static int s_decal_crc_logged = 0;
@@ -293,6 +298,7 @@ void CSRETRO_Renderer_OnNewMap( void )
 	CSRETRO_Brush_OnNewMap();
 	CSRETRO_Decal_OnNewMap();
 	CSRETRO_DLight_OnNewMap();
+	CSRETRO_Vis_OnNewMap();
 	CSRETRO_Backend_AllowDump();
 	s_proof_logged = 0;
 	ResetSpriteProof();
@@ -389,6 +395,11 @@ static void FillWorldMeshContext( CSRETRO_MeshDrawContext *ctx, const float *vie
 		ctx->rendermode = snap.curstate.rendermode;
 		ctx->wave_scale = snap.curstate.scale;
 		ctx->effects = snap.curstate.effects;
+	}
+	if( CSRETRO_Vis_Valid() )
+	{
+		ctx->surf_mask = CSRETRO_Vis_SurfMask();
+		ctx->surf_mask_bytes = CSRETRO_Vis_SurfMaskBytes();
 	}
 }
 
@@ -492,6 +503,9 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		}
 	}
 
+	CSRETRO_Vis_Prepare( rvp );
+	CSRETRO_Vis_FeedEfrags();
+
 	if( !s_backend_ok )
 	{
 		s_backend_ok = CSRETRO_Backend_Init( &gRenderAPI );
@@ -552,6 +566,8 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				proof.random_only = 1;
 				proof.random_force_base = 1;
 				proof.skip_fullbright = 1;
+				proof.surf_mask = NULL;
+				proof.surf_mask_bytes = 0;
 				CSRETRO_Backend_PrepareImmediateDraw();
 				CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &proof );
 				memset( &crc_base, 0, sizeof( crc_base ) );
@@ -572,6 +588,26 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		memset( &world_base_proof, 0, sizeof( world_base_proof ) );
 		CSRETRO_Backend_SampleProof( &world_base_proof );
 		CSRETRO_DLight_NoteWorldCrc( world_base_proof.crc, CSRETRO_DLight_PatchCount() );
+		{
+			CSRETRO_OffscreenProof after_sky;
+			const csretro_frame_vis_t *vi = CSRETRO_Vis_Info();
+
+			CSRETRO_Vis_DrawSky();
+			CSRETRO_Backend_PrepareImmediateDraw();
+			memset( &after_sky, 0, sizeof( after_sky ) );
+			CSRETRO_Backend_SampleProof( &after_sky );
+			if( !s_sky_crc_logged && vi && vi->sky_candidates > 0 && vi->viewleaf >= 0 )
+			{
+				s_sky_crc_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: sky pixelproof before=%08x after=%08x differ=%i candidates=%i drawn=%i nonempty=%i\n",
+					world_base_proof.crc, after_sky.crc,
+					world_base_proof.crc != after_sky.crc ? 1 : 0,
+					vi->sky_candidates, vi->sky_drawn, after_sky.nonempty_pixels );
+			}
+			if( after_sky.crc != world_base_proof.crc )
+				world_base_proof = after_sky;
+		}
 		if( CSRETRO_World_HasWater() && world_ctx.water_alpha >= 1.0f )
 		{
 			CSRETRO_OffscreenProof after_water;
@@ -852,7 +888,9 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_OffscreenProof before_trans_brush;
 			memset( &before_trans_brush, 0, sizeof( before_trans_brush ) );
 			CSRETRO_Backend_SampleProof( &before_trans_brush );
-			CSRETRO_Brush_DrawPass( 0, &scene );
+			CSRETRO_Sprite_SetNoDepth( s_nodepth_try == 1 );
+			CSRETRO_Trans_Draw( org, ang, &scene, rvp );
+			CSRETRO_Sprite_SetNoDepth( 0 );
 			if( s_water_crc_logged != 1 )
 			{
 				CSRETRO_OffscreenProof after_trans_w;
@@ -990,8 +1028,6 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 		}
-		CSRETRO_Sprite_SetNoDepth( s_nodepth_try == 1 );
-		CSRETRO_Sprite_DrawList( org, ang, &scene );
 		CSRETRO_Sprite_SetNoDepth( 0 );
 		{
 			CSRETRO_OffscreenProof after_sprites;
@@ -1380,8 +1416,9 @@ static void RunProbeSeq( void )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int viewmodelc = s_probe_seq->value >= 12.0f;
-			int playerc = !viewmodelc && s_probe_seq->value >= 11.0f;
+			int visc = s_probe_seq->value >= 14.0f;
+			int viewmodelc = !visc && s_probe_seq->value >= 12.0f;
+			int playerc = !visc && !viewmodelc && s_probe_seq->value >= 11.0f;
 			int randomc = !viewmodelc && !playerc && s_probe_seq->value >= 10.0f;
 			int dlightc = !viewmodelc && !playerc && !randomc && s_probe_seq->value >= 9.0f;
 			int decalc = !viewmodelc && !playerc && !dlightc && !randomc && s_probe_seq->value >= 8.0f;
@@ -1391,7 +1428,73 @@ static void RunProbeSeq( void )
 			int efx = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
 			int brush = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
 			int px3c = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
-			if( viewmodelc )
+			if( visc )
+			{
+				if( s_probe_step == 0 && elapsed >= 3.0f )
+				{
+					s_probe_step = 1;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vis ready\n" );
+					gEngfuncs.pfnClientCmd( "r_novis 1\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_novis 1\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 6.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.pfnClientCmd( "r_novis 0\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_novis 0\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 8.0f )
+				{
+					s_probe_step = 3;
+					gEngfuncs.pfnClientCmd( "r_lockpvs 1\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_lockpvs 1\n" );
+				}
+				else if( s_probe_step == 3 && elapsed >= 10.0f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.pfnClientCmd( "r_lockpvs 0\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_lockpvs 0\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 12.0f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.pfnClientCmd( "spec_mode 5\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq spec_mode 5\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 15.0f )
+				{
+					s_probe_step = 6;
+					gEngfuncs.pfnClientCmd( "spec_mode 0\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq spec_mode 0\n" );
+					gEngfuncs.pfnClientCmd( "map de_torn\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_torn\n" );
+				}
+				else if( s_probe_step == 6 && elapsed >= 22.0f )
+				{
+					s_probe_step = 7;
+					gEngfuncs.pfnClientCmd( "map cs_assault\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map cs_assault\n" );
+				}
+				else if( s_probe_step == 7 && elapsed >= 29.0f )
+				{
+					s_probe_step = 8;
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
+				}
+				else if( s_probe_step == 8 && elapsed >= 36.0f )
+				{
+					s_probe_step = 9;
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 9 && elapsed >= 40.0f )
+				{
+					s_probe_step = 10;
+					gEngfuncs.pfnClientCmd( "quit\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
+				}
+			}
+			else if( viewmodelc )
 			{
 				if( s_probe_step == 0 && elapsed >= 2.0f )
 				{

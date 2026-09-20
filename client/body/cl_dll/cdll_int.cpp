@@ -536,7 +536,7 @@ static render_interface_t gCSRetroRenderInterface = {
 	NULL, // R_SpeedsMessage
 	CSRETRO_Mod_ProcessUserData,
 	NULL, // R_ProcessEntData — PX3C/PX4
-	NULL, // Mod_GetCurrentVis — erst vor return 1
+	CSRETRO_Mod_GetCurrentVis,
 	CSRETRO_R_NewMap,
 	CSRETRO_R_ClearScene, // additiv: nur CS-Retro-Spiegelliste
 	NULL  // CL_UpdateLatchedVars — Studio-Lerp, später
@@ -561,7 +561,7 @@ int DLLEXPORT HUD_GetRenderInterface( int version, render_api_t *renderfuncs, re
 
 	s_glRenderFrameLogged = 0;
 	gEngfuncs.Con_Printf( "CS Retro: HUD_GetRenderInterface accepted v%i\n", CL_RENDER_INTERFACE_VERSION );
-	gEngfuncs.Con_Printf( "CS Retro: CS-Retro render callbacks registered (GL_RenderFrame always 0, R_ClearScene additive)\n" );
+	gEngfuncs.Con_Printf( "CS Retro: CS-Retro render callbacks registered (GL_RenderFrame always 0, R_ClearScene additive, Mod_GetCurrentVis active)\n" );
 
 	return true;
 }

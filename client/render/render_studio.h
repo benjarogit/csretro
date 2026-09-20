@@ -8,6 +8,7 @@ struct ref_viewpass_s;
 // Local world-draw = CL_IsThirdPerson() || index != rvp->viewentity (Xash).
 // Never STUDIO_EVENTS. Visible Xash path is unchanged.
 int CSRETRO_Studio_DrawList( struct CSRETRO_SceneStats_s *stats );
+int CSRETRO_Studio_DrawOne( int scene_index, struct CSRETRO_SceneStats_s *stats );
 int CSRETRO_Studio_DrawPlayers( struct CSRETRO_SceneStats_s *stats, const struct ref_viewpass_s *rvp );
 
 // MOVETYPE_FOLLOW children. Non-player parent: StudioDrawModel(0).

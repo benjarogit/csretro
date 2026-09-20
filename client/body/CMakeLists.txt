@@ -47,6 +47,8 @@ set(CS_SOURCES
     "${RENDER_DIR}/render_brush.cpp"
     "${RENDER_DIR}/render_decal.cpp"
     "${RENDER_DIR}/render_dlight.cpp"
+    "${RENDER_DIR}/render_vis.cpp"
+    "${RENDER_DIR}/render_trans.cpp"
 )
 
 if(NOT HAVE_STRLCPY)

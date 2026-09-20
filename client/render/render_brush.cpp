@@ -388,7 +388,7 @@ const CSRETRO_BrushMove *CSRETRO_Brush_LastMove( void )
 	return &s_last_move;
 }
 
-int CSRETRO_Brush_DrawPass( int opaque_only, CSRETRO_SceneStats *stats )
+static int DrawBrushRange( int only_index, int opaque_only, CSRETRO_SceneStats *stats )
 {
 	int i, n, drawn = 0;
 
@@ -401,6 +401,8 @@ int CSRETRO_Brush_DrawPass( int opaque_only, CSRETRO_SceneStats *stats )
 	for( i = 0; i < n; i++ )
 	{
 		const CSRETRO_EntCopy *e = CSRETRO_Scene_Get( i );
+		if( only_index >= 0 && i != only_index )
+			continue;
 		const xr_model_t *mod;
 		CSRETRO_BspMesh *mesh;
 		int bind_tex;
@@ -542,4 +544,14 @@ int CSRETRO_Brush_DrawPass( int opaque_only, CSRETRO_SceneStats *stats )
 	if( stats )
 		CSRETRO_Scene_GetStats( stats );
 	return drawn;
+}
+
+int CSRETRO_Brush_DrawPass( int opaque_only, CSRETRO_SceneStats *stats )
+{
+	return DrawBrushRange( -1, opaque_only, stats );
+}
+
+int CSRETRO_Brush_DrawOne( int scene_index, CSRETRO_SceneStats *stats )
+{
+	return DrawBrushRange( scene_index, 0, stats );
 }

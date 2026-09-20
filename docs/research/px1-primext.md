@@ -470,7 +470,7 @@ Zweiter offscreen GSMR-Aufruf im selben Frame ist **nicht** nebenwirkungsfrei. G
 
 Spiegel = Kopie, keine Live-Pointer über Frames. Model-Pointer nur im Map-/Frame-Lifecycle.
 
-**Player:** PX4B.2 Remote Variante B. PX4B.3 Local Xash-Eligibility + explizite Player-Shadows VERIFIED, #9 CLOSED. Sichtbares GSMR: `m_bLocal` false, `SetupClientAnimation` inaktiv. **Viewmodel:** #10 (DepthRange, Events, Wick, righthand). **FOLLOW:** Non-Player PX4B.1; Player-parent PX4B.2/PX4B.3 implemented / N/R. **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
+**Player:** PX4B.2 Remote Variante B. PX4B.3 Local Xash-Eligibility + explizite Player-Shadows VERIFIED, #9 CLOSED. Sichtbares GSMR: `m_bLocal` false, `SetupClientAnimation` inaktiv. **Viewmodel:** #10 PX4C.1 Body authorized (Event-Ownership PENDING). **FOLLOW:** Non-Player PX4B.1; Player-parent PX4B.2/PX4B.3 implemented / N/R. **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
 
 Erster Draw-Slice (PX4A.1): `ET_NORMAL` + `mod_studio`, kein Viewmodel, kein Player, kein `MOVETYPE_FOLLOW`, nur `STUDIO_RENDER`.
 
@@ -581,7 +581,7 @@ Sichtbares Xash/GSMR Local: `m_bLocal` bleibt false, `SetupClientAnimation` inak
 | Visible Xash | CONFIRMED | Fallback-Log, kein return 1, Movement-Gate PASS |
 | `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab |
 
-Variante C ist nicht mehr festgeschrieben. #9 CLOSED. Viewmodel #10. Vis unberührt. PrimeXT-Studio nicht übernommen.
+Variante C ist nicht mehr festgeschrieben. #9 CLOSED. Viewmodel #10: PX4C.1 Body authorized, Event-Ownership PENDING. Vis unberührt. PrimeXT-Studio nicht übernommen.
 
 ### #7 Brush-Entity Draw (2026-09-20)
 
@@ -956,7 +956,7 @@ Live latched before == after, mutate=0
 
 Probe: `./scripts/px7-sprite-completion-probe.sh`. Shots `build/px7-sprite-cert-shots/` (nicht committed).
 
-#7 CLOSED (Special A/B/C/D/E complete). Player #9 CLOSED (PX4B.3 Local + Shadows VERIFIED). Viewmodel #10, Vis unberührt.
+#7 CLOSED (Special A/B/C/D/E complete). Player #9 CLOSED (PX4B.3 Local + Shadows VERIFIED). Viewmodel #10: PX4C.1 Body authorized, Event-Ownership PENDING. Vis unberührt.
 
 
 

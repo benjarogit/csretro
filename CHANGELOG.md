@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.41 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- #10 synchronisiert: Voraussetzungen #7 CLOSED, #9 CLOSED. Vor return 1 offen: Viewmodel (#10) und Vis. PX4C.1 = Viewmodel BODY; Event-Ownership bleibt PENDING. Issue #10 bleibt offen.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.40 — 2026-09-20
 
 ### Renderer

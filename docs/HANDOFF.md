@@ -3,6 +3,22 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
+## Stand 2026-09-20 — PX4C.1 Viewmodel BODY authorized; #10 bleibt OPEN
+
+Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
+`GL_RenderFrame` bleibt 0. Issue #7 geschlossen. Issue #9 geschlossen. Issue #10 offen.
+
+```
+Viewmodel body: PENDING this slice
+Viewmodel event ownership: PENDING
+```
+
+Vor return 1 offen: **#10 Viewmodel**, Vis. Event-/Wick-Ownership bleibt bei sichtbarem Xash.
+PX4C.1 = nur Viewmodel BODY unter Strategie C. Kein Event-Handoff, kein Vis, kein return 1.
+
+**Nächster Schritt:** PX4C.1 Body (Eligibility, Snapshot, GSMR-Einstieg, Handedness, DepthRange).
+#1 #2 #3 #7 #9 nicht schließen. #10 nicht schließen. #7 #9 nicht wieder öffnen ohne konkretes Bug-Issue.
+
 ## Stand 2026-09-20 — PX4B.3 Local Eligibility + Player Shadows VERIFIED; #9 CLOSED
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
@@ -210,10 +226,10 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 **Offen vor return 1**
 - [#7](https://github.com/benjarogit/csretro/issues/7): **CLOSED**. Brush Special A/B/C/D/E complete. Qualifizierte N/R sind Content-Limits, kein offener Produkt-Unterpunkt.
 - Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)) — **CLOSED** (Remote B, Local Eligibility, Shadows VERIFIED; Player-parent FOLLOW implemented / runtime N/R)
-- Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10))
+- Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10)) — PX4C.1 Body PENDING; Event-Ownership PENDING. Issue bleibt OPEN.
 - Vis
 
-**Nächster Schritt:** nur nach neuer Freigabe. #10 Viewmodel / Vis / `return 1` nicht starten. #1 #2 #3 #7 #9 #10 nicht anfassen. #7 #9 nicht wieder öffnen ohne konkretes Bug-Issue.
+**Nächster Schritt:** PX4C.1 Viewmodel BODY. Vis / Event-Handoff / `return 1` nicht starten. #1 #2 #3 #7 #9 nicht schließen. #10 nicht schließen.
 
 **PX0 bleibt offen**
 - #1 Movement Replay: https://github.com/benjarogit/csretro/issues/1

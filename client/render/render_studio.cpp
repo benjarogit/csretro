@@ -47,6 +47,9 @@ extern int g_iUser2;
 #ifndef GL_FRAMEBUFFER_BINDING
 #define GL_FRAMEBUFFER_BINDING 0x8CA6
 #endif
+#ifndef GL_CULL_FACE
+#define GL_CULL_FACE 0x0B44
+#endif
 
 static CSRETRO_StudioPlayerProof s_player_proof;
 static CSRETRO_StudioViewmodelProof s_vm_proof;
@@ -185,6 +188,22 @@ static unsigned int HashViewModel( const cl_entity_t *ent )
 	h = MixU32( h, (unsigned int)ent->curstate.rendermode );
 	h = MixU32( h, (unsigned int)ent->curstate.renderfx );
 	h = MixU32( h, (unsigned int)ent->curstate.renderamt );
+	for( i = 0; i < 4; i++ )
+	{
+		h = MixFloat( h, ent->attachment[i][0] );
+		h = MixFloat( h, ent->attachment[i][1] );
+		h = MixFloat( h, ent->attachment[i][2] );
+	}
+	return h;
+}
+
+static unsigned int HashAttachments( const cl_entity_t *ent )
+{
+	unsigned int h = 2166136261u;
+	int i;
+
+	if( !ent )
+		return 0;
 	for( i = 0; i < 4; i++ )
 	{
 		h = MixFloat( h, ent->attachment[i][0] );
@@ -1227,6 +1246,12 @@ int CSRETRO_Studio_DrawViewmodel( const ref_viewpass_t *rvp )
 	(void)wick_attempts_before;
 	s_vm_proof.special_flip = g_StudioRenderer.ViewmodelSpecialFlip();
 	s_vm_proof.shield_detected = g_StudioRenderer.ViewmodelShieldDetected();
+	s_vm_proof.event_wick_captures = g_StudioRenderer.EventWickCaptures();
+	s_vm_proof.visible_body_wick_captures = g_StudioRenderer.VisibleBodyWickCaptures();
+	s_vm_proof.studio_event_deliveries = CSRETRO_ViewmodelStudioEventsDelivered();
+	s_vm_proof.molotov_held_advances = EV_MolotovHeldAdvances();
+	s_vm_proof.wick_source_captured = EV_MolotovHeldWickCaptured();
+	s_vm_proof.wick_age = EV_MolotovHeldWickAge();
 
 	if( ok )
 	{
@@ -1235,4 +1260,112 @@ int CSRETRO_Studio_DrawViewmodel( const ref_viewpass_t *rvp )
 	}
 
 	return ok ? 1 : 0;
+}
+
+int CSRETRO_Studio_ClaimViewmodelEvents( const ref_viewpass_t *rvp )
+{
+	cl_entity_t *saved_ent = NULL;
+	struct model_s *saved_model = NULL;
+	cl_entity_t *after_ent = NULL;
+	cl_entity_t *live_vm;
+	float depth_before[2], depth_after[2];
+	unsigned char blend_before = 0, blend_after = 0;
+	unsigned char cull_before = 0, cull_after = 0;
+	int fbo_before = 0, fbo_after = 0;
+	int flags;
+	int first_rc;
+	int second_rc = -2;
+	static int s_stress_done = 0;
+
+	if( !gRenderAPI.RunViewmodelEventsOnce )
+		return 0;
+
+	flags = rvp ? rvp->flags : 0;
+	if( flags & RF_ONLY_CLIENTDRAW )
+		return 0;
+
+	live_vm = gEngfuncs.GetViewModel();
+	if( IEngineStudio.GetCurrentEntity )
+		saved_ent = IEngineStudio.GetCurrentEntity();
+	if( saved_ent )
+		saved_model = saved_ent->model;
+
+	memset( depth_before, 0, sizeof( depth_before ) );
+	memset( depth_after, 0, sizeof( depth_after ) );
+	if( gXRGL.GetFloatv )
+		gXRGL.GetFloatv( GL_DEPTH_RANGE, depth_before );
+	if( gXRGL.IsEnabled )
+	{
+		blend_before = gXRGL.IsEnabled( GL_BLEND );
+		cull_before = gXRGL.IsEnabled( GL_CULL_FACE );
+	}
+	if( gXRGL.GetIntegerv )
+		gXRGL.GetIntegerv( GL_FRAMEBUFFER_BINDING, &fbo_before );
+
+	s_vm_proof.attach_hash_a = HashAttachments( live_vm );
+	first_rc = gRenderAPI.RunViewmodelEventsOnce();
+	s_vm_proof.attach_hash_b = HashAttachments( live_vm );
+	if( !s_stress_done )
+	{
+		second_rc = gRenderAPI.RunViewmodelEventsOnce();
+		s_vm_proof.attach_hash_c = HashAttachments( live_vm );
+		s_vm_proof.event_second_rc = second_rc;
+		s_stress_done = 1;
+	}
+	else
+	{
+		s_vm_proof.attach_hash_c = s_vm_proof.attach_hash_b;
+		s_vm_proof.event_second_rc = -1;
+	}
+
+	if( IEngineStudio.GetCurrentEntity )
+		after_ent = IEngineStudio.GetCurrentEntity();
+	gRenderAPI.R_SetCurrentEntity( saved_ent );
+	if( gRenderAPI.R_SetCurrentModel )
+		gRenderAPI.R_SetCurrentModel( saved_model );
+
+	if( gXRGL.GetFloatv )
+		gXRGL.GetFloatv( GL_DEPTH_RANGE, depth_after );
+	if( gXRGL.IsEnabled )
+	{
+		blend_after = gXRGL.IsEnabled( GL_BLEND );
+		cull_after = gXRGL.IsEnabled( GL_CULL_FACE );
+	}
+	if( gXRGL.GetIntegerv )
+		gXRGL.GetIntegerv( GL_FRAMEBUFFER_BINDING, &fbo_after );
+
+	s_vm_proof.event_claimed = 1;
+	s_vm_proof.event_first_rc = first_rc;
+	s_vm_proof.event_impl_ran = ( first_rc == 1 ) ? 1 : 0;
+	s_vm_proof.attach_b_eq_c = ( s_vm_proof.attach_hash_b == s_vm_proof.attach_hash_c ) ? 1 : 0;
+	s_vm_proof.event_currententity_restore = ( !IEngineStudio.GetCurrentEntity
+		|| IEngineStudio.GetCurrentEntity() == saved_ent ) ? 1 : 0;
+	(void)after_ent;
+	s_vm_proof.event_gl_restore = ( depth_before[0] == depth_after[0]
+		&& depth_before[1] == depth_after[1]
+		&& blend_before == blend_after
+		&& cull_before == cull_after
+		&& fbo_before == fbo_after ) ? 1 : 0;
+	s_vm_proof.event_wick_captures = g_StudioRenderer.EventWickCaptures();
+	s_vm_proof.visible_body_wick_captures = g_StudioRenderer.VisibleBodyWickCaptures();
+	s_vm_proof.studio_event_deliveries = CSRETRO_ViewmodelStudioEventsDelivered();
+	(void)second_rc;
+	return first_rc;
+}
+
+void CSRETRO_Studio_LogMolotovEventWick( void )
+{
+	int captured = EV_MolotovHeldWickCaptured();
+	gEngfuncs.Con_Printf(
+		"CS Retro: viewmodel events wick event_wick_capture=%i offscreen_body_wick_capture=%i visible_body_wick_capture=%i held_advances=%i lit=%i valid=%i weapon=%i source=%s age=%.3f delivered=%i\n",
+		g_StudioRenderer.EventWickCaptures(),
+		g_StudioRenderer.OffscreenWickCaptures(),
+		g_StudioRenderer.VisibleBodyWickCaptures(),
+		EV_MolotovHeldAdvances(),
+		EV_MolotovHeldLit(),
+		EV_MolotovHeldWickValid(),
+		EV_MolotovHeldWeaponId(),
+		captured ? "captured" : "fallback",
+		EV_MolotovHeldWickAge(),
+		CSRETRO_ViewmodelStudioEventsDelivered() );
 }

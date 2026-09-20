@@ -163,16 +163,66 @@ void EV_CaptureMolotovWickOrigin(const float origin[3], cl_entity_s *entity)
 	}
 }
 
+static int s_molotov_held_advances;
+static int s_molotov_held_captured;
+static float s_molotov_held_age;
+static int s_molotov_held_lit;
+static int s_molotov_held_valid;
+static int s_molotov_held_weapon;
+static int s_molotov_held_logged;
+static int s_molotov_held_state_logged;
+
+int EV_MolotovHeldAdvances( void )
+{
+	return s_molotov_held_advances;
+}
+
+int EV_MolotovHeldWickCaptured( void )
+{
+	return s_molotov_held_captured;
+}
+
+float EV_MolotovHeldWickAge( void )
+{
+	return s_molotov_held_age;
+}
+
+int EV_MolotovHeldLit( void )
+{
+	return s_molotov_held_lit;
+}
+
+int EV_MolotovHeldWickValid( void )
+{
+	return s_molotov_held_valid;
+}
+
+int EV_MolotovHeldWeaponId( void )
+{
+	return s_molotov_held_weapon;
+}
+
 void EV_UpdateMolotovHeld()
 {
 	cl_entity_t *vm = gEngfuncs.GetViewModel();
 	const int weaponId = HUD_GetWeapon();
 	const float now = gEngfuncs.GetClientTime();
+	s_molotov_held_advances++;
 	static bool s_wasHeld = false;
 	static bool s_ignited = false;
 	static float s_pullStart = 0.0f;
 	const bool held = vm && vm->model && weaponId == WEAPON_MOLOTOV
 		&& (gHUD.m_iKeyBits & (IN_ATTACK | IN_ATTACK2));
+	if (!s_molotov_held_state_logged && vm && vm->model
+		&& strstr(vm->model->name, "v_molotov"))
+	{
+		gEngfuncs.Con_Printf(
+			"CS Retro: viewmodel events held-state weapon=%i keys=%i held=%i lit=%i valid=%i age=%.3f\n",
+			weaponId, gHUD.m_iKeyBits, held ? 1 : 0, s_ignited ? 1 : 0,
+			g_molotovWickValid ? 1 : 0,
+			g_molotovWickValid ? (now - g_molotovWickTime) : -1.0f );
+		s_molotov_held_state_logged = 1;
+	}
 	if (held && !s_wasHeld)
 	{
 		s_pullStart = now;
@@ -185,6 +235,10 @@ void EV_UpdateMolotovHeld()
 	if (!held)
 		s_ignited = false;
 	const bool lit = s_ignited;
+	s_molotov_held_weapon = weaponId;
+	s_molotov_held_lit = lit ? 1 : 0;
+	s_molotov_held_valid = g_molotovWickValid ? 1 : 0;
+	s_molotov_held_age = g_molotovWickValid ? (now - g_molotovWickTime) : -1.0f;
 
 	static TEMPENTITY *s_wick = nullptr;
 
@@ -200,13 +254,30 @@ void EV_UpdateMolotovHeld()
 
 	Vector org;
 	if (g_molotovWickValid && (now - g_molotovWickTime) <= 0.08f)
+	{
 		org = g_molotovWickOrigin;
+		s_molotov_held_captured = 1;
+		if (!s_molotov_held_logged)
+		{
+			s_molotov_held_logged = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: viewmodel events held-update source=captured age=%.3f advances=%i\n",
+				s_molotov_held_age, s_molotov_held_advances );
+		}
+	}
 	else
 	{
 		Vector angles, forward, right, up;
 		gEngfuncs.GetViewAngles(angles);
 		AngleVectors(angles, forward, right, up);
 		org = Vector(v_origin) + forward * 16.0f + right * 5.5f + up * 1.6f;
+		if (!s_molotov_held_logged)
+		{
+			s_molotov_held_logged = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: viewmodel events held-update source=fallback age=%.3f valid=%i advances=%i\n",
+				s_molotov_held_age, s_molotov_held_valid, s_molotov_held_advances );
+		}
 	}
 
 	if (!s_wick)

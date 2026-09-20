@@ -85,7 +85,10 @@ GNU General Public License for more details.
 //     callback. Visible Xash still owns R_PushDlights / live dlightframe bits.
 // 21. CS Retro: render_api_t tail slot ResolveSurfaceTextureReadOnly. Shared
 //     read-only R_TextureAnimation (rtable + alternate + time). No rtable export.
-#define REF_API_VERSION 21
+// 22. CS Retro: render_api_t tail RunViewmodelEventsOnce. Client can claim the
+//     existing Xash viewmodel-event path once for the active render frame.
+//     Default Xash invocation becomes idempotent for that frame.
+#define REF_API_VERSION 22
 
 #define TF_SKY		(TF_SKYSIDE|TF_NOMIPMAP|TF_ALLOW_NEAREST)
 #define TF_FONT		(TF_NOMIPMAP|TF_CLAMP|TF_ALLOW_NEAREST)

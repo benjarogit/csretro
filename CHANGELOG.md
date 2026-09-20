@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.46 — 2026-09-20
+
+### Renderer
+
+- PX4C.2 Viewmodel-Event-Ownership: `render_api_t` Tail `RunViewmodelEventsOnce`, `REF_API_VERSION` 22, v37-Prefix unverändert. Eine Xash-Impl plus Once-Gate. Client claimt bei `r_csretro_renderer 1` vor Offscreen; Xash-Default wird idempotent. LIVE Events, Snapshot-Body unverändert. `GL_RenderFrame` bleibt 0.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.45 — 2026-09-20
 
 ### Architektur / Dokumentation

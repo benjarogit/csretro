@@ -25,6 +25,8 @@ static_assert( offsetof( render_api_t, BuildSurfaceLightmapReadOnly ) == offseto
 	"v37 prefix: BuildSurfaceLightmapReadOnly must follow DrawEFX" );
 static_assert( offsetof( render_api_t, ResolveSurfaceTextureReadOnly ) == offsetof( render_api_t, BuildSurfaceLightmapReadOnly ) + sizeof( void * ),
 	"v37 prefix: ResolveSurfaceTextureReadOnly must follow BuildSurfaceLightmapReadOnly" );
+static_assert( offsetof( render_api_t, RunViewmodelEventsOnce ) == offsetof( render_api_t, ResolveSurfaceTextureReadOnly ) + sizeof( void * ),
+	"v37 prefix: RunViewmodelEventsOnce must be the tail slot after ResolveSurfaceTextureReadOnly" );
 
 static cvar_t *s_renderer = NULL;
 static cvar_t *s_dump = NULL;
@@ -51,6 +53,10 @@ static int s_vm_cvar_logged = 0;
 static int s_vm_third_logged = 0;
 static int s_vm_dead_logged = 0;
 static int s_vm_knife_logged = 0;
+static int s_vm_event_claim_logged = 0;
+static int s_vm_event_stress_logged = 0;
+static int s_vm_event_reject_logged = 0;
+static int s_vm_event_wick_logged = 0;
 static char s_vm_last_model[64];
 static int s_follow_crc_logged = 0;
 static int s_follow_detail_logged = 0;
@@ -117,6 +123,10 @@ static void ResetSpriteProof( void )
 	s_vm_depth_logged = 0;
 	s_vm_gate_logged = 0;
 	s_vm_molotov_logged = 0;
+	s_vm_event_claim_logged = 0;
+	s_vm_event_stress_logged = 0;
+	s_vm_event_reject_logged = 0;
+	s_vm_event_wick_logged = 0;
 	s_vm_cvar_logged = 0;
 	s_vm_third_logged = 0;
 	s_vm_dead_logged = 0;
@@ -450,6 +460,36 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 	{
 		RunProbeSeq();
 		return;
+	}
+
+	// Events before BeginOffscreen. FBO failure still leaves the claimed
+	// Xash event pass in place and returns to visible R_RenderScene.
+	if( !( rvp->flags & RF_ONLY_CLIENTDRAW ) )
+	{
+		CSRETRO_StudioViewmodelProof evp;
+		CSRETRO_Studio_ClaimViewmodelEvents( rvp );
+		CSRETRO_Studio_GetViewmodelProof( &evp );
+		if( evp.event_claimed && !s_vm_event_claim_logged && evp.event_first_rc == 1 )
+		{
+			s_vm_event_claim_logged = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: viewmodel events claim client_claims=1 first_rc=1 event_impl_runs=1 currententity_restore=%i gl_restore=%i attach_a=%08x attach_b=%08x attach_c=%08x b_eq_c=%i\n",
+				evp.event_currententity_restore, evp.event_gl_restore,
+				evp.attach_hash_a, evp.attach_hash_b, evp.attach_hash_c, evp.attach_b_eq_c );
+		}
+		if( evp.event_claimed && !s_vm_event_stress_logged && evp.event_second_rc == -1 )
+		{
+			s_vm_event_stress_logged = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: viewmodel events double-call first=%i second=-1 attach_b_eq_c=%i\n",
+				evp.event_first_rc, evp.attach_b_eq_c );
+		}
+		if( evp.event_claimed && evp.event_first_rc == 0 && !s_vm_event_reject_logged )
+		{
+			s_vm_event_reject_logged = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: viewmodel events client claim rejected first_rc=0 event_impl_runs=0\n" );
+		}
 	}
 
 	if( !s_backend_ok )
@@ -1360,11 +1400,24 @@ static void RunProbeSeq( void )
 					gEngfuncs.SetViewAngles( ang );
 					gEngfuncs.Cvar_SetValue( "cl_righthand", 1.0f );
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel glock righthand 1\n" );
-					gEngfuncs.pfnClientCmd( "give weapon_glock18; give weapon_usp; weapon_glock18\n" );
+					if( s_probe_seq->value >= 13.0f )
+					{
+						gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 0.0f );
+						gEngfuncs.Con_Printf( "CS Retro: probe_seq events renderer 0\n" );
+						gEngfuncs.pfnClientCmd( "give weapon_glock18; give weapon_usp; give weapon_ak47; weapon_ak47; +attack\n" );
+					}
+					else
+						gEngfuncs.pfnClientCmd( "give weapon_glock18; give weapon_usp; weapon_glock18\n" );
 				}
 				else if( s_probe_step == 1 && elapsed >= 6.0f )
 				{
 					s_probe_step = 2;
+					if( s_probe_seq->value >= 13.0f )
+					{
+						gEngfuncs.pfnClientCmd( "-attack\n" );
+						gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 1.0f );
+						gEngfuncs.Con_Printf( "CS Retro: probe_seq events renderer 1\n" );
+					}
 					gEngfuncs.Cvar_SetValue( "cl_righthand", 0.0f );
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel righthand 0\n" );
 				}
@@ -1434,6 +1487,8 @@ static void RunProbeSeq( void )
 				{
 					s_probe_step = 13;
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel molotov wick\n" );
+					CSRETRO_Studio_LogMolotovEventWick();
+					s_vm_event_wick_logged = 1;
 				}
 				else if( s_probe_step == 13 && elapsed >= 38.5f )
 				{

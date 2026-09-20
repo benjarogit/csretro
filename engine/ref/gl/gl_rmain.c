@@ -1083,6 +1083,7 @@ void R_RenderFrame( const ref_viewpass_t *rvp )
 
 	// setup the initial render params
 	R_SetupRefParams( rvp );
+	R_ResetViewmodelEventsClaim();
 
 	if( gl_finish.value && FBitSet( RI.rvp.flags, RF_DRAW_WORLD ))
 		pglFinish();
@@ -1103,7 +1104,8 @@ void R_RenderFrame( const ref_viewpass_t *rvp )
 
 	tr.fCustomRendering = false;
 	if( !FBitSet( RI.rvp.flags, RF_ONLY_CLIENTDRAW ))
-		R_RunViewmodelEvents();
+		R_RunViewmodelEventsOnce();
+	R_NoteViewmodelEventsFrameEnd();
 
 	tr.realframecount++; // right called after viewmodel events
 	R_RenderScene();

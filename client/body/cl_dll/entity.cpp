@@ -342,8 +342,18 @@ The entity's studio model description indicated an event was
 fired during this frame, handle the event by it's tag ( e.g., muzzleflash, sound )
 =========================
 */
+static int s_vm_studio_event_deliveries;
+
+int CSRETRO_ViewmodelStudioEventsDelivered( void )
+{
+	return s_vm_studio_event_deliveries;
+}
+
 void DLLEXPORT HUD_StudioEvent( const struct mstudioevent_s *event, struct cl_entity_s *entity )
 {
+	if( entity && entity == gEngfuncs.GetViewModel() )
+		s_vm_studio_event_deliveries++;
+
 // #define CL_MuzzleFlash( x, y, z ) gEngfuncs.pEfxAPI->R_MuzzleFlash( y, z )
 	switch( event->event )
 	{

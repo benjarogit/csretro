@@ -1149,6 +1149,7 @@ void GAME_EXPORT R_RenderFrame( const ref_viewpass_t *rvp )
 
 	// setup the initial render params
 	R_SetupRefParams( rvp );
+	R_ResetViewmodelEventsClaim();
 
 	// completely override rendering
 	if( gEngfuncs.drawFuncs->GL_RenderFrame != NULL )
@@ -1166,7 +1167,8 @@ void GAME_EXPORT R_RenderFrame( const ref_viewpass_t *rvp )
 
 	tr.fCustomRendering = false;
 	if( !FBitSet( RI.rvp.flags, RF_ONLY_CLIENTDRAW ))
-		R_RunViewmodelEvents();
+		R_RunViewmodelEventsOnce();
+	R_NoteViewmodelEventsFrameEnd();
 
 	tr.realframecount++; // right called after viewmodel events
 	R_RenderScene();

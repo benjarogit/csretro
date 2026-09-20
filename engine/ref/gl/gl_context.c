@@ -25,7 +25,9 @@ GNU General Public License for more details.
 _Static_assert( offsetof( render_api_t, BuildSurfaceLightmapReadOnly ) == offsetof( render_api_t, DrawEFX ) + sizeof( void * ),
 	"v37 prefix: BuildSurfaceLightmapReadOnly must follow DrawEFX" );
 _Static_assert( offsetof( render_api_t, ResolveSurfaceTextureReadOnly ) == offsetof( render_api_t, BuildSurfaceLightmapReadOnly ) + sizeof( void * ),
-	"v37 prefix: ResolveSurfaceTextureReadOnly must be the tail slot after BuildSurfaceLightmapReadOnly" );
+	"v37 prefix: ResolveSurfaceTextureReadOnly must follow BuildSurfaceLightmapReadOnly" );
+_Static_assert( offsetof( render_api_t, RunViewmodelEventsOnce ) == offsetof( render_api_t, ResolveSurfaceTextureReadOnly ) + sizeof( void * ),
+	"v37 prefix: RunViewmodelEventsOnce must be the tail slot after ResolveSurfaceTextureReadOnly" );
 
 static void R_ClearScreen( void )
 {
@@ -464,6 +466,7 @@ static void R_FillRenderAPI( render_api_t *api )
 	api->DrawEFX                  = CL_DrawEFXView;
 	api->BuildSurfaceLightmapReadOnly = R_BuildSurfaceLightmapReadOnly;
 	api->ResolveSurfaceTextureReadOnly = R_ResolveSurfaceTexture;
+	api->RunViewmodelEventsOnce   = R_RunViewmodelEventsOnce;
 	api->LightVec                 = R_LightVec;
 	api->StudioGetTexture         = R_StudioGetTexture;
 	api->GL_GetProcAddress        = R_GetProcAddress;

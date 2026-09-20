@@ -65,6 +65,8 @@ public:
 	int OffscreenViewmodelEvents(void) const { return m_nOffscreenViewmodelEvents; }
 	int OffscreenWickAttempts(void) const { return m_nOffscreenWickAttempts; }
 	int OffscreenWickCaptures(void) const { return m_nOffscreenWickCaptures; }
+	int EventWickCaptures(void) const { return m_nEventWickCaptures; }
+	int VisibleBodyWickCaptures(void) const { return m_nVisibleBodyWickCaptures; }
 	int ViewmodelShieldDetected(void) const { return m_nViewmodelShieldDetected; }
 	int ViewmodelSpecialFlip(void) const { return m_nViewmodelSpecialFlip; }
 	void ResetOffscreenViewmodelProof(void);
@@ -112,6 +114,8 @@ public:
 	int m_nOffscreenViewmodelEvents;
 	int m_nOffscreenWickAttempts;
 	int m_nOffscreenWickCaptures;
+	int m_nEventWickCaptures;
+	int m_nVisibleBodyWickCaptures;
 	int m_nViewmodelShieldDetected;
 	int m_nViewmodelSpecialFlip;
 };

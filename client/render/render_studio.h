@@ -131,8 +131,26 @@ typedef struct CSRETRO_StudioViewmodelProof_s
 	int weapons_molotov;
 	int sequence;
 	float frame;
+	int event_claimed;
+	int event_first_rc;
+	int event_second_rc;
+	int event_impl_ran;
+	int event_currententity_restore;
+	int event_gl_restore;
+	unsigned int attach_hash_a;
+	unsigned int attach_hash_b;
+	unsigned int attach_hash_c;
+	int attach_b_eq_c;
+	int event_wick_captures;
+	int visible_body_wick_captures;
+	int studio_event_deliveries;
+	int molotov_held_advances;
+	int wick_source_captured;
+	float wick_age;
 } CSRETRO_StudioViewmodelProof;
 
 int CSRETRO_Studio_DrawViewmodel( const struct ref_viewpass_s *rvp );
+int CSRETRO_Studio_ClaimViewmodelEvents( const struct ref_viewpass_s *rvp );
 void CSRETRO_Studio_GetViewmodelProof( CSRETRO_StudioViewmodelProof *out );
 void CSRETRO_Studio_ResetViewmodelProof( void );
+void CSRETRO_Studio_LogMolotovEventWick( void );

@@ -91,6 +91,8 @@ CStudioModelRenderer::CStudioModelRenderer(void)
 	m_nOffscreenViewmodelEvents = 0;
 	m_nOffscreenWickAttempts = 0;
 	m_nOffscreenWickCaptures = 0;
+	m_nEventWickCaptures = 0;
+	m_nVisibleBodyWickCaptures = 0;
 	m_nViewmodelShieldDetected = 0;
 	m_nViewmodelSpecialFlip = 0;
 }
@@ -879,6 +881,8 @@ void CStudioModelRenderer::ResetOffscreenViewmodelProof(void)
 	m_nOffscreenViewmodelEvents = 0;
 	m_nOffscreenWickAttempts = 0;
 	m_nOffscreenWickCaptures = 0;
+	m_nEventWickCaptures = 0;
+	m_nVisibleBodyWickCaptures = 0;
 	m_nViewmodelShieldDetected = 0;
 	m_nViewmodelSpecialFlip = 0;
 }
@@ -980,9 +984,15 @@ int CStudioModelRenderer::StudioDrawModel(int flags)
 			{
 				m_nOffscreenWickAttempts++;
 			}
+			else if (flags & STUDIO_EVENTS)
+			{
+				EV_CaptureMolotovWickOrigin(org, m_pCurrentEntity);
+				m_nEventWickCaptures++;
+			}
 			else
 			{
 				EV_CaptureMolotovWickOrigin(org, m_pCurrentEntity);
+				m_nVisibleBodyWickCaptures++;
 			}
 		}
 	}

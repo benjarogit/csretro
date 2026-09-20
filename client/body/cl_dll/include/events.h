@@ -123,6 +123,13 @@ DECLARE_EVENT( GrenadeExplosion );
 void Game_HookEvents( void );
 void EV_UpdateMolotovHeld( void );
 void EV_CaptureMolotovWickOrigin( const float origin[3], struct cl_entity_s *entity );
+int EV_MolotovHeldAdvances( void );
+int EV_MolotovHeldWickCaptured( void );
+float EV_MolotovHeldWickAge( void );
+int EV_MolotovHeldLit( void );
+int EV_MolotovHeldWickValid( void );
+int EV_MolotovHeldWeaponId( void );
+int CSRETRO_ViewmodelStudioEventsDelivered( void );
 void EV_ReadMolotovWickState( float origin[3], float *time, int *valid );
 
 #endif

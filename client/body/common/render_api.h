@@ -268,6 +268,10 @@ typedef struct render_api_s
 	// R_TextureAnimation (entity.frame → alternate_anims → rtable or time).
 	// Does not seed RNG, does not export rtable, does not write surfaces.
 	const struct texture_s *(*ResolveSurfaceTextureReadOnly)( const struct msurface_s *surface, float entity_frame );
+	// Claim the existing Xash viewmodel-event path once for the active
+	// render frame. 1 = first claim, eligible Studio pass ran; 0 = first
+	// claim, eligibility rejected / no Studio VM; -1 = already claimed.
+	int		(*RunViewmodelEventsOnce)( void );
 } render_api_t;
 
 // render callbacks

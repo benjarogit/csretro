@@ -2248,6 +2248,20 @@ R_StudioClientEvents
 
 ===============
 */
+static int s_vm_events_claimed;
+static int s_vm_fr_client_claims;
+static int s_vm_fr_first_claims;
+static int s_vm_fr_impl_runs;
+static int s_vm_fr_dup_claims;
+static int s_vm_fr_default_skips;
+static int s_vm_fr_studio_client;
+static int s_vm_fr_delivered;
+static int s_vm_fr_muzzle;
+static int s_vm_log_xash_owner;
+static int s_vm_log_client_owner;
+static int s_vm_log_reject;
+static int s_vm_log_muzzle;
+
 static void R_StudioClientEvents( void )
 {
 	mstudioseqdesc_t *pseqdesc;
@@ -2255,6 +2269,9 @@ static void R_StudioClientEvents( void )
 	cl_entity_t      *e = RI.currententity;
 	int   i, sequence;
 	float end, start;
+
+	if( e == tr.viewent )
+		s_vm_fr_studio_client++;
 
 	if( g_studio.frametime == 0.0 )
 		return; // gamepaused
@@ -2273,6 +2290,8 @@ static void R_StudioClientEvents( void )
 		dlight_t *el = gEngfuncs.CL_AllocElight( 0 );
 
 		ClearBits( e->curstate.effects, EF_MUZZLEFLASH );
+		if( e == tr.viewent )
+			s_vm_fr_muzzle++;
 		VectorCopy( e->attachment[0], el->origin );
 		el->die = gp_cl->time + 0.05f;
 		el->color.r = 255;
@@ -2306,7 +2325,11 @@ static void R_StudioClientEvents( void )
 			continue;
 
 		if((float)pevent[i].frame > start && pevent[i].frame <= end )
+		{
 			gEngfuncs.pfnStudioEvent( &pevent[i], e );
+			if( e == tr.viewent )
+				s_vm_fr_delivered++;
+		}
 	}
 }
 
@@ -3041,27 +3064,40 @@ void R_DrawStudioModel( cl_entity_t *e )
 
 /*
 =================
-R_RunViewmodelEvents
+R_ResetViewmodelEventsClaim
 =================
 */
-void R_RunViewmodelEvents( void )
+void R_ResetViewmodelEventsClaim( void )
+{
+	s_vm_events_claimed = 0;
+	s_vm_fr_client_claims = 0;
+	s_vm_fr_first_claims = 0;
+	s_vm_fr_impl_runs = 0;
+	s_vm_fr_dup_claims = 0;
+	s_vm_fr_default_skips = 0;
+	s_vm_fr_studio_client = 0;
+	s_vm_fr_delivered = 0;
+	s_vm_fr_muzzle = 0;
+}
+
+static int R_RunViewmodelEventsImpl( void )
 {
 	int    i;
 
 	if( r_drawviewmodel->value == 0 )
-		return;
+		return 0;
 
 	if( ENGINE_GET_PARM( PARM_THIRDPERSON ))
-		return;
+		return 0;
 
 	// ignore in thirdperson, camera view or client is died
 	if( ENGINE_GET_PARM( PARM_LOCAL_HEALTH ) <= 0 || !CL_IsViewEntityLocalPlayer())
-		return;
+		return 0;
 
 	RI.currententity = tr.viewent;
 
 	if( !RI.currententity->model || RI.currententity->model->type != mod_studio )
-		return;
+		return 0;
 
 	R_StudioSetupTimings();
 
@@ -3071,6 +3107,68 @@ void R_RunViewmodelEvents( void )
 	RI.currentmodel = RI.currententity->model;
 
 	R_StudioDrawModelInternal( RI.currententity, STUDIO_EVENTS );
+	return 1;
+}
+
+int R_RunViewmodelEventsOnce( void )
+{
+	int ran;
+
+	if( s_vm_events_claimed )
+	{
+		s_vm_fr_dup_claims++;
+		if( !tr.fCustomRendering )
+			s_vm_fr_default_skips++;
+		return -1;
+	}
+
+	s_vm_events_claimed = 1;
+	s_vm_fr_first_claims++;
+	if( tr.fCustomRendering )
+		s_vm_fr_client_claims++;
+
+	ran = R_RunViewmodelEventsImpl();
+	if( ran )
+		s_vm_fr_impl_runs++;
+	return ran;
+}
+
+void R_NoteViewmodelEventsFrameEnd( void )
+{
+	if( !s_vm_log_xash_owner && s_vm_fr_client_claims == 0 && s_vm_fr_impl_runs == 1 )
+	{
+		s_vm_log_xash_owner = 1;
+		gEngfuncs.Con_Printf(
+			"CS Retro: viewmodel events owner=xash client_claims=0 first_claims=1 event_impl_runs=%i duplicate_claims=%i default_duplicate_skips=%i studio_invocations=%i delivered=%i muzzle=%i\n",
+			s_vm_fr_impl_runs, s_vm_fr_dup_claims, s_vm_fr_default_skips,
+			s_vm_fr_studio_client, s_vm_fr_delivered, s_vm_fr_muzzle );
+	}
+	if( !s_vm_log_client_owner && s_vm_fr_client_claims == 1 && s_vm_fr_impl_runs == 1 && s_vm_fr_default_skips == 1 )
+	{
+		s_vm_log_client_owner = 1;
+		gEngfuncs.Con_Printf(
+			"CS Retro: viewmodel events owner=client client_claims=1 first_claims=1 event_impl_runs=1 duplicate_claims=%i default_duplicate_skips=1 studio_invocations=%i delivered=%i muzzle=%i\n",
+			s_vm_fr_dup_claims, s_vm_fr_studio_client, s_vm_fr_delivered, s_vm_fr_muzzle );
+	}
+	if( !s_vm_log_reject && s_vm_fr_client_claims == 1 && s_vm_fr_impl_runs == 0 && s_vm_fr_default_skips == 1 )
+	{
+		s_vm_log_reject = 1;
+		gEngfuncs.Con_Printf(
+			"CS Retro: viewmodel events claim rejected client_claims=1 event_impl_runs=0 default_duplicate_skips=1 studio_invocations=%i delivered=%i\n",
+			s_vm_fr_studio_client, s_vm_fr_delivered );
+	}
+	if( !s_vm_log_muzzle && s_vm_fr_muzzle > 0 && s_vm_fr_impl_runs <= 1 )
+	{
+		s_vm_log_muzzle = 1;
+		gEngfuncs.Con_Printf(
+			"CS Retro: viewmodel events muzzle elight=%i once=1 event_impl_runs=%i\n",
+			s_vm_fr_muzzle, s_vm_fr_impl_runs );
+	}
+}
+
+void R_RunViewmodelEvents( void )
+{
+	R_RunViewmodelEventsOnce();
 }
 
 /*

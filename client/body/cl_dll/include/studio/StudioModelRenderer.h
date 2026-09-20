@@ -58,6 +58,16 @@ public:
 	virtual void StudioSetShadowSprite(int idx);
 	int StudioDrawShadow(Vector origin, float scale);
 
+	// Visible: GetViewModel()==currententity. Offscreen: explicit context flag.
+	bool IsCurrentViewModelContext(void) const;
+	bool EffectiveRightHand(void) const;
+	int StudioDrawViewmodelOffscreen(int flags);
+	int OffscreenViewmodelEvents(void) const { return m_nOffscreenViewmodelEvents; }
+	int OffscreenWickAttempts(void) const { return m_nOffscreenWickAttempts; }
+	int OffscreenWickCaptures(void) const { return m_nOffscreenWickCaptures; }
+	int ViewmodelShieldDetected(void) const { return m_nViewmodelShieldDetected; }
+	int ViewmodelSpecialFlip(void) const { return m_nViewmodelSpecialFlip; }
+	void ResetOffscreenViewmodelProof(void);
 
 public:
 	double m_clTime;
@@ -98,6 +108,12 @@ public:
 	float (*m_pbonetransform)[MAXSTUDIOBONES][3][4];
 	float (*m_plighttransform)[MAXSTUDIOBONES][3][4];
 	entity_state_t *m_pplayer;
+	bool m_bOffscreenViewmodel;
+	int m_nOffscreenViewmodelEvents;
+	int m_nOffscreenWickAttempts;
+	int m_nOffscreenWickCaptures;
+	int m_nViewmodelShieldDetected;
+	int m_nViewmodelSpecialFlip;
 };
 
 #endif

@@ -87,6 +87,12 @@ CStudioModelRenderer::CStudioModelRenderer(void)
 	m_pPlayerInfo = NULL;
 	m_pRenderModel = NULL;
 	m_iShadowSprite = 0;
+	m_bOffscreenViewmodel = false;
+	m_nOffscreenViewmodelEvents = 0;
+	m_nOffscreenWickAttempts = 0;
+	m_nOffscreenWickCaptures = 0;
+	m_nViewmodelShieldDetected = 0;
+	m_nViewmodelSpecialFlip = 0;
 }
 
 CStudioModelRenderer::~CStudioModelRenderer(void)
@@ -696,8 +702,6 @@ void CStudioModelRenderer::StudioSetupBones(void)
 		}
 	}
 
-	bool bIsViewModel = gEngfuncs.GetViewModel() == m_pCurrentEntity;
-
 	for (i = 0; i < m_pStudioHeader->numbones; i++)
 	{
 		QuaternionMatrix(q[i], bonematrix);
@@ -710,8 +714,7 @@ void CStudioModelRenderer::StudioSetupBones(void)
 		{
 			if (IEngineStudio.IsHardware())
 			{
-				// i know this looks HORRIBLE but I'm too lazy to simplify this right now
-				if( gHUD.cl_righthand && gHUD.cl_righthand->value > 0.0f && bIsViewModel )
+				if( IsCurrentViewModelContext() && EffectiveRightHand() )
 				{
 					bonematrix[1][0] = -bonematrix[1][0];
 					bonematrix[1][1] = -bonematrix[1][1];
@@ -832,11 +835,56 @@ void CStudioModelRenderer::StudioMergeBones(model_t *pSubModel)
 	}
 }
 
+bool CStudioModelRenderer::IsCurrentViewModelContext(void) const
+{
+	if (m_bOffscreenViewmodel)
+		return true;
+	return gEngfuncs.GetViewModel() == m_pCurrentEntity;
+}
+
+bool CStudioModelRenderer::EffectiveRightHand(void) const
+{
+	const bool base_right = gHUD.cl_righthand && gHUD.cl_righthand->value > 0.0f;
+	bool shield = false;
+	bool special_flip;
+
+	if (IsCurrentViewModelContext())
+	{
+		if (m_pStudioHeader && strstr(m_pStudioHeader->name, "shield"))
+			shield = true;
+		else if (m_pRenderModel && m_pRenderModel->name && strstr(m_pRenderModel->name, "shield"))
+			shield = true;
+	}
+
+	special_flip = IsCurrentViewModelContext()
+		&& (g_bHoldingKnife || shield)
+		&& gHUD.GetGameType() != GAME_CZERO;
+
+	return base_right != special_flip;
+}
+
+int CStudioModelRenderer::StudioDrawViewmodelOffscreen(int flags)
+{
+	int iret;
+
+	flags &= ~STUDIO_EVENTS;
+	m_bOffscreenViewmodel = true;
+	iret = StudioDrawModel(flags);
+	m_bOffscreenViewmodel = false;
+	return iret;
+}
+
+void CStudioModelRenderer::ResetOffscreenViewmodelProof(void)
+{
+	m_nOffscreenViewmodelEvents = 0;
+	m_nOffscreenWickAttempts = 0;
+	m_nOffscreenWickCaptures = 0;
+	m_nViewmodelShieldDetected = 0;
+	m_nViewmodelSpecialFlip = 0;
+}
+
 int CStudioModelRenderer::StudioDrawModel(int flags)
 {
-	bool bChangedRightHand = false;
-	int iRightHandValue;
-
 	m_pCurrentEntity = IEngineStudio.GetCurrentEntity();
 
 	IEngineStudio.GetTimes(&m_nFrameCount, &m_clTime, &m_clOldTime);
@@ -892,25 +940,12 @@ int CStudioModelRenderer::StudioDrawModel(int flags)
 			return 1;
 	}
 
-	bool bShieldDetected = false;
-	bool bIsViewModel = gEngfuncs.GetViewModel() == m_pCurrentEntity;
-
-	if ( bIsViewModel && m_pStudioHeader )
-	{
-		if ( strstr( m_pStudioHeader->name, "shield" ) )
-		{
-			bShieldDetected = true;
-		}
-	}
-
-	if( ( g_bHoldingKnife || bShieldDetected ) && !( gHUD.GetGameType() == GAME_CZERO ) && bIsViewModel )
-	{
-		bChangedRightHand = true;
-
-		iRightHandValue = gHUD.cl_righthand->value;
-
-		gHUD.cl_righthand->value = !gHUD.cl_righthand->value;
-	}
+	if (IsCurrentViewModelContext() && m_pStudioHeader && strstr(m_pStudioHeader->name, "shield"))
+		m_nViewmodelShieldDetected = 1;
+	if (IsCurrentViewModelContext()
+		&& (g_bHoldingKnife || m_nViewmodelShieldDetected)
+		&& gHUD.GetGameType() != GAME_CZERO)
+		m_nViewmodelSpecialFlip = 1;
 
 	if (m_pCurrentEntity->curstate.movetype == MOVETYPE_FOLLOW)
 		StudioMergeBones(m_pRenderModel);
@@ -919,7 +954,7 @@ int CStudioModelRenderer::StudioDrawModel(int flags)
 
 	StudioSaveBones();
 
-	if (bIsViewModel && m_pRenderModel && strstr(m_pRenderModel->name, "v_molotov"))
+	if (gEngfuncs.GetViewModel() == m_pCurrentEntity && m_pRenderModel && strstr(m_pRenderModel->name, "v_molotov"))
 	{
 		int wick = -1;
 		for (int i = 0; i < m_nCachedBones; i++)
@@ -974,11 +1009,6 @@ int CStudioModelRenderer::StudioDrawModel(int flags)
 		IEngineStudio.StudioSetRemapColors(m_nTopColor, m_nBottomColor);
 
 		StudioRenderModel(dir);
-	}
-
-	if( bChangedRightHand )
-	{
-		gHUD.cl_righthand->value = iRightHandValue;
 	}
 
 	return 1;

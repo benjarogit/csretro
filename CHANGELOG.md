@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.42 — 2026-09-20
+
+### Renderer
+
+- PX4C.1 GSMR-Viewmodel-Kontext und effektive Handedness: `IsCurrentViewModelContext()` (sichtbar = `GetViewModel()==currententity`, offscreen = expliziter Kontext). `StudioSetupBones` nutzt `base_right XOR special_flip` statt `cl_righthand` save/toggle/restore. Knife/Shield-Flip ohne globale CVar-Mutation. `StudioDrawViewmodelOffscreen` ist der gemeinsame Einstieg. Wick/Events unverändert im sichtbaren Pfad. `GL_RenderFrame` bleibt 0.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.41 — 2026-09-20
 
 ### Architektur / Dokumentation

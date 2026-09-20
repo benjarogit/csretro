@@ -24,17 +24,18 @@ Rolle: nur lesen. Clone ohne Submodule nach `refs/primext/` (gitignored).
 
 **CVar:** `r_csretro_renderer` 0 = Xash-only. 1 = Offscreen World+Sprites+Non-Player-Studio + sichtbarer Xash-Fallback.
 Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`.
-Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/` (nicht committed).
+Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts/px4a-visual-cert.sh` → `build/px4a-cert-shots/` (nicht committed).
 
 **Callbacks an:** `Mod_ProcessUserData`, `R_NewMap`, `GL_BuildLightmaps`, `R_ClearScene` (additiv, nur CS-Retro-Liste).
 **Callbacks NULL:** `Mod_GetCurrentVis`, `R_ProcessEntData`, Studio-Decals, `CL_UpdateLatchedVars`.
 
 **PX4A Cert**
 - Side-effect map in `docs/research/px1-primext.md`.
-- `de_aztec` `models/skeleton.mdl` ×8: `sprites_crc=0a25ad1a full=010c70c2 differ=1`, events=0. Player local classified, nicht gezeichnet (C).
+- Offscreen: `de_aztec` `models/skeleton.mdl` ×8 / visual-run `pred_plant.mdl` ×7, CRC differ, events=0. Player C.
+- Visuell 2026-09-20 mit `r_csretro_renderer 1` auf **de_aztec** (`build/px4a-cert-shots/`, nicht committed): Welt, Studio-Worldmodels (`pred_plant`), T/CT Spawn, Viewmodel+HUD, Team/Class/Buy-Previews, Folgeframes, Mapchange dust, `vid_setmode`. Keine erkennbare Studio/Bone/Texture-Korruption nach Offscreen-GSMR.
 - `STUDIO_EVENTS` offscreen aus. CurrentEntity/CurrentModel restore. Kein Live-Pointer über Frames.
 - Mapchange aztec→dust, `vid_setmode`, Movement-Gate PASS. `GL_RenderFrame` immer 0.
-- Issue #8 geschlossen.
+- Visual: `./scripts/px4a-visual-cert.sh`. Issue #8 visuell zertifiziert, geschlossen.
 
 **Offen vor return 1** — [#7](https://github.com/benjarogit/csretro/issues/7)
 - Brush-Entity Draw
@@ -43,7 +44,7 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/` (nicht comm
 - `SPR_ANGLED` / Frame-Lerp / Sprite-Lightmap
 - Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)), FOLLOW (Slice in #9), Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10)), Vis
 
-**Nächster Schritt:** PX4B — FOLLOW-Slice + Player-Safety (C bleibt, bis A/B trägt). Kein Viewmodel. `return 1` weiter gesperrt.
+**Nächster Schritt:** PX4B.1 — Non-Player FOLLOW (Parent in Mirror-Liste). Player-parent FOLLOW deferred. Player bleibt C. Kein Viewmodel. `return 1` weiter gesperrt.
 
 **PX0 bleibt offen**
 - #1 Movement Replay: https://github.com/benjarogit/csretro/issues/1

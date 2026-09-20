@@ -486,3 +486,5 @@ Erster Draw-Slice (PX4A.1): `ET_NORMAL` + `mod_studio`, kein Viewmodel, kein Pla
 - Probe: `./scripts/px4a-offscreen-probe.sh` PASS. PX3C-Regression PASS. Movement-Gate PASS. Mapchange + `vid_setmode` im selben Lauf. `GL_RenderFrame` immer 0.
 - Player C, Viewmodel PX4C, FOLLOW eigener Slice, Previews geschützt. `CL_UpdateLatchedVars` weiter NULL.
 - `return 1` gesperrt: Brush, Engine-EFX, Client-Triangles, Player, Viewmodel, Vis.
+
+**Visuell 2026-09-20** mit `r_csretro_renderer 1` auf **de_aztec** (`build/px4a-cert-shots/`, nicht committed; `./scripts/px4a-visual-cert.sh`): T/CT Team+Klasse+Buy-Previews, T/CT Spawn mit Viewmodel/HUD, sichtbare Studio-Worldmodels (`pred_plant`), Folgeframes, Mapchange dust, `vid_setmode`. Kein sichtbarer Takeover, keine erkennbare Studio/Bone/Lighting/Texture-Korruption nach dem zusätzlichen Offscreen-GSMR-Aufruf. Bot Martin trat bei, war im First-Person-Shot nicht im Blick. `GL_INVALID_ENUM` nur als developer-2-Overlay (Fehlerqueue), Modelle selbst unversehrt. Probe + Movement-Gate PASS. `GL_RenderFrame` immer 0. Sichtbares Xash-Studio: **CONFIRMED**.

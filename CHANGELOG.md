@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.18 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- PX4A visual certification against `91b128e`: with `r_csretro_renderer 1` on de_aztec the offscreen GSMR pass runs (`pred_plant.mdl` ×7) while the visible Xash frame still shows world, studio worldmodels, T/CT spawn, viewmodel, HUD, and Team/class/buy previews. No recognizable studio/bone/texture corruption after the extra offscreen call. Issue #8 closed. No renderer product change.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.17 — 2026-09-20
 
 ### Architektur / Dokumentation

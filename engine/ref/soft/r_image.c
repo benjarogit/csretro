@@ -35,6 +35,11 @@ image_t *R_GetTexture( unsigned int texnum )
 	return &r_images[texnum];
 }
 
+int R_ResolveTextureFlags( unsigned int texnum )
+{
+	return (int)R_GetTexture( texnum )->flags;
+}
+
 /*
 =================
 GL_Bind

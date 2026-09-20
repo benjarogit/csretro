@@ -14,6 +14,10 @@ GNU General Public License for more details.
 */
 
 #include "r_local.h"
+#include <stddef.h>
+
+_Static_assert( offsetof( render_api_t, ResolveSurfaceTextureReadOnly ) == offsetof( render_api_t, BuildSurfaceLightmapReadOnly ) + sizeof( void * ),
+	"v37 prefix: ResolveSurfaceTextureReadOnly must be the tail slot after BuildSurfaceLightmapReadOnly" );
 
 gl_globals_t  tr;
 ref_speeds_t  r_stats;
@@ -415,6 +419,7 @@ static void R_FillRenderAPI( render_api_t *api )
 	api->GL_DrawParticles         = CL_DrawParticlesExternal;
 	api->DrawEFX                  = CL_DrawEFXView;
 	api->BuildSurfaceLightmapReadOnly = NULL; // GL surface evaluator only
+	api->ResolveSurfaceTextureReadOnly = R_ResolveSurfaceTexture;
 	api->LightVec                 = R_LightVec;
 	api->StudioGetTexture         = R_StudioGetTexture;
 	api->GL_GetProcAddress        = R_GetProcAddress;

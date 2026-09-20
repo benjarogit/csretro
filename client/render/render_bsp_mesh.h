@@ -105,6 +105,8 @@ typedef struct CSRETRO_MeshDrawContext_s
 	int water_pass;
 	int is_brush;
 	float entity_mins[3];
+	int random_force_base;
+	int random_only;
 } CSRETRO_MeshDrawContext;
 
 typedef struct CSRETRO_MeshDrawStats_s
@@ -116,6 +118,12 @@ typedef struct CSRETRO_MeshDrawStats_s
 	int alternate_candidates;
 	int alternate_used;
 	int random_tile_candidates;
+	int random_resolved;
+	int random_fallback;
+	int random_distinct_frames;
+	int random_differs_from_base;
+	unsigned int random_selection_hash;
+	int random_variant[10];
 	int conveyor_candidates;
 	int conveyor_uv_changed;
 	float conveyor_s;

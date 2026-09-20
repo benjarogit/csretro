@@ -38,6 +38,8 @@ DECLARE_ENGINE_SHARED_CVAR_LIST()
 
 extern uint16_t rtable[MOD_FRAMES][MOD_FRAMES];
 void GL_InitRandomTable( void );
+int R_ResolveTextureFlags( unsigned int texnum );
+const struct texture_s *R_ResolveSurfaceTexture( const struct msurface_s *surface, float entity_frame );
 
 void _Mem_Free( void *data, const char *filename, int fileline );
 void *_Mem_Alloc( poolhandle_t poolptr, size_t size, qboolean clear, const char *filename, int fileline )

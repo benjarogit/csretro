@@ -12,6 +12,10 @@
 #include "render_xash_brush.h"
 #include "render_dlight.h"
 
+#include "hud.h"
+#include "cl_util.h"
+#include "render_api.h"
+
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -108,6 +112,7 @@ static int s_conv_uv_changed = 0;
 static int s_build_serial_first = 0;
 static int s_builds_prev = -1;
 static int s_rebuilds_stable = 0;
+static int s_random_any_fb = 0;
 
 static unsigned int MixU32( unsigned int h, unsigned int v )
 {
@@ -143,6 +148,27 @@ static unsigned int HashBatches( unsigned int h, const CSRETRO_MeshBatch *batche
 	return h;
 }
 
+static unsigned int HashSpans( unsigned int h, const CSRETRO_SurfaceSpan *spans, int count )
+{
+	int i;
+	h = MixU32( h, (unsigned int)count );
+	if( !spans )
+		return h;
+	for( i = 0; i < count; i++ )
+	{
+		const CSRETRO_SurfaceSpan *sp = &spans[i];
+		h = MixU32( h, (unsigned int)sp->surface_index );
+		h = MixU32( h, (unsigned int)sp->first_tri );
+		h = MixU32( h, (unsigned int)sp->tri_count );
+		h = MixU32( h, (unsigned int)sp->batch_index );
+		h = MixU32( h, (unsigned int)sp->light_s );
+		h = MixU32( h, (unsigned int)sp->light_t );
+		h = MixU32( h, sp->lightmap );
+		h = MixU32( h, (unsigned int)sp->flags );
+	}
+	return h;
+}
+
 static unsigned int HashVertArray( unsigned int h, const CSRETRO_MeshVert *verts, int count )
 {
 	int i;
@@ -174,6 +200,7 @@ static unsigned int HashVerts( const CSRETRO_BspMesh *mesh )
 	h = HashVertArray( h, mesh->water_verts, mesh->water_vert_count );
 	h = HashBatches( h, mesh->batches, mesh->batch_count );
 	h = HashBatches( h, mesh->water_batches, mesh->water_batch_count );
+	h = HashSpans( h, mesh->spans, mesh->span_count );
 	return h;
 }
 
@@ -278,6 +305,116 @@ static xr_texture_t *TextureAnimation( xr_texture_t *base, const CSRETRO_MeshDra
 			return orig;
 	}
 	return base;
+}
+
+static const struct msurface_s *SurfaceFromMesh( const CSRETRO_BspMesh *mesh, int surface_index )
+{
+	const xr_model_t *mod;
+
+	if( !mesh || !mesh->model || surface_index < 0 )
+		return NULL;
+	mod = (const xr_model_t *)mesh->model;
+	if( surface_index >= mod->numsurfaces || !mod->surfaces )
+		return NULL;
+	return (const struct msurface_s *)&mod->surfaces[surface_index];
+}
+
+static void NoteRandomResolved( const xr_texture_t *base, const xr_texture_t *resolved, int surface_index, int fallback )
+{
+	unsigned int tex;
+	int v;
+
+	if( fallback )
+	{
+		s_draw.random_fallback++;
+		return;
+	}
+	if( !resolved )
+		return;
+	s_draw.random_resolved++;
+	tex = (unsigned int)resolved->gl_texturenum;
+	s_draw.random_selection_hash = MixU32( s_draw.random_selection_hash, (unsigned int)surface_index );
+	s_draw.random_selection_hash = MixU32( s_draw.random_selection_hash, tex );
+	if( base && resolved != base )
+		s_draw.random_differs_from_base++;
+	if( resolved->name[0] == '-' && resolved->name[1] >= '0' && resolved->name[1] <= '9' )
+	{
+		v = resolved->name[1] - '0';
+		if( !s_draw.random_variant[v] )
+			s_draw.random_distinct_frames++;
+		s_draw.random_variant[v]++;
+	}
+	else if( resolved->name[0] == '-' )
+	{
+		if( !s_draw.random_variant[0] && s_draw.random_distinct_frames == 0 )
+			s_draw.random_distinct_frames++;
+		s_draw.random_variant[0]++;
+	}
+}
+
+static const xr_texture_t *ResolveRandomSurface( const CSRETRO_BspMesh *mesh, const xr_texture_t *base, int surface_index, const CSRETRO_MeshDrawContext *ctx )
+{
+	const struct msurface_s *surf;
+	const struct texture_s *resolved;
+	float frame;
+
+	if( ctx && ctx->random_force_base )
+		return base;
+	if( ctx && ctx->random_only )
+	{
+		if( !gRenderAPI.ResolveSurfaceTextureReadOnly )
+			return base;
+		surf = SurfaceFromMesh( mesh, surface_index );
+		if( !surf )
+			return base;
+		resolved = gRenderAPI.ResolveSurfaceTextureReadOnly( surf, ctx->entity_frame );
+		return resolved ? (const xr_texture_t *)resolved : base;
+	}
+	if( !gRenderAPI.ResolveSurfaceTextureReadOnly )
+	{
+		NoteRandomResolved( base, base, surface_index, 1 );
+		return base;
+	}
+	surf = SurfaceFromMesh( mesh, surface_index );
+	if( !surf )
+	{
+		NoteRandomResolved( base, base, surface_index, 1 );
+		return base;
+	}
+	frame = ctx ? ctx->entity_frame : 0.0f;
+	resolved = gRenderAPI.ResolveSurfaceTextureReadOnly( surf, frame );
+	if( !resolved )
+	{
+		NoteRandomResolved( base, base, surface_index, 1 );
+		return base;
+	}
+	NoteRandomResolved( base, (const xr_texture_t *)resolved, surface_index, 0 );
+	return (const xr_texture_t *)resolved;
+}
+
+static const xr_texture_t *ResolveDrawTexture( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *batch, int surface_index, const CSRETRO_MeshDrawContext *ctx )
+{
+	xr_texture_t *base = batch ? (xr_texture_t *)batch->anim_source : NULL;
+
+	if( batch && batch->random_tile )
+		return ResolveRandomSurface( mesh, base, surface_index, ctx );
+	return TextureAnimation( base, ctx );
+}
+
+static const xr_texture_t *ResolveRandomSilent( const CSRETRO_BspMesh *mesh, const xr_texture_t *base, int surface_index, const CSRETRO_MeshDrawContext *ctx )
+{
+	const struct msurface_s *surf;
+	const struct texture_s *resolved;
+
+	if( ctx && ctx->random_force_base )
+		return base;
+	if( !gRenderAPI.ResolveSurfaceTextureReadOnly )
+		return base;
+	surf = SurfaceFromMesh( mesh, surface_index );
+	if( !surf )
+		return base;
+	resolved = gRenderAPI.ResolveSurfaceTextureReadOnly( surf, ctx ? ctx->entity_frame : 0.0f );
+	return resolved ? (const xr_texture_t *)resolved : base;
 }
 
 static void ConveyorOffset( const CSRETRO_MeshBatch *batch, const CSRETRO_MeshDrawContext *ctx, float *sOff, float *tOff )
@@ -733,12 +870,34 @@ static int BindAtlas( void )
 	return 1;
 }
 
+static void DrawSpanLit( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *batch, const CSRETRO_SurfaceSpan *span, const CSRETRO_MeshDrawContext *ctx, int bind_textures, float sOff, float tOff )
+{
+	int has_lm;
+	int atlas = CSRETRO_DLight_AtlasSize();
+	int block = CSRETRO_DLight_BlockSize();
+	float scale = ( atlas > 0 ) ? ( (float)block / (float)atlas ) : 1.0f;
+	CSRETRO_DLightPatch patch;
+
+	if( CSRETRO_DLight_Lookup( mesh->model, span->surface_index, &patch ) && atlas > 0 )
+	{
+		float bias_s = ( (float)( patch.atlas_x - patch.light_s ) ) / (float)atlas;
+		float bias_t = ( (float)( patch.atlas_y - patch.light_t ) ) / (float)atlas;
+		has_lm = BindAtlas();
+		DrawSpanTris( mesh, span->first_tri, span->tri_count, sOff, tOff, has_lm, scale, bias_s, bias_t );
+		if( has_lm )
+			UnbindLightmap();
+		return;
+	}
+	has_lm = BindLightmap( mesh, batch, ctx, bind_textures );
+	DrawSpanTris( mesh, span->first_tri, span->tri_count, sOff, tOff, has_lm, 1.0f, 0.0f, 0.0f );
+	if( has_lm )
+		UnbindLightmap();
+}
+
 static void DrawBatchLit( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *batch, int batch_index, const CSRETRO_MeshDrawContext *ctx, int bind_textures, float sOff, float tOff )
 {
 	int s, has_lm;
-	int block = CSRETRO_DLight_BlockSize();
 	int atlas = CSRETRO_DLight_AtlasSize();
-	float scale = ( atlas > 0 ) ? ( (float)block / (float)atlas ) : 1.0f;
 
 	if( mesh->span_count <= 0 )
 	{
@@ -746,6 +905,25 @@ static void DrawBatchLit( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *
 		DrawBatchTris( mesh, batch, sOff, tOff, has_lm );
 		if( has_lm )
 			UnbindLightmap();
+		return;
+	}
+
+	if( batch->random_tile )
+	{
+		for( s = 0; s < mesh->span_count; s++ )
+		{
+			const CSRETRO_SurfaceSpan *span = &mesh->spans[s];
+			const xr_texture_t *resolved;
+
+			if( span->batch_index != batch_index )
+				continue;
+			resolved = ResolveDrawTexture( mesh, batch, span->surface_index, ctx );
+			if( resolved && resolved->fb_texturenum )
+				s_random_any_fb = 1;
+			if( bind_textures )
+				CSRETRO_Backend_BindTexture( 0, resolved ? (unsigned int)resolved->gl_texturenum : batch->tex );
+			DrawSpanLit( mesh, batch, span, ctx, bind_textures, sOff, tOff );
+		}
 		return;
 	}
 
@@ -761,12 +939,7 @@ static void DrawBatchLit( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *
 		}
 		if( CSRETRO_DLight_Lookup( mesh->model, span->surface_index, &patch ) && atlas > 0 )
 		{
-			float bias_s = ( (float)( patch.atlas_x - patch.light_s ) ) / (float)atlas;
-			float bias_t = ( (float)( patch.atlas_y - patch.light_t ) ) / (float)atlas;
-			has_lm = BindAtlas();
-			DrawSpanTris( mesh, span->first_tri, span->tri_count, sOff, tOff, has_lm, scale, bias_s, bias_t );
-			if( has_lm )
-				UnbindLightmap();
+			DrawSpanLit( mesh, batch, span, ctx, bind_textures, sOff, tOff );
 			s++;
 		}
 		else
@@ -807,6 +980,8 @@ void CSRETRO_BspMesh_Draw( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshDrawCo
 		ctx = &local;
 	}
 	bind_textures = ctx->bind_textures;
+	if( !ctx->skip_base )
+		s_random_any_fb = 0;
 
 	hash_before = HashVerts( mesh );
 	if( !s_proof_inited )
@@ -815,7 +990,7 @@ void CSRETRO_BspMesh_Draw( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshDrawCo
 		s_proof_inited = 1;
 	}
 
-	if( !ctx->skip_base )
+	if( !ctx->skip_base && !ctx->random_only )
 	{
 		s_draw.verts += mesh->vert_count;
 		s_draw.build_serial = s_build_count;
@@ -850,12 +1025,27 @@ void CSRETRO_BspMesh_Draw( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshDrawCo
 		{
 			const CSRETRO_MeshBatch *batch = &mesh->batches[b];
 			xr_texture_t *base = (xr_texture_t *)batch->anim_source;
-			xr_texture_t *resolved;
+			const xr_texture_t *resolved;
 			unsigned int tex;
 			float sOff = 0.0f, tOff = 0.0f;
 
 			if( batch->tri_count <= 0 )
 				continue;
+			if( ctx->random_only && !batch->random_tile )
+				continue;
+
+			if( batch->random_tile )
+			{
+				if( batch->flags & XR_SURF_CONVEYOR )
+				{
+					ConveyorOffset( batch, ctx, &sOff, &tOff );
+					NoteConveyor( sOff, tOff );
+				}
+				DrawBatchLit( mesh, batch, b, ctx, bind_textures, sOff, tOff );
+				if( s_random_any_fb )
+					any_fb = 1;
+				continue;
+			}
 
 			resolved = TextureAnimation( base, ctx );
 			if( !resolved )
@@ -882,10 +1072,16 @@ void CSRETRO_BspMesh_Draw( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshDrawCo
 	}
 	else
 	{
+		if( s_random_any_fb )
+			any_fb = 1;
 		for( b = 0; b < mesh->batch_count; b++ )
 		{
 			xr_texture_t *base = (xr_texture_t *)mesh->batches[b].anim_source;
-			xr_texture_t *resolved = TextureAnimation( base, ctx );
+			xr_texture_t *resolved;
+
+			if( mesh->batches[b].random_tile )
+				continue;
+			resolved = TextureAnimation( base, ctx );
 			if( resolved && resolved->fb_texturenum )
 				any_fb = 1;
 		}
@@ -933,11 +1129,30 @@ void CSRETRO_BspMesh_Draw( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshDrawCo
 		{
 			const CSRETRO_MeshBatch *batch = &mesh->batches[b];
 			xr_texture_t *base = (xr_texture_t *)batch->anim_source;
-			xr_texture_t *resolved;
+			const xr_texture_t *resolved;
 			float sOff = 0.0f, tOff = 0.0f;
+			int s;
 
 			if( batch->tri_count <= 0 )
 				continue;
+			if( batch->random_tile )
+			{
+				if( batch->flags & XR_SURF_CONVEYOR )
+					ConveyorOffset( batch, ctx, &sOff, &tOff );
+				for( s = 0; s < mesh->span_count; s++ )
+				{
+					const CSRETRO_SurfaceSpan *span = &mesh->spans[s];
+					if( span->batch_index != b )
+						continue;
+					resolved = ResolveRandomSilent( mesh, base, span->surface_index, ctx );
+					if( !resolved || !resolved->fb_texturenum )
+						continue;
+					CSRETRO_Backend_BindTexture( 0, resolved->fb_texturenum );
+					DrawSpanTris( mesh, span->first_tri, span->tri_count, sOff, tOff, 0, 1.0f, 0.0f, 0.0f );
+					s_draw.fullbright_drawn++;
+				}
+				continue;
+			}
 			resolved = TextureAnimation( base, ctx );
 			if( !resolved || !resolved->fb_texturenum )
 				continue;
@@ -1203,7 +1418,7 @@ void CSRETRO_BspMesh_DrawWater( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshD
 	{
 		const CSRETRO_MeshBatch *batch = &mesh->water_batches[b];
 		xr_texture_t *base = (xr_texture_t *)batch->anim_source;
-		xr_texture_t *resolved;
+		const xr_texture_t *resolved;
 		unsigned int tex;
 		int has_lm = 0;
 
@@ -1221,10 +1436,14 @@ void CSRETRO_BspMesh_DrawWater( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshD
 				s_draw.waterside_drawn++;
 		}
 
-		resolved = TextureAnimation( base, ctx );
+		if( batch->random_tile )
+			resolved = ResolveRandomSurface( mesh, base, batch->surface_index, ctx );
+		else
+			resolved = TextureAnimation( base, ctx );
 		if( !resolved )
 			resolved = base;
-		NoteAnim( base, resolved );
+		if( !batch->random_tile )
+			NoteAnim( base, resolved );
 		tex = resolved ? (unsigned int)resolved->gl_texturenum : batch->tex;
 		if( bind_textures )
 			CSRETRO_Backend_BindTexture( 0, tex );

@@ -165,6 +165,7 @@ typedef struct decallist_s
 struct ref_viewpass_s;
 struct msurface_s;
 struct cl_entity_s;
+struct texture_s;
 
 typedef struct render_api_s
 {
@@ -260,6 +261,10 @@ typedef struct render_api_s
 	// per row (0 = width*4). Returns 1 on success. *dynamic is 1 if any dlight
 	// contributed. Sample size is Mod_SampleSizeForFace. entity_or_null: NULL = world.
 	int		(*BuildSurfaceLightmapReadOnly)( const struct msurface_s *surf, const struct cl_entity_s *entity_or_null, byte *rgba, int stride, int capacity, int *width, int *height, int *dynamic );
+	// Read-only surface texture resolve. Same selection as visible
+	// R_TextureAnimation (entity.frame → alternate_anims → rtable or time).
+	// Does not seed RNG, does not export rtable, does not write surfaces.
+	const struct texture_s *(*ResolveSurfaceTextureReadOnly)( const struct msurface_s *surface, float entity_frame );
 } render_api_t;
 
 // render callbacks

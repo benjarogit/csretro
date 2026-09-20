@@ -517,48 +517,7 @@ Returns the proper texture for a given time and surface
 */
 static texture_t *R_TextureAnimation( msurface_t *s )
 {
-	texture_t	*base = s->texinfo->texture;
-	int	reletive;
-
-	if( RI.currententity && RI.currententity->curstate.frame )
-	{
-		if( base->alternate_anims )
-			base = base->alternate_anims;
-	}
-
-	if( !base->anim_total )
-		return base;
-
-	if( base->name[0] == '-' )
-	{
-		int	tx = (int)((s->texturemins[0] + (base->width << 16)) / base->width) % MOD_FRAMES;
-		int	ty = (int)((s->texturemins[1] + (base->height << 16)) / base->height) % MOD_FRAMES;
-
-		reletive = rtable[tx][ty] % base->anim_total;
-	}
-	else
-	{
-		int	speed;
-
-		// Quake1 textures uses 10 frames per second
-		if( FBitSet( R_GetTexture( base->gl_texturenum )->flags, TF_QUAKEPAL ))
-			speed = 10;
-		else speed = 20;
-
-		reletive = (int)(gp_cl->time * speed) % base->anim_total;
-	}
-
-	int count = 0;
-
-	while( base->anim_min > reletive || base->anim_max <= reletive )
-	{
-		base = base->anim_next;
-
-		if( !base || ++count > MOD_FRAMES )
-			return s->texinfo->texture;
-	}
-
-	return base;
+	return (texture_t *)R_ResolveSurfaceTexture( s, RI.currententity ? RI.currententity->curstate.frame : 0 );
 }
 
 /*

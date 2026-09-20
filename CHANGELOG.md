@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.37 — 2026-09-20
+
+### Renderer
+
+- #7 Brush Special E: Xash-Random-Tiled (`-`) über einen gemeinsamen read-only Resolver. Neue Tail-API `ResolveSurfaceTextureReadOnly` (`REF_API_VERSION` 21, v37-Prefix unverändert). Sichtbares `R_TextureAnimation` und Offscreen teilen `R_ResolveSurfaceTexture`; keine Client-RNG, keine zweite rtable. Auswahl per SurfaceSpan, nicht per Batch. de_aztec VERIFIED (`candidates=1955 resolved=1955 fallback=0`, zwei Varianten, Pixel-CRC differ, selection zeitstabil). `GL_RenderFrame` bleibt 0.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.36 — 2026-09-20
 
 ### Architektur / Dokumentation

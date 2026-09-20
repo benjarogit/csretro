@@ -16,6 +16,7 @@ typedef struct CSRETRO_WorldStats_s
 	int turb_polys;
 	int turb_verts;
 	int skipped_turb;
+	int random_tile_candidates;
 } CSRETRO_WorldStats;
 
 typedef struct CSRETRO_WorldEngine_s

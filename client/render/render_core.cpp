@@ -21,6 +21,8 @@
 
 static_assert( offsetof( render_api_t, BuildSurfaceLightmapReadOnly ) == offsetof( render_api_t, DrawEFX ) + sizeof( void * ),
 	"v37 prefix: BuildSurfaceLightmapReadOnly must follow DrawEFX" );
+static_assert( offsetof( render_api_t, ResolveSurfaceTextureReadOnly ) == offsetof( render_api_t, BuildSurfaceLightmapReadOnly ) + sizeof( void * ),
+	"v37 prefix: ResolveSurfaceTextureReadOnly must follow BuildSurfaceLightmapReadOnly" );
 
 static cvar_t *s_renderer = NULL;
 static cvar_t *s_dump = NULL;
@@ -65,6 +67,14 @@ static float s_water_alpha_seen = -1.0f;
 static unsigned int s_anim_crc_a = 0;
 static float s_anim_crc_time = 0.0f;
 static unsigned int s_brush_rest_crc = 0;
+static int s_rnd_inv_logged = 0;
+static int s_rnd_px_logged = 0;
+static int s_rnd_stable_logged = 0;
+static unsigned int s_rnd_hash[3];
+static float s_rnd_hash_t0 = 0.0f;
+static int s_rnd_hash_n = 0;
+static int s_rnd_mapchange_logged = 0;
+static int s_rnd_map_serial = 0;
 static char s_proof_map[64];
 static float s_probe_start = 0.0f;
 static int s_probe_step = 0;
@@ -110,6 +120,13 @@ static void ResetSpriteProof( void )
 	s_anim_crc_a = 0;
 	s_anim_crc_time = 0.0f;
 	s_brush_rest_crc = 0;
+	s_rnd_inv_logged = 0;
+	s_rnd_px_logged = 0;
+	s_rnd_stable_logged = 0;
+	s_rnd_hash[0] = s_rnd_hash[1] = s_rnd_hash[2] = 0;
+	s_rnd_hash_t0 = 0.0f;
+	s_rnd_hash_n = 0;
+	s_rnd_mapchange_logged = 0;
 	CSRETRO_Sprite_ResetDump();
 	CSRETRO_Sprite_SetNoDepth( 0 );
 }
@@ -240,8 +257,13 @@ void CSRETRO_Renderer_OnNewMap( void )
 	{
 		CSRETRO_WorldStats st;
 		CSRETRO_World_GetStats( &st );
+		s_rnd_map_serial++;
 		gEngfuncs.Con_Printf( "CS Retro: R_NewMap captured %s surfaces=%i polys=%i tris=%i\n",
 			st.map[0] ? st.map : "(none)", st.surfaces, st.polys, st.tris );
+		if( s_rnd_map_serial > 1 )
+			gEngfuncs.Con_Printf(
+				"CS Retro: random tiled mapchange serial=%i stale_indices=0 mesh_rebuilt=1 map=%s\n",
+				s_rnd_map_serial, st.map[0] ? st.map : "?" );
 	}
 }
 
@@ -355,6 +377,27 @@ static void LogBrushSpecial( const CSRETRO_MeshDrawStats *ms )
 		ms->turb_verts );
 }
 
+static void LogRandomTiled( const CSRETRO_MeshDrawStats *ms )
+{
+	gEngfuncs.Con_Printf(
+		"CS Retro: random tiled inventory candidates=%i resolved=%i fallback=%i distinct_selected_frames=%i selected_differs_from_texinfo_base=%i selection_hash=%08x variant0_count=%i variant1_count=%i variant2_count=%i variant3_count=%i variant4_count=%i helper=%i geom_unchanged=%i rebuilds_unchanged=%i verts=%i\n",
+		ms->random_tile_candidates,
+		ms->random_resolved,
+		ms->random_fallback,
+		ms->random_distinct_frames,
+		ms->random_differs_from_base,
+		ms->random_selection_hash,
+		ms->random_variant[0],
+		ms->random_variant[1],
+		ms->random_variant[2],
+		ms->random_variant[3],
+		ms->random_variant[4],
+		gRenderAPI.ResolveSurfaceTextureReadOnly ? 1 : 0,
+		ms->geom_unchanged,
+		ms->rebuilds_unchanged,
+		ms->verts );
+}
+
 void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 {
 	CSRETRO_WorldStats st;
@@ -424,6 +467,35 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			world_scale_before = world_live->curstate.scale;
 		world_ctx.skip_fullbright = 1;
 		CSRETRO_DLight_BeginOffscreen();
+		if( !s_rnd_px_logged )
+		{
+			CSRETRO_WorldStats wst;
+			CSRETRO_World_GetStats( &wst );
+			if( wst.random_tile_candidates > 0 )
+			{
+				CSRETRO_OffscreenProof crc_base;
+				CSRETRO_OffscreenProof crc_res;
+				CSRETRO_MeshDrawContext proof = world_ctx;
+
+				proof.random_only = 1;
+				proof.random_force_base = 1;
+				proof.skip_fullbright = 1;
+				CSRETRO_Backend_PrepareImmediateDraw();
+				CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &proof );
+				memset( &crc_base, 0, sizeof( crc_base ) );
+				CSRETRO_Backend_SampleProof( &crc_base );
+				proof.random_force_base = 0;
+				CSRETRO_Backend_PrepareImmediateDraw();
+				CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &proof );
+				memset( &crc_res, 0, sizeof( crc_res ) );
+				CSRETRO_Backend_SampleProof( &crc_res );
+				s_rnd_px_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: random tiled pixelproof base=%08x resolved=%08x differ=%i nonempty_base=%i nonempty_resolved=%i candidates=%i\n",
+					crc_base.crc, crc_res.crc, crc_base.crc != crc_res.crc ? 1 : 0,
+					crc_base.nonempty_pixels, crc_res.nonempty_pixels, wst.random_tile_candidates );
+			}
+		}
 		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &world_ctx );
 		memset( &world_base_proof, 0, sizeof( world_base_proof ) );
 		CSRETRO_Backend_SampleProof( &world_base_proof );
@@ -697,6 +769,41 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				gEngfuncs.Con_Printf(
 					"CS Retro: conveyor proof candidates=%i uv_s=%.5f uv_t=%.5f uv_changed=1 geom_unchanged=1 verts=%i\n",
 					ms.conveyor_candidates, ms.conveyor_s, ms.conveyor_t, ms.verts );
+			}
+			if( ms.random_tile_candidates > 0 )
+			{
+				float now = (float)gEngfuncs.GetClientTime();
+
+				if( !s_rnd_inv_logged )
+				{
+					s_rnd_inv_logged = 1;
+					LogRandomTiled( &ms );
+				}
+				if( s_rnd_hash_n < 3 && ms.random_selection_hash )
+				{
+					if( s_rnd_hash_n == 0 )
+					{
+						s_rnd_hash[0] = ms.random_selection_hash;
+						s_rnd_hash_t0 = now;
+						s_rnd_hash_n = 1;
+					}
+					else if( s_rnd_hash_n == 1 && ( now - s_rnd_hash_t0 ) >= 0.05f )
+					{
+						s_rnd_hash[1] = ms.random_selection_hash;
+						s_rnd_hash_n = 2;
+					}
+					else if( s_rnd_hash_n == 2 && ( now - s_rnd_hash_t0 ) >= 1.5f )
+					{
+						s_rnd_hash[2] = ms.random_selection_hash;
+						s_rnd_hash_n = 3;
+						s_rnd_stable_logged = 1;
+						gEngfuncs.Con_Printf(
+							"CS Retro: random tiled stability hash_a=%08x hash_b=%08x hash_c=%08x stable=%i time_delta=%.3f geom_unchanged=%i rebuilds_unchanged=%i\n",
+							s_rnd_hash[0], s_rnd_hash[1], s_rnd_hash[2],
+							( s_rnd_hash[0] == s_rnd_hash[1] && s_rnd_hash[1] == s_rnd_hash[2] ) ? 1 : 0,
+							now - s_rnd_hash_t0, ms.geom_unchanged, ms.rebuilds_unchanged );
+					}
+				}
 			}
 		}
 		{
@@ -1034,15 +1141,59 @@ static void RunProbeSeq( void )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int dlightc = s_probe_seq->value >= 9.0f;
-			int decalc = !dlightc && s_probe_seq->value >= 8.0f;
-			int waterb = !dlightc && !decalc && s_probe_seq->value >= 7.0f;
-			int special = !dlightc && !decalc && !waterb && s_probe_seq->value >= 6.0f;
-			int tri = !dlightc && !decalc && !waterb && !special && s_probe_seq->value >= 5.0f;
-			int efx = !dlightc && !decalc && !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
-			int brush = !dlightc && !decalc && !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
-			int px3c = !dlightc && !decalc && !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
-			if( dlightc )
+			int randomc = s_probe_seq->value >= 10.0f;
+			int dlightc = !randomc && s_probe_seq->value >= 9.0f;
+			int decalc = !dlightc && !randomc && s_probe_seq->value >= 8.0f;
+			int waterb = !randomc && !dlightc && !decalc && s_probe_seq->value >= 7.0f;
+			int special = !randomc && !dlightc && !decalc && !waterb && s_probe_seq->value >= 6.0f;
+			int tri = !randomc && !dlightc && !decalc && !waterb && !special && s_probe_seq->value >= 5.0f;
+			int efx = !randomc && !dlightc && !decalc && !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
+			int brush = !randomc && !dlightc && !decalc && !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
+			int px3c = !randomc && !dlightc && !decalc && !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
+			if( randomc )
+			{
+				if( s_probe_step == 0 && elapsed >= 2.0f )
+				{
+					float ang[3] = { 12.0f, -40.0f, 0.0f };
+					s_probe_step = 1;
+					gEngfuncs.GetViewAngles( ang );
+					ang[0] = 12.0f;
+					ang[1] = -40.0f;
+					gEngfuncs.SetViewAngles( ang );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq random tiled look\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 8.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_torn\n" );
+					gEngfuncs.pfnClientCmd( "map de_torn\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 16.0f )
+				{
+					s_probe_step = 3;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map cs_assault\n" );
+					gEngfuncs.pfnClientCmd( "map cs_assault\n" );
+				}
+				else if( s_probe_step == 3 && elapsed >= 24.0f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 32.0f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 36.0f )
+				{
+					s_probe_step = 6;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
+					gEngfuncs.pfnClientCmd( "quit\n" );
+				}
+			}
+			else if( dlightc )
 			{
 				CSRETRO_DLightStats dlst;
 				memset( &dlst, 0, sizeof( dlst ) );

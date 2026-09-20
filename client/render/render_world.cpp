@@ -45,6 +45,7 @@ static void FillStats( const xr_model_t *mod )
 	s_stats.turb_polys = s_world.turb_polys;
 	s_stats.turb_verts = s_world.turb_verts;
 	s_stats.skipped_turb = s_world.skipped_turb;
+	s_stats.random_tile_candidates = s_world.random_tile_candidates;
 	s_logged_empty = 0;
 }
 

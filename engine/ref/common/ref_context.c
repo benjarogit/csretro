@@ -56,6 +56,65 @@ void GL_InitRandomTable( void )
 	gEngfuncs.COM_SetRandomSeed( 0 );
 }
 
+/*
+===============
+R_ResolveSurfaceTexture
+
+Read-only R_TextureAnimation. entity_frame replaces RI.currententity.
+Random tiled ('-') uses the ref-init rtable. Does not call COM_RandomLong.
+===============
+*/
+const texture_t *R_ResolveSurfaceTexture( const msurface_t *s, float entity_frame )
+{
+	texture_t *orig;
+	texture_t *base;
+	int reletive;
+	int count = 0;
+
+	if( !s || !s->texinfo || !s->texinfo->texture )
+		return NULL;
+
+	orig = s->texinfo->texture;
+	base = orig;
+
+	if( entity_frame != 0.0f && base->alternate_anims )
+		base = base->alternate_anims;
+
+	if( !base->anim_total )
+		return base;
+
+	if( base->name[0] == '-' )
+	{
+		int tx, ty;
+
+		if( !base->width || !base->height )
+			return orig;
+
+		tx = (int)(( s->texturemins[0] + ( base->width << 16 )) / base->width ) % MOD_FRAMES;
+		ty = (int)(( s->texturemins[1] + ( base->height << 16 )) / base->height ) % MOD_FRAMES;
+		reletive = rtable[tx][ty] % base->anim_total;
+	}
+	else
+	{
+		int speed = 20;
+
+		if( R_ResolveTextureFlags( base->gl_texturenum ) & TF_QUAKEPAL )
+			speed = 10;
+
+		reletive = (int)( gp_cl->time * speed ) % base->anim_total;
+	}
+
+	while( base->anim_min > reletive || base->anim_max <= reletive )
+	{
+		base = base->anim_next;
+
+		if( !base || ++count > MOD_FRAMES )
+			return orig;
+	}
+
+	return base;
+}
+
 int EXPORT GetRefAPI( int version, ref_interface_t *funcs, ref_api_t *engfuncs, ref_globals_t *globals );
 int EXPORT GetRefAPI( int version, ref_interface_t *funcs, ref_api_t *engfuncs, ref_globals_t *globals )
 {

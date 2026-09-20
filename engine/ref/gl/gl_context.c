@@ -23,7 +23,9 @@ GNU General Public License for more details.
 #endif
 
 _Static_assert( offsetof( render_api_t, BuildSurfaceLightmapReadOnly ) == offsetof( render_api_t, DrawEFX ) + sizeof( void * ),
-	"v37 prefix: BuildSurfaceLightmapReadOnly must be the tail slot after DrawEFX" );
+	"v37 prefix: BuildSurfaceLightmapReadOnly must follow DrawEFX" );
+_Static_assert( offsetof( render_api_t, ResolveSurfaceTextureReadOnly ) == offsetof( render_api_t, BuildSurfaceLightmapReadOnly ) + sizeof( void * ),
+	"v37 prefix: ResolveSurfaceTextureReadOnly must be the tail slot after BuildSurfaceLightmapReadOnly" );
 
 static void R_ClearScreen( void )
 {
@@ -461,6 +463,7 @@ static void R_FillRenderAPI( render_api_t *api )
 	api->GL_DrawParticles         = CL_DrawParticlesExternal;
 	api->DrawEFX                  = CL_DrawEFXView;
 	api->BuildSurfaceLightmapReadOnly = R_BuildSurfaceLightmapReadOnly;
+	api->ResolveSurfaceTextureReadOnly = R_ResolveSurfaceTexture;
 	api->LightVec                 = R_LightVec;
 	api->StudioGetTexture         = R_StudioGetTexture;
 	api->GL_GetProcAddress        = R_GetProcAddress;

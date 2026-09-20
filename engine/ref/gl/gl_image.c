@@ -42,6 +42,11 @@ gl_texture_t *R_GetTexture( unsigned int texnum )
 	return &gl_textures[texnum];
 }
 
+int R_ResolveTextureFlags( unsigned int texnum )
+{
+	return (int)R_GetTexture( texnum )->flags;
+}
+
 /*
 =================
 GL_TargetToString

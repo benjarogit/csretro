@@ -1414,7 +1414,7 @@ void CStudioModelRenderer::StudioSetShadowSprite(int idx)
 	m_iShadowSprite = idx;
 }
 
-void CStudioModelRenderer::StudioDrawShadow( Vector origin, float scale )
+int CStudioModelRenderer::StudioDrawShadow( Vector origin, float scale )
 {
 	Vector endPoint = origin;
 	Vector p1, p2, p3, p4;
@@ -1431,17 +1431,17 @@ void CStudioModelRenderer::StudioDrawShadow( Vector origin, float scale )
 
 	// don't allow shadow if player in solid area
 	if( pmtrace.startsolid )
-		return;
+		return 0;
 
 	// don't allow shadow if doesn't hit anything
 	if( pmtrace.fraction >= 1.0f )
-		return;
+		return 0;
 
 	pmtrace.plane.normal = pmtrace.plane.normal.Normalize( );
 
 	// don't allow shadow on too lean planes
 	if( pmtrace.plane.normal.z <= 0.7 )
-		return;
+		return 0;
 
 	pmtrace.plane.normal = pmtrace.plane.normal * scale * ( 1.0 - pmtrace.fraction );
 
@@ -1464,4 +1464,5 @@ void CStudioModelRenderer::StudioDrawShadow( Vector origin, float scale )
 	p4.z = pmtrace.endpos.z + 2.0f + pmtrace.plane.normal.x + pmtrace.plane.normal.y;
 
 	IEngineStudio.StudioRenderShadow( m_iShadowSprite, p1, p2, p3, p4 );
+	return 1;
 }

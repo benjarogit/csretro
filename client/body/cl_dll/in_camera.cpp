@@ -365,8 +365,9 @@ void CAM_ToThirdPerson(void)
 #if !defined( _DEBUG )
 	if ( gEngfuncs.GetMaxClients() > 1 )
 	{
-		// no thirdperson in multiplayer.
-		return;
+		cvar_t *cheats = gEngfuncs.pfnGetCvarPointer( "sv_cheats" );
+		if ( !cheats || cheats->value == 0.0f )
+			return;
 	}
 #endif
 

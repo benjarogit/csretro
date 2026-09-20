@@ -83,6 +83,7 @@ CGameStudioModelRenderer::CGameStudioModelRenderer(void)
 	m_pOffscreenPlayerInfo = NULL;
 	m_nOffscreenEvents = 0;
 	m_nOffscreenShadows = 0;
+	m_bOffscreenActive = false;
 }
 
 player_info_t *CGameStudioModelRenderer::ResolvePlayerInfo(int index)
@@ -102,13 +103,38 @@ int CGameStudioModelRenderer::StudioDrawPlayerOffscreen(int flags, entity_state_
 
 	// Same shared player draw as StudioDrawPlayer → _StudioDrawPlayer.
 	// Local player_info_t only. No events, no Save/Restore, no r_shadows.
+	// Shadows are an explicit caller pass after a successful STUDIO_RENDER.
 	flags &= ~STUDIO_EVENTS;
 	m_pOffscreenPlayerInfo = localInfo;
 	m_pplayer = pplayer;
+	m_bOffscreenActive = true;
 	iret = _StudioDrawPlayer(flags, pplayer);
+	m_bOffscreenActive = false;
 	m_pplayer = NULL;
 	m_pOffscreenPlayerInfo = savedInfo;
 	return iret;
+}
+
+int CGameStudioModelRenderer::StudioDrawPlayerShadow(void)
+{
+	Vector chestpos;
+	int i;
+
+	if (m_bOffscreenActive)
+		m_nOffscreenShadows++;
+
+	for (i = 0; i < m_nCachedBones; i++)
+	{
+		if (!strcmp(m_nCachedBoneNames[i], "Bip01 Spine3"))
+		{
+			chestpos.x = m_rgCachedBoneTransform[i][0][3];
+			chestpos.y = m_rgCachedBoneTransform[i][1][3];
+			chestpos.z = m_rgCachedBoneTransform[i][2][3];
+			return StudioDrawShadow(chestpos, 20.0f) ? 1 : 0;
+		}
+	}
+
+	return -1;
 }
 
 mstudioanim_t *CGameStudioModelRenderer::LookupAnimation(mstudioseqdesc_t *pseqdesc, int index)
@@ -813,21 +839,7 @@ int CGameStudioModelRenderer::StudioDrawPlayer(int flags, entity_state_t *pplaye
 		RestorePlayerState(pplayer);
 
 	if( m_pCvarShadows->value != 0.0f )
-	{
-		Vector chestpos;
-
-		for( int i = 0; i < m_nCachedBones; i++ )
-		{
-			if( !strcmp(m_nCachedBoneNames[i], "Bip01 Spine3") )
-			{
-				chestpos.x = m_rgCachedBoneTransform[i][0][3];
-				chestpos.y = m_rgCachedBoneTransform[i][1][3];
-				chestpos.z = m_rgCachedBoneTransform[i][2][3];
-				StudioDrawShadow(chestpos, 20.0f);
-				break;
-			}
-		}
-	}
+		StudioDrawPlayerShadow();
 
 	m_pplayer = NULL;
 

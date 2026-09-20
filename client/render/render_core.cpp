@@ -14,6 +14,7 @@
 #include "cl_entity.h"
 #include "render_api.h"
 #include "ref_params.h"
+#include "camera.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -39,6 +40,8 @@ static int s_nodepth_try = 0;
 static int s_studio_crc_logged = 0;
 static int s_player_crc_logged = 0;
 static int s_player_hash_logged = 0;
+static int s_local_proof_logged = 0;
+static int s_shadow_proof_logged = 0;
 static int s_follow_crc_logged = 0;
 static int s_follow_detail_logged = 0;
 static int s_brush_crc_logged = 0;
@@ -94,6 +97,8 @@ static void ResetSpriteProof( void )
 	s_studio_crc_logged = 0;
 	s_player_crc_logged = 0;
 	s_player_hash_logged = 0;
+	s_local_proof_logged = 0;
+	s_shadow_proof_logged = 0;
 	s_follow_crc_logged = 0;
 	CSRETRO_Studio_ResetPlayerProof();
 	s_follow_detail_logged = 0;
@@ -694,7 +699,7 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_Backend_SampleProof( &before_player );
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
-			CSRETRO_Studio_DrawPlayers( &scene );
+			CSRETRO_Studio_DrawPlayers( &scene, rvp );
 			memset( &after_player, 0, sizeof( after_player ) );
 			CSRETRO_Backend_SampleProof( &after_player );
 			CSRETRO_Studio_GetPlayerProof( &pp );
@@ -720,6 +725,25 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 					pp.info_before, pp.info_after_offscreen, pp.info_mutate,
 					pp.entity_live_before, pp.entity_live_after_offscreen,
 					pp.entity_mutate, pp.entity_snap_after );
+			}
+			if( !s_local_proof_logged && ( pp.local_hidden_viewentity > 0 || pp.local_drawn > 0 ) )
+			{
+				s_local_proof_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: local player proof mirrored=%i hidden=%i eligible=%i drawn=%i pixel=%i info_mutate=%i entity_mutate=%i thirdperson=%i firstperson=%i spectator=%i chase=%i ineye=%i\n",
+					pp.local_mirrored, pp.local_hidden_viewentity, pp.local_eligible,
+					pp.local_drawn, pp.local_pixel, pp.local_info_mutate, pp.local_entity_mutate,
+					pp.local_thirdperson, pp.local_firstperson, pp.local_spectator,
+					pp.local_chase, pp.local_ineye );
+			}
+			if( !s_shadow_proof_logged && ( pp.shadow_candidates > 0 || pp.shadow_drawn > 0 ) )
+			{
+				s_shadow_proof_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: player shadow proof candidates=%i drawn=%i rejected=%i side_draw=%i r_shadows=%i remote_pixel=%i local_pixel=%i follow_shadow=%i\n",
+					pp.shadow_candidates, pp.shadow_drawn, pp.shadow_rejected_trace,
+					pp.shadow_side_draw, pp.r_shadows_on, pp.remote_shadow_pixel,
+					pp.local_shadow_pixel, pp.follow_player_shadow );
 			}
 		}
 		CSRETRO_Studio_DrawFollow( &scene );
@@ -1221,35 +1245,99 @@ static void RunProbeSeq( void )
 						s_probe_step = 1;
 						gEngfuncs.SetViewAngles( ang );
 						gEngfuncs.Con_Printf( "CS Retro: probe_seq player look aimed=%i\n", aimed );
+						gEngfuncs.pfnClientCmd( "r_shadows 1\n" );
 					}
 				}
-				else if( s_probe_step == 1 && elapsed >= 8.0f )
+				else if( s_probe_step == 1 && elapsed >= 10.0f )
 				{
+					cvar_t *cv;
 					s_probe_step = 2;
+					cv = gEngfuncs.pfnGetCvarPointer( "r_shadows" );
+					if( cv )
+						cv->value = 0.0f;
+					gEngfuncs.Cvar_SetValue( "r_shadows", 0.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_shadows 0 value=%.0f\n", cv ? cv->value : -1.0f );
+				}
+				else if( s_probe_step == 2 && elapsed >= 14.0f )
+				{
+					cvar_t *cv;
+					s_probe_step = 3;
+					cv = gEngfuncs.pfnGetCvarPointer( "r_shadows" );
+					if( cv )
+						cv->value = 1.0f;
+					gEngfuncs.Cvar_SetValue( "r_shadows", 1.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_shadows 1 value=%.0f\n", cv ? cv->value : -1.0f );
+				}
+				else if( s_probe_step == 3 && elapsed >= 18.0f )
+				{
+					float ang[3] = { 18.0f, 0.0f, 0.0f };
+					s_probe_step = 4;
+					gEngfuncs.GetViewAngles( ang );
+					ang[0] = 18.0f;
+					gEngfuncs.SetViewAngles( ang );
+					gEngfuncs.Cvar_SetValue( "cam_idealdist", 128.0f );
+					gEngfuncs.Cvar_SetValue( "cam_idealpitch", 12.0f );
+					cam_thirdperson = 1;
+					gEngfuncs.pfnClientCmd( "thirdperson\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq thirdperson cam=%i\n", cam_thirdperson );
+				}
+				else if( s_probe_step == 4 && elapsed >= 24.0f )
+				{
+					s_probe_step = 5;
+					cam_thirdperson = 0;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq spectator join\n" );
+					gEngfuncs.pfnClientCmd( "firstperson; kill\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 28.0f )
+				{
+					s_probe_step = 6;
+					gEngfuncs.Con_Printf(
+						"CS Retro: probe_seq spectator ineye user1=%i user2=%i thirdperson=%i\n",
+						g_iUser1, g_iUser2, CL_IsThirdPerson() );
+					gEngfuncs.pfnClientCmd( "spec_mode 4; cmd specmode 4\n" );
+				}
+				else if( s_probe_step == 6 && elapsed >= 32.0f )
+				{
+					s_probe_step = 7;
+					gEngfuncs.Con_Printf(
+						"CS Retro: probe_seq spectator chase user1=%i user2=%i thirdperson=%i\n",
+						g_iUser1, g_iUser2, CL_IsThirdPerson() );
+					gEngfuncs.pfnClientCmd( "spec_mode 2; cmd specmode 2\n" );
+				}
+				else if( s_probe_step == 7 && elapsed >= 36.0f )
+				{
+					s_probe_step = 8;
+					cam_thirdperson = 0;
+					gEngfuncs.pfnClientCmd( "firstperson; jointeam 1; joinclass 5\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq restore team\n" );
+				}
+				else if( s_probe_step == 8 && elapsed >= 42.0f )
+				{
+					s_probe_step = 9;
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_torn\n" );
 					gEngfuncs.pfnClientCmd( "map de_torn\n" );
 				}
-				else if( s_probe_step == 2 && elapsed >= 16.0f )
+				else if( s_probe_step == 9 && elapsed >= 50.0f )
 				{
-					s_probe_step = 3;
+					s_probe_step = 10;
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq map cs_assault\n" );
 					gEngfuncs.pfnClientCmd( "map cs_assault\n" );
 				}
-				else if( s_probe_step == 3 && elapsed >= 24.0f )
+				else if( s_probe_step == 10 && elapsed >= 58.0f )
 				{
-					s_probe_step = 4;
+					s_probe_step = 11;
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
 					gEngfuncs.pfnClientCmd( "map de_dust\n" );
 				}
-				else if( s_probe_step == 4 && elapsed >= 32.0f )
+				else if( s_probe_step == 11 && elapsed >= 66.0f )
 				{
-					s_probe_step = 5;
+					s_probe_step = 12;
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
 					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
 				}
-				else if( s_probe_step == 5 && elapsed >= 36.0f )
+				else if( s_probe_step == 12 && elapsed >= 70.0f )
 				{
-					s_probe_step = 6;
+					s_probe_step = 13;
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
 					gEngfuncs.pfnClientCmd( "quit\n" );
 				}

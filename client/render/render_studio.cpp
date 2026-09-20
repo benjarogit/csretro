@@ -1,5 +1,7 @@
 // Offscreen studio. GSMR stays the CS renderer.
-// Remote player: local player_info_t copy only. Live advances on visible Xash.
+// Remote + eligible local: local player_info_t copy only. Live advances on visible Xash.
+// Local world-draw = CL_IsThirdPerson() || index != rvp->viewentity.
+// Explicit StudioDrawPlayerShadow after STUDIO_RENDER; never inside Offscreen.
 // STUDIO_EVENTS never. No live entity across frames — local snapshot only.
 #include "render_studio.h"
 #include "render_scene.h"
@@ -14,6 +16,7 @@
 #include "r_studioint.h"
 #include "GameStudioModelRenderer.h"
 #include "render_api.h"
+#include "ref_params.h"
 #include "camera.h"
 #include "cdll_dll.h"
 #include "pm_shared.h"
@@ -23,6 +26,7 @@
 
 extern engine_studio_api_t IEngineStudio;
 extern int g_iUser1;
+extern int g_iUser2;
 
 static CSRETRO_StudioPlayerProof s_player_proof;
 static int s_player_logged = 0;
@@ -167,7 +171,48 @@ static int EligibleRemotePlayer( const CSRETRO_EntCopy *e )
 	return 1;
 }
 
-static void ClassifyLocalPlayer( void )
+static int EligibleLocalPlayer( const CSRETRO_EntCopy *e )
+{
+	if( !e || e->kind != CSRETRO_KIND_STUDIO_LOCAL )
+		return 0;
+	if( !e->player )
+		return 0;
+	if( e->type != ET_NORMAL && e->type != ET_PLAYER )
+		return 0;
+	if( e->is_viewmodel || e->is_follow || e->is_preview )
+		return 0;
+	if( e->snap_index < 0 )
+		return 0;
+	return 1;
+}
+
+static int LocalWorldDrawEligible( const CSRETRO_EntCopy *e, const ref_viewpass_t *rvp )
+{
+	int viewentity;
+
+	if( !e )
+		return 0;
+	if( CL_IsThirdPerson() )
+		return 1;
+	viewentity = rvp ? rvp->viewentity : 0;
+	return e->index != viewentity;
+}
+
+static int ShadowsCvarOn( void )
+{
+	cvar_t *cv = gEngfuncs.pfnGetCvarPointer( "r_shadows" );
+	return ( cv && cv->value != 0.0f ) ? 1 : 0;
+}
+
+static unsigned int SampleFboCrc( void )
+{
+	CSRETRO_OffscreenProof p;
+	memset( &p, 0, sizeof( p ) );
+	CSRETRO_Backend_SampleProof( &p );
+	return p.crc;
+}
+
+static void ClassifyLocalPlayer( const ref_viewpass_t *rvp )
 {
 	int i, n;
 	int mirrored = 0;
@@ -176,6 +221,12 @@ static void ClassifyLocalPlayer( void )
 	int chase = 0;
 	int ineye = 0;
 	int thirdperson = 0;
+	int local_index = 0;
+	int viewentity = rvp ? rvp->viewentity : 0;
+	cl_entity_t *lp = gEngfuncs.GetLocalPlayer();
+
+	if( lp )
+		local_index = lp->index;
 
 	n = CSRETRO_Scene_Count();
 	for( i = 0; i < n; i++ )
@@ -193,7 +244,7 @@ static void ClassifyLocalPlayer( void )
 		if( g_iUser1 == OBS_IN_EYE )
 			ineye = 1;
 	}
-	else
+	else if( !CL_IsThirdPerson() )
 		firstperson = 1;
 
 	if( CL_IsThirdPerson() )
@@ -205,14 +256,18 @@ static void ClassifyLocalPlayer( void )
 	s_player_proof.local_chase = chase;
 	s_player_proof.local_ineye = ineye;
 	s_player_proof.local_thirdperson = thirdperson;
-	s_player_proof.local_deferred = 1;
+	s_player_proof.local_deferred = 0;
+	s_player_proof.local_index = local_index;
+	s_player_proof.viewentity = viewentity;
+	s_player_proof.r_shadows_on = ShadowsCvarOn();
 
 	if( !s_local_logged )
 	{
 		s_local_logged = 1;
 		gEngfuncs.Con_Printf(
-			"CS Retro: local player class firstperson=%i spectator=%i chase=%i ineye=%i thirdperson=%i mirrored=%i setupclientanim=0 (m_bLocal=0) offscreen=deferred\n",
-			firstperson, spectator, chase, ineye, thirdperson, mirrored );
+			"CS Retro: local player class firstperson=%i spectator=%i chase=%i ineye=%i thirdperson=%i mirrored=%i viewentity=%i local_index=%i user2=%i setupclientanim=0 (m_bLocal=0) offscreen=xash-eligibility\n",
+			firstperson, spectator, chase, ineye, thirdperson, mirrored,
+			viewentity, local_index, g_iUser2 );
 	}
 }
 
@@ -336,87 +391,118 @@ int CSRETRO_Studio_DrawList( CSRETRO_SceneStats *stats )
 	return drawn;
 }
 
-int CSRETRO_Studio_DrawPlayers( CSRETRO_SceneStats *stats )
+static int MaybeExplicitShadow( int is_follow_bones )
 {
-	cl_entity_t *saved_ent = NULL;
-	struct model_s *saved_model = NULL;
-	int i, n, drawn = 0;
+	int shadows_before;
+	int result;
 
-	ClassifyLocalPlayer();
-	FinishPendingVisible();
-
-	if( !gRenderAPI.R_SetCurrentEntity )
+	if( is_follow_bones )
+	{
+		s_player_proof.follow_player_shadow = 0;
+		return 0;
+	}
+	if( !ShadowsCvarOn() )
 		return 0;
 
-	if( IEngineStudio.GetCurrentEntity )
-		saved_ent = IEngineStudio.GetCurrentEntity();
-	if( saved_ent )
-		saved_model = saved_ent->model;
-
-	n = CSRETRO_Scene_Count();
-	for( i = 0; i < n; i++ )
+	s_player_proof.shadow_candidates++;
+	shadows_before = g_StudioRenderer.OffscreenShadowsDrawn();
+	result = g_StudioRenderer.StudioDrawPlayerShadow();
+	if( g_StudioRenderer.OffscreenShadowsDrawn() != shadows_before )
+		s_player_proof.shadow_side_draw = 1;
+	if( result < 0 )
+		return 0;
+	s_player_proof.shadow_trace_attempts++;
+	if( result > 0 )
 	{
-		const CSRETRO_EntCopy *e = CSRETRO_Scene_Get( i );
-		cl_entity_t *snap;
-		cl_entity_t *live;
-		player_info_t *live_info;
-		player_info_t local_info;
-		entity_state_t pplayer;
-		unsigned int h_before, h_after, h_local, h_gait;
-		unsigned int e_before, e_after, e_snap;
-		int events_before, shadows_before;
-		int ok;
-		int team = 0;
+		s_player_proof.shadow_drawn++;
+		CSRETRO_Backend_PrepareImmediateDraw();
+		return 1;
+	}
+	s_player_proof.shadow_rejected_trace++;
+	CSRETRO_Backend_PrepareImmediateDraw();
+	return 0;
+}
 
-		if( !EligibleRemotePlayer( e ) )
-			continue;
-		snap = CSRETRO_Scene_StudioSnap( e->snap_index );
-		if( !snap || !snap->model )
-			continue;
-		if( snap->curstate.renderfx == kRenderFxDeadPlayer )
-			continue;
+static int DrawIsolatedPlayer( const CSRETRO_EntCopy *e, int is_local, int want_shadow )
+{
+	cl_entity_t *snap;
+	cl_entity_t *live;
+	player_info_t *live_info;
+	player_info_t local_info;
+	entity_state_t pplayer;
+	unsigned int h_before, h_after, h_local, h_gait;
+	unsigned int e_before, e_after, e_snap;
+	int events_before, shadows_before;
+	int ok;
+	int team = 0;
 
+	snap = CSRETRO_Scene_StudioSnap( e->snap_index );
+	if( !snap || !snap->model )
+		return 0;
+	if( snap->curstate.renderfx == kRenderFxDeadPlayer )
+		return 0;
+
+	if( !is_local )
 		s_player_proof.candidates++;
-		CSRETRO_Scene_NotePlayerAttempted();
-		CSRETRO_Scene_NoteAttempted();
+	CSRETRO_Scene_NotePlayerAttempted();
+	CSRETRO_Scene_NoteAttempted();
 
-		live = e->live;
-		live_info = LivePlayerInfo( snap );
-		if( !live_info )
-			continue;
+	live = e->live;
+	live_info = LivePlayerInfo( snap );
+	if( !live_info )
+		return 0;
 
-		h_before = HashPlayerInfo( live_info );
-		e_before = HashEntityMut( live );
-		local_info = *live_info;
-		pplayer = snap->curstate;
-		if( pplayer.number <= 0 )
-			pplayer.number = snap->index;
+	h_before = HashPlayerInfo( live_info );
+	e_before = HashEntityMut( live );
+	local_info = *live_info;
+	pplayer = snap->curstate;
+	if( pplayer.number <= 0 )
+		pplayer.number = snap->index;
 
-		if( pplayer.number > 0 && pplayer.number <= MAX_PLAYERS )
-			team = g_PlayerExtraInfo[pplayer.number].teamnumber;
-		NotePlayerModel( live_info, team );
+	if( pplayer.number > 0 && pplayer.number <= MAX_PLAYERS )
+		team = g_PlayerExtraInfo[pplayer.number].teamnumber;
+	NotePlayerModel( live_info, team );
 
-		events_before = g_StudioRenderer.OffscreenEventsFired();
-		shadows_before = g_StudioRenderer.OffscreenShadowsDrawn();
+	events_before = g_StudioRenderer.OffscreenEventsFired();
+	shadows_before = g_StudioRenderer.OffscreenShadowsDrawn();
 
-		gRenderAPI.R_SetCurrentEntity( snap );
-		ok = g_StudioRenderer.StudioDrawPlayerOffscreen( STUDIO_RENDER, &pplayer, &local_info );
+	gRenderAPI.R_SetCurrentEntity( snap );
+	ok = g_StudioRenderer.StudioDrawPlayerOffscreen( STUDIO_RENDER, &pplayer, &local_info );
 
-		h_after = HashPlayerInfo( live_info );
-		h_local = HashPlayerInfo( &local_info );
-		h_gait = HashPlayerGait( &local_info );
-		e_after = HashEntityMut( live );
-		e_snap = HashEntityMut( snap );
+	h_after = HashPlayerInfo( live_info );
+	h_local = HashPlayerInfo( &local_info );
+	h_gait = HashPlayerGait( &local_info );
+	e_after = HashEntityMut( live );
+	e_snap = HashEntityMut( snap );
 
-		if( h_after != h_before )
+	if( h_after != h_before )
+	{
+		if( is_local )
+			s_player_proof.local_info_mutate = 1;
+		else
 			s_player_proof.info_mutate = 1;
-		if( e_after != e_before )
+	}
+	if( e_after != e_before )
+	{
+		if( is_local )
+			s_player_proof.local_entity_mutate = 1;
+		else
 			s_player_proof.entity_mutate = 1;
-		if( g_StudioRenderer.OffscreenEventsFired() != events_before )
-			s_player_proof.events = 1;
-		if( g_StudioRenderer.OffscreenShadowsDrawn() != shadows_before )
-			s_player_proof.shadow_side_draw = 1;
+	}
+	if( g_StudioRenderer.OffscreenEventsFired() != events_before )
+		s_player_proof.events = 1;
+	if( g_StudioRenderer.OffscreenShadowsDrawn() != shadows_before )
+		s_player_proof.shadow_side_draw = 1;
 
+	if( is_local )
+	{
+		s_player_proof.local_info_before = h_before;
+		s_player_proof.local_info_after = h_after;
+		s_player_proof.local_entity_before = e_before;
+		s_player_proof.local_entity_after = e_after;
+	}
+	else
+	{
 		s_player_proof.info_before = h_before;
 		s_player_proof.info_after_offscreen = h_after;
 		s_player_proof.info_local_final = h_local;
@@ -436,26 +522,184 @@ int CSRETRO_Studio_DrawPlayers( CSRETRO_SceneStats *stats )
 			s_pending_local = h_local;
 			s_pending_gait_local = h_gait;
 		}
+	}
 
-		if( ok )
+	if( !ok )
+		return 0;
+
+	CSRETRO_Scene_NoteDrawn( CSRETRO_KIND_STUDIO );
+	CSRETRO_Scene_NotePlayerDrawn();
+	if( !is_local )
+		s_player_proof.drawn++;
+	else
+		s_player_proof.local_drawn++;
+
+	if( !s_player_proof.look_ready )
+	{
+		s_player_proof.look_origin[0] = snap->origin[0];
+		s_player_proof.look_origin[1] = snap->origin[1];
+		s_player_proof.look_origin[2] = snap->origin[2];
+		s_player_proof.look_ready = 1;
+	}
+
+	if( !is_local && !s_player_proof.crc_after_player_body )
+		s_player_proof.crc_after_player_body = SampleFboCrc();
+	else if( is_local && !s_player_proof.crc_after_local )
+		s_player_proof.crc_after_local = SampleFboCrc();
+
+	if( want_shadow )
+	{
+		unsigned int crc_body = SampleFboCrc();
+		if( MaybeExplicitShadow( 0 ) )
 		{
-			CSRETRO_Scene_NoteDrawn( CSRETRO_KIND_STUDIO );
-			CSRETRO_Scene_NotePlayerDrawn();
-			drawn++;
-			s_player_proof.drawn++;
-			if( !s_player_proof.look_ready )
+			unsigned int crc_shadow = SampleFboCrc();
+			if( !is_local )
 			{
-				s_player_proof.look_origin[0] = snap->origin[0];
-				s_player_proof.look_origin[1] = snap->origin[1];
-				s_player_proof.look_origin[2] = snap->origin[2];
-				s_player_proof.look_ready = 1;
+				if( crc_shadow != crc_body )
+				{
+					s_player_proof.crc_after_player_body = crc_body;
+					s_player_proof.crc_after_shadow = crc_shadow;
+					s_player_proof.remote_shadow_pixel = 1;
+				}
+				else if( !s_player_proof.crc_after_shadow )
+				{
+					s_player_proof.crc_after_player_body = crc_body;
+					s_player_proof.crc_after_shadow = crc_shadow;
+				}
 			}
+			else
+			{
+				s_player_proof.crc_after_local = crc_body;
+				s_player_proof.crc_after_local_shadow = crc_shadow;
+				if( crc_shadow != crc_body )
+					s_player_proof.local_shadow_pixel = 1;
+			}
+		}
+	}
+
+	return 1;
+}
+
+int CSRETRO_Studio_DrawPlayers( CSRETRO_SceneStats *stats, const ref_viewpass_t *rvp )
+{
+	cl_entity_t *saved_ent = NULL;
+	struct model_s *saved_model = NULL;
+	int i, n, drawn = 0;
+	int shadow_drawn_start;
+	int remote_drawn_start;
+	static int s_fp_logged = 0;
+	static int s_tp_logged = 0;
+	static int s_spec_logged = 0;
+	static int s_shadow_logged = 0;
+	static int s_shadow_off_logged = 0;
+
+	ClassifyLocalPlayer( rvp );
+	FinishPendingVisible();
+
+	if( !gRenderAPI.R_SetCurrentEntity )
+		return 0;
+
+	if( IEngineStudio.GetCurrentEntity )
+		saved_ent = IEngineStudio.GetCurrentEntity();
+	if( saved_ent )
+		saved_model = saved_ent->model;
+
+	shadow_drawn_start = s_player_proof.shadow_drawn;
+	remote_drawn_start = s_player_proof.drawn;
+
+	n = CSRETRO_Scene_Count();
+	for( i = 0; i < n; i++ )
+	{
+		const CSRETRO_EntCopy *e = CSRETRO_Scene_Get( i );
+
+		if( !EligibleRemotePlayer( e ) )
+			continue;
+		if( DrawIsolatedPlayer( e, 0, 1 ) )
+			drawn++;
+	}
+
+	for( i = 0; i < n; i++ )
+	{
+		const CSRETRO_EntCopy *e = CSRETRO_Scene_Get( i );
+
+		if( !EligibleLocalPlayer( e ) )
+			continue;
+		if( !LocalWorldDrawEligible( e, rvp ) )
+		{
+			s_player_proof.local_hidden_viewentity++;
+			continue;
+		}
+		s_player_proof.local_eligible++;
+		if( !s_player_proof.crc_before_local )
+			s_player_proof.crc_before_local = SampleFboCrc();
+		if( DrawIsolatedPlayer( e, 1, 1 ) )
+		{
+			drawn++;
+			if( s_player_proof.crc_after_local && s_player_proof.crc_before_local
+				&& s_player_proof.crc_after_local != s_player_proof.crc_before_local )
+				s_player_proof.local_pixel = 1;
 		}
 	}
 
 	gRenderAPI.R_SetCurrentEntity( saved_ent );
 	if( gRenderAPI.R_SetCurrentModel )
 		gRenderAPI.R_SetCurrentModel( saved_model );
+
+	if( !s_fp_logged && s_player_proof.local_mirrored && s_player_proof.local_hidden_viewentity > 0
+		&& s_player_proof.local_drawn == 0 && s_player_proof.drawn > 0 )
+	{
+		s_fp_logged = 1;
+		gEngfuncs.Con_Printf(
+			"CS Retro: local firstperson hidden mirrored=%i hidden_viewentity=%i local_drawn=%i remote_drawn=%i viewentity=%i local_index=%i thirdperson=%i eligible=%i\n",
+			s_player_proof.local_mirrored, s_player_proof.local_hidden_viewentity,
+			s_player_proof.local_drawn, s_player_proof.drawn,
+			s_player_proof.viewentity, s_player_proof.local_index,
+			s_player_proof.local_thirdperson, s_player_proof.local_eligible );
+	}
+	if( !s_tp_logged && s_player_proof.local_thirdperson && s_player_proof.local_eligible > 0
+		&& s_player_proof.local_drawn > 0 )
+	{
+		s_tp_logged = 1;
+		gEngfuncs.Con_Printf(
+			"CS Retro: local thirdperson drawn eligible=%i local_drawn=%i pixel=%i before_crc=%08x after_crc=%08x info_mutate=%i entity_mutate=%i shadow_cand=%i shadow_drawn=%i local_shadow_pixel=%i\n",
+			s_player_proof.local_eligible, s_player_proof.local_drawn,
+			s_player_proof.local_pixel, s_player_proof.crc_before_local,
+			s_player_proof.crc_after_local, s_player_proof.local_info_mutate,
+			s_player_proof.local_entity_mutate, s_player_proof.shadow_candidates,
+			s_player_proof.shadow_drawn, s_player_proof.local_shadow_pixel );
+	}
+	if( !s_spec_logged && s_player_proof.local_spectator )
+	{
+		s_spec_logged = 1;
+		gEngfuncs.Con_Printf(
+			"CS Retro: spectator class chase=%i ineye=%i viewentity=%i local_index=%i thirdperson=%i eligible=%i hidden=%i local_drawn=%i user2=%i\n",
+			s_player_proof.local_chase, s_player_proof.local_ineye,
+			s_player_proof.viewentity, s_player_proof.local_index,
+			s_player_proof.local_thirdperson, s_player_proof.local_eligible,
+			s_player_proof.local_hidden_viewentity, s_player_proof.local_drawn, g_iUser2 );
+	}
+	if( !s_shadow_logged && s_player_proof.shadow_drawn > 0 && s_player_proof.r_shadows_on
+		&& s_player_proof.remote_shadow_pixel )
+	{
+		s_shadow_logged = 1;
+		gEngfuncs.Con_Printf(
+			"CS Retro: explicit shadow r_shadows=1 candidates=%i drawn=%i rejected_trace=%i attempts=%i side_draw=%i after_body=%08x after_shadow=%08x differ=1\n",
+			s_player_proof.shadow_candidates, s_player_proof.shadow_drawn,
+			s_player_proof.shadow_rejected_trace, s_player_proof.shadow_trace_attempts,
+			s_player_proof.shadow_side_draw, s_player_proof.crc_after_player_body,
+			s_player_proof.crc_after_shadow );
+	}
+	{
+		int frame_shadow = s_player_proof.shadow_drawn - shadow_drawn_start;
+		(void)remote_drawn_start;
+		if( !s_shadow_off_logged && !s_player_proof.r_shadows_on && s_player_proof.drawn > 0 )
+		{
+			s_shadow_off_logged = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: explicit shadow r_shadows=0 drawn=%i candidates=%i body_drawn=%i\n",
+				frame_shadow, s_player_proof.shadow_candidates, s_player_proof.drawn );
+		}
+	}
 
 	if( stats )
 		CSRETRO_Scene_GetStats( stats );
@@ -596,13 +840,9 @@ int CSRETRO_Studio_DrawFollow( CSRETRO_SceneStats *stats )
 		{
 			CSRETRO_Scene_NoteFollowParent( 1 );
 			s_player_proof.follow_player_parent++;
-			if( parent->kind == CSRETRO_KIND_STUDIO_LOCAL )
-			{
-				CSRETRO_Scene_NoteFollowDeferred();
-				continue;
-			}
 			if( !DrawPlayerParentBones( psnap, parent->live ) )
 				continue;
+			s_player_proof.follow_player_shadow = 0;
 			VectorCopy( psnap->origin, child->origin );
 			VectorCopy( psnap->curstate.origin, child->curstate.origin );
 			gRenderAPI.R_SetCurrentEntity( child );

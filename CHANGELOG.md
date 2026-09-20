@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.40 — 2026-09-20
+
+### Renderer
+
+- PX4B.3 Local-Player-Eligibility + Player-Shadows: Local folgt der Xash-World-Draw-Regel `CL_IsThirdPerson() || index != rvp->viewentity`. First-Person hidden VERIFIED, Third-Person Pixel VERIFIED. Gemeinsamer GSMR-Helper `StudioDrawPlayerShadow` (`Bip01 Spine3` → `StudioDrawShadow`). Expliziter Shadow-Pass nach erfolgreichem Body, nicht in `StudioDrawPlayerOffscreen`. `r_shadows` 0/1 VERIFIED, Remote- und Local-Shadow-Pixel VERIFIED, `shadow_side_draw=0`. Sichtbares GSMR: `m_bLocal` bleibt false, `SetupClientAnimation` inaktiv. Player-parent FOLLOW implemented / Stock-CS N/R. `GL_RenderFrame` bleibt 0. Issue #9 geschlossen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.39 — 2026-09-20
 
 ### Renderer

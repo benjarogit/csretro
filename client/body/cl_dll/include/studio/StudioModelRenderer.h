@@ -56,7 +56,7 @@ public:
 	virtual void StudioEstimateGait(entity_state_t *pplayer);
 	virtual void StudioProcessGait(entity_state_t *pplayer);
 	virtual void StudioSetShadowSprite(int idx);
-	void StudioDrawShadow(Vector origin, float scale);
+	int StudioDrawShadow(Vector origin, float scale);
 
 
 public:

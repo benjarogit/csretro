@@ -68,6 +68,7 @@ public:
 	virtual int StudioDrawPlayer(int flags, entity_state_t *pplayer);
 	virtual int _StudioDrawPlayer(int flags, entity_state_t *pplayer);
 	int StudioDrawPlayerOffscreen(int flags, entity_state_t *pplayer, player_info_t *localInfo);
+	int StudioDrawPlayerShadow(void);
 	virtual void StudioFxTransform(cl_entity_t *ent, float transform[3][4]);
 	virtual void StudioPlayerBlend(mstudioseqdesc_t *pseqdesc, int *pBlend, float *pPitch);
 	virtual void CalculateYawBlend(entity_state_t *pplayer);
@@ -87,6 +88,7 @@ private:
 	player_info_t *m_pOffscreenPlayerInfo;
 	int m_nOffscreenEvents;
 	int m_nOffscreenShadows;
+	bool m_bOffscreenActive;
 };
 
 extern CGameStudioModelRenderer g_StudioRenderer;

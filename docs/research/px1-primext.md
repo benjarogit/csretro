@@ -470,7 +470,7 @@ Zweiter offscreen GSMR-Aufruf im selben Frame ist **nicht** nebenwirkungsfrei. G
 
 Spiegel = Kopie, keine Live-Pointer über Frames. Model-Pointer nur im Map-/Frame-Lifecycle.
 
-**Player:** bis PX4B.2 Variante C. PX4B.2 Remote-Player ist Variante B (isolierte `player_info_t`). Local deferred. **Viewmodel:** #10 (DepthRange, Events, Wick, righthand). **FOLLOW:** Non-Player PX4B.1; Player-parent PX4B.2 implemented / N/R. **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
+**Player:** PX4B.2 Remote Variante B. PX4B.3 Local Xash-Eligibility + explizite Player-Shadows VERIFIED, #9 CLOSED. Sichtbares GSMR: `m_bLocal` false, `SetupClientAnimation` inaktiv. **Viewmodel:** #10 (DepthRange, Events, Wick, righthand). **FOLLOW:** Non-Player PX4B.1; Player-parent PX4B.2/PX4B.3 implemented / N/R. **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
 
 Erster Draw-Slice (PX4A.1): `ET_NORMAL` + `mod_studio`, kein Viewmodel, kein Player, kein `MOVETYPE_FOLLOW`, nur `STUDIO_RENDER`.
 
@@ -544,34 +544,44 @@ Kein zweiter Renderer. Eine Naht in `CGameStudioModelRenderer`:
 
 ```
 StudioDrawPlayer → _StudioDrawPlayer (ResolvePlayerInfo → live)
+                 → StudioDrawPlayerShadow wenn cl_shadows (sichtbar)
 StudioDrawPlayerOffscreen → _StudioDrawPlayer (ResolvePlayerInfo → local copy)
     flags &= ~STUDIO_EVENTS
     kein SavePlayerState / SetupClientAnimation / RestorePlayerState
-    kein r_shadows
+    kein r_shadows in B-Core
+CS Retro nach erfolgreichem STUDIO_RENDER → StudioDrawPlayerShadow wenn r_shadows
 ```
 
 Seeding: ganze Live-`player_info_t` einmal kopieren (nicht nur vier Gait-Felder). Scene-Mirror liefert `cl_entity_t` + `entity_state_t`. GSMR-Mutationen treffen nur diese Kopien. Kein Writeback. Kein `GetEntityByIndex` für Offscreen-State.
 
-**Remote-B Probe** `./scripts/px4b2-player-probe.sh` (aztec/torn/assault/dust + `vid_setmode`):
+Local World-Draw (Xash `CL_AddVisibleEntity`): `local_draw = CL_IsThirdPerson() || index != rvp->viewentity`. `CSRETRO_Studio_DrawPlayers(&scene, rvp)` — kein gecachtes viewentity über Frames. First-person + mirrored bedeutet nicht „muss gezeichnet werden“.
+
+Sichtbares Xash/GSMR Local: `m_bLocal` bleibt false, `SetupClientAnimation` inaktiv. Keine neue Local-Animationssemantik in PX4B.3.
+
+**Remote-B / Local / Shadow Probe** `./scripts/px4b2-player-probe.sh` (aztec/torn/assault/dust + `vid_setmode`):
 
 | Nachweis | Status | Beleg |
 | --- | --- | --- |
-| Live `player_info` BEFORE == AFTER_OFFSCREEN | VERIFIED | aztec `0e455eb3==0e455eb3` live_mutate=0 |
-| AFTER_VISIBLE != BEFORE | VERIFIED | `be0098c0 != 0e455eb3` visible_advanced=1 |
+| Live `player_info` BEFORE == AFTER_OFFSCREEN | VERIFIED | aztec live_mutate=0 |
+| AFTER_VISIBLE != BEFORE | VERIFIED | visible_advanced=1 |
 | Live `cl_entity` mutate | VERIFIED | `entity_mutate=0`; Snapshot `snap_after` weicht ab |
 | STUDIO_EVENTS | VERIFIED | `events=0` |
 | Shadow side draw | VERIFIED | `shadow_side_draw=0` |
-| Pixel | VERIFIED | aztec `e1814848≠28bb413f`, torn `33715a15≠89312eab`, dust `a41117d1≠279348b5` |
-| Modelle | VERIFIED | CT `gsg9`/`sas`/`gign`, T `arctic` — zwei reale Player-Modelle, kein Dummy-Gameplay |
-| offscreen_local_final == visible_live_final | INFERRED mismatch | AddEntity-Snapshot + `GetTimes` in `GL_RenderFrame` ≠ späterer Live-Entity-Eingang des sichtbaren Xash-Calls. Kopie ändert sich (`local_final≠BEFORE`); Live erst nach Visible. Kein Leak. |
-| Local Player | DEFERRED | firstperson=1; mirrored=0/1 je nach Map; `m_bLocal=0` → SetupClientAnimation tot; nicht ins FBO gezwungen |
-| Player-parent FOLLOW | implemented / N/R | `follow_player_parent=0` auf Stock-CS |
-| Player-Shadows offscreen | DEFERRED | Takeover-Blocker, #9 bleibt OPEN |
+| Pixel Remote | VERIFIED | aztec player CRC differ=1 |
+| Modelle | VERIFIED | CT `gign`/`sas`, T `arctic` |
+| Local First-Person | VERIFIED | mirrored=1 hidden_viewentity>0 local_drawn=0 remotes drawn |
+| Local Third-Person | VERIFIED | eligible>0 local_drawn>0 pixel CRC differ live mutate=0 |
+| Local Shadow | VERIFIED | thirdperson local_shadow_pixel=1 |
+| Remote Shadow Pixel | VERIFIED | after_body≠after_shadow, r_shadows=1 |
+| r_shadows 0/1 | VERIFIED | r_shadows=0 drawn=0; r_shadows=1 drawn>0 |
+| Spectator CHASE | VERIFIED | OBS_CHASE_FREE user2==local → CL_IsThirdPerson=1, local eligible |
+| Spectator IN_EYE | implemented | Xash-Regel; Death-Cam spec_mode 4 ließ iuser1=2 (CHASE_FREE) |
+| Player-parent FOLLOW | implemented / N/R | flags=0 bones only, no body, no shadow; Stock-CS 0 |
 | CurrentEntity/Model | CONFIRMED | save/set/restore wie PX4A |
 | Visible Xash | CONFIRMED | Fallback-Log, kein return 1, Movement-Gate PASS |
 | `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab |
 
-Variante C ist nicht mehr festgeschrieben. #9 bleibt OPEN (Local deferred + Shadows). Viewmodel #10. Vis unberührt. PrimeXT-Studio nicht übernommen.
+Variante C ist nicht mehr festgeschrieben. #9 CLOSED. Viewmodel #10. Vis unberührt. PrimeXT-Studio nicht übernommen.
 
 ### #7 Brush-Entity Draw (2026-09-20)
 
@@ -946,7 +956,7 @@ Live latched before == after, mutate=0
 
 Probe: `./scripts/px7-sprite-completion-probe.sh`. Shots `build/px7-sprite-cert-shots/` (nicht committed).
 
-#7 CLOSED (Special A/B/C/D/E complete). Player #9 Remote B VERIFIED / Local deferred (OPEN). Viewmodel #10, Vis unberührt.
+#7 CLOSED (Special A/B/C/D/E complete). Player #9 CLOSED (PX4B.3 Local + Shadows VERIFIED). Viewmodel #10, Vis unberührt.
 
 
 

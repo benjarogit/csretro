@@ -59,10 +59,16 @@ GNU General Public License for more details.
 #define PARM_GL_CONTEXT_TYPE	34	// opengl or opengles
 #define PARM_GLES_WRAPPER	35	//
 #define PARM_STENCIL_ACTIVE	36
-#define PARM_WATER_ALPHA	37
+#define PARM_WATER_ALPHA	37	// map capability only: transparent world water allowed (0/1). NOT the alpha float.
 #define PARM_TEX_MEMORY	38	// returns total memory of uploaded texture in bytes
 #define PARM_DELUXEDATA	39	// nasty hack, convert int to pointer
 #define PARM_SHADOWDATA	40	// nasty hack, convert int to pointer
+// CS-Retro RenderGetParm extensions. No new render_api_t slot. CL_RENDER_INTERFACE_VERSION stays 37.
+// PARM_WATER_ALPHA_VALUE: IEEE-754 bits of the effective wateralpha Xash would use
+// (1.0 if the map lacks FWORLD_WATERALPHA, else clgame.movevars.wateralpha).
+// Decode: uint32_t bits = (uint32_t)parm; memcpy(&float, &bits, 4). Never assign the intptr_t to a float.
+#define PARM_WATER_ALPHA_VALUE	41
+#define PARM_MAP_HAS_LITWATER	42	// 0/1, FWORLD_HAS_LITWATER. Not a world-struct export.
 
 // skybox ordering
 enum

@@ -40,6 +40,15 @@ static int s_anim_proof_logged = 0;
 static int s_anim_crc_logged = 0;
 static int s_conv_proof_logged = 0;
 static int s_fb_proof_logged = 0;
+static int s_water_logged = 0;
+static int s_water_crc_logged = 0;
+static int s_water_opaque_crc_logged = 0;
+static int s_water_alpha_logged = 0;
+static int s_water_wave_logged = 0;
+static unsigned int s_water_crc_a = 0;
+static unsigned int s_water_alpha_crc_a = 0;
+static unsigned int s_water_wave_crc_a = 0;
+static float s_water_alpha_seen = -1.0f;
 static unsigned int s_anim_crc_a = 0;
 static float s_anim_crc_time = 0.0f;
 static unsigned int s_brush_rest_crc = 0;
@@ -68,6 +77,15 @@ static void ResetSpriteProof( void )
 	s_anim_crc_logged = 0;
 	s_conv_proof_logged = 0;
 	s_fb_proof_logged = 0;
+	s_water_logged = 0;
+	s_water_crc_logged = 0;
+	s_water_opaque_crc_logged = 0;
+	s_water_alpha_logged = 0;
+	s_water_wave_logged = 0;
+	s_water_crc_a = 0;
+	s_water_alpha_crc_a = 0;
+	s_water_wave_crc_a = 0;
+	s_water_alpha_seen = -1.0f;
 	s_anim_crc_a = 0;
 	s_anim_crc_time = 0.0f;
 	s_brush_rest_crc = 0;
@@ -248,7 +266,14 @@ static void LogProof( const CSRETRO_WorldStats *st, const CSRETRO_OffscreenProof
 
 static void RunProbeSeq( void );
 
-static void FillWorldMeshContext( CSRETRO_MeshDrawContext *ctx )
+static float EffectiveWaterAlpha( void )
+{
+	if( !GetParm( PARM_WATER_ALPHA, 0 ) )
+		return 1.0f;
+	return CSRETRO_DecodeWaterAlpha( GetParm( PARM_WATER_ALPHA_VALUE, 0 ) );
+}
+
+static void FillWorldMeshContext( CSRETRO_MeshDrawContext *ctx, const float *vieworg )
 {
 	cl_entity_t *live;
 
@@ -256,6 +281,13 @@ static void FillWorldMeshContext( CSRETRO_MeshDrawContext *ctx )
 	ctx->time = (float)gEngfuncs.GetClientTime();
 	ctx->get_parm = GetParm;
 	ctx->bind_textures = 1;
+	ctx->water_alpha = EffectiveWaterAlpha();
+	if( vieworg )
+	{
+		ctx->vieworg[0] = vieworg[0];
+		ctx->vieworg[1] = vieworg[1];
+		ctx->vieworg[2] = vieworg[2];
+	}
 	live = gEngfuncs.GetEntityByIndex( 0 );
 	if( live )
 	{
@@ -265,13 +297,15 @@ static void FillWorldMeshContext( CSRETRO_MeshDrawContext *ctx )
 		ctx->rendercolor[1] = snap.curstate.rendercolor.g;
 		ctx->rendercolor[2] = snap.curstate.rendercolor.b;
 		ctx->rendermode = snap.curstate.rendermode;
+		ctx->wave_scale = snap.curstate.scale;
+		ctx->effects = snap.curstate.effects;
 	}
 }
 
 static void LogBrushSpecial( const CSRETRO_MeshDrawStats *ms )
 {
 	gEngfuncs.Con_Printf(
-		"CS Retro: brush special anim_candidates=%i tex_first=%u tex_last=%u tex_changed=%i alternate_candidates=%i alternate_used=%i random_tiled=%i conveyor_candidates=%i uv_s=%.5f uv_t=%.5f uv_changed=%i fullbright_candidates=%i fullbright_drawn=%i verts=%i builds=%i rebuilds_unchanged=%i geom_unchanged=%i skipped_turb=%i\n",
+		"CS Retro: brush special anim_candidates=%i tex_first=%u tex_last=%u tex_changed=%i alternate_candidates=%i alternate_used=%i random_tiled=%i conveyor_candidates=%i uv_s=%.5f uv_t=%.5f uv_changed=%i fullbright_candidates=%i fullbright_drawn=%i verts=%i builds=%i rebuilds_unchanged=%i geom_unchanged=%i skipped_turb=%i turb_surfaces=%i turb_polys=%i turb_verts=%i\n",
 		ms->anim_candidates,
 		ms->anim_tex_first,
 		ms->anim_tex_last,
@@ -289,7 +323,10 @@ static void LogBrushSpecial( const CSRETRO_MeshDrawStats *ms )
 		CSRETRO_BspMesh_BuildCount(),
 		ms->rebuilds_unchanged,
 		ms->geom_unchanged,
-		ms->skipped_turb );
+		ms->skipped_turb,
+		ms->turb_surfaces,
+		ms->turb_polys,
+		ms->turb_verts );
 }
 
 void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
@@ -352,11 +389,66 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_OffscreenProof world_base_proof;
 		CSRETRO_SceneStats scene;
 		CSRETRO_MeshDrawContext world_ctx;
-		FillWorldMeshContext( &world_ctx );
+		cl_entity_t *world_live;
+		float world_scale_before = 0.0f;
+		FillWorldMeshContext( &world_ctx, org );
+		world_live = gEngfuncs.GetEntityByIndex( 0 );
+		if( world_live )
+			world_scale_before = world_live->curstate.scale;
 		world_ctx.skip_fullbright = 1;
 		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &world_ctx );
 		memset( &world_base_proof, 0, sizeof( world_base_proof ) );
 		CSRETRO_Backend_SampleProof( &world_base_proof );
+		if( CSRETRO_World_HasWater() && world_ctx.water_alpha >= 1.0f )
+		{
+			CSRETRO_OffscreenProof after_water;
+			CSRETRO_MeshDrawStats wms;
+			world_ctx.water_pass = CSRETRO_WATER_OPAQUE;
+			CSRETRO_World_DrawWater( &world_ctx );
+			memset( &after_water, 0, sizeof( after_water ) );
+			CSRETRO_Backend_SampleProof( &after_water );
+			CSRETRO_BspMesh_GetDrawStats( &wms );
+			{
+				int differ = after_water.crc != world_base_proof.crc ? 1 : 0;
+				if( !s_water_opaque_crc_logged )
+				{
+					s_water_opaque_crc_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: water crc before=%08x after=%08x differ=%i pass=opaque nonempty=%i drawn=%i\n",
+						world_base_proof.crc, after_water.crc, differ, after_water.nonempty_pixels, wms.world_water_opaque );
+				}
+				if( s_water_crc_logged != 1 && differ )
+				{
+					s_water_crc_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: water pixelproof before=%08x after=%08x differ=1 pass=opaque nonempty=%i\n",
+						world_base_proof.crc, after_water.crc, after_water.nonempty_pixels );
+				}
+			}
+			if( s_water_alpha_logged != 1 )
+			{
+				if( s_water_alpha_seen < 0.0f )
+				{
+					s_water_alpha_crc_a = after_water.crc;
+					s_water_alpha_seen = world_ctx.water_alpha;
+				}
+			}
+			if( s_water_wave_logged != 1 )
+			{
+				if( !s_water_wave_crc_a && world_ctx.wave_scale == 0.0f )
+					s_water_wave_crc_a = after_water.crc;
+				else if( s_water_wave_crc_a && world_ctx.wave_scale != 0.0f && after_water.crc != s_water_wave_crc_a && wms.geom_unchanged )
+				{
+					s_water_wave_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: water wave proof amp0=%08x amp1=%08x differ=1 geom_unchanged=1 scale=%.3f\n",
+						s_water_wave_crc_a, after_water.crc, world_ctx.wave_scale );
+				}
+			}
+			s_water_crc_a = after_water.crc;
+		}
+		else if( CSRETRO_World_HasWater() )
+			world_ctx.water_pass = CSRETRO_WATER_SKIP;
 		world_ctx.skip_base = 1;
 		world_ctx.skip_fullbright = 0;
 		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &world_ctx );
@@ -444,7 +536,27 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		}
 		CSRETRO_Backend_PrepareImmediateDraw();
 		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
-		CSRETRO_Brush_DrawPass( 0, &scene );
+		{
+			CSRETRO_OffscreenProof before_trans_brush;
+			memset( &before_trans_brush, 0, sizeof( before_trans_brush ) );
+			CSRETRO_Backend_SampleProof( &before_trans_brush );
+			CSRETRO_Brush_DrawPass( 0, &scene );
+			if( s_water_crc_logged != 1 )
+			{
+				CSRETRO_OffscreenProof after_trans_w;
+				CSRETRO_MeshDrawStats wms;
+				memset( &after_trans_w, 0, sizeof( after_trans_w ) );
+				CSRETRO_Backend_SampleProof( &after_trans_w );
+				CSRETRO_BspMesh_GetDrawStats( &wms );
+				if( wms.brush_turb_drawn > 0 && after_trans_w.crc != before_trans_brush.crc )
+				{
+					s_water_crc_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: water pixelproof before=%08x after=%08x differ=1 pass=brush nonempty=%i drawn=%i\n",
+						before_trans_brush.crc, after_trans_w.crc, after_trans_w.nonempty_pixels, wms.brush_turb_drawn );
+				}
+			}
+		}
 		{
 			CSRETRO_MeshDrawStats ms;
 			CSRETRO_BspMesh_GetDrawStats( &ms );
@@ -566,6 +678,38 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 					"CS Retro: offscreen efx proof before_crc=%08x after_crc=%08x differ=1 pass=trans\n",
 					after_tri_t.crc, after_trans_efx.crc );
 			}
+			if( CSRETRO_World_HasWater() && world_ctx.water_alpha < 1.0f )
+			{
+				CSRETRO_OffscreenProof before_late;
+				CSRETRO_OffscreenProof after_late;
+				CSRETRO_MeshDrawStats wms;
+				CSRETRO_Backend_PrepareImmediateDraw();
+				CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+				FillWorldMeshContext( &world_ctx, org );
+				world_ctx.water_pass = CSRETRO_WATER_LATE;
+				memset( &before_late, 0, sizeof( before_late ) );
+				CSRETRO_Backend_SampleProof( &before_late );
+				CSRETRO_World_DrawWater( &world_ctx );
+				memset( &after_late, 0, sizeof( after_late ) );
+				CSRETRO_Backend_SampleProof( &after_late );
+				CSRETRO_BspMesh_GetDrawStats( &wms );
+				if( s_water_crc_logged != 1 && after_late.crc != before_late.crc )
+				{
+					s_water_crc_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: water pixelproof before=%08x after=%08x differ=1 pass=late nonempty=%i\n",
+						before_late.crc, after_late.crc, after_late.nonempty_pixels );
+				}
+				if( s_water_alpha_logged != 1 && s_water_alpha_crc_a && after_late.crc != s_water_alpha_crc_a && wms.geom_unchanged )
+				{
+					s_water_alpha_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: water alpha pixelproof a=%08x b=%08x differ=1 geom_unchanged=1 alpha=%.3f opaque=%i late=%i base=%i\n",
+						s_water_alpha_crc_a, after_late.crc, world_ctx.water_alpha,
+						wms.world_water_opaque, wms.world_water_late, wms.world_water_base );
+				}
+				after_trans_efx = after_late;
+			}
 			{
 				CSRETRO_OffscreenProof after_studio;
 				memset( &after_studio, 0, sizeof( after_studio ) );
@@ -622,6 +766,15 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			strncpy( s_proof_map, st.map, sizeof( s_proof_map ) - 1 );
 			s_proof_logged = 1;
 			s_sprite_logged = 0;
+			s_water_logged = 0;
+			s_water_crc_logged = 0;
+			s_water_opaque_crc_logged = 0;
+			s_water_alpha_logged = 0;
+			s_water_wave_logged = 0;
+			s_water_crc_a = 0;
+			s_water_alpha_crc_a = 0;
+			s_water_wave_crc_a = 0;
+			s_water_alpha_seen = -1.0f;
 			LogProof( &st, &proof );
 			if( dump && gRenderAPI.pfnSaveFile && proof.target_ok )
 			{
@@ -651,6 +804,34 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				"CS Retro: brush mirrored: %i opaque_drawn: %i trans_drawn: %i drawn: %i\n",
 				scene.brush, scene.brush_opaque_drawn, scene.brush_trans_drawn, scene.brush_drawn );
 			s_brush_logged = 1;
+		}
+		if( !s_water_logged )
+		{
+			CSRETRO_MeshDrawStats wms;
+			cl_entity_t *live_now;
+			float scale_after = world_scale_before;
+			int live_mutate = 0;
+			CSRETRO_World_GetStats( &st );
+			CSRETRO_BspMesh_GetDrawStats( &wms );
+			live_now = gEngfuncs.GetEntityByIndex( 0 );
+			if( live_now )
+			{
+				scale_after = live_now->curstate.scale;
+				if( scale_after != world_scale_before )
+					live_mutate = 1;
+			}
+			s_water_logged = 1;
+			gEngfuncs.Con_Printf(
+				"CS Retro: water capture map=%s turb_surfaces=%i turb_polys=%i turb_verts=%i skipped_no_polys=%i\n",
+				st.map[0] ? st.map : "(none)", st.turb_surfaces, st.turb_polys, st.turb_verts, st.skipped_turb );
+			gEngfuncs.Con_Printf(
+				"CS Retro: water inventory world_turb=%i brush_turb=%i liquid=%i sides=%i alpha_cap=%i effective=%.3f litwater=%i opaque=%i late=%i base=%i brush_drawn=%i\n",
+				st.turb_surfaces, wms.brush_turb_candidates, wms.liquid_models, wms.waterside_candidates,
+				wms.alpha_capability, world_ctx.water_alpha, wms.litwater,
+				wms.world_water_opaque, wms.world_water_late, wms.world_water_base, wms.brush_turb_drawn );
+			gEngfuncs.Con_Printf(
+				"CS Retro: water live mutate=%i scale_before=%.3f scale_after=%.3f cache_mutate=%i gl_restore=%i\n",
+				live_mutate, world_scale_before, scale_after, wms.water_cache_mutate, wms.gl_restore_ok );
 		}
 		if( !s_follow_detail_logged
 			&& ( scene.studio_follow > 0 || scene.follow_nonplayer_parent > 0
@@ -739,12 +920,58 @@ static void RunProbeSeq( void )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int special = s_probe_seq->value >= 6.0f;
-			int tri = !special && s_probe_seq->value >= 5.0f;
-			int efx = !special && !tri && s_probe_seq->value >= 4.0f;
-			int brush = !special && !efx && s_probe_seq->value >= 3.0f;
-			int px3c = !special && !efx && !brush && s_probe_seq->value >= 2.0f;
-			if( special )
+			int waterb = s_probe_seq->value >= 7.0f;
+			int special = !waterb && s_probe_seq->value >= 6.0f;
+			int tri = !waterb && !special && s_probe_seq->value >= 5.0f;
+			int efx = !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
+			int brush = !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
+			int px3c = !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
+			if( waterb )
+			{
+				if( s_probe_step == 0 && elapsed >= 4.0f )
+				{
+					s_probe_step = 1;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq sv_wateralpha 0.5\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; sv_wateralpha 0.5\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 8.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq sv_wateralpha 1 sv_wateramp 1\n" );
+					gEngfuncs.pfnClientCmd( "sv_wateralpha 1; sv_wateramp 1\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 12.0f )
+				{
+					s_probe_step = 3;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_torn\n" );
+					gEngfuncs.pfnClientCmd( "sv_wateramp 0; map de_torn\n" );
+				}
+				else if( s_probe_step == 3 && elapsed >= 22.0f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 32.0f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map cs_assault\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; map cs_assault\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 42.0f )
+				{
+					s_probe_step = 6;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 6 && elapsed >= 46.0f )
+				{
+					s_probe_step = 7;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
+					gEngfuncs.pfnClientCmd( "quit\n" );
+				}
+			}
+			else if( special )
 			{
 				if( s_probe_step == 0 && elapsed >= 3.0f )
 				{

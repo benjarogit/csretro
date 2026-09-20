@@ -17,6 +17,7 @@ GNU General Public License for more details.
 #include "client.h"
 #include "library.h"
 #include "platform/platform.h"
+#include <string.h>
 
 int R_FatPVS( const vec3_t org, float radius, byte *visbuffer, qboolean merge, qboolean fullvis )
 {
@@ -131,6 +132,19 @@ intptr_t CL_RenderGetParm( const int parm, const int arg, const qboolean checkRe
 		return (host.type == HOST_DEDICATED);
 	case PARM_WATER_ALPHA:
 		return FBitSet( world.flags, FWORLD_WATERALPHA );
+	case PARM_WATER_ALPHA_VALUE:
+	{
+		float alpha = 1.0f;
+		uint32_t bits = 0;
+
+		// Same policy Xash applies in CL_ParseMovevars: no map capability → opaque.
+		if( FBitSet( world.flags, FWORLD_WATERALPHA ) )
+			alpha = clgame.movevars.wateralpha;
+		memcpy( &bits, &alpha, sizeof( bits ) );
+		return (intptr_t)bits;
+	}
+	case PARM_MAP_HAS_LITWATER:
+		return FBitSet( world.flags, FWORLD_HAS_LITWATER );
 	case PARM_DELUXEDATA:
 		return (intptr_t)world.deluxedata;
 	case PARM_SHADOWDATA:

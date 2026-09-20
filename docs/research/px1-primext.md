@@ -570,7 +570,7 @@ Sonderflächen:
 
 | Fläche | Status |
 | --- | --- |
-| SURF_DRAWTURB (Wasser) | DEFERRED — Mesh skip. Aztec-`func_water` nicht offscreen. #7 offen. |
+| SURF_DRAWTURB (Wasser) | qualified — shared Mesh, Xash-Polys. Brush-Water VERIFIED `de_torn`. World opaque gezeichnet, Spawn-FBO N/R. Late/`alpha_cap=0` N/R. |
 | SURF_CONVEYOR | VERIFIED — Draw-Zeit UV-Offset, gecachte `st[]` unverändert. `de_torn` func_conveyor `candidates=20 uv_changed=1 geom_unchanged=1`. |
 | trans (Entity-Rendermode) | IMPLEMENTED — TransTexture/Color/Alpha/Add. |
 | SURF_TRANSPARENT / Alpha-Test | IMPLEMENTED über `kRenderTransAlpha`. |
@@ -621,12 +621,42 @@ Ein shared Mesh-Pfad `render_bsp_mesh.cpp`. Draw-Kontext (time, entity frame, re
 | Random tiled | Stock vorhanden, rtable nicht API | aztec ~1955 `-` Surfaces. Keine erfundene Tabelle. |
 | Conveyor | VERIFIED | `de_torn` 20 candidates, UV `0.35326→0.33049`, verts 72090 unverändert. Speed aus Snapshot-rendercolor, Breite `xr_texture_t.width`. |
 | Fullbright | implemented / N/R | `fb_texturenum=0` Stock-CS aztec/torn/dust/assault. Pass: ONE,ONE, DepthMask off, Fog restore. |
-| Water | DEFERRED | Builder skippt `SURF_DRAWTURB` (aztec skipped_turb=12). |
+| Water | qualified | Capture aztec 12/76/444. Warp/Wave Draw-Zeit. Brush-Water torn VERIFIED. World-opaque Spawn-FBO N/R. Late alpha_cap=0 N/R. |
 | Probe | PASS | `./scripts/px7-brush-special-a-probe.sh`. aztec→torn→dust→assault, vid_setmode. `GL_RenderFrame` 0. |
 
 Transparente Brush-Fullbrights: Xash `R_DrawBrushModel` ruft `R_RenderFullbrights` nach allen Rendermodes auf (CONFIRMED Source). Overlay folgt dem. Runtime ohne luma-Textur nicht sichtbar.
 
-`return 1` gesperrt: Water/Turb, Decals, DLights, Player, Viewmodel, Vis. Engine-EFX ist draw-only hinter return 0, kein Takeover.
+`return 1` gesperrt: Decals, DLights, Player, Viewmodel, Vis. Water/Turb ist offscreen hinter return 0. Engine-EFX ist draw-only hinter return 0, kein Takeover.
+
+### #7 Brush Special B (2026-09-20)
+
+Xash-Vertrag (CONFIRMED Source, kein zweiter Parser):
+
+- `GL_SubdivideSurface` schreibt bereits `surf->polys`. Offscreen kopiert diese Polys. Turb-s/t sind roh, nicht durch Texgröße geteilt (`R_TextureCoord` skippt Divide bei `SURF_DRAWTURB`). Warp: `os/ot + r_turbsin[(·*0.125+time)*TURBSCALE]`, dann `* 1/SUBDIVIDE_SIZE` (64). Tabelle: `engine/engine/warpsin.h`, nicht als `r_turbsin` exportiert.
+- Vertex-Wave: `currententity->curstate.scale`, Vorzeichen wenn `polys[0].z >= vieworg.z`. Brush: Snapshot-`scale`. World: read-only Kopie Entity 0, kein Write.
+- World `wateralpha>=1`: Texture-Chain. `<1`: `R_DrawWaterSurfaces` nach Entities (`gl_rmain.c` nach `R_DrawEntitiesOnList`). Blend SRC_ALPHA, ONE_MINUS_SRC_ALPHA, DepthMask false. `PARM_WATER_ALPHA` = Map-Capability `FWORLD_WATERALPHA`, nicht der Float. CS-Retro `PARM_WATER_ALPHA_VALUE` (41): IEEE-754-Bits der effective alpha (1.0 ohne Capability). Decode per memcpy. `PARM_MAP_HAS_LITWATER` (42).
+- Brush-Water in `R_DrawBrushModel`, nicht World-Late. Sides: skip `plane->type != PLANE_Z` ohne `EF_WATERSIDES`; skip `mins[2]+1 >= plane->dist`.
+- `R_UploadRipples` erzeugt/aktualisiert Textur über `fb_texturenum`. Offscreen ruft das nicht. Ripple-Ownership: Xash. Classic UV-Warp offscreen.
+- Diagnose-Reihenfolge Offscreen (kein Viewmodel): World → opaque World-Water → opaque Brush inkl. Brush-Water → Studio/FOLLOW → solid EFX → Normal Tris → trans Brush inkl. trans Brush-Water → Sprites → Trans Tris → trans EFX → translucent World-Water LATE → FBO end → return 0. Echtes return-1 später: Viewmodel vor translucent World-Water. Heutige Reihenfolge ist nicht der Takeover-Vertrag.
+
+| Punkt | Status | Beleg |
+| --- | --- | --- |
+| Capture | CONFIRMED | aztec 12 surfaces, 76 polys, 444 verts, skipped_no_polys=0. Shared mesh. |
+| UV warp / vertex wave | implemented | Xash-Formel. `sv_wateramp` 0→1 CRC differ + geom_unchanged; World-Water am Spawn nicht im FBO (`differ=0`). |
+| Texture animation | shared | dieselbe `TextureAnimation()`. Special A weiter PASS. |
+| Opaque world water | implemented / spawn pixel N/R | drawn=12 late=0 base=12. CRC before=after am T-Spawn. |
+| Transparent late / alpha | implemented / runtime N/R | `alpha_cap=0` aztec/torn/dust/assault. Engine effective=1. |
+| Brush water | VERIFIED | torn `*4` liquid mode=2 pixel `ea9a9ed2≠7573f906` pass=brush drawn=4. Aztec `*14/*15/*77`. |
+| Water sides | top VERIFIED / sides N/R | ohne EF_WATERSIDES skip. Stock-CS hat das Bit nicht. |
+| Ripple | DEFERRED Xash-owned | kein zweites `R_UploadRipples`. |
+| Static litwater | implemented path / runtime N/R | `litwater=0` Stock-CS. |
+| DLights / Decals | unangetastet | — |
+| Cache / live mutate | CONFIRMED 0 | aztec `cache_mutate=0 live mutate=0 gl_restore=1` |
+| Pixel proof | CONFIRMED brush | torn FBO nonempty=171203. |
+| Visible Xash / GL_RenderFrame | CONFIRMED 0 | Probe lehnt return 1 ab. |
+| Mapchange / vid_setmode / movement | CONFIRMED | aztec→torn→dust→assault, vid_setmode, movement-gate PASS. |
+
+Random tiled (`-`) Follow-up unverändert. Probe: `./scripts/px7-brush-special-b-probe.sh` PASS.
 
 ## #7 Engine-EFX Vertrag (2026-09-20, vor Produktcode)
 

@@ -40,6 +40,10 @@ static void FillStats( const xr_model_t *mod )
 	s_stats.lightmap_pages = s_world.lightmap_pages;
 	s_stats.captured = s_world.captured;
 	s_stats.empty_mesh = !s_world.captured;
+	s_stats.turb_surfaces = s_world.turb_surfaces;
+	s_stats.turb_polys = s_world.turb_polys;
+	s_stats.turb_verts = s_world.turb_verts;
+	s_stats.skipped_turb = s_world.skipped_turb;
 	s_logged_empty = 0;
 }
 
@@ -105,7 +109,7 @@ void CSRETRO_World_OnLightmaps( void )
 
 int CSRETRO_World_Ready( void )
 {
-	return s_stats.captured && s_world.vert_count >= 3;
+	return s_stats.captured && ( s_world.vert_count >= 3 || s_world.water_vert_count >= 3 );
 }
 
 void CSRETRO_World_GetStats( CSRETRO_WorldStats *out )
@@ -146,4 +150,16 @@ void CSRETRO_World_Draw( const float *vieworg, const float *viewangles, float fo
 	if( gXRGL.Color4f )
 		gXRGL.Color4f( 1.0f, 1.0f, 1.0f, 1.0f );
 	CSRETRO_BspMesh_Draw( &s_world, ctx );
+}
+
+int CSRETRO_World_HasWater( void )
+{
+	return s_world.water_vert_count >= 3 && s_world.turb_surfaces > 0;
+}
+
+void CSRETRO_World_DrawWater( const CSRETRO_MeshDrawContext *ctx )
+{
+	if( !CSRETRO_World_HasWater() || !gXRGL.Begin )
+		return;
+	CSRETRO_BspMesh_DrawWater( &s_world, ctx );
 }

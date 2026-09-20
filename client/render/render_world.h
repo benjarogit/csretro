@@ -12,6 +12,10 @@ typedef struct CSRETRO_WorldStats_s
 	int lightmap_pages;
 	int captured;
 	int empty_mesh;
+	int turb_surfaces;
+	int turb_polys;
+	int turb_verts;
+	int skipped_turb;
 } CSRETRO_WorldStats;
 
 typedef struct CSRETRO_WorldEngine_s
@@ -36,3 +40,5 @@ void *CSRETRO_World_Model( void );
 struct CSRETRO_MeshDrawContext_s;
 
 void CSRETRO_World_Draw( const float *vieworg, const float *viewangles, float fov_x, float fov_y, const struct CSRETRO_MeshDrawContext_s *ctx );
+void CSRETRO_World_DrawWater( const struct CSRETRO_MeshDrawContext_s *ctx );
+int CSRETRO_World_HasWater( void );

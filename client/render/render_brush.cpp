@@ -41,6 +41,7 @@ static CSRETRO_BrushMove s_last_move;
 static int s_move_logged = 0;
 static int s_logged_first = 0;
 static int s_logged_nonzero = 0;
+static int s_logged_water = 0;
 
 typedef struct BrushPrev_s
 {
@@ -332,6 +333,7 @@ void CSRETRO_Brush_Release( void )
 	s_move_logged = 0;
 	s_logged_first = 0;
 	s_logged_nonzero = 0;
+	s_logged_water = 0;
 }
 
 void CSRETRO_Brush_OnModel( void *mod, int create )
@@ -423,6 +425,9 @@ int CSRETRO_Brush_DrawPass( int opaque_only, CSRETRO_SceneStats *stats )
 		ApplyEntityTransform( e->origin, e->angles );
 		{
 			CSRETRO_MeshDrawContext ctx;
+			float mins[3];
+			int a;
+
 			memset( &ctx, 0, sizeof( ctx ) );
 			ctx.time = (float)gEngfuncs.GetClientTime();
 			ctx.entity_frame = e->frame;
@@ -432,7 +437,46 @@ int CSRETRO_Brush_DrawPass( int opaque_only, CSRETRO_SceneStats *stats )
 			ctx.rendermode = e->rendermode;
 			ctx.get_parm = GetParm;
 			ctx.bind_textures = bind_tex;
+			ctx.wave_scale = e->scale;
+			ctx.effects = e->effects;
+			ctx.is_brush = 1;
+			ctx.water_pass = CSRETRO_WATER_BRUSH;
+			ctx.water_alpha = 1.0f;
+			if( AnglesActive( e->angles ) )
+			{
+				for( a = 0; a < 3; a++ )
+					mins[a] = e->origin[a] - mod->radius;
+			}
+			else
+			{
+				mins[0] = e->origin[0] + mod->mins[0];
+				mins[1] = e->origin[1] + mod->mins[1];
+				mins[2] = e->origin[2] + mod->mins[2];
+			}
+			ctx.entity_mins[0] = mins[0];
+			ctx.entity_mins[1] = mins[1];
+			ctx.entity_mins[2] = mins[2];
 			CSRETRO_BspMesh_Draw( mesh, &ctx );
+			if( mesh->water_vert_count >= 3 )
+			{
+				s_bstats.turb_candidates += mesh->turb_surfaces;
+				s_bstats.waterside_candidates += mesh->waterside_candidates;
+				if( mesh->liquid_model )
+					s_bstats.liquid_models++;
+				CSRETRO_BspMesh_DrawWater( mesh, &ctx );
+				s_bstats.turb_drawn += mesh->turb_surfaces;
+				if( s_logged_water < 8 )
+				{
+					s_logged_water++;
+					gEngfuncs.Con_Printf(
+						"CS Retro: brush water model=%s index=%i origin=%.0f %.0f %.0f angles=%.1f %.1f %.1f scale=%.3f effects=%i rendermode=%i renderamt=%i turb=%i sides=%i liquid=%i\n",
+						mod->name[0] ? mod->name : "?", e->index,
+						e->origin[0], e->origin[1], e->origin[2],
+						e->angles[0], e->angles[1], e->angles[2],
+						e->scale, e->effects, e->rendermode, e->renderamt,
+						mesh->turb_surfaces, mesh->waterside_candidates, mesh->liquid_model );
+				}
+			}
 		}
 		PopEntityTransform();
 		RestoreDrawState();

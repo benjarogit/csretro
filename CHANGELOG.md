@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.32 — 2026-09-20
+
+### Renderer
+
+- #7 Brush Special B: SURF_DRAWTURB im gemeinsamen BSP-Mesh (World+Brush). Capture der vorbereiteten Xash-Turb-Polys, UV-Warp und Vertex-Wave zur Draw-Zeit, geteilte Texture-Animation. Brush-Water VERIFIED auf `de_torn`. World-opaque gezeichnet, Spawn-FBO-Pixel N/R. Transparentes World-Water / `PARM_WATER_ALPHA` Capability auf Stock-CS N/R (`alpha_cap=0`). `PARM_WATER_ALPHA_VALUE` und `PARM_MAP_HAS_LITWATER` als RenderGetParm-Erweiterung, v37 unverändert. Ripple bleibt Xash. Decals/DLights unangetastet. `GL_RenderFrame` bleibt 0. Issue #7 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.31 — 2026-09-20
 
 ### Renderer

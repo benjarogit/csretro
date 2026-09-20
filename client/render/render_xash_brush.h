@@ -9,12 +9,25 @@
 #define XR_VERTEXSIZE 7
 #define XR_MAXLIGHTMAPS 4
 #define XR_MAX_MAP_HULLS 4
+#define XR_MODEL_LIQUID (1 << 2)
 #define XR_MODEL_WORLD (1 << 29)
 #define XR_SURF_DRAWSKY (1 << 2)
+#define XR_SURF_DRAWTURB_QUADS (1 << 3)
 #define XR_SURF_DRAWTURB (1 << 4)
 #define XR_SURF_DRAWTILED (1 << 5)
 #define XR_SURF_CONVEYOR (1 << 6)
 #define XR_SURF_TRANSPARENT (1 << 8)
+#define XR_PLANE_Z 2
+#define XR_EF_WATERSIDES (1 << 26)
+
+typedef struct xr_mplane_s
+{
+	float normal[3];
+	float dist;
+	unsigned char type;
+	unsigned char signbits;
+	unsigned char pad[2];
+} xr_mplane_t;
 
 typedef struct xr_texture_s
 {
@@ -142,3 +155,4 @@ static_assert( offsetof( xr_model_t, numtextures ) == 488, "numtextures offset" 
 static_assert( offsetof( xr_msurface_t, polys ) == 48, "polys offset" );
 static_assert( offsetof( xr_msurface_t, lightmaptexturenum ) == 80, "lightmaptexturenum offset" );
 static_assert( offsetof( xr_texture_t, gl_texturenum ) == 24, "gl_texturenum offset" );
+static_assert( sizeof( xr_mplane_t ) == 20, "xr_mplane_t must match Xash 64-bit mplane_t" );

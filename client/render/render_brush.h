@@ -22,6 +22,10 @@ typedef struct CSRETRO_BrushStats_s
 	int trans_drawn;
 	int skipped_world;
 	int skipped_empty;
+	int turb_candidates;
+	int turb_drawn;
+	int waterside_candidates;
+	int liquid_models;
 } CSRETRO_BrushStats;
 
 void CSRETRO_Brush_OnModel( void *mod, int create );

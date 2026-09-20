@@ -9,7 +9,7 @@ CS Retro (eine Codebasis)
 ├── Client: eine client_amd64.so
 │   ├── CS-Körper (Velaron/NextClient-derived)
 │   ├── Movement/Prediction (Vertrag mit der GameDLL)
-│   └── PrimeXT-derived Technik (`client/render/`; PX3B World/BSP, PX3C Entity/Sprite, PX4A Non-Player Studio, PX4B.1 FOLLOW, #7 Brush + Engine-EFX + Client-Triangles draw-only)
+│   └── PrimeXT-derived Technik (`client/render/`; PX3B World/BSP, PX3C Entity/Sprite, PX4A Non-Player Studio, PX4B.1 FOLLOW, #7 Brush Special A/B + Engine-EFX + Client-Triangles draw-only)
 ├── Menü-Lib: CS-Retro-InGameUi (VGUI2 gültig; ImGui fest für Tools)
 └── GameDLL: ReGameDLL-derived — Spielregeln, Waffen, Inferno, ZBot
 ```

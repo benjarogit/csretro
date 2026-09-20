@@ -71,6 +71,8 @@ public:
 	void AdvanceOverviewState();
 	void DrawOverviewReadOnly( bool writeHudPlayerPos );
 	unsigned int OverviewStateHash() const;
+	unsigned int OverviewListHash() const;
+	int OverviewEntityCount() const;
 	void DrawOverviewEntities( bool writeHudPlayerPos );
 	void GetMapPosition( float * returnvec );
 	void DrawOverviewLayer();

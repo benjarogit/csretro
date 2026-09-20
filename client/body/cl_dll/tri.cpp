@@ -98,23 +98,43 @@ void CSRETRO_ClientTriangles_AdvanceNormal( void )
 void CSRETRO_ClientTriangles_DrawNormalOnly( void )
 {
 	unsigned int before = 0, after = 0;
+	unsigned int list_before = 0, list_after = 0;
+	float gl_before = 0.0f, gl_after = 0.0f;
+	int count_before = 0, count_after = 0;
 	const int wants = gHUD.m_Spectator.OverviewShouldDraw() ? 1 : 0;
 
 	s_tri_drawonly_normal++;
 	if ( wants && !s_tri_overview_drawonly_logged )
+	{
 		before = gHUD.m_Spectator.OverviewStateHash();
+		list_before = gHUD.m_Spectator.OverviewListHash();
+		count_before = gHUD.m_Spectator.OverviewEntityCount();
+		gl_before = CVAR_GET_FLOAT( "gl_clear" );
+	}
 
 	gHUD.m_Spectator.DrawOverviewReadOnly( false );
 
 	if ( wants && !s_tri_overview_drawonly_logged )
 	{
 		after = gHUD.m_Spectator.OverviewStateHash();
+		list_after = gHUD.m_Spectator.OverviewListHash();
+		count_after = gHUD.m_Spectator.OverviewEntityCount();
+		gl_after = CVAR_GET_FLOAT( "gl_clear" );
 		s_tri_overview_drawonly_logged = 1;
 		s_tri_overview_drawonly_hash = after;
-		gEngfuncs.Con_Printf( "CS Retro: tri overview draw-only reached\n" );
+		gEngfuncs.Con_Printf(
+			"CS Retro: tri overview draw-only reached user1=%i cycle=%i\n",
+			g_iUser1, gHUD.m_Spectator.m_iDrawCycle );
 		gEngfuncs.Con_Printf(
 			"CS Retro: tri overview state before=%08x after=%08x mutate=%i\n",
 			before, after, before != after ? 1 : 0 );
+		gEngfuncs.Con_Printf(
+			"CS Retro: tri overview list before=%08x after=%08x mutate=%i count=%i/%i\n",
+			list_before, list_after, list_before != list_after ? 1 : 0,
+			count_before, count_after );
+		gEngfuncs.Con_Printf(
+			"CS Retro: tri overview gl_clear before=%.0f after=%.0f mutate=%i\n",
+			gl_before, gl_after, gl_before != gl_after ? 1 : 0 );
 	}
 }
 

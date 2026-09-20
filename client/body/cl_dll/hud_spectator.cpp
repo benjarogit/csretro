@@ -1584,6 +1584,7 @@ void CHudSpectator::DrawOverviewEntities(bool writeHudPlayerPos)
 
 static bool s_overviewGlClearForce = false;
 static float s_overviewOldGlClearValue;
+static int s_overview_gl_clear_restore_logged;
 
 bool CHudSpectator::OverviewShouldDraw() const
 {
@@ -1602,8 +1603,17 @@ void CHudSpectator::AdvanceOverviewState()
 	{
 		if ( s_overviewGlClearForce )
 		{
+			float now;
 			gEngfuncs.Cvar_SetValue( "gl_clear", s_overviewOldGlClearValue );
 			s_overviewGlClearForce = false;
+			if ( !s_overview_gl_clear_restore_logged )
+			{
+				s_overview_gl_clear_restore_logged = 1;
+				now = CVAR_GET_FLOAT( "gl_clear" );
+				gEngfuncs.Con_Printf(
+					"CS Retro: tri overview gl_clear restore old=%.0f now=%.0f\n",
+					s_overviewOldGlClearValue, now );
+			}
 		}
 		return;
 	}
@@ -1647,14 +1657,9 @@ static unsigned int OverviewHashFloat( unsigned int h, float f )
 	return OverviewHashMix( h, x.u );
 }
 
-unsigned int CHudSpectator::OverviewStateHash() const
+unsigned int CHudSpectator::OverviewListHash() const
 {
 	unsigned int h = 2166136261u;
-	h = OverviewHashMix( h, s_overviewGlClearForce ? 1u : 0u );
-	h = OverviewHashFloat( h, s_overviewOldGlClearValue );
-	h = OverviewHashFloat( h, CVAR_GET_FLOAT( "gl_clear" ) );
-	h = OverviewHashMix( h, (unsigned int)g_iUser1 );
-	h = OverviewHashMix( h, (unsigned int)m_iDrawCycle );
 	for ( int i = 0; i < MAX_OVERVIEW_ENTITIES; i++ )
 	{
 		h = OverviewHashMix( h, (unsigned int)m_OverviewEntities[i].hSprite );
@@ -1664,6 +1669,29 @@ unsigned int CHudSpectator::OverviewStateHash() const
 		else
 			h = OverviewHashMix( h, 0u );
 	}
+	return h;
+}
+
+int CHudSpectator::OverviewEntityCount() const
+{
+	int n = 0;
+	for ( int i = 0; i < MAX_OVERVIEW_ENTITIES; i++ )
+	{
+		if ( m_OverviewEntities[i].hSprite )
+			n++;
+	}
+	return n;
+}
+
+unsigned int CHudSpectator::OverviewStateHash() const
+{
+	unsigned int h = 2166136261u;
+	h = OverviewHashMix( h, s_overviewGlClearForce ? 1u : 0u );
+	h = OverviewHashFloat( h, s_overviewOldGlClearValue );
+	h = OverviewHashFloat( h, CVAR_GET_FLOAT( "gl_clear" ) );
+	h = OverviewHashMix( h, (unsigned int)g_iUser1 );
+	h = OverviewHashMix( h, (unsigned int)m_iDrawCycle );
+	h = OverviewHashMix( h, OverviewListHash() );
 	return h;
 }
 void CHudSpectator::CheckOverviewEntities()

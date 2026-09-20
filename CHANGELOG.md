@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.29 — 2026-09-20
+
+### Renderer
+
+- #7 Spectator Map-Overview Runtime-Cert: echter OBS_MAP_FREE-Pfad, Overview-Liste mutate=0, gl_clear offscreen unverändert und Restore beim Verlassen. Client-Triangles sind VERIFIED draw-only ownership. Issue #7 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.28 — 2026-09-20
 
 ### Architektur / Dokumentation

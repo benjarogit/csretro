@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.28 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- #7 Client-Triangles draw-only dokumentiert: interne API, ParticleMan mutate=0 / CRC differ / Xash advanced=1, Spectator-Overview verification pending. Issue bleibt offen.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.27 — 2026-09-20
 
 ### Renderer

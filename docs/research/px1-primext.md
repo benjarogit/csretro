@@ -683,12 +683,12 @@ Xash R_DrawEntitiesOnList = einziges Advance+Draw
 | Sichtbares Xash | CONFIRMED | sichtbarer EFX-Pfad bleibt Xash (return 0). `GL_INVALID_ENUM` Overlay wie PX4A (`gl_rmain.c:800` Fehlerqueue, kein neuer EFX-Leak) |
 | HE / Smoke / Flash | CONFIRMED Xash-sichtbar | Probe wirft HE; sichtbarer Frame unverändert Xash. Inferno **nicht** #2 |
 
-#7 bleibt OPEN. Client-Triangles PENDING. Brush-Sonderflächen / restliche Sprite-Modi DEFERRED.
+#7 bleibt OPEN. Client-Triangles implemented / verification pending. Brush-Sonderflächen / restliche Sprite-Modi DEFERRED.
 
 ```
 Brush entities: VERIFIED
 Engine EFX: VERIFIED draw-only ownership
-Client triangles: IN PROGRESS
+Client triangles: implemented / verification pending
 remaining sprite modes / brush special cases: PENDING/DEFERRED
 ```
 
@@ -734,4 +734,43 @@ R_DrawViewModel
 **files affected:** `tri.cpp`, `IParticleMan_Active.cpp` / `.h`, `CMiniMem.cpp` / `.h`, `environment.cpp` / `.h`, `event_createinferno.cpp` (Wick), später `render_core.cpp` Aufrufordnung analog `R_DrawEntitiesOnList`.
 
 **tests:** Xash-only Gate: ein ParticleMan-/Wetter-Zyklus bei `r_csretro_renderer 0`. Offscreen: draw-only reached, ParticleMan-Origin/Die-Hash mutate=0, Xash-Advance danach `advanced=1`. Kein Dummy-Gameplay. Kein Triangle-Produkt in diesem Slice.
+
+## #7 Client-Triangles draw-only (Produkt, 2026-09-20)
+
+`GL_RenderFrame` bleibt 0. Interne Client-API `CSRETRO_ClientTriangles_*` in derselben `client_amd64.so`. Kein neuer `render_api_t`-Slot. Xash-Exports bleiben Advance+Draw.
+
+```text
+Offscreen (r_csretro_renderer 1):
+  World → opaque Brush → Studio → FOLLOW
+  → DrawEFX(rvp, 0, 1)
+  → CSRETRO_ClientTriangles_DrawNormalOnly
+  → trans Brush → Sprites
+  → CSRETRO_ClientTriangles_DrawTransparentOnly   // Fog Push/Pop + ParticleMan Render
+  → DrawEFX(rvp, 1, 1)
+  → FBO finish → restore → return 0
+Xash R_DrawEntitiesOnList = einziges Advance+Draw
+```
+
+| Teilstück | Status | Beleg |
+| --- | --- | --- |
+| Overview Advance/Draw | CONFIRMED split | `AdvanceOverviewState` besitzt `gl_clear` + `CheckOverviewEntities`. `DrawOverviewReadOnly` zeichnet Layer+Entities ohne Listen-Kill/CVar. FPS Draw-only no-op |
+| Overview runtime | verification pending | Spectator/Map-Overview nicht im Headless-FPS-Probe. Nicht CONFIRMED |
+| ParticleMan Advance | CONFIRMED | Forces, Think, Die/Delete, `g_flOldTime`. Live-Liste unsortiert |
+| ParticleMan Render | CONFIRMED | Frustum, lokale `RenderParticleRef`, lokale Distanz, lokales Sort, Draw. Kein `SetPlayerDistance` offscreen |
+| Visibility | CONFIRMED | `EvaluateVisibilityForRender(update_pvs_cache)`. Offscreen schreibt PVS-Cache nicht |
+| FacePlayer Draw | CONFIRMED | lokale `drawAngles`; `m_vAngles` unverändert. Keine weiteren `Draw()`-Overrides im Baum |
+| Environment | CONFIRMED | offscreen 0×, sichtbares Xash 1× |
+| Molotov-held | CONFIRMED | offscreen 0×, sichtbares Xash 1×. Nicht PX4C / #10 |
+| Fog | CONFIRMED reviewed | Render-State, Backend Push/Pop + Save/Restore. Xash-visible Fog bleibt beim Restore |
+| Xash-only Gate | CONFIRMED | `./scripts/px7-tri-xash-gate.sh` PASS: normal=1 trans=1 pman_adv=1 env=1 molotov=1, kein draw-only |
+| Offscreen state hash | CONFIRMED | 150 Wetterpartikel `before=be0874ae after=be0874ae mutate=0` |
+| Double-advance | CONFIRMED | dieselbe Sequenz: draw-only hash → Xash `advanced=1` (`e7c63faf` vs `be0874ae`) |
+| Pixel proof | CONFIRMED | `offscreen tri proof ... differ=1 pass=trans count=150` |
+| Spectator | verification pending | nicht getestet |
+| `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab |
+| Mapchange / vid_setmode | CONFIRMED | aztec→dust + `vid_setmode 1024 768` |
+| Movement-Gate | CONFIRMED | `./scripts/movement-contract-gate.sh` PASS |
+
+#7 bleibt OPEN. Spectator-Overview nicht VERIFIED. Restliche Sprite-Modi / Brush-Sonderflächen DEFERRED.
+
 

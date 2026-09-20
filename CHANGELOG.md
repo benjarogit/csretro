@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.25 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- #7 Status synchronisiert: Brush VERIFIED, Engine-EFX VERIFIED draw-only ownership, Client-Triangles IN PROGRESS, restliche Sprite-Modi / Brush-Sonderflächen PENDING/DEFERRED. Issue bleibt offen.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.24 — 2026-09-20
 
 ### Architektur / Dokumentation

@@ -3,7 +3,7 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
-## Stand 2026-09-20 — #7 Engine-EFX draw-only (VERIFIED, Issue OPEN)
+## Stand 2026-09-20 — #7 Client-Triangles draw-only (IN PROGRESS, Issue OPEN)
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
 PX3B: `bbe418d` / v0.1.12, Cert `8443d0d` / v0.1.13, Issue #5 geschlossen.
@@ -17,7 +17,7 @@ PX4B.1: `344bf73` / v0.1.19. Issue #9 offen (ruhend).
 ```
 Brush entities: VERIFIED
 Engine EFX: VERIFIED draw-only ownership
-Client triangles: PENDING
+Client triangles: IN PROGRESS
 remaining sprite modes / brush special cases: PENDING/DEFERRED
 ```
 
@@ -66,13 +66,13 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Read-only: Variante B kann `gait`/`player_info_t` nicht isolieren ohne GSMR- oder `PlayerInfo`-Änderung (`IEngineStudio.PlayerInfo()` ist Live-State).
 
 **Offen vor return 1**
-- [#7](https://github.com/benjarogit/csretro/issues/7): Client-Triangles (ParticleMan / Fog / Wick), `SPR_ANGLED` / Frame-Lerp / Sprite-Lightmap; Brush-Sonderflächen (turb/decals/dlights) DEFERRED. Engine-EFX draw-only ist drin, Issue bleibt OPEN
+- [#7](https://github.com/benjarogit/csretro/issues/7): Client-Triangles IN PROGRESS (ParticleMan / Overview / Fog / Wick); `SPR_ANGLED` / Frame-Lerp / Sprite-Lightmap und Brush-Sonderflächen (turb/decals/dlights) DEFERRED. Engine-EFX draw-only ist VERIFIED, Issue bleibt OPEN
 - Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)) — Variante C, Blocker vor `return 1`
 - Player-parent FOLLOW (Slice in #9, hängt an Player-Safety)
 - Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10))
 - Vis
 
-**Nächster Schritt:** Client-Triangles draw-only (#7 Research ist da, kein Produkt in diesem Slice). Danach restliche Sprite-Modi / Brush-Sonderflächen. Kein Viewmodel. `return 1` weiter gesperrt.
+**Nächster Schritt:** Client-Triangles draw-only hinter Strategie C (dieser Slice). Danach restliche Sprite-Modi / Brush-Sonderflächen. Kein Viewmodel. `return 1` weiter gesperrt.
 
 **PX0 bleibt offen**
 - #1 Movement Replay: https://github.com/benjarogit/csretro/issues/1

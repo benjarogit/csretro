@@ -688,7 +688,7 @@ Xash R_DrawEntitiesOnList = einziges Advance+Draw
 ```
 Brush entities: VERIFIED
 Engine EFX: VERIFIED draw-only ownership
-Client triangles: PENDING
+Client triangles: IN PROGRESS
 remaining sprite modes / brush special cases: PENDING/DEFERRED
 ```
 

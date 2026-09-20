@@ -435,7 +435,7 @@ Issue [#6](https://github.com/benjarogit/csretro/issues/6). `GL_RenderFrame` ble
 | TempEnt + `mod_sprite` | CONFIRMED | echter HE-Spark `tex=704` 72×72 an Welt-Origin `1572 -290 -230`, `mirrored: 1 drawn: 1`, mode=5; CRC `7d62b310` ≠ `8f1af82c` |
 | `ET_NORMAL` + `mod_sprite` | CONFIRMED | aztec `Normal sprite mirrored: 16 drawn: 16`; dust-spawn 12× 64×128 grass/glow in view |
 | Studio | CONFIRMED nicht gezeichnet | `Studio classified: N local: N (not drawn)` |
-| Brush-Entities | implemented / verification pending | offscreen Draw aus Mirror-Liste, Cache, opaque+trans, rotierende Tür. [#7](https://github.com/benjarogit/csretro/issues/7) bleibt OPEN (EFX/Triangles) |
+| Brush-Entities | VERIFIED | offscreen Draw aus Mirror-Liste, Cache, opaque+trans, rotierende Tür visuell zertifiziert. [#7](https://github.com/benjarogit/csretro/issues/7) bleibt OPEN (EFX/Triangles) |
 | World+Sprite CRC | CONFIRMED | DoD präzisiert: echter Sprite-Pass ändert Offscreen-Pixel, nicht „winziger Smoke in 512²“. aztec `world=b574ac9e full=21e1f2db differ=1 normal_drawn=16`; spawn `world=9b241fd4 full=0742170e differ=1 normal_drawn=12` |
 | Engine-EFX `GL_DrawParticles` | DEFERRED | `CL_ThinkParticle` ändert Sim-State. [#7](https://github.com/benjarogit/csretro/issues/7) |
 | Client-Triangles | DEFERRED | ParticleMan/Fog/`EV_UpdateMolotovHeld` ändern State. [#7](https://github.com/benjarogit/csretro/issues/7) |
@@ -564,7 +564,7 @@ Isoliertes B bräuchte, dass `StudioDrawPlayer` eine lokale Kopie verwendet **od
 | Mapchange / vid_setmode | CONFIRMED | aztec→assault→dust + `vid_setmode 1024 768`. |
 | GL state | CONFIRMED soweit Isolation | Poly-Offset Save/Restore zusätzlich. Restore vor return 0. |
 | `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab. |
-| Sichtbares Xash | INFERRED | keine neue Visual-Cert-Runde; Isolation+return 0; Probe ohne Crash. |
+| Sichtbares Xash | CONFIRMED | `./scripts/px7-brush-visual-cert.sh` 2026-09-20, `build/px7-brush-cert-shots/` |
 
 Sonderflächen:
 
@@ -585,5 +585,71 @@ Offscreen-Reihenfolge (Probe): World → opaque Brush → trans Brush → Sprite
 
 Probe: `./scripts/px7-brush-offscreen-probe.sh` PASS. Movement-Gate PASS. Issue #7 bleibt OPEN.
 
+### #7 Brush visual cert (2026-09-20)
+
+Gegen `59f4921` / v0.1.20. `r_csretro_renderer 1`. Shots: `build/px7-brush-cert-shots/` (nicht committed). `GL_RenderFrame` immer 0.
+
+| Punkt | Status | Beleg |
+| --- | --- | --- |
+| de_aztec Welt | CONFIRMED | Spawn T, Stein/Bogen, LM, keine Doppelgeometrie |
+| Transparente Brush | CONFIRMED offscreen | aztec `trans_drawn=7`; sichtbares Wasser weiter Xash (Turb DEFERRED) |
+| Viewmodel + HUD | CONFIRMED | Glock + HUD aztec/assault, Buy-Menü |
+| Folgerahmen | CONFIRMED | Spawn-Follow + Tür geschlossen/offen Follow |
+| cs_assault `*11` | CONFIRMED | index 19, origin 696 2236 48; nach `movehere` grüne Metalltür sichtbar; `use` dreht Kante (90°) dann Gegenseite |
+| Mapchange / vid_setmode | CONFIRMED | assault → dust Team-Menü; `vid_setmode 1024 768` |
+| GL isolation | CONFIRMED soweit sichtbar | kein Blend/Depth/Offset-Leak im Xash-Frame. `GL_INVALID_ENUM`-Overlay wie PX4A (Fehlerqueue, nicht Brush-Leak) |
+| Movement-Gate | CONFIRMED | `./scripts/movement-contract-gate.sh` PASS |
+
+```
+Brush entities: VERIFIED
+Engine EFX: PENDING
+Client triangles: PENDING
+remaining sprite modes: PENDING
+```
+
+Sonderfälle bleiben separat: SURF_DRAWTURB/water DEFERRED; tex anim DEFERRED; decals DEFERRED; dlights DEFERRED; conveyor/fullbright laut Research.
+
 `return 1` gesperrt: Engine-EFX, Client-Triangles, restliche Sprite-Modi, Player, Viewmodel, Vis, Turb/Decals.
+
+## #7 Engine-EFX Vertrag (2026-09-20, vor Produktcode)
+
+Kein Produktcode in diesem Abschnitt. Strategie C bleibt: Offscreen draw-only, sichtbares Xash = einziges Advance+Draw. `GL_RenderFrame` bleibt 0.
+
+### Ist-Zustand CL_DrawEFX — CONFIRMED `engine/engine/client/cl_efx.c:2079`
+
+```text
+CL_DrawEFX(false):
+  FreeDeadBeams
+  DrawBeams(false)          // solid beams
+
+CL_DrawEFX(true):
+  FreeDeadBeams
+  DrawBeams(true)           // trans beams
+  FreeDeadParticles(particles)
+  CL_DrawParticles          // draw + CL_ThinkParticle
+  FreeDeadTracers
+  CL_DrawTracers            // draw + org/vel/gravity/alpha
+```
+
+`CL_ThinkParticle` (`cl_efx.c:2096`) mutiert pos/vel/color/ramp/type/die und ruft `p->think` bei `pt_custom`.
+
+`CL_DrawParticles` (`ref/gl/gl_rpart.c:48`) zeichnet Quads aus `org`/`color`/`die`/`type`/`unused`, schreibt `p->color = bound(...)`, ruft danach **immer** `CL_ThinkParticle`.
+
+`CL_DrawTracers` (`gl_rpart.c:152`) zeichnet aus `org`/`vel`/`ramp`/`type`/`unused`, danach `VectorMA(org)`, Gravity, `p->unused` Alpha.
+
+`R_BeamDraw` (`ref/gl/gl_beams.c:892`) mutiert live: `FBEAM_ISACTIVE`, `freq`, `source`/`target`/`delta`, `segments`, `t`, `brightness`. `FracNoise` verbraucht `COM_RandomFloat`. `R_DrawBeamFollow` allokiert/free't Trail-Particles und driftet `org`.
+
+Server-Beams: `R_BeamDrawCustomEntity` baut einen **lokalen** `BEAM` aus `cl_entity_t` — nicht die Temp-Liste.
+
+### CONFIRMED: unsicherer Zweitaufruf
+
+`GL_DrawParticles` → `CL_DrawParticlesExternal` → `CL_DrawEFX(frametime, trans)` ist für einen zweiten Strategie-C-Offscreen-Aufruf **nicht** sicher.
+
+- Kein Snapshot/Restore über komplette Live-Listen als Produktlösung (Listen + Trail-Particles + RNG).
+- `frametime=0` ist **kein** draw-only: Beams machen `freq += 0`, setzen aber weiter `FBEAM_ISACTIVE`, Endpoints, `t`, Hose-`brightness`; Follow räumt Dead-Particles.
+- Dead-list cleanup (`CL_FreeDeadBeams`, `R_FreeDeadParticles`) gehört Update/Ownership, nicht draw-only.
+
+Ziel-Semantik dauerhaft: **UPDATE/ADVANCE genau einmal pro Frame. DRAW null-/ein-/mehrfach ohne Simulation oder Listenbesitz zu ändern.**
+
+Xash-only (`r_csretro_renderer 0`) muss exakt **einen** normalen Effektzyklus behalten (sichtbar + einmalige Sim), bevor der Client den draw-only-Einstieg bekommt.
 

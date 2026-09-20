@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.21 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- #7 Brush visuell zertifiziert gegen `59f4921`: mit `r_csretro_renderer 1` bleiben Welt, Viewmodel und HUD auf de_aztec und cs_assault im sichtbaren Xash-Frame; `func_door_rotating *11` (index 19, origin 696 2236 48) öffnet und schließt sichtbar. Issue #7 bleibt offen (Engine-EFX, Client-Triangles). `GL_DrawParticles`/`CL_DrawEFX` ist für einen zweiten Offscreen-Aufruf nicht draw-only-sicher.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.20 — 2026-09-20
 
 ### Renderer

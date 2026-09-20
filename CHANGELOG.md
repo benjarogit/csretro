@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.45 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- PX4C.1 Viewmodel-Body VERIFIED (`41b1471` / v0.1.44). Eligibility, DepthRange, Handedness, `STUDIO_EVENTS=0`, zusätzlicher Wick-Capture=0. Event-Ownership bleibt PENDING. #10 bleibt offen. PX4C.2 nur Research. Vis und Inferno/#2 unberührt.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.44 — 2026-09-20
 
 ### Renderer

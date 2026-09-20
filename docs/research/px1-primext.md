@@ -470,7 +470,7 @@ Zweiter offscreen GSMR-Aufruf im selben Frame ist **nicht** nebenwirkungsfrei. G
 
 Spiegel = Kopie, keine Live-Pointer über Frames. Model-Pointer nur im Map-/Frame-Lifecycle.
 
-**Player:** PX4B.2 Remote Variante B. PX4B.3 Local Xash-Eligibility + explizite Player-Shadows VERIFIED, #9 CLOSED. Sichtbares GSMR: `m_bLocal` false, `SetupClientAnimation` inaktiv. **Viewmodel:** #10 PX4C.1 Body authorized (Event-Ownership PENDING). **FOLLOW:** Non-Player PX4B.1; Player-parent PX4B.2/PX4B.3 implemented / N/R. **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
+**Player:** PX4B.2 Remote Variante B. PX4B.3 Local Xash-Eligibility + explizite Player-Shadows VERIFIED, #9 CLOSED. Sichtbares GSMR: `m_bLocal` false, `SetupClientAnimation` inaktiv. **Viewmodel:** #10 PX4C.1 Body VERIFIED (Event-Ownership PENDING). **FOLLOW:** Non-Player PX4B.1; Player-parent PX4B.2/PX4B.3 implemented / N/R. **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
 
 Erster Draw-Slice (PX4A.1): `ET_NORMAL` + `mod_studio`, kein Viewmodel, kein Player, kein `MOVETYPE_FOLLOW`, nur `STUDIO_RENDER`.
 
@@ -581,7 +581,7 @@ Sichtbares Xash/GSMR Local: `m_bLocal` bleibt false, `SetupClientAnimation` inak
 | Visible Xash | CONFIRMED | Fallback-Log, kein return 1, Movement-Gate PASS |
 | `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab |
 
-Variante C ist nicht mehr festgeschrieben. #9 CLOSED. Viewmodel #10: PX4C.1 Body authorized, Event-Ownership PENDING. Vis unberührt. PrimeXT-Studio nicht übernommen.
+Variante C ist nicht mehr festgeschrieben. #9 CLOSED. Viewmodel #10: PX4C.1 Body VERIFIED, Event-Ownership PENDING. Vis unberührt. PrimeXT-Studio nicht übernommen.
 
 ### #7 Brush-Entity Draw (2026-09-20)
 
@@ -674,7 +674,7 @@ Xash-Vertrag (CONFIRMED Source, kein zweiter Parser):
 - World `wateralpha>=1`: Texture-Chain. `<1`: `R_DrawWaterSurfaces` nach Entities (`gl_rmain.c` nach `R_DrawEntitiesOnList`). Blend SRC_ALPHA, ONE_MINUS_SRC_ALPHA, DepthMask false. `PARM_WATER_ALPHA` = Map-Capability `FWORLD_WATERALPHA`, nicht der Float. CS-Retro `PARM_WATER_ALPHA_VALUE` (41): IEEE-754-Bits der effective alpha (1.0 ohne Capability). Decode per memcpy. `PARM_MAP_HAS_LITWATER` (42).
 - Brush-Water in `R_DrawBrushModel`, nicht World-Late. Sides: skip `plane->type != PLANE_Z` ohne `EF_WATERSIDES`; skip `mins[2]+1 >= plane->dist`.
 - `R_UploadRipples` erzeugt/aktualisiert Textur über `fb_texturenum`. Offscreen ruft das nicht. Ripple-Ownership: Xash. Classic UV-Warp offscreen.
-- Diagnose-Reihenfolge Offscreen (kein Viewmodel): World → opaque World-Water → opaque Brush inkl. Brush-Water → Studio/FOLLOW → solid EFX → Normal Tris → trans Brush inkl. trans Brush-Water → Sprites → Trans Tris → trans EFX → translucent World-Water LATE → FBO end → return 0. Echtes return-1 später: Viewmodel vor translucent World-Water. Heutige Reihenfolge ist nicht der Takeover-Vertrag.
+- Diagnose-Reihenfolge Offscreen: World → opaque World-Water → opaque Brush inkl. Brush-Water → Studio/FOLLOW → solid EFX → Normal Tris → trans Brush inkl. trans Brush-Water → Sprites → Trans Tris → trans EFX → **VIEWMODEL BODY** → translucent World-Water LATE → FBO end → return 0. Entspricht Xash (`R_DrawViewModel` vor `R_DrawWaterSurfaces`). Event-Ownership bleibt sichtbares Xash.
 
 | Punkt | Status | Beleg |
 | --- | --- | --- |
@@ -856,7 +856,7 @@ Kein Produktcode. Quellen: `client/body/cl_dll/tri.cpp`, `particleman/IParticleM
 
 **Environment update ownership:** `g_Environment.Update()` Wind + Rain/Snow-Spawn (`updateTime` / `m_flOldTime`). Doppelt aufrufen = doppelte Spawns und doppelte Wind-Schritte.
 
-**Molotov-held ownership:** `EV_UpdateMolotovHeld()` Wick-`TEMPENTITY` (Alloc, origin, die). Nicht 2×/Frame. Viewmodel-Wick bleibt #10.
+**Molotov-held ownership:** `EV_UpdateMolotovHeld()` Wick-`TEMPENTITY` (Alloc, origin, die). Nicht 2×/Frame. PX4C.1 Offscreen-Body unterdrückt zusätzlichen `EV_CaptureMolotovWickOrigin`. Sichtbares Xash bleibt Wick-Owner. Event-Ownership für return 1 bleibt #10 PENDING.
 
 **exact current call order** (`gl_rmain.c` `R_DrawEntitiesOnList`):
 
@@ -956,7 +956,43 @@ Live latched before == after, mutate=0
 
 Probe: `./scripts/px7-sprite-completion-probe.sh`. Shots `build/px7-sprite-cert-shots/` (nicht committed).
 
-#7 CLOSED (Special A/B/C/D/E complete). Player #9 CLOSED (PX4B.3 Local + Shadows VERIFIED). Viewmodel #10: PX4C.1 Body authorized, Event-Ownership PENDING. Vis unberührt.
+#7 CLOSED (Special A/B/C/D/E complete). Player #9 CLOSED (PX4B.3 Local + Shadows VERIFIED). Viewmodel #10: PX4C.1 Body VERIFIED, Event-Ownership PENDING. Vis unberührt.
+
+### PX4C.1 — Viewmodel studio body (2026-09-20)
+
+`GL_RenderFrame` bleibt 0. Kein PrimeXT-Viewmodel. Kein `HUD_AddEntity`-Viewmodel. Quelle: `gEngfuncs.GetViewModel()`.
+
+| Nachweis | Status | Beleg |
+| --- | --- | --- |
+| Eligibility | VERIFIED | Xash-World-Pass: `RF_DRAW_WORLD`, nicht `RF_ONLY_CLIENTDRAW`/`RF_DRAW_CUBEMAP`, `r_drawviewmodel`, `PARM_THIRDPERSON`, `PARM_LOCAL_HEALTH`, `viewentity==local`, `mod_studio` |
+| Snapshot / live | VERIFIED | `live_mutate=0`; Snapshot darf sich ändern (`snap_after` weicht ab) |
+| GSMR-Einstieg | CONFIRMED | `StudioDrawViewmodelOffscreen` → `StudioDrawModel(STUDIO_RENDER)`. `IsCurrentViewModelContext()` |
+| Handedness | VERIFIED | `base_right XOR special_flip`; `cl_righthand` mutate=0. Knife `special_flip=1` |
+| Shield | implemented / N/R | `weapon_shield` in dieser GameDLL ohne Pickup; Dummy-Modell nicht gebaut |
+| STUDIO_EVENTS | VERIFIED | `events=0` |
+| Wick capture | VERIFIED | `v_molotov` `wick_attempts=1` `wick_captures=0` `wick_mutate=0` |
+| DepthRange | VERIFIED | before 0/1, during 0/0.3, after 0/1, restore=1, gl_restore=1 |
+| Body pixel | VERIFIED | aztec/torn/assault/dust CRC differ=1. Waffen: Glock, Knife, AK, HE, Smoke, Flash, Molotov |
+| `r_drawviewmodel` | VERIFIED | 0: candidate>0 drawn_frame=0; 1: drawn_frame=1 |
+| Thirdperson / dead | VERIFIED | drawn_frame=0 |
+| Cubemap/preview | CONFIRMED | Eligibility lehnt `RF_DRAW_CUBEMAP` / `RF_ONLY_CLIENTDRAW` / kein `RF_DRAW_WORLD` ab |
+| Alias | not required | alle echten CS-Viewmodels `mod_studio` |
+| GSMR cache | CONFIRMED | Viewmodel nach Player/FOLLOW; sichtbares Xash setzt Studio-Kontext neu. Keine persistenten Bone-Pointer |
+| Visible Xash | CONFIRMED | Fallback-Log, kein Offscreen-FBO sichtbar, Movement-Gate PASS |
+| `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab |
+
+Probe: `./scripts/px4c1-viewmodel-body-probe.sh` PASS. Shots `build/px4c1-viewmodel-shots/` (nicht committed).
+
+### PX4C.2 — Event-Ownership Research (read-only, 2026-09-20)
+
+Kein Produktcode in PX4C.1. Kein zweiter `StudioDrawModel(STUDIO_EVENTS)` unter return 0.
+
+Gewünschter späterer Vertrag:
+
+- return 0 / Strategie C: Offscreen-Body only; Xash `R_RunViewmodelEvents` genau einmal; Xash sichtbarer Body.
+- zukünftiger Custom-Frame: CS Retro/Engine-Handoff führt Viewmodel-Events genau einmal aus; CS Retro Body genau einmal; Xash-Default Events/Body übersprungen.
+
+Schmaler Engine-Vertrag kann sinnvoll sein: Client beansprucht Viewmodel-Events explizit; Xash überspringt bei return 0 den normalen Event-Aufruf nur wenn derselbe Frame bereits vom Client übernommen wurde. Ziel: Event-Ownership **vor** erstem return 1 testen. Kein Code dafür in PX4C.1.
 
 
 

@@ -4131,7 +4131,8 @@ static int R_ClassifyPreparedSurface( const msurface_t *surf, uint clipflags )
 		float	dist;
 		int	face = glState.faceCull;
 
-		// Prepare runs before R_SetupGL. World default is front-face cull.
+		// Prepare uses R_SetupGL(false), which does not write glState.faceCull.
+		// Visible world default after R_SetupGL(true) is front-face cull.
 		if( face == GL_NONE )
 			face = GL_FRONT;
 
@@ -4481,14 +4482,23 @@ int R_DrawPreparedSky( const byte *mask, int mask_bytes, csretro_frame_vis_t *in
 		R_DrawSkyBox();
 		drawn = candidates;
 	}
+	if( info )
+	{
+		int side;
+
+		info->sky_candidates = candidates;
+		info->sky_drawn = drawn;
+		info->sky_sides_nonempty = 0;
+		for( side = 0; side < SKYBOX_MAX_SIDES; side++ )
+		{
+			if( RI.skyMins[0][side] < RI.skyMaxs[0][side] && RI.skyMins[1][side] < RI.skyMaxs[1][side] )
+				info->sky_sides_nonempty++;
+		}
+		info->farclip = RI.farClip;
+	}
 	R_ClearSkyBox();
 
 	RI.currententity = oldent;
 	RI.currentmodel = oldmod;
-	if( info )
-	{
-		info->sky_candidates = candidates;
-		info->sky_drawn = drawn;
-	}
 	return candidates > 0 ? 1 : 0;
 }

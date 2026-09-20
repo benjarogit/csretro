@@ -1003,6 +1003,7 @@ static void R_FillPreparedVisInfo( csretro_frame_vis_t *info, int pvsbytes )
 		info->frustum_sig = R_HashFloats( info->frustum_sig, RI.frustum.planes[i].normal, 3 );
 		info->frustum_sig = R_HashFloats( info->frustum_sig, &RI.frustum.planes[i].dist, 1 );
 	}
+	info->farclip = RI.farClip;
 	if( WORLDMODEL )
 		info->world_surfaces = WORLDMODEL->numsurfaces;
 
@@ -1075,6 +1076,7 @@ int R_PrepareCurrentFrameVis( csretro_vis_request_t *req )
 	else
 	{
 		R_PrepareViewState();
+		R_SetupGL( false );
 		R_MarkLeaves();
 		tr.csretro_vis_prepared = true;
 	}
@@ -1328,6 +1330,140 @@ void R_DrawCubemapView( const vec3_t origin, const vec3_t angles, int size )
 	R_RenderFrame( &rvp );
 
 	RI.viewleaf = NULL;		// force markleafs next frame
+}
+
+/*
+===============
+CL_FxBlendReadOnly
+
+Same visible values as CL_FxBlend without Fade/Solid/Hologram mutation or RNG.
+===============
+*/
+static int CL_FxBlendReadOnly( const cl_entity_t *e )
+{
+	int blend = 0;
+	float offset;
+
+	if( !e )
+		return 0;
+
+	offset = ((int)e->index ) * 363.0f;
+
+	switch( e->curstate.renderfx )
+	{
+	case kRenderFxPulseSlowWide:
+		blend = e->curstate.renderamt + 0x40 * sin( gp_cl->time * 2 + offset );
+		break;
+	case kRenderFxPulseFastWide:
+		blend = e->curstate.renderamt + 0x40 * sin( gp_cl->time * 8 + offset );
+		break;
+	case kRenderFxPulseSlow:
+		blend = e->curstate.renderamt + 0x10 * sin( gp_cl->time * 2 + offset );
+		break;
+	case kRenderFxPulseFast:
+		blend = e->curstate.renderamt + 0x10 * sin( gp_cl->time * 8 + offset );
+		break;
+	case kRenderFxFadeSlow:
+	case kRenderFxFadeFast:
+	case kRenderFxSolidSlow:
+	case kRenderFxSolidFast:
+		blend = e->curstate.renderamt;
+		break;
+	case kRenderFxStrobeSlow:
+		blend = 20 * sin( gp_cl->time * 4 + offset );
+		if( blend < 0 ) blend = 0;
+		else blend = e->curstate.renderamt;
+		break;
+	case kRenderFxStrobeFast:
+		blend = 20 * sin( gp_cl->time * 16 + offset );
+		if( blend < 0 ) blend = 0;
+		else blend = e->curstate.renderamt;
+		break;
+	case kRenderFxStrobeFaster:
+		blend = 20 * sin( gp_cl->time * 36 + offset );
+		if( blend < 0 ) blend = 0;
+		else blend = e->curstate.renderamt;
+		break;
+	case kRenderFxFlickerSlow:
+		blend = 20 * (sin( gp_cl->time * 2 ) + sin( gp_cl->time * 17 + offset ));
+		if( blend < 0 ) blend = 0;
+		else blend = e->curstate.renderamt;
+		break;
+	case kRenderFxFlickerFast:
+		blend = 20 * (sin( gp_cl->time * 16 ) + sin( gp_cl->time * 23 + offset ));
+		if( blend < 0 ) blend = 0;
+		else blend = e->curstate.renderamt;
+		break;
+	case kRenderFxHologram:
+	case kRenderFxDistort:
+	{
+		vec3_t tmp;
+		float dist;
+
+		VectorCopy( e->origin, tmp );
+		VectorSubtract( tmp, RI.rvp.vieworigin, tmp );
+		dist = DotProduct( tmp, RI.vforward );
+		if( e->curstate.renderfx == kRenderFxDistort )
+			dist = 1;
+		if( dist <= 0 )
+			blend = 0;
+		else if( dist <= 100 )
+			blend = 180;
+		else
+			blend = (int)(( 1.0f - ( dist - 100 ) * ( 1.0f / 400.0f )) * 180.0f );
+		break;
+	}
+	default:
+		blend = e->curstate.renderamt;
+		break;
+	}
+
+	return bound( 0, blend, 255 );
+}
+
+/*
+===============
+R_GetEntityRenderInfoReadOnly
+
+One Xash classification for the offscreen client. No entity writes.
+===============
+*/
+int R_GetEntityRenderInfoReadOnly( const cl_entity_t *ent, csretro_entity_render_info_t *out )
+{
+	cl_entity_t *live;
+	vec3_t org, vecLen;
+	int rendermode;
+
+	if( !ent || !out )
+		return 0;
+
+	memset( out, 0, sizeof( *out ) );
+	out->version = CSRETRO_ENTITY_RENDER_INFO_VERSION;
+	live = (cl_entity_t *)ent;
+	rendermode = R_GetEntityRenderMode( live );
+	out->effective_rendermode = rendermode;
+	out->opaque = R_OpaqueEntity( live ) ? 1 : 0;
+	out->fxblend = CL_FxBlendReadOnly( ent );
+	out->rank = R_RankForRenderMode( rendermode );
+	out->model_type = ent->model ? ent->model->type : -1;
+	VectorCopy( ent->origin, out->center );
+
+	if( ent->model && ( ent->model->type != mod_brush || rendermode != kRenderTransAlpha ))
+	{
+		VectorAverage( ent->model->mins, ent->model->maxs, org );
+		VectorAdd( ent->origin, org, org );
+		VectorCopy( org, out->center );
+		VectorSubtract( RI.rvp.vieworigin, org, vecLen );
+		out->distance = DotProduct( vecLen, vecLen );
+	}
+	else if( ent->model && ent->model->type == mod_brush && rendermode == kRenderTransAlpha )
+		out->distance = 1000000000.0f;
+	else
+	{
+		VectorSubtract( RI.rvp.vieworigin, ent->origin, vecLen );
+		out->distance = DotProduct( vecLen, vecLen );
+	}
+	return 1;
 }
 
 /*

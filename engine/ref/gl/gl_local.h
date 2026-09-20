@@ -374,6 +374,7 @@ int CL_FxBlend( cl_entity_t *e );
 void R_MarkLeaves( void );
 void R_PrepareViewState( void );
 int R_PrepareCurrentFrameVis( struct csretro_vis_request_s *req );
+int R_GetEntityRenderInfoReadOnly( const struct cl_entity_s *ent, struct csretro_entity_render_info_s *out );
 void R_CollectWorldVisibility( struct csretro_vis_request_s *req, struct csretro_frame_vis_s *info );
 int R_DrawPreparedSky( const byte *mask, int mask_bytes, struct csretro_frame_vis_s *info );
 void R_DrawWorld( void );

@@ -3,6 +3,44 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
+## Stand 2026-09-20 — PX5.1 Sky + Trans; #11 CLOSED
+
+Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
+`GL_RenderFrame` bleibt 0. Issue #7/#9/#10/#11 geschlossen. #1 #2 #3 unverändert OPEN.
+`return 1` nicht starten.
+
+```
+r_csretro_renderer 0 → Xash sichtbar
+r_csretro_renderer 1 → CS-Retro offscreen + sichtbarer Xash-Fallback
+GL_RenderFrame        → immer 0
+```
+
+**Vertrag:** `PrepareCurrentFrameVis` ruft `R_PrepareViewState` → `R_SetupGL(false)` → `R_MarkLeaves`.
+`R_SetupGL(false)` setzt nur `RI.worldviewMatrix` / `projectionMatrix` / `worldviewProjectionMatrix` / `farClip`.
+Kein sichtbarer GL-State. `R_RenderScene` reused Prepare+MarkLeaves und führt weiter `R_SetupGL(true)` aus.
+Tail-API `GetEntityRenderInfoReadOnly` (`REF_API_VERSION` 24): effective rendermode, opaque/renderfx, read-only FxBlend, bbox-center distance.
+
+```
+current-frame Frustum/PVS/Mod_GetCurrentVis: VERIFIED
+world PVS+frustum selection: VERIFIED
+sky: farclip>0 sides>0 candidates/drawn>0 nonempty>0 isolated CRC differ=1 visual PASS
+trans: Xash resolver, Player included, duplicate_scene_draws=0, comparator proof PASS
+backface: CONFIRMED code parity / runtime reject NOT REPRODUCIBLE
+efrag: implemented safety contract / runtime NOT REPRODUCIBLE
+alias: KIND_OTHER, visible Xash R_DrawAliasModel / runtime NOT REPRODUCIBLE
+overview: vis overview=1 prepared=1 während dev_overview
+fog: visible Xash R_DrawFog/R_CheckFog
+ripple: visible Xash R_AnimateRipples
+```
+
+Probe: `./scripts/px5.1-sky-trans-probe.sh` PASS. `./scripts/px5-vis-probe.sh` PASS.
+Shots `build/px5-vis-shots/` (nicht committed).
+Pflicht-Gates PASS: movement, px7-tri-overview, sprite, brush A/B/C/D, random-tiled, px4b2, px4c1, px4c2.
+Issue: https://github.com/benjarogit/csretro/issues/11 CLOSED
+
+**Nächster Schritt:** nur nach neuer Freigabe. `return 1` nicht starten.
+#1 #2 #3 nicht schließen. #7 #9 #10 #11 nicht wieder öffnen.
+
 ## Stand 2026-09-20 — PX5 Vis-Seam hinter return 0; #11 bleibt OPEN
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.

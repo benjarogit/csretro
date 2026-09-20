@@ -6,6 +6,7 @@
 #include "render_studio.h"
 #include "render_scene.h"
 #include "render_backend.h"
+#include "render_trans.h"
 
 #include "hud.h"
 #include "cl_util.h"
@@ -480,7 +481,7 @@ static int DrawStudioRange( int only_index, CSRETRO_SceneStats *stats )
 			continue;
 		if( !Eligible( e ) )
 			continue;
-		if( only_index < 0 && e->rendermode != kRenderNormal && e->rendermode != 0 )
+		if( only_index < 0 && CSRETRO_Trans_DrawClass( i ) != CSRETRO_DRAW_OPAQUE )
 			continue;
 		snap = CSRETRO_Scene_StudioSnap( e->snap_index );
 		if( !snap || !snap->model )
@@ -495,6 +496,7 @@ static int DrawStudioRange( int only_index, CSRETRO_SceneStats *stats )
 		if( ok )
 		{
 			CSRETRO_Scene_NoteDrawn( CSRETRO_KIND_STUDIO );
+			CSRETRO_Trans_NoteDrawn( i );
 			drawn++;
 			if( !s_logged_model && snap->model->name[0] )
 			{
@@ -748,8 +750,13 @@ int CSRETRO_Studio_DrawPlayers( CSRETRO_SceneStats *stats, const ref_viewpass_t 
 
 		if( !EligibleRemotePlayer( e ) )
 			continue;
+		if( CSRETRO_Trans_DrawClass( i ) != CSRETRO_DRAW_OPAQUE )
+			continue;
 		if( DrawIsolatedPlayer( e, 0, 1 ) )
+		{
+			CSRETRO_Trans_NoteDrawn( i );
 			drawn++;
+		}
 	}
 
 	for( i = 0; i < n; i++ )
@@ -757,6 +764,8 @@ int CSRETRO_Studio_DrawPlayers( CSRETRO_SceneStats *stats, const ref_viewpass_t 
 		const CSRETRO_EntCopy *e = CSRETRO_Scene_Get( i );
 
 		if( !EligibleLocalPlayer( e ) )
+			continue;
+		if( CSRETRO_Trans_DrawClass( i ) != CSRETRO_DRAW_OPAQUE )
 			continue;
 		if( !LocalWorldDrawEligible( e, rvp ) )
 		{
@@ -768,6 +777,7 @@ int CSRETRO_Studio_DrawPlayers( CSRETRO_SceneStats *stats, const ref_viewpass_t 
 			s_player_proof.crc_before_local = SampleFboCrc();
 		if( DrawIsolatedPlayer( e, 1, 1 ) )
 		{
+			CSRETRO_Trans_NoteDrawn( i );
 			drawn++;
 			if( s_player_proof.crc_after_local && s_player_proof.crc_before_local
 				&& s_player_proof.crc_after_local != s_player_proof.crc_before_local )
@@ -838,6 +848,53 @@ int CSRETRO_Studio_DrawPlayers( CSRETRO_SceneStats *stats, const ref_viewpass_t 
 	if( stats )
 		CSRETRO_Scene_GetStats( stats );
 	return drawn;
+}
+
+int CSRETRO_Studio_DrawPlayerOne( int scene_index, CSRETRO_SceneStats *stats, const ref_viewpass_t *rvp )
+{
+	cl_entity_t *saved_ent = NULL;
+	struct model_s *saved_model = NULL;
+	const CSRETRO_EntCopy *e;
+	int ok = 0;
+
+	e = CSRETRO_Scene_Get( scene_index );
+	if( !e || !gRenderAPI.R_SetCurrentEntity )
+		return 0;
+
+	ClassifyLocalPlayer( rvp );
+	if( IEngineStudio.GetCurrentEntity )
+		saved_ent = IEngineStudio.GetCurrentEntity();
+	if( saved_ent )
+		saved_model = saved_ent->model;
+
+	if( EligibleRemotePlayer( e ) )
+	{
+		ok = DrawIsolatedPlayer( e, 0, 1 );
+		if( ok )
+			CSRETRO_Trans_NoteDrawn( scene_index );
+	}
+	else if( EligibleLocalPlayer( e ) )
+	{
+		if( !LocalWorldDrawEligible( e, rvp ) )
+		{
+			s_player_proof.local_hidden_viewentity++;
+			ok = 0;
+		}
+		else
+		{
+			s_player_proof.local_eligible++;
+			ok = DrawIsolatedPlayer( e, 1, 1 );
+			if( ok )
+				CSRETRO_Trans_NoteDrawn( scene_index );
+		}
+	}
+
+	gRenderAPI.R_SetCurrentEntity( saved_ent );
+	if( gRenderAPI.R_SetCurrentModel )
+		gRenderAPI.R_SetCurrentModel( saved_model );
+	if( stats )
+		CSRETRO_Scene_GetStats( stats );
+	return ok;
 }
 
 static int FollowChildEligible( const CSRETRO_EntCopy *e )

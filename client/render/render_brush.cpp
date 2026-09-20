@@ -13,6 +13,7 @@
 #include "render_decal.h"
 #include "render_dlight.h"
 #include "render_xash_sprite.h"
+#include "render_trans.h"
 
 #include "hud.h"
 #include "cl_util.h"
@@ -415,8 +416,13 @@ static int DrawBrushRange( int only_index, int opaque_only, CSRETRO_SceneStats *
 			s_bstats.skipped_world++;
 			continue;
 		}
-		if( opaque_only ? !IsOpaqueMode( e->rendermode ) : IsOpaqueMode( e->rendermode ) )
-			continue;
+		if( only_index < 0 )
+		{
+			if( opaque_only && CSRETRO_Trans_DrawClass( i ) != CSRETRO_DRAW_OPAQUE )
+				continue;
+			if( !opaque_only && CSRETRO_Trans_DrawClass( i ) == CSRETRO_DRAW_OPAQUE )
+				continue;
+		}
 
 		mesh = CacheBuild( e->model );
 		if( !mesh || !mesh->captured )
@@ -505,6 +511,7 @@ static int DrawBrushRange( int only_index, int opaque_only, CSRETRO_SceneStats *
 		RestoreDrawState();
 
 		CSRETRO_Scene_NoteDrawn( CSRETRO_KIND_BRUSH );
+		CSRETRO_Trans_NoteDrawn( i );
 		if( opaque_only )
 		{
 			s_bstats.opaque_drawn++;

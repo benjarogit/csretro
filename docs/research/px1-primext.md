@@ -1013,27 +1013,27 @@ Probe: `./scripts/px4c2-viewmodel-events-probe.sh` PASS. PX4C.1 weiter PASS. Sho
 
 ## PX5 — Vis / Final Frame Ownership (2026-09-20)
 
-Issue [#11](https://github.com/benjarogit/csretro/issues/11) bleibt OPEN bis komplettes DoD. `GL_RenderFrame` bleibt 0. `return 1` ist nicht Teil von PX5.
+Issue [#11](https://github.com/benjarogit/csretro/issues/11) CLOSED nach PX5.1. `GL_RenderFrame` bleibt 0. `return 1` ist nicht Teil von PX5.
 
-Vertrag: Xash/ref berechnet current-frame Frustum/Viewleaf/PVS (`R_SetupFrustum`, `R_FindViewLeaf`, `R_MarkLeaves`). Tail-API `PrepareCurrentFrameVis` (`REF_API_VERSION` 23) kopiert den Zustand an CS Retro. Client besitzt einen eigenen PVS-Frame-Puffer; `Mod_GetCurrentVis` gibt genau diesen Puffer zurück. Keine zweite Client-`R_MarkLeaves`-Formel. `R_RenderScene` reused denselben Zustand nach return 0. Draw/Clear/Fog/Ripple/`R_PushDlights` bleiben im sichtbaren Xash-Pfad.
+Vertrag: Xash/ref berechnet current-frame Frustum/Viewleaf/PVS (`R_SetupFrustum`, `R_FindViewLeaf`, `R_MarkLeaves`). Tail-API `PrepareCurrentFrameVis` (`REF_API_VERSION` 24) kopiert den Zustand an CS Retro. Initiale Vis-Vorbereitung: `R_PrepareViewState` → `R_SetupGL(false)` → `R_MarkLeaves`. `R_SetupGL(false)` setzt nur interne Matrizen und `RI.farClip`. Client besitzt einen eigenen PVS-Frame-Puffer; `Mod_GetCurrentVis` gibt genau diesen Puffer zurück. Keine zweite Client-`R_MarkLeaves`-Formel. `R_RenderScene` reused denselben Zustand nach return 0. Draw/Clear/Fog/Ripple/`R_PushDlights` bleiben im sichtbaren Xash-Pfad. Entity-Klassifikation: `GetEntityRenderInfoReadOnly` (effective rendermode, opaque/renderfx, read-only FxBlend, bbox-center distance).
 
 | DoD | Stand |
 | --- | --- |
 | current-frame Frustum / View vectors / Viewleaf / PVS | VERIFIED — `pvs_match=1`, `reused=1` über aztec→torn→assault→dust |
 | `Mod_GetCurrentVis` | VERIFIED — Client-Puffer, Hash gleich Engine |
-| `r_novis` / `r_lockpvs` / cross-leaf / Overview | instrumentiert; Spawn-Frame `novis=1`/`viewleaf=-1` (underworld), danach normale Leaves |
+| `r_novis` / `r_lockpvs` / cross-leaf / Overview | VERIFIED — `dev_overview` setzt `overview=1 prepared=1` |
 | world PVS + frustum selection | VERIFIED — `drawn≠all`, `selection_hash` ändert sich bei Leaf-Wechsel |
-| backface | implementiert (`GL_FRONT` Fallback wenn `faceCull==GL_NONE` vor SetupGL) |
+| backface | CONFIRMED code parity mit `R_CullSurface` (World-Default `GL_FRONT`); runtime reject NOT REPRODUCIBLE |
 | efrag / `ET_FRAGMENTED` | implemented safety contract / runtime NOT REPRODUCIBLE (`efrag_count=0` auf aztec/dust/torn/assault) |
-| sky ownership | implemented — candidates/drawn>0; FBO pixelproof `differ=0 nonempty=0` (Xash `R_DrawSkyBox` vor `R_SetupGL`); verification pending |
-| global trans ordering | implemented — eine Liste, Dispatch Brush/Sprite/Studio; overlapping Brush+Sprite Teilfälle N/R |
+| sky ownership | VERIFIED — `farclip=13840` `sides=3` `candidates=98 drawn=98` isolated CRC `84831fec≠3ccb16d2` `nonempty=191303` visual PASS |
+| global trans ordering | VERIFIED — Xash resolver, Brush+Sprite+Studio im selben Frame, Player-Pfad complete / runtime N/R, `duplicate_scene_draws=0`, comparator proof PASS |
 | fog | explicit safe contract — sichtbarer Xash `R_DrawFog`/`R_CheckFog`; Client-Triangle-Fog bleibt draw-only |
 | ripple | explicit safe contract — sichtbarer Xash `R_AnimateRipples` |
-| alias | NOT REPRODUCIBLE WITH CURRENT GAME CONTENT + sichtbarer Xash-Fallback |
-| mapchange / vid_setmode | Probe-Pfad aztec→torn→assault→dust + `vid_setmode 1024 768` gelaufen |
+| alias | KIND_OTHER, nicht Studio/Sprite; sichtbarer Xash `R_DrawAliasModel`; runtime NOT REPRODUCIBLE WITH CURRENT GAME CONTENT |
+| mapchange / vid_setmode | Probe-Pfad aztec→torn→assault→dust + `vid_setmode 1024 768` PASS |
 | `GL_RenderFrame` | always 0 |
 
-Probe: `./scripts/px5-vis-probe.sh`. Shots `build/px5-vis-shots/` (nicht committed).
+Probe: `./scripts/px5.1-sky-trans-probe.sh` und `./scripts/px5-vis-probe.sh`. Shots `build/px5-vis-shots/` (nicht committed).
 Pflicht-Gates PASS: `movement-contract-gate`, `px7-tri-overview-cert`, `px7-sprite-completion-probe`, `px7-brush-special-a/b/c/d-dlights`, `px7-random-tiled-probe`, `px4b2-player-probe`, `px4c1-viewmodel-body-probe`, `px4c2-viewmodel-events-probe`.
 DLight-betroffene Surfaces bleiben in der Offscreen-Draw-Liste (nicht die ganze Map), damit der #7-DLight-Proof nicht durch PVS verhungert.
 

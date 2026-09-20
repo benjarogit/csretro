@@ -18,6 +18,8 @@ static int s_fed = 0;
 static int s_logged = 0;
 static int s_map_logged = 0;
 static int s_efrag_logged = 0;
+static int s_overview_logged = 0;
+static int s_backface_logged = 0;
 static unsigned int s_last_pvs_hash = 0;
 static int s_last_viewleaf = -1;
 
@@ -38,6 +40,8 @@ void CSRETRO_Vis_OnNewMap( void )
 	s_logged = 0;
 	s_map_logged = 0;
 	s_efrag_logged = 0;
+	s_overview_logged = 0;
+	s_backface_logged = 0;
 	s_last_pvs_hash = 0;
 	s_last_viewleaf = -1;
 	memset( s_pvs, 0, sizeof( s_pvs ) );
@@ -88,7 +92,7 @@ int CSRETRO_Vis_Prepare( const struct ref_viewpass_s *rvp )
 	{
 		s_logged = 1;
 		gEngfuncs.Con_Printf(
-			"CS Retro: vis frame origin=%.1f %.1f %.1f angles=%.1f %.1f %.1f vf=%.3f %.3f %.3f vr=%.3f %.3f %.3f vu=%.3f %.3f %.3f viewleaf=%i oldviewleaf=%i pvsbytes=%i visleafs=%i engine_pvs=%08x client_pvs=%08x pvs_match=%i frustum=%08x novis=%i lockpvs=%i cross_leaf=%i overview=%i box_visible=%i box_hidden=%i reused=%i helper=%i\n",
+			"CS Retro: vis frame origin=%.1f %.1f %.1f angles=%.1f %.1f %.1f vf=%.3f %.3f %.3f vr=%.3f %.3f %.3f vu=%.3f %.3f %.3f viewleaf=%i oldviewleaf=%i pvsbytes=%i visleafs=%i engine_pvs=%08x client_pvs=%08x pvs_match=%i frustum=%08x novis=%i lockpvs=%i cross_leaf=%i overview=%i box_visible=%i box_hidden=%i reused=%i helper=%i farclip=%.1f\n",
 			s_info.origin[0], s_info.origin[1], s_info.origin[2],
 			s_info.angles[0], s_info.angles[1], s_info.angles[2],
 			s_info.vforward[0], s_info.vforward[1], s_info.vforward[2],
@@ -98,12 +102,23 @@ int CSRETRO_Vis_Prepare( const struct ref_viewpass_s *rvp )
 			s_info.pvs_hash, client_hash, ( s_info.pvs_hash == client_hash ) ? 1 : 0,
 			s_info.frustum_sig, s_info.novis, s_info.lockpvs, s_info.cross_leaf,
 			s_info.overview, s_info.box_visible, s_info.box_hidden, second.reused,
-			gRenderAPI.PrepareCurrentFrameVis ? 1 : 0 );
+			gRenderAPI.PrepareCurrentFrameVis ? 1 : 0, s_info.farclip );
 		gEngfuncs.Con_Printf(
-			"CS Retro: world vis total=%i pvs_rejected=%i frustum_rejected=%i backface=%i drawn=%i selection_hash=%08x sky_candidates=%i efrag_count=%i\n",
+			"CS Retro: world vis total=%i pvs_rejected=%i frustum_rejected=%i backface=%i drawn=%i selection_hash=%08x sky_candidates=%i efrag_count=%i farclip=%.1f\n",
 			s_info.world_surfaces, s_info.pvs_rejected, s_info.frustum_rejected,
 			s_info.backface_rejected, s_info.drawn, s_info.selection_hash,
-			s_info.sky_candidates, s_info.efrag_count );
+			s_info.sky_candidates, s_info.efrag_count, s_info.farclip );
+		if( !s_backface_logged )
+		{
+			s_backface_logged = 1;
+			if( s_info.backface_rejected > 0 )
+				gEngfuncs.Con_Printf(
+					"CS Retro: backface classifier CONFIRMED code parity with R_CullSurface world default GL_FRONT, runtime rejected=%i\n",
+					s_info.backface_rejected );
+			else
+				gEngfuncs.Con_Printf(
+					"CS Retro: backface classifier CONFIRMED code parity with R_CullSurface world default GL_FRONT, runtime backface reject NOT REPRODUCIBLE\n" );
+		}
 	}
 	else if( s_info.viewleaf != s_last_viewleaf || s_info.pvs_hash != s_last_pvs_hash )
 	{
@@ -114,6 +129,14 @@ int CSRETRO_Vis_Prepare( const struct ref_viewpass_s *rvp )
 	}
 	s_last_viewleaf = s_info.viewleaf;
 	s_last_pvs_hash = s_info.pvs_hash;
+	if( !s_overview_logged && s_info.overview )
+	{
+		s_overview_logged = 1;
+		gEngfuncs.Con_Printf(
+			"CS Retro: vis overview=1 prepared=%i pvsbytes=%i pvs_hash=%08x drawn=%i selection_hash=%08x mask_bytes=%i farclip=%.1f\n",
+			s_info.prepared, s_info.pvsbytes, s_info.pvs_hash, s_info.drawn,
+			s_info.selection_hash, CSRETRO_Vis_SurfMaskBytes(), s_info.farclip );
+	}
 	if( !s_map_logged && s_info.prepared )
 	{
 		s_map_logged = 1;
@@ -219,7 +242,12 @@ int CSRETRO_Vis_DrawSky( void )
 	req.info = &sky;
 	rc = gRenderAPI.PrepareCurrentFrameVis( &req );
 	if( sky.sky_candidates > 0 )
+	{
 		s_info.sky_drawn = sky.sky_drawn;
+		s_info.sky_sides_nonempty = sky.sky_sides_nonempty;
+		if( sky.farclip > 0.0f )
+			s_info.farclip = sky.farclip;
+	}
 	return rc;
 }
 

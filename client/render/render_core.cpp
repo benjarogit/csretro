@@ -31,6 +31,8 @@ static_assert( offsetof( render_api_t, RunViewmodelEventsOnce ) == offsetof( ren
 	"v37 prefix: RunViewmodelEventsOnce must be the tail slot after ResolveSurfaceTextureReadOnly" );
 static_assert( offsetof( render_api_t, PrepareCurrentFrameVis ) == offsetof( render_api_t, RunViewmodelEventsOnce ) + sizeof( void * ),
 	"v37 prefix: PrepareCurrentFrameVis must be the tail slot after RunViewmodelEventsOnce" );
+static_assert( offsetof( render_api_t, GetEntityRenderInfoReadOnly ) == offsetof( render_api_t, PrepareCurrentFrameVis ) + sizeof( void * ),
+	"v37 prefix: GetEntityRenderInfoReadOnly must be the tail slot after PrepareCurrentFrameVis" );
 
 static cvar_t *s_renderer = NULL;
 static cvar_t *s_dump = NULL;
@@ -505,6 +507,7 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 
 	CSRETRO_Vis_Prepare( rvp );
 	CSRETRO_Vis_FeedEfrags();
+	CSRETRO_Trans_ClassifyScene( rvp->vieworigin );
 
 	if( !s_backend_ok )
 	{
@@ -584,30 +587,44 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 					crc_base.nonempty_pixels, crc_res.nonempty_pixels, wst.random_tile_candidates );
 			}
 		}
+		{
+			CSRETRO_OffscreenProof before_sky;
+			CSRETRO_OffscreenProof after_sky;
+			const csretro_frame_vis_t *vi = CSRETRO_Vis_Info();
+
+			CSRETRO_Backend_PrepareImmediateDraw();
+			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+			if( gXRGL.Disable )
+				gXRGL.Disable( 0x0B44 ); /* GL_CULL_FACE — sky winding vs FBO cull */
+			memset( &before_sky, 0, sizeof( before_sky ) );
+			CSRETRO_Backend_SampleProof( &before_sky );
+			CSRETRO_Vis_DrawSky();
+			if( gXRGL.Enable )
+				gXRGL.Enable( 0x0B44 );
+			CSRETRO_Backend_PrepareImmediateDraw();
+			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+			memset( &after_sky, 0, sizeof( after_sky ) );
+			CSRETRO_Backend_SampleProof( &after_sky );
+			if( vi && vi->sky_candidates > 0 && !s_sky_crc_logged )
+			{
+				int differ = before_sky.crc != after_sky.crc ? 1 : 0;
+				gEngfuncs.Con_Printf(
+					"CS Retro: sky pixelproof before=%08x after=%08x differ=%i candidates=%i drawn=%i nonempty=%i farclip=%.1f sides=%i applyview=1\n",
+					before_sky.crc, after_sky.crc, differ,
+					vi->sky_candidates, vi->sky_drawn, after_sky.nonempty_pixels,
+					vi->farclip, vi->sky_sides_nonempty );
+				if( differ && after_sky.nonempty_pixels > 0 && vi->farclip > 0.0f
+					&& vi->sky_sides_nonempty > 0 )
+				{
+					s_sky_crc_logged = 1;
+					CSRETRO_Backend_DumpPPM( "csretro_sky.ppm" );
+				}
+			}
+		}
 		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &world_ctx );
 		memset( &world_base_proof, 0, sizeof( world_base_proof ) );
 		CSRETRO_Backend_SampleProof( &world_base_proof );
 		CSRETRO_DLight_NoteWorldCrc( world_base_proof.crc, CSRETRO_DLight_PatchCount() );
-		{
-			CSRETRO_OffscreenProof after_sky;
-			const csretro_frame_vis_t *vi = CSRETRO_Vis_Info();
-
-			CSRETRO_Vis_DrawSky();
-			CSRETRO_Backend_PrepareImmediateDraw();
-			memset( &after_sky, 0, sizeof( after_sky ) );
-			CSRETRO_Backend_SampleProof( &after_sky );
-			if( !s_sky_crc_logged && vi && vi->sky_candidates > 0 && vi->viewleaf >= 0 )
-			{
-				s_sky_crc_logged = 1;
-				gEngfuncs.Con_Printf(
-					"CS Retro: sky pixelproof before=%08x after=%08x differ=%i candidates=%i drawn=%i nonempty=%i\n",
-					world_base_proof.crc, after_sky.crc,
-					world_base_proof.crc != after_sky.crc ? 1 : 0,
-					vi->sky_candidates, vi->sky_drawn, after_sky.nonempty_pixels );
-			}
-			if( after_sky.crc != world_base_proof.crc )
-				world_base_proof = after_sky;
-		}
 		if( CSRETRO_World_HasWater() && world_ctx.water_alpha >= 1.0f )
 		{
 			CSRETRO_OffscreenProof after_water;
@@ -843,6 +860,9 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 					pp.local_shadow_pixel, pp.follow_player_shadow );
 			}
 		}
+		CSRETRO_Backend_PrepareImmediateDraw();
+		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+		CSRETRO_Sprite_DrawSolid( org, ang, &scene );
 		CSRETRO_Studio_DrawFollow( &scene );
 		{
 			CSRETRO_OffscreenProof before_solid_efx;
@@ -1430,66 +1450,73 @@ static void RunProbeSeq( void )
 			int px3c = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
 			if( visc )
 			{
-				if( s_probe_step == 0 && elapsed >= 3.0f )
+				if( s_probe_step == 0 && elapsed >= 2.0f )
 				{
+					float ang[3] = { -42.0f, 130.0f, 0.0f };
 					s_probe_step = 1;
+					gEngfuncs.SetViewAngles( ang );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq sky look pitch=-42 yaw=130\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 5.0f )
+				{
+					s_probe_step = 2;
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq vis ready\n" );
 					gEngfuncs.pfnClientCmd( "r_novis 1\n" );
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_novis 1\n" );
 				}
-				else if( s_probe_step == 1 && elapsed >= 6.0f )
-				{
-					s_probe_step = 2;
-					gEngfuncs.pfnClientCmd( "r_novis 0\n" );
-					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_novis 0\n" );
-				}
 				else if( s_probe_step == 2 && elapsed >= 8.0f )
 				{
 					s_probe_step = 3;
-					gEngfuncs.pfnClientCmd( "r_lockpvs 1\n" );
-					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_lockpvs 1\n" );
+					gEngfuncs.pfnClientCmd( "r_novis 0\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_novis 0\n" );
 				}
 				else if( s_probe_step == 3 && elapsed >= 10.0f )
 				{
 					s_probe_step = 4;
-					gEngfuncs.pfnClientCmd( "r_lockpvs 0\n" );
-					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_lockpvs 0\n" );
+					gEngfuncs.pfnClientCmd( "r_lockpvs 1\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_lockpvs 1\n" );
 				}
 				else if( s_probe_step == 4 && elapsed >= 12.0f )
 				{
 					s_probe_step = 5;
-					gEngfuncs.pfnClientCmd( "spec_mode 5\n" );
-					gEngfuncs.Con_Printf( "CS Retro: probe_seq spec_mode 5\n" );
+					gEngfuncs.pfnClientCmd( "r_lockpvs 0\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_lockpvs 0\n" );
 				}
-				else if( s_probe_step == 5 && elapsed >= 15.0f )
+				else if( s_probe_step == 5 && elapsed >= 14.0f )
 				{
 					s_probe_step = 6;
-					gEngfuncs.pfnClientCmd( "spec_mode 0\n" );
-					gEngfuncs.Con_Printf( "CS Retro: probe_seq spec_mode 0\n" );
+					gEngfuncs.pfnClientCmd( "dev_overview 1\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq dev_overview 1\n" );
+				}
+				else if( s_probe_step == 6 && elapsed >= 18.0f )
+				{
+					s_probe_step = 7;
+					gEngfuncs.pfnClientCmd( "dev_overview 0\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq dev_overview 0\n" );
 					gEngfuncs.pfnClientCmd( "map de_torn\n" );
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_torn\n" );
 				}
-				else if( s_probe_step == 6 && elapsed >= 22.0f )
+				else if( s_probe_step == 7 && elapsed >= 25.0f )
 				{
-					s_probe_step = 7;
+					s_probe_step = 8;
 					gEngfuncs.pfnClientCmd( "map cs_assault\n" );
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq map cs_assault\n" );
 				}
-				else if( s_probe_step == 7 && elapsed >= 29.0f )
+				else if( s_probe_step == 8 && elapsed >= 32.0f )
 				{
-					s_probe_step = 8;
+					s_probe_step = 9;
 					gEngfuncs.pfnClientCmd( "map de_dust\n" );
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
 				}
-				else if( s_probe_step == 8 && elapsed >= 36.0f )
+				else if( s_probe_step == 9 && elapsed >= 39.0f )
 				{
-					s_probe_step = 9;
+					s_probe_step = 10;
 					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
 				}
-				else if( s_probe_step == 9 && elapsed >= 40.0f )
+				else if( s_probe_step == 10 && elapsed >= 43.0f )
 				{
-					s_probe_step = 10;
+					s_probe_step = 11;
 					gEngfuncs.pfnClientCmd( "quit\n" );
 					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
 				}

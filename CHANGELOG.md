@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.50 — 2026-09-20
+
+### Renderer
+
+- PX5.1 Sky + globale Trans: `R_SetupGL(false)` nach `R_PrepareViewState` setzt `RI.farClip` ohne sichtbaren GL-State. Tail-API `GetEntityRenderInfoReadOnly` (`REF_API_VERSION` 24) liefert effective rendermode, opaque/renderfx, read-only FxBlend und bbox-center distance. Eine Klassifikation vor allen Entity-Pässen, Player in der Trans-Liste, `duplicate_scene_draws=0`. Sky-Pixelproof `differ=1` auf de_aztec. Issue #11 geschlossen. `GL_RenderFrame` bleibt 0.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.49 — 2026-09-20
 
 ### Renderer

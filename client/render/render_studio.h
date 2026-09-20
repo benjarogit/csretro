@@ -10,6 +10,7 @@ struct ref_viewpass_s;
 int CSRETRO_Studio_DrawList( struct CSRETRO_SceneStats_s *stats );
 int CSRETRO_Studio_DrawOne( int scene_index, struct CSRETRO_SceneStats_s *stats );
 int CSRETRO_Studio_DrawPlayers( struct CSRETRO_SceneStats_s *stats, const struct ref_viewpass_s *rvp );
+int CSRETRO_Studio_DrawPlayerOne( int scene_index, struct CSRETRO_SceneStats_s *stats, const struct ref_viewpass_s *rvp );
 
 // MOVETYPE_FOLLOW children. Non-player parent: StudioDrawModel(0).
 // Player parent: isolated StudioDrawPlayerOffscreen(0) after B-path exists.

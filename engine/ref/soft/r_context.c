@@ -22,6 +22,8 @@ _Static_assert( offsetof( render_api_t, RunViewmodelEventsOnce ) == offsetof( re
 	"v37 prefix: RunViewmodelEventsOnce must be the tail slot after ResolveSurfaceTextureReadOnly" );
 _Static_assert( offsetof( render_api_t, PrepareCurrentFrameVis ) == offsetof( render_api_t, RunViewmodelEventsOnce ) + sizeof( void * ),
 	"v37 prefix: PrepareCurrentFrameVis must be the tail slot after RunViewmodelEventsOnce" );
+_Static_assert( offsetof( render_api_t, GetEntityRenderInfoReadOnly ) == offsetof( render_api_t, PrepareCurrentFrameVis ) + sizeof( void * ),
+	"v37 prefix: GetEntityRenderInfoReadOnly must be the tail slot after PrepareCurrentFrameVis" );
 
 gl_globals_t  tr;
 ref_speeds_t  r_stats;
@@ -426,6 +428,7 @@ static void R_FillRenderAPI( render_api_t *api )
 	api->ResolveSurfaceTextureReadOnly = R_ResolveSurfaceTexture;
 	api->RunViewmodelEventsOnce   = R_RunViewmodelEventsOnce;
 	api->PrepareCurrentFrameVis   = R_PrepareCurrentFrameVis;
+	api->GetEntityRenderInfoReadOnly = R_GetEntityRenderInfoReadOnly;
 	api->LightVec                 = R_LightVec;
 	api->StudioGetTexture         = R_StudioGetTexture;
 	api->GL_GetProcAddress        = R_GetProcAddress;

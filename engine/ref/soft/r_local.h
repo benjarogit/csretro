@@ -465,6 +465,7 @@ void R_NoteViewmodelEventsFrameEnd( void );
 int R_RunViewmodelEventsOnce( void );
 void R_RunViewmodelEvents( void );
 int R_PrepareCurrentFrameVis( struct csretro_vis_request_s *req );
+int R_GetEntityRenderInfoReadOnly( const struct cl_entity_s *ent, struct csretro_entity_render_info_s *out );
 void R_DrawViewModel( void );
 void R_DecalShoot( int textureIndex, int entityIndex, int modelIndex, vec3_t pos, int flags, float scale );
 void R_DecalRemoveAll( int texture );

@@ -232,7 +232,23 @@ typedef struct csretro_frame_vis_s
 	int		box_visible;
 	int		box_hidden;
 	int		reused;
+	float		farclip;
+	int		sky_sides_nonempty;
 } csretro_frame_vis_t;
+
+#define CSRETRO_ENTITY_RENDER_INFO_VERSION	1
+
+typedef struct csretro_entity_render_info_s
+{
+	int		version;
+	int		effective_rendermode;
+	int		opaque;
+	int		fxblend;
+	int		rank;
+	int		model_type;
+	float		center[3];
+	float		distance;
+} csretro_entity_render_info_t;
 
 typedef struct csretro_vis_request_s
 {
@@ -357,6 +373,11 @@ typedef struct render_api_s
 	// surfaces or calling CL_AddVisibleEntity. CSRETRO_VIS_DRAW_SKY
 	// draws prepared sky surfaces when the caller already owns GL.
 	int		(*PrepareCurrentFrameVis)( struct csretro_vis_request_s *req );
+	// Read-only Xash entity classification. Uses R_GetEntityRenderMode,
+	// R_OpaqueEntity, and a non-mutating FxBlend. Fills sort center /
+	// distance with the same bbox-average rule as R_TransEntityCompare.
+	// Does not advance Fade/Solid/Hologram state or seed RNG.
+	int		(*GetEntityRenderInfoReadOnly)( const struct cl_entity_s *ent, struct csretro_entity_render_info_s *out );
 } render_api_t;
 
 // render callbacks

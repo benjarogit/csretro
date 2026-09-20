@@ -90,7 +90,10 @@ GNU General Public License for more details.
 //     Default Xash invocation becomes idempotent for that frame.
 // 23. CS Retro: render_api_t tail PrepareCurrentFrameVis. Xash owns frustum /
 //     viewleaf / PVS. Client copies current-frame vis; R_RenderScene reuses it.
-#define REF_API_VERSION 23
+// 24. CS Retro: render_api_t tail GetEntityRenderInfoReadOnly. One Xash
+//     classification for effective rendermode / opaque / fxblend / sort
+//     distance. No client studio-texture analysis. v37 prefix unchanged.
+#define REF_API_VERSION 24
 
 #define TF_SKY		(TF_SKYSIDE|TF_NOMIPMAP|TF_ALLOW_NEAREST)
 #define TF_FONT		(TF_NOMIPMAP|TF_CLAMP|TF_ALLOW_NEAREST)

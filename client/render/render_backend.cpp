@@ -3,6 +3,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "hud.h"
 #include "cl_util.h"
@@ -887,6 +888,42 @@ static void FillProof( CSRETRO_OffscreenProof *proof, int write_ppm )
 void CSRETRO_Backend_SampleProof( CSRETRO_OffscreenProof *proof )
 {
 	FillProof( proof, 0 );
+}
+
+int CSRETRO_Backend_DumpPPM( const char *name )
+{
+	unsigned char *pixels = NULL;
+	unsigned char *ppm = NULL;
+	int i, ok = 0;
+	const int count = CSRETRO_OFFSCREEN_SIZE * CSRETRO_OFFSCREEN_SIZE;
+	const int rgb_len = count * 3;
+
+	if( !name || !name[0] || !gXRGL.ReadPixels || !s_api || !s_api->pfnSaveFile )
+		return 0;
+	pixels = (unsigned char *)malloc( (size_t)count * 4 );
+	if( !pixels )
+		return 0;
+	if( gXRGL.PixelStorei )
+		gXRGL.PixelStorei( GL_PACK_ALIGNMENT, 1 );
+	gXRGL.ReadPixels( 0, 0, CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, pixels );
+	ppm = (unsigned char *)malloc( (size_t)rgb_len + 64 );
+	if( ppm )
+	{
+		int hdr = snprintf( (char *)ppm, 64, "P6\n%i %i\n255\n",
+			CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE );
+		unsigned char *dst = ppm + hdr;
+		for( i = 0; i < count; i++ )
+		{
+			dst[0] = pixels[i * 4 + 0];
+			dst[1] = pixels[i * 4 + 1];
+			dst[2] = pixels[i * 4 + 2];
+			dst += 3;
+		}
+		ok = s_api->pfnSaveFile( name, ppm, hdr + rgb_len ) ? 1 : 0;
+		free( ppm );
+	}
+	free( pixels );
+	return ok;
 }
 
 void CSRETRO_Backend_EndOffscreen( CSRETRO_OffscreenProof *proof, int do_readback )

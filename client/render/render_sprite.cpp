@@ -7,6 +7,7 @@
 #include "render_backend.h"
 #include "render_xash_brush.h"
 #include "render_xash_sprite.h"
+#include "render_trans.h"
 
 #include "hud.h"
 #include "cl_util.h"
@@ -813,7 +814,7 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 	return 1;
 }
 
-static int DrawSpriteRange( int only_index, const float *vieworg, const float *viewangles, CSRETRO_SceneStats *stats )
+static int DrawSpriteRange( int only_index, int opaque_only, const float *vieworg, const float *viewangles, CSRETRO_SceneStats *stats )
 {
 	float vforward[3], vright[3], vup[3];
 	float cl_time;
@@ -848,9 +849,18 @@ static int DrawSpriteRange( int only_index, const float *vieworg, const float *v
 			continue;
 		if( e->kind != CSRETRO_KIND_TENT_SPRITE && e->kind != CSRETRO_KIND_NORMAL_SPRITE )
 			continue;
+		if( only_index < 0 )
+		{
+			int cls = CSRETRO_Trans_DrawClass( i );
+			if( opaque_only && cls != CSRETRO_DRAW_OPAQUE )
+				continue;
+			if( !opaque_only && cls != CSRETRO_DRAW_TRANS )
+				continue;
+		}
 		if( DrawOne( e, vieworg, vright, vup, vforward, viewangles[1], cl_time ) )
 		{
 			CSRETRO_Scene_NoteDrawn( e->kind );
+			CSRETRO_Trans_NoteDrawn( i );
 			drawn++;
 		}
 	}
@@ -906,10 +916,15 @@ static int DrawSpriteRange( int only_index, const float *vieworg, const float *v
 
 int CSRETRO_Sprite_DrawList( const float *vieworg, const float *viewangles, CSRETRO_SceneStats *stats )
 {
-	return DrawSpriteRange( -1, vieworg, viewangles, stats );
+	return DrawSpriteRange( -1, 0, vieworg, viewangles, stats );
+}
+
+int CSRETRO_Sprite_DrawSolid( const float *vieworg, const float *viewangles, CSRETRO_SceneStats *stats )
+{
+	return DrawSpriteRange( -1, 1, vieworg, viewangles, stats );
 }
 
 int CSRETRO_Sprite_DrawOne( int scene_index, const float *vieworg, const float *viewangles, CSRETRO_SceneStats *stats )
 {
-	return DrawSpriteRange( scene_index, vieworg, viewangles, stats );
+	return DrawSpriteRange( scene_index, 0, vieworg, viewangles, stats );
 }

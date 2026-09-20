@@ -29,6 +29,7 @@ void CSRETRO_Backend_EndOffscreen( CSRETRO_OffscreenProof *proof, int do_readbac
 
 // Read FBO while still bound. Does not restore GL state.
 void CSRETRO_Backend_SampleProof( CSRETRO_OffscreenProof *proof );
+int CSRETRO_Backend_DumpPPM( const char *name );
 
 void CSRETRO_Backend_ApplyView( const float *vieworg, const float *viewangles, float fov_x, float fov_y );
 // Immediate-mode draw on the bound FBO. Does not restore Xash state.

@@ -30,6 +30,7 @@ static int s_follow_crc_logged = 0;
 static int s_follow_detail_logged = 0;
 static int s_brush_crc_logged = 0;
 static int s_brush_move_crc_logged = 0;
+static int s_efx_crc_logged = 0;
 static int s_brush_logged = 0;
 static unsigned int s_brush_rest_crc = 0;
 static char s_proof_map[64];
@@ -49,6 +50,7 @@ static void ResetSpriteProof( void )
 	s_follow_detail_logged = 0;
 	s_brush_crc_logged = 0;
 	s_brush_move_crc_logged = 0;
+	s_efx_crc_logged = 0;
 	s_brush_logged = 0;
 	s_brush_rest_crc = 0;
 	CSRETRO_Sprite_ResetDump();
@@ -225,19 +227,26 @@ static void LogProof( const CSRETRO_WorldStats *st, const CSRETRO_OffscreenProof
 		proof->nonempty_pixels );
 }
 
+static void RunProbeSeq( void );
+
 void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 {
 	CSRETRO_WorldStats st;
 	CSRETRO_OffscreenProof proof;
 	int dump;
 
-	if( !rvp || !ProbeEnabled() )
+	if( !rvp )
 		return;
 	if( !( rvp->flags & RF_DRAW_WORLD ) )
 		return;
 
 	EnsureEngine();
 	EnsureCvars();
+	if( !ProbeEnabled() )
+	{
+		RunProbeSeq();
+		return;
+	}
 
 	if( !s_backend_ok )
 	{
@@ -282,6 +291,31 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_Backend_PrepareImmediateDraw();
 		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 		CSRETRO_Brush_DrawPass( 1, &scene );
+		CSRETRO_Backend_PrepareImmediateDraw();
+		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+		CSRETRO_Studio_DrawList( &scene );
+		CSRETRO_Studio_DrawFollow( &scene );
+		{
+			CSRETRO_OffscreenProof before_solid_efx;
+			CSRETRO_OffscreenProof after_solid_efx;
+			memset( &before_solid_efx, 0, sizeof( before_solid_efx ) );
+			CSRETRO_Backend_SampleProof( &before_solid_efx );
+			CSRETRO_Backend_PrepareImmediateDraw();
+			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+			if( gRenderAPI.DrawEFX )
+				gRenderAPI.DrawEFX( rvp, 0, 1 );
+			memset( &after_solid_efx, 0, sizeof( after_solid_efx ) );
+			CSRETRO_Backend_SampleProof( &after_solid_efx );
+			if( s_efx_crc_logged != 1 && before_solid_efx.crc != after_solid_efx.crc )
+			{
+				s_efx_crc_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: offscreen efx proof before_crc=%08x after_crc=%08x differ=1 pass=solid\n",
+					before_solid_efx.crc, after_solid_efx.crc );
+			}
+		}
+		CSRETRO_Backend_PrepareImmediateDraw();
+		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 		CSRETRO_Brush_DrawPass( 0, &scene );
 		{
 			CSRETRO_OffscreenProof after_brush;
@@ -345,18 +379,26 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_Sprite_SetNoDepth( 0 );
 		{
 			CSRETRO_OffscreenProof after_sprites;
+			CSRETRO_OffscreenProof after_trans_efx;
 			memset( &after_sprites, 0, sizeof( after_sprites ) );
 			CSRETRO_Backend_SampleProof( &after_sprites );
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
-			CSRETRO_Studio_DrawList( &scene );
+			if( gRenderAPI.DrawEFX )
+				gRenderAPI.DrawEFX( rvp, 1, 1 );
+			memset( &after_trans_efx, 0, sizeof( after_trans_efx ) );
+			CSRETRO_Backend_SampleProof( &after_trans_efx );
+			if( s_efx_crc_logged != 1 && after_sprites.crc != after_trans_efx.crc )
+			{
+				s_efx_crc_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: offscreen efx proof before_crc=%08x after_crc=%08x differ=1 pass=trans\n",
+					after_sprites.crc, after_trans_efx.crc );
+			}
 			{
 				CSRETRO_OffscreenProof after_studio;
 				memset( &after_studio, 0, sizeof( after_studio ) );
-				CSRETRO_Backend_SampleProof( &after_studio );
-				CSRETRO_Backend_PrepareImmediateDraw();
-				CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
-				CSRETRO_Studio_DrawFollow( &scene );
+				after_studio = after_trans_efx;
 				CSRETRO_World_GetStats( &st );
 				dump = s_dump && s_dump->value != 0.0f;
 				memset( &proof, 0, sizeof( proof ) );
@@ -514,7 +556,11 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 	}
 
 	(void)dump;
+	RunProbeSeq();
+}
 
+static void RunProbeSeq( void )
+{
 	if( s_probe_seq && s_probe_seq->value != 0.0f )
 	{
 		float now = gRenderAPI.pfnTime ? gRenderAPI.pfnTime() : (float)gEngfuncs.GetClientTime();
@@ -522,9 +568,59 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int brush = s_probe_seq->value >= 3.0f;
-			int px3c = !brush && s_probe_seq->value >= 2.0f;
-			if( brush )
+			int efx = s_probe_seq->value >= 4.0f;
+			int brush = !efx && s_probe_seq->value >= 3.0f;
+			int px3c = !efx && !brush && s_probe_seq->value >= 2.0f;
+			if( efx )
+			{
+				if( s_probe_step == 0 && elapsed >= 3.0f )
+				{
+					s_probe_step = 1;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq give ak47\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; give weapon_ak47; give weapon_hegrenade\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 4.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq fire ak47\n" );
+					gEngfuncs.pfnClientCmd( "+attack\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 4.6f )
+				{
+					s_probe_step = 3;
+					gEngfuncs.pfnClientCmd( "-attack\n" );
+				}
+				else if( s_probe_step == 3 && elapsed >= 5.5f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq throw he\n" );
+					gEngfuncs.pfnClientCmd( "slot4; wait 10; +attack\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 6.5f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.pfnClientCmd( "-attack\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 12.0f )
+				{
+					s_probe_step = 6;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+				}
+				else if( s_probe_step == 6 && elapsed >= 20.0f )
+				{
+					s_probe_step = 7;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 7 && elapsed >= 24.0f )
+				{
+					s_probe_step = 8;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
+					gEngfuncs.pfnClientCmd( "quit\n" );
+				}
+			}
+			else if( brush )
 			{
 				if( s_probe_step == 0 && elapsed >= 8.0f )
 				{

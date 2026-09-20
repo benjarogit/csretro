@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.23 — 2026-09-20
+
+### Renderer
+
+- #7 Offscreen Engine-EFX über `gRenderAPI.DrawEFX(rvp, trans, draw_only)` am Ende von `render_api_t` (v37-Prefix eingefroren, CS-Retro-Extension). Reihenfolge wie `R_DrawEntitiesOnList`: solid draw-only nach opaque Studio, trans draw-only nach Sprites, dann return 0. Nachweis: AK-Schuss `mutate=0`, CRC differ=1, Xash `advanced=1`. Issue #7 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.22 — 2026-09-20
 
 ### Renderer

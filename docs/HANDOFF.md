@@ -3,32 +3,26 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
-## Stand 2026-09-20 — PX6A.1 Visual Cert / #12 DoD-Rest (OPEN bis Report)
+## Stand 2026-09-20 — PX6A.1 Visual Cert PASS; #12 CLOSED
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
-Issue #7/#9/#10/#11 geschlossen. #1 #2 #3 unverändert OPEN.
-Issue #12 OPEN bis vollständiges DoD (dieser Slice: Commit ja, **Release nein**).
+Issue #7/#9/#10/#11/#12 geschlossen. #1 #2 #3 unverändert OPEN.
+**Release: NONE.** Unreleased belassen. Keine Promotion.
 
 ```
 r_csretro_renderer 0 → Xash only, GL_RenderFrame = 0
 r_csretro_renderer 1 → CS-Retro 512² offscreen + sichtbarer Xash, return 0
-r_csretro_renderer 2 → CS-Retro visible takeover candidate (PX6A)
+r_csretro_renderer 2 → CS-Retro visible takeover (PX6A, DoD VERIFIED)
 ```
 
-Produkt-Freeze: `cfbca8f` (PX6A Mode-2 Gate). Cert-Instrumentation: `c5f8055`
-ohne Tag/Release. Visual-Cert: `./scripts/px6a-visual-cert.sh` → `build/px6a-cert-shots/`
-(nicht committen). Engine-`screenshot` ist die zuverlässige Pixelquelle unter headless gamescope.
+Zertifiziert: Implementation `c5f8055`, Docs `800bd1b`.
+Runner: `./scripts/px6a-visual-cert.sh` → `build/px6a-cert-shots/` (nicht committen).
+`lost_eligible_event_frames=0`, `fog_pre=1 fog_post=1`, Fallbacks Preview/Overview/Ripple,
+Postcommit-Fault-Latch, Mapchange, vid_setmode FBO==viewport, Movement Gate PASS.
 
-Zertifiziert gegen `c5f8055`: `PX6A1_VISUAL_CERT PASS`, Movement Gate PASS,
-`lost_eligible_event_frames=0`, `fog_pre=1 fog_post=1`, Preview/Overview/Ripple Fallback,
-Postcommit-Fault-Latch, Mapchange, vid_setmode FBO==viewport (Gamescope-Clamp ok).
-Event-Rejects nur eligible=0 (reason=9 no-model, reason=4 thirdperson).
+**Nicht ohne neue Freigabe:** Mode 1 = visible custom; Default → 2; Xash-Fallback entfernen; Release.
 
-**Nicht:** Mode 1 = visible custom; Default auf 2; Xash-Fallback entfernen; Release;
-Promotion ohne neue Freigabe.
-
-**Nächster Schritt:** #12 schließen nach Docs-Kommentar; Release-Entscheidung separat.
-#1 #2 #3 nicht schließen.
+**Nächster Schritt:** Promotion-Slice nur nach Freigabe. #1 #2 #3 nicht schließen.
 
 ## Stand 2026-09-20 — PX6A Mode-2 Takeover Gate; #12 OPEN
 

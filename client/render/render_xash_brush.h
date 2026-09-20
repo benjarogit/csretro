@@ -13,6 +13,7 @@
 #define XR_SURF_DRAWSKY (1 << 2)
 #define XR_SURF_DRAWTURB (1 << 4)
 #define XR_SURF_DRAWTILED (1 << 5)
+#define XR_SURF_CONVEYOR (1 << 6)
 #define XR_SURF_TRANSPARENT (1 << 8)
 
 typedef struct xr_texture_s

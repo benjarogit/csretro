@@ -79,6 +79,9 @@
 #define GL_FILL 0x1B02
 #define GL_FLAT 0x1D00
 #define GL_TEXTURE_ENV_MODE 0x2200
+#define GL_POLYGON_OFFSET_FILL 0x8037
+#define GL_POLYGON_OFFSET_FACTOR 0x8038
+#define GL_POLYGON_OFFSET_UNITS 0x2A00
 
 CSRETRO_GL gXRGL;
 
@@ -165,6 +168,9 @@ typedef struct GLState_s
 	int shade_model;
 	int texenv0;
 	int texenv1;
+	unsigned char poly_offset;
+	float poly_factor;
+	float poly_units;
 	int saved;
 } GLState;
 
@@ -225,6 +231,7 @@ int CSRETRO_Backend_Init( struct render_api_s *api )
 	LOAD1( DepthRange, "glDepthRange" );
 	LOAD1( PolygonMode, "glPolygonMode" );
 	LOAD1( ShadeModel, "glShadeModel" );
+	LOAD1( PolygonOffset, "glPolygonOffset" );
 
 	pglGenFramebuffers = (PFN_GEN)LoadProc( "glGenFramebuffers", "glGenFramebuffersEXT" );
 	pglDeleteFramebuffers = (PFN_DEL)LoadProc( "glDeleteFramebuffers", "glDeleteFramebuffersEXT" );
@@ -356,6 +363,7 @@ static void SaveState( void )
 		s_saved.blend = gXRGL.IsEnabled( GL_BLEND );
 		s_saved.cull = gXRGL.IsEnabled( GL_CULL_FACE );
 		s_saved.alpha_test = gXRGL.IsEnabled( GL_ALPHA_TEST );
+		s_saved.poly_offset = gXRGL.IsEnabled( GL_POLYGON_OFFSET_FILL );
 	}
 	if( gXRGL.GetBooleanv )
 	{
@@ -372,6 +380,8 @@ static void SaveState( void )
 		gXRGL.GetFloatv( GL_ALPHA_TEST_REF, &s_saved.alpha_ref );
 		gXRGL.GetFloatv( GL_CURRENT_COLOR, s_saved.color );
 		gXRGL.GetFloatv( GL_DEPTH_RANGE, s_saved.depth_range );
+		gXRGL.GetFloatv( GL_POLYGON_OFFSET_FACTOR, &s_saved.poly_factor );
+		gXRGL.GetFloatv( GL_POLYGON_OFFSET_UNITS, &s_saved.poly_units );
 	}
 	if( !s_saved.depth_range[1] )
 		s_saved.depth_range[1] = 1.0f;
@@ -478,6 +488,12 @@ static void RestoreState( void )
 		gXRGL.Enable( GL_ALPHA_TEST );
 	else
 		gXRGL.Disable( GL_ALPHA_TEST );
+	if( s_saved.poly_offset )
+		gXRGL.Enable( GL_POLYGON_OFFSET_FILL );
+	else
+		gXRGL.Disable( GL_POLYGON_OFFSET_FILL );
+	if( gXRGL.PolygonOffset )
+		gXRGL.PolygonOffset( s_saved.poly_factor, s_saved.poly_units );
 	if( s_saved.cull )
 		gXRGL.Enable( GL_CULL_FACE );
 	else
@@ -553,6 +569,7 @@ int CSRETRO_Backend_BeginOffscreen( void )
 	gXRGL.DepthMask( GL_TRUE );
 	gXRGL.DepthFunc( GL_LEQUAL );
 	gXRGL.Disable( GL_BLEND );
+	gXRGL.Disable( GL_POLYGON_OFFSET_FILL );
 	gXRGL.Enable( GL_CULL_FACE );
 	gXRGL.CullFace( GL_BACK );
 	gXRGL.FrontFace( GL_CCW );
@@ -628,7 +645,10 @@ void CSRETRO_Backend_PrepareImmediateDraw( void )
 	if( gXRGL.DepthFunc )
 		gXRGL.DepthFunc( GL_LEQUAL );
 	if( gXRGL.Disable )
+	{
 		gXRGL.Disable( GL_BLEND );
+		gXRGL.Disable( GL_POLYGON_OFFSET_FILL );
+	}
 	if( gXRGL.Color4f )
 		gXRGL.Color4f( 1.0f, 1.0f, 1.0f, 1.0f );
 	if( gXRGL.DepthRange )

@@ -82,6 +82,7 @@ typedef struct CSRETRO_GL_s
 	void ( *DepthRange )( double n, double f );
 	void ( *PolygonMode )( unsigned int face, unsigned int mode );
 	void ( *ShadeModel )( unsigned int mode );
+	void ( *PolygonOffset )( float factor, float units );
 } CSRETRO_GL;
 
 extern CSRETRO_GL gXRGL;

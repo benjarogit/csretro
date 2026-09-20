@@ -32,4 +32,5 @@ void CSRETRO_World_OnLightmaps( void );
 void CSRETRO_World_Release( void );
 int CSRETRO_World_Ready( void );
 void CSRETRO_World_GetStats( CSRETRO_WorldStats *out );
+void *CSRETRO_World_Model( void );
 void CSRETRO_World_Draw( const float *vieworg, const float *viewangles, float fov_x, float fov_y );

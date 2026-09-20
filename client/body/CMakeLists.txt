@@ -40,9 +40,11 @@ set(CS_SOURCES
     "${RENDER_DIR}/render_core.cpp"
     "${RENDER_DIR}/render_backend.cpp"
     "${RENDER_DIR}/render_world.cpp"
+    "${RENDER_DIR}/render_bsp_mesh.cpp"
     "${RENDER_DIR}/render_scene.cpp"
     "${RENDER_DIR}/render_sprite.cpp"
     "${RENDER_DIR}/render_studio.cpp"
+    "${RENDER_DIR}/render_brush.cpp"
 )
 
 if(NOT HAVE_STRLCPY)

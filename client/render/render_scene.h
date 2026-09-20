@@ -55,6 +55,9 @@ typedef struct CSRETRO_SceneStats_s
 	int other;
 	int tent_drawn;
 	int normal_drawn;
+	int brush_drawn;
+	int brush_opaque_drawn;
+	int brush_trans_drawn;
 	int studio_follow;
 	int studio_viewmodel;
 	int studio_preview;
@@ -76,6 +79,7 @@ int CSRETRO_Scene_Count( void );
 const CSRETRO_EntCopy *CSRETRO_Scene_Get( int index );
 void CSRETRO_Scene_GetStats( CSRETRO_SceneStats *out );
 void CSRETRO_Scene_NoteDrawn( int kind );
+void CSRETRO_Scene_NoteBrush( int opaque );
 void CSRETRO_Scene_NoteAttempted( void );
 const CSRETRO_EntCopy *CSRETRO_Scene_FindByIndex( int index );
 void CSRETRO_Scene_NoteFollowParent( int is_player );

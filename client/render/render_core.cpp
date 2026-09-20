@@ -4,6 +4,7 @@
 #include "render_scene.h"
 #include "render_sprite.h"
 #include "render_studio.h"
+#include "render_brush.h"
 
 #include "hud.h"
 #include "cl_util.h"
@@ -27,6 +28,10 @@ static int s_nodepth_try = 0;
 static int s_studio_crc_logged = 0;
 static int s_follow_crc_logged = 0;
 static int s_follow_detail_logged = 0;
+static int s_brush_crc_logged = 0;
+static int s_brush_move_crc_logged = 0;
+static int s_brush_logged = 0;
+static unsigned int s_brush_rest_crc = 0;
 static char s_proof_map[64];
 static float s_probe_start = 0.0f;
 static int s_probe_step = 0;
@@ -42,6 +47,10 @@ static void ResetSpriteProof( void )
 	s_studio_crc_logged = 0;
 	s_follow_crc_logged = 0;
 	s_follow_detail_logged = 0;
+	s_brush_crc_logged = 0;
+	s_brush_move_crc_logged = 0;
+	s_brush_logged = 0;
+	s_brush_rest_crc = 0;
 	CSRETRO_Sprite_ResetDump();
 	CSRETRO_Sprite_SetNoDepth( 0 );
 }
@@ -145,6 +154,7 @@ void CSRETRO_Renderer_VidInit( void )
 void CSRETRO_Renderer_Shutdown( void )
 {
 	CSRETRO_World_Release();
+	CSRETRO_Brush_Release();
 	CSRETRO_Scene_Clear();
 	CSRETRO_Backend_Shutdown();
 	s_backend_ok = 0;
@@ -158,6 +168,7 @@ void CSRETRO_Renderer_OnNewMap( void )
 {
 	EnsureEngine();
 	CSRETRO_World_OnNewMap();
+	CSRETRO_Brush_OnNewMap();
 	CSRETRO_Backend_AllowDump();
 	s_proof_logged = 0;
 	ResetSpriteProof();
@@ -173,12 +184,14 @@ void CSRETRO_Renderer_OnLightmaps( void )
 {
 	EnsureEngine();
 	CSRETRO_World_OnLightmaps();
+	CSRETRO_Brush_OnLightmaps();
 }
 
 void CSRETRO_Renderer_OnModel( struct model_s *mod, int create, const unsigned char *buffer )
 {
 	EnsureEngine();
 	CSRETRO_World_OnModel( mod, create, buffer );
+	CSRETRO_Brush_OnModel( mod, create );
 }
 
 static int ProbeEnabled( void )
@@ -268,6 +281,65 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_Backend_SampleProof( &world_proof );
 		CSRETRO_Backend_PrepareImmediateDraw();
 		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+		CSRETRO_Brush_DrawPass( 1, &scene );
+		CSRETRO_Brush_DrawPass( 0, &scene );
+		{
+			CSRETRO_OffscreenProof after_brush;
+			const CSRETRO_BrushMove *bmove;
+			memset( &after_brush, 0, sizeof( after_brush ) );
+			CSRETRO_Backend_SampleProof( &after_brush );
+			CSRETRO_Scene_GetStats( &scene );
+			bmove = CSRETRO_Brush_LastMove();
+			if( ( scene.brush_drawn > 0 || scene.brush > 0 ) && s_brush_crc_logged != 1 )
+			{
+				int bdiffer = world_proof.crc != after_brush.crc ? 1 : 0;
+				if( s_brush_crc_logged == 0 )
+				{
+					gEngfuncs.Con_Printf(
+						"CS Retro: offscreen brush crc world=%08x after=%08x differ=%i mirrored=%i drawn=%i opaque=%i trans=%i\n",
+						world_proof.crc, after_brush.crc, bdiffer,
+						scene.brush, scene.brush_drawn,
+						scene.brush_opaque_drawn, scene.brush_trans_drawn );
+					s_brush_crc_logged = bdiffer && scene.brush_drawn > 0 ? 1 : -1;
+					if( s_brush_crc_logged == 1 )
+						gEngfuncs.Con_Printf(
+							"CS Retro: offscreen brush proof world_crc=%08x after_crc=%08x differ=1 drawn=%i\n",
+							world_proof.crc, after_brush.crc, scene.brush_drawn );
+				}
+				else if( bdiffer && scene.brush_drawn > 0 )
+				{
+					s_brush_crc_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: offscreen brush proof world_crc=%08x after_crc=%08x differ=1 drawn=%i\n",
+						world_proof.crc, after_brush.crc, scene.brush_drawn );
+				}
+			}
+			if( bmove && bmove->happened )
+			{
+				if( s_brush_move_crc_logged == 0 )
+				{
+					gEngfuncs.Con_Printf(
+						"CS Retro: brush moving index=%i model=%s origin_before=%.1f %.1f %.1f origin_after=%.1f %.1f %.1f angles_before=%.1f %.1f %.1f angles_after=%.1f %.1f %.1f\n",
+						bmove->index, bmove->model[0] ? bmove->model : "?",
+						bmove->origin_before[0], bmove->origin_before[1], bmove->origin_before[2],
+						bmove->origin_after[0], bmove->origin_after[1], bmove->origin_after[2],
+						bmove->angles_before[0], bmove->angles_before[1], bmove->angles_before[2],
+						bmove->angles_after[0], bmove->angles_after[1], bmove->angles_after[2] );
+					s_brush_move_crc_logged = -1;
+				}
+				if( s_brush_rest_crc && s_brush_rest_crc != after_brush.crc && s_brush_move_crc_logged != 1 )
+				{
+					s_brush_move_crc_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: offscreen brush move proof closed_crc=%08x open_crc=%08x differ=1 index=%i drawn=%i\n",
+						s_brush_rest_crc, after_brush.crc, bmove->index, scene.brush_drawn );
+				}
+			}
+			else if( scene.brush_drawn > 0 && !s_brush_rest_crc )
+				s_brush_rest_crc = after_brush.crc;
+			CSRETRO_Backend_PrepareImmediateDraw();
+			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+		}
 		CSRETRO_Sprite_SetNoDepth( s_nodepth_try == 1 );
 		CSRETRO_Sprite_DrawList( org, ang, &scene );
 		CSRETRO_Sprite_SetNoDepth( 0 );
@@ -363,8 +435,9 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				scene.follow_nonplayer_parent, scene.follow_player_parent,
 				scene.follow_missing_parent, scene.follow_drawn, scene.follow_deferred_player );
 			gEngfuncs.Con_Printf(
-				"CS Retro: brush: %i strategy=deferred\n",
-				scene.brush );
+				"CS Retro: brush mirrored: %i opaque_drawn: %i trans_drawn: %i drawn: %i\n",
+				scene.brush, scene.brush_opaque_drawn, scene.brush_trans_drawn, scene.brush_drawn );
+			s_brush_logged = 1;
 		}
 		if( !s_follow_detail_logged
 			&& ( scene.studio_follow > 0 || scene.follow_nonplayer_parent > 0
@@ -449,8 +522,42 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int px3c = s_probe_seq->value >= 2.0f;
-			if( px3c )
+			int brush = s_probe_seq->value >= 3.0f;
+			int px3c = !brush && s_probe_seq->value >= 2.0f;
+			if( brush )
+			{
+				if( s_probe_step == 0 && elapsed >= 8.0f )
+				{
+					s_probe_step = 1;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map cs_assault\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; map cs_assault\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 18.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq assault door use\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; sv_enttools_enable 1; ent_fire func_door_rotating use; ent_fire func_door use\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 24.0f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 36.0f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 40.0f )
+				{
+					s_probe_step = 6;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
+					gEngfuncs.pfnClientCmd( "quit\n" );
+				}
+			}
+			else if( px3c )
 			{
 				if( s_probe_ak == 0 && elapsed >= 3.0f )
 				{

@@ -435,7 +435,7 @@ Issue [#6](https://github.com/benjarogit/csretro/issues/6). `GL_RenderFrame` ble
 | TempEnt + `mod_sprite` | CONFIRMED | echter HE-Spark `tex=704` 72×72 an Welt-Origin `1572 -290 -230`, `mirrored: 1 drawn: 1`, mode=5; CRC `7d62b310` ≠ `8f1af82c` |
 | `ET_NORMAL` + `mod_sprite` | CONFIRMED | aztec `Normal sprite mirrored: 16 drawn: 16`; dust-spawn 12× 64×128 grass/glow in view |
 | Studio | CONFIRMED nicht gezeichnet | `Studio classified: N local: N (not drawn)` |
-| Brush-Entities | DEFERRED | gezählt (`brush: N strategy=deferred`). [#7](https://github.com/benjarogit/csretro/issues/7) |
+| Brush-Entities | implemented / verification pending | offscreen Draw aus Mirror-Liste, Cache, opaque+trans, rotierende Tür. [#7](https://github.com/benjarogit/csretro/issues/7) bleibt OPEN (EFX/Triangles) |
 | World+Sprite CRC | CONFIRMED | DoD präzisiert: echter Sprite-Pass ändert Offscreen-Pixel, nicht „winziger Smoke in 512²“. aztec `world=b574ac9e full=21e1f2db differ=1 normal_drawn=16`; spawn `world=9b241fd4 full=0742170e differ=1 normal_drawn=12` |
 | Engine-EFX `GL_DrawParticles` | DEFERRED | `CL_ThinkParticle` ändert Sim-State. [#7](https://github.com/benjarogit/csretro/issues/7) |
 | Client-Triangles | DEFERRED | ParticleMan/Fog/`EV_UpdateMolotovHeld` ändern State. [#7](https://github.com/benjarogit/csretro/issues/7) |
@@ -536,4 +536,54 @@ CS-Inhalt: `CBasePlayerItem::AttachToPlayer` setzt `MOVETYPE_FOLLOW` + `EF_NODRA
 - Diagnose: `FOLLOW nonplayer_parent=N player_parent=N missing_parent=N drawn=N deferred_player=N`.
 - Probe `de_aztec` + Bot + `de_dust` + AK give/drop: `follow: 0` durchgehend, alle FOLLOW-Zähler 0. Kein Dummy-Gameplay. **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT**.
 - PX4A-Regression PASS. Movement-Gate PASS. `GL_RenderFrame` immer 0. Player C.
-- Issue #9 bleibt offen (Player-parent FOLLOW deferred, Player C).
+- Issue #9 bleibt offen (Player-parent FOLLOW deferred, Player C). Status: `partial — PX4B.1 non-player FOLLOW implemented; Player Studio + player-parent FOLLOW pending`. Issue ruht.
+
+### Player Variante B — Read-only (2026-09-20)
+
+Kein Player-Produktcode in diesem Slice.
+
+`IEngineStudio.PlayerInfo(i)` liefert den **Live**-`player_info_t*` der Engine. `StudioProcessGait` schreibt `gaitsequence` / `gaitframe` / `gaityaw` / `prevgaitorigin` über diesen Pointer. Preview nutzt bereits `static player_info_t s_previewInfo` — das Muster existiert, gilt aber nur für Previews.
+
+Isoliertes B bräuchte, dass `StudioDrawPlayer` eine lokale Kopie verwendet **oder** ein `PlayerInfo`-Hook. Ohne GSMR-/Engine-Änderung kann B gait nicht isolieren. Snapshot+Restore der Live-`player_info_t` um den Call herum wäre Variante A, nicht B. Ohne A/B-Beweis bleibt **C**.
+
+### #7 Brush-Entity Draw (2026-09-20)
+
+`GL_RenderFrame` bleibt 0. Kein Entity-Steal. Kein Aufruf interner Xash-`R_DrawBrushModel`-Symbole. PrimeXT nur gezielt (Pin `46fb05b` `gl_rsurf.cpp` Texture-Anim-Semantik, nicht übernommen).
+
+| Teilstück | Status | Beleg |
+| --- | --- | --- |
+| Shared mesh builder | CONFIRMED | `render_bsp_mesh.cpp`. World und Brush-Cache dieselbe Triangulation. World-Mesh nicht überschrieben. |
+| Brush-Cache | CONFIRMED | Key `model_t*` + first/num modelsurfaces. Mapchange/unload gibt frei. Keine Surface-Pointer über Map-Leben. |
+| Opaque `kRenderNormal` | CONFIRMED | aztec 11, assault 29. |
+| Transparent | CONFIRMED relevant | TransTexture/Color/Alpha/Add. aztec trans_drawn=1 (func_wall/illusionary Alpha). Water-Turb DEFERRED. |
+| Transform | CONFIRMED | GoldSrc origin + yaw/−pitch/roll. assault `*11` yaw 2.0→5.4. |
+| Moving entity | CONFIRMED | Stock-`cs_assault` `func_door_rotating` `*11` index 19. `de_dust`/`de_aztec` haben kein `func_door`. |
+| Textures | CONFIRMED | `gl_texturenum` aus texinfo, `PARM_TEX_LIGHTMAP`. |
+| Lightmaps | CONFIRMED | bestehender Atlas, `DRAWTILED` ohne LM. |
+| Offscreen CRC | CONFIRMED | aztec `world≠after drawn=12`; assault Tür `closed_crc=72f6ce17 open_crc=cee3542d`. |
+| Mapchange / vid_setmode | CONFIRMED | aztec→assault→dust + `vid_setmode 1024 768`. |
+| GL state | CONFIRMED soweit Isolation | Poly-Offset Save/Restore zusätzlich. Restore vor return 0. |
+| `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab. |
+| Sichtbares Xash | INFERRED | keine neue Visual-Cert-Runde; Isolation+return 0; Probe ohne Crash. |
+
+Sonderflächen:
+
+| Fläche | Status |
+| --- | --- |
+| SURF_DRAWTURB (Wasser) | DEFERRED — Mesh skip. Aztec-`func_water` nicht offscreen. #7 offen. |
+| SURF_CONVEYOR | DEFERRED — statische UVs. |
+| trans (Entity-Rendermode) | IMPLEMENTED — TransTexture/Color/Alpha/Add. |
+| SURF_TRANSPARENT / Alpha-Test | IMPLEMENTED über `kRenderTransAlpha`. |
+| tex anim | DEFERRED — Frame zum Cache-Zeitpunkt. PrimeXT `R_TextureAnimation` nur Semantik-Referenz. |
+| fullbright | DEFERRED |
+| details | NOT NEEDED FOR CURRENT CS CONTENT |
+| decals | DEFERRED — erster Pixelproof ohne. Vor return 1 bewerten. |
+| dlights | DEFERRED |
+| poly offset | IMPLEMENTED — bmodel offset + GL-State Save/Restore. |
+
+Offscreen-Reihenfolge (Probe): World → opaque Brush → trans Brush → Sprites → Studio → FOLLOW. Klassifikation (`kRenderNormal` vs rest) ist sortierbar. Später: opaque Studio vor trans Entities.
+
+Probe: `./scripts/px7-brush-offscreen-probe.sh` PASS. Movement-Gate PASS. Issue #7 bleibt OPEN.
+
+`return 1` gesperrt: Engine-EFX, Client-Triangles, restliche Sprite-Modi, Player, Viewmodel, Vis, Turb/Decals.
+

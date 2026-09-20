@@ -162,6 +162,16 @@ void CSRETRO_Scene_NoteDrawn( int kind )
 		s_stats.normal_drawn++;
 	else if( kind == CSRETRO_KIND_STUDIO )
 		s_stats.studio_drawn++;
+	else if( kind == CSRETRO_KIND_BRUSH )
+		s_stats.brush_drawn++;
+}
+
+void CSRETRO_Scene_NoteBrush( int opaque )
+{
+	if( opaque )
+		s_stats.brush_opaque_drawn++;
+	else
+		s_stats.brush_trans_drawn++;
 }
 
 void CSRETRO_Scene_NoteAttempted( void )

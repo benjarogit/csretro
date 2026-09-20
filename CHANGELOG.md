@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.1.20 — 2026-09-20
+
+### Renderer
+
+- #7 Brush-Entities zeichnen offscreen aus der Mirror-Liste: gemeinsamer BSP-Mesh-Builder für World und Brush-Cache (`model_t*`), GoldSrc-Transform (`R_RotateForEntity` / `R_TranslateForEntity`), opaque `kRenderNormal` plus TransTexture/Color/Alpha/Add. Worldmodel wird nicht doppelt gezeichnet. `GL_RenderFrame` bleibt 0.
+- Nachweis: `de_aztec` 12 Brush (11 opaque, 1 trans) CRC differ; Stock-`cs_assault` rotierende Tür `*11` yaw 2.0→5.4, `closed_crc ≠ open_crc`. `de_dust`/`de_aztec` haben kein `func_door`. Issue #7 bleibt offen (EFX/Triangles). Player bleibt C (#9).
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.19 — 2026-09-20
 
 ### Renderer

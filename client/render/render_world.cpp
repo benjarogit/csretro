@@ -119,8 +119,10 @@ void *CSRETRO_World_Model( void )
 	return s_world.model;
 }
 
-void CSRETRO_World_Draw( const float *vieworg, const float *viewangles, float fov_x, float fov_y )
+void CSRETRO_World_Draw( const float *vieworg, const float *viewangles, float fov_x, float fov_y, const CSRETRO_MeshDrawContext *ctx )
 {
+	CSRETRO_MeshDrawContext local;
+
 	if( !CSRETRO_World_Ready() || !gXRGL.Begin )
 	{
 		if( !s_logged_empty )
@@ -131,8 +133,17 @@ void CSRETRO_World_Draw( const float *vieworg, const float *viewangles, float fo
 		return;
 	}
 
-	CSRETRO_Backend_ApplyView( vieworg, viewangles, fov_x, fov_y );
+	if( !ctx )
+	{
+		memset( &local, 0, sizeof( local ) );
+		local.get_parm = s_eng.get_parm;
+		local.bind_textures = 1;
+		ctx = &local;
+	}
+
+	if( !ctx->skip_base )
+		CSRETRO_Backend_ApplyView( vieworg, viewangles, fov_x, fov_y );
 	if( gXRGL.Color4f )
 		gXRGL.Color4f( 1.0f, 1.0f, 1.0f, 1.0f );
-	CSRETRO_BspMesh_Draw( &s_world, s_eng.get_parm, 1 );
+	CSRETRO_BspMesh_Draw( &s_world, ctx );
 }

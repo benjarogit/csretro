@@ -421,7 +421,19 @@ int CSRETRO_Brush_DrawPass( int opaque_only, CSRETRO_SceneStats *stats )
 		NoteMove( e, mod );
 		bind_tex = ApplyRenderMode( e );
 		ApplyEntityTransform( e->origin, e->angles );
-		CSRETRO_BspMesh_Draw( mesh, GetParm, bind_tex );
+		{
+			CSRETRO_MeshDrawContext ctx;
+			memset( &ctx, 0, sizeof( ctx ) );
+			ctx.time = (float)gEngfuncs.GetClientTime();
+			ctx.entity_frame = e->frame;
+			ctx.rendercolor[0] = e->rendercolor[0];
+			ctx.rendercolor[1] = e->rendercolor[1];
+			ctx.rendercolor[2] = e->rendercolor[2];
+			ctx.rendermode = e->rendermode;
+			ctx.get_parm = GetParm;
+			ctx.bind_textures = bind_tex;
+			CSRETRO_BspMesh_Draw( mesh, &ctx );
+		}
 		PopEntityTransform();
 		RestoreDrawState();
 

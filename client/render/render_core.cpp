@@ -5,9 +5,11 @@
 #include "render_sprite.h"
 #include "render_studio.h"
 #include "render_brush.h"
+#include "render_bsp_mesh.h"
 
 #include "hud.h"
 #include "cl_util.h"
+#include "cl_entity.h"
 #include "render_api.h"
 #include "ref_params.h"
 
@@ -33,6 +35,13 @@ static int s_brush_move_crc_logged = 0;
 static int s_efx_crc_logged = 0;
 static int s_tri_crc_logged = 0;
 static int s_brush_logged = 0;
+static int s_special_logged = 0;
+static int s_anim_proof_logged = 0;
+static int s_anim_crc_logged = 0;
+static int s_conv_proof_logged = 0;
+static int s_fb_proof_logged = 0;
+static unsigned int s_anim_crc_a = 0;
+static float s_anim_crc_time = 0.0f;
 static unsigned int s_brush_rest_crc = 0;
 static char s_proof_map[64];
 static float s_probe_start = 0.0f;
@@ -54,6 +63,13 @@ static void ResetSpriteProof( void )
 	s_efx_crc_logged = 0;
 	s_tri_crc_logged = 0;
 	s_brush_logged = 0;
+	s_special_logged = 0;
+	s_anim_proof_logged = 0;
+	s_anim_crc_logged = 0;
+	s_conv_proof_logged = 0;
+	s_fb_proof_logged = 0;
+	s_anim_crc_a = 0;
+	s_anim_crc_time = 0.0f;
 	s_brush_rest_crc = 0;
 	CSRETRO_Sprite_ResetDump();
 	CSRETRO_Sprite_SetNoDepth( 0 );
@@ -171,6 +187,7 @@ void CSRETRO_Renderer_Shutdown( void )
 void CSRETRO_Renderer_OnNewMap( void )
 {
 	EnsureEngine();
+	CSRETRO_BspMesh_OnNewMap();
 	CSRETRO_World_OnNewMap();
 	CSRETRO_Brush_OnNewMap();
 	CSRETRO_Backend_AllowDump();
@@ -231,6 +248,50 @@ static void LogProof( const CSRETRO_WorldStats *st, const CSRETRO_OffscreenProof
 
 static void RunProbeSeq( void );
 
+static void FillWorldMeshContext( CSRETRO_MeshDrawContext *ctx )
+{
+	cl_entity_t *live;
+
+	memset( ctx, 0, sizeof( *ctx ) );
+	ctx->time = (float)gEngfuncs.GetClientTime();
+	ctx->get_parm = GetParm;
+	ctx->bind_textures = 1;
+	live = gEngfuncs.GetEntityByIndex( 0 );
+	if( live )
+	{
+		cl_entity_t snap = *live;
+		ctx->entity_frame = snap.curstate.frame;
+		ctx->rendercolor[0] = snap.curstate.rendercolor.r;
+		ctx->rendercolor[1] = snap.curstate.rendercolor.g;
+		ctx->rendercolor[2] = snap.curstate.rendercolor.b;
+		ctx->rendermode = snap.curstate.rendermode;
+	}
+}
+
+static void LogBrushSpecial( const CSRETRO_MeshDrawStats *ms )
+{
+	gEngfuncs.Con_Printf(
+		"CS Retro: brush special anim_candidates=%i tex_first=%u tex_last=%u tex_changed=%i alternate_candidates=%i alternate_used=%i random_tiled=%i conveyor_candidates=%i uv_s=%.5f uv_t=%.5f uv_changed=%i fullbright_candidates=%i fullbright_drawn=%i verts=%i builds=%i rebuilds_unchanged=%i geom_unchanged=%i skipped_turb=%i\n",
+		ms->anim_candidates,
+		ms->anim_tex_first,
+		ms->anim_tex_last,
+		ms->anim_tex_changed,
+		ms->alternate_candidates,
+		ms->alternate_used,
+		ms->random_tile_candidates,
+		ms->conveyor_candidates,
+		ms->conveyor_s,
+		ms->conveyor_t,
+		ms->conveyor_uv_changed,
+		ms->fullbright_candidates,
+		ms->fullbright_drawn,
+		ms->verts,
+		CSRETRO_BspMesh_BuildCount(),
+		ms->rebuilds_unchanged,
+		ms->geom_unchanged,
+		ms->skipped_turb );
+}
+
 void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 {
 	CSRETRO_WorldStats st;
@@ -245,6 +306,7 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 	EnsureEngine();
 	EnsureCvars();
 	CSRETRO_ClientTriangles_BeginFrame();
+	CSRETRO_BspMesh_BeginFrame();
 	if( !ProbeEnabled() )
 	{
 		RunProbeSeq();
@@ -287,13 +349,57 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		float org[3] = { rvp->vieworigin[0], rvp->vieworigin[1], rvp->vieworigin[2] };
 		float ang[3] = { rvp->viewangles[0], rvp->viewangles[1], rvp->viewangles[2] };
 		CSRETRO_OffscreenProof world_proof;
+		CSRETRO_OffscreenProof world_base_proof;
 		CSRETRO_SceneStats scene;
-		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y );
+		CSRETRO_MeshDrawContext world_ctx;
+		FillWorldMeshContext( &world_ctx );
+		world_ctx.skip_fullbright = 1;
+		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &world_ctx );
+		memset( &world_base_proof, 0, sizeof( world_base_proof ) );
+		CSRETRO_Backend_SampleProof( &world_base_proof );
+		world_ctx.skip_base = 1;
+		world_ctx.skip_fullbright = 0;
+		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &world_ctx );
+		memset( &world_proof, 0, sizeof( world_proof ) );
+		CSRETRO_Backend_SampleProof( &world_proof );
+		if( s_fb_proof_logged != 1 && world_base_proof.crc != world_proof.crc )
+		{
+			CSRETRO_MeshDrawStats ms;
+			CSRETRO_BspMesh_GetDrawStats( &ms );
+			if( ms.fullbright_drawn > 0 )
+			{
+				s_fb_proof_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: fullbright proof base_crc=%08x plus_crc=%08x differ=1 drawn=%i candidates=%i\n",
+					world_base_proof.crc, world_proof.crc, ms.fullbright_drawn, ms.fullbright_candidates );
+			}
+		}
 		memset( &world_proof, 0, sizeof( world_proof ) );
 		CSRETRO_Backend_SampleProof( &world_proof );
 		CSRETRO_Backend_PrepareImmediateDraw();
 		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 		CSRETRO_Brush_DrawPass( 1, &scene );
+		{
+			CSRETRO_OffscreenProof after_opaque;
+			CSRETRO_MeshDrawStats ms;
+			memset( &after_opaque, 0, sizeof( after_opaque ) );
+			CSRETRO_Backend_SampleProof( &after_opaque );
+			CSRETRO_BspMesh_GetDrawStats( &ms );
+			if( !s_anim_crc_a && ms.anim_candidates > 0 )
+			{
+				s_anim_crc_a = after_opaque.crc;
+				s_anim_crc_time = (float)gEngfuncs.GetClientTime();
+			}
+			else if( s_anim_crc_logged != 1 && ms.anim_tex_changed && ms.anim_candidates > 0
+				&& after_opaque.crc != s_anim_crc_a
+				&& ( (float)gEngfuncs.GetClientTime() - s_anim_crc_time ) >= 0.45f )
+			{
+				s_anim_crc_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: texture animation pixelproof crc_a=%08x crc_b=%08x differ=1\n",
+					s_anim_crc_a, after_opaque.crc );
+			}
+		}
 		CSRETRO_Backend_PrepareImmediateDraw();
 		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 		CSRETRO_Studio_DrawList( &scene );
@@ -339,6 +445,35 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_Backend_PrepareImmediateDraw();
 		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 		CSRETRO_Brush_DrawPass( 0, &scene );
+		{
+			CSRETRO_MeshDrawStats ms;
+			CSRETRO_BspMesh_GetDrawStats( &ms );
+			if( !s_special_logged && ( ms.anim_candidates || ms.conveyor_candidates || ms.fullbright_candidates || ms.random_tile_candidates ) )
+			{
+				s_special_logged = 1;
+				LogBrushSpecial( &ms );
+			}
+			else if( s_special_logged == 1 && ( ms.anim_tex_changed || ms.conveyor_uv_changed || ms.rebuilds_unchanged ) )
+			{
+				s_special_logged = 2;
+				LogBrushSpecial( &ms );
+			}
+			if( s_anim_proof_logged != 1 && ms.anim_candidates > 0 && ms.anim_tex_changed
+				&& ms.geom_unchanged && ms.rebuilds_unchanged )
+			{
+				s_anim_proof_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: texture animation proof candidates=%i tex_first=%u tex_last=%u changed=1 verts=%i rebuilds_unchanged=1 geom_unchanged=1\n",
+					ms.anim_candidates, ms.anim_tex_first, ms.anim_tex_last, ms.verts );
+			}
+			if( s_conv_proof_logged != 1 && ms.conveyor_candidates > 0 && ms.conveyor_uv_changed && ms.geom_unchanged )
+			{
+				s_conv_proof_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: conveyor proof candidates=%i uv_s=%.5f uv_t=%.5f uv_changed=1 geom_unchanged=1 verts=%i\n",
+					ms.conveyor_candidates, ms.conveyor_s, ms.conveyor_t, ms.verts );
+			}
+		}
 		{
 			CSRETRO_OffscreenProof after_brush;
 			const CSRETRO_BrushMove *bmove;
@@ -604,11 +739,45 @@ static void RunProbeSeq( void )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int tri = s_probe_seq->value >= 5.0f;
-			int efx = !tri && s_probe_seq->value >= 4.0f;
-			int brush = !efx && s_probe_seq->value >= 3.0f;
-			int px3c = !efx && !brush && s_probe_seq->value >= 2.0f;
-			if( tri )
+			int special = s_probe_seq->value >= 6.0f;
+			int tri = !special && s_probe_seq->value >= 5.0f;
+			int efx = !special && !tri && s_probe_seq->value >= 4.0f;
+			int brush = !special && !efx && s_probe_seq->value >= 3.0f;
+			int px3c = !special && !efx && !brush && s_probe_seq->value >= 2.0f;
+			if( special )
+			{
+				if( s_probe_step == 0 && elapsed >= 3.0f )
+				{
+					s_probe_step = 1;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_torn\n" );
+					gEngfuncs.pfnClientCmd( "map de_torn\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 12.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 22.0f )
+				{
+					s_probe_step = 3;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map cs_assault\n" );
+					gEngfuncs.pfnClientCmd( "sv_cheats 1; map cs_assault\n" );
+				}
+				else if( s_probe_step == 3 && elapsed >= 32.0f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 36.0f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
+					gEngfuncs.pfnClientCmd( "quit\n" );
+				}
+			}
+			else if( tri )
 			{
 				if( s_probe_step == 0 && elapsed >= 6.0f )
 				{

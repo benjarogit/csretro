@@ -571,11 +571,12 @@ Sonderflächen:
 | Fläche | Status |
 | --- | --- |
 | SURF_DRAWTURB (Wasser) | DEFERRED — Mesh skip. Aztec-`func_water` nicht offscreen. #7 offen. |
-| SURF_CONVEYOR | DEFERRED — statische UVs. |
+| SURF_CONVEYOR | VERIFIED — Draw-Zeit UV-Offset, gecachte `st[]` unverändert. `de_torn` func_conveyor `candidates=20 uv_changed=1 geom_unchanged=1`. |
 | trans (Entity-Rendermode) | IMPLEMENTED — TransTexture/Color/Alpha/Add. |
 | SURF_TRANSPARENT / Alpha-Test | IMPLEMENTED über `kRenderTransAlpha`. |
-| tex anim | DEFERRED — Frame zum Cache-Zeitpunkt. PrimeXT `R_TextureAnimation` nur Semantik-Referenz. |
-| fullbright | DEFERRED |
+| tex anim | VERIFIED — Draw-Zeit, Xash `R_TextureAnimation`. `cs_assault` +0/+1 `candidates=19 tex_changed=1` pixel `c6874c8c≠9e35736d`, Mesh/Rebuild unverändert. |
+| fullbright | implemented, runtime NOT REPRODUCIBLE — `fb_texturenum=0` auf aztec/torn/dust/assault. Overlay-Pass vorhanden. |
+| random tiled (`-`) | Stock-CS hat Surfaces. Xash `rtable` nicht in der Client-API (`COM_RandomLong` im Ref-Init). BSP-Kachel, keine erfundene Tabelle. Follow-up. |
 | details | NOT NEEDED FOR CURRENT CS CONTENT |
 | decals | DEFERRED — erster Pixelproof ohne. Vor return 1 bewerten. |
 | dlights | DEFERRED |
@@ -607,9 +608,25 @@ Client triangles: PENDING
 remaining sprite modes: PENDING
 ```
 
-Sonderfälle bleiben separat: SURF_DRAWTURB/water DEFERRED; tex anim DEFERRED; decals DEFERRED; dlights DEFERRED; conveyor/fullbright laut Research.
+Sonderfälle: SURF_DRAWTURB/water DEFERRED; tex anim VERIFIED; conveyor VERIFIED; fullbright implemented / runtime N/R; decals DEFERRED; dlights DEFERRED.
 
-`return 1` gesperrt: Client-Triangles, restliche Sprite-Modi, Player, Viewmodel, Vis, Turb/Decals. Engine-EFX ist draw-only hinter return 0, kein Takeover.
+### #7 Brush Special A (2026-09-20)
+
+Ein shared Mesh-Pfad `render_bsp_mesh.cpp`. Draw-Kontext (time, entity frame, rendercolor) von World-Snapshot (Entity 0, Kopie, kein Write) und Brush-`CSRETRO_EntCopy`. Kein Mesh-Rebuild pro Frame.
+
+| Punkt | Status | Beleg |
+| --- | --- | --- |
+| Texture animation | VERIFIED | `cs_assault` `candidates=19 tex_changed=1` pixel `crc_a=c6874c8c crc_b=9e35736d`. `geom_unchanged=1` `rebuilds_unchanged=1`. |
+| Alternate | implemented / N/R | `alternate_used=0` |
+| Random tiled | Stock vorhanden, rtable nicht API | aztec ~1955 `-` Surfaces. Keine erfundene Tabelle. |
+| Conveyor | VERIFIED | `de_torn` 20 candidates, UV `0.35326→0.33049`, verts 72090 unverändert. Speed aus Snapshot-rendercolor, Breite `xr_texture_t.width`. |
+| Fullbright | implemented / N/R | `fb_texturenum=0` Stock-CS aztec/torn/dust/assault. Pass: ONE,ONE, DepthMask off, Fog restore. |
+| Water | DEFERRED | Builder skippt `SURF_DRAWTURB` (aztec skipped_turb=12). |
+| Probe | PASS | `./scripts/px7-brush-special-a-probe.sh`. aztec→torn→dust→assault, vid_setmode. `GL_RenderFrame` 0. |
+
+Transparente Brush-Fullbrights: Xash `R_DrawBrushModel` ruft `R_RenderFullbrights` nach allen Rendermodes auf (CONFIRMED Source). Overlay folgt dem. Runtime ohne luma-Textur nicht sichtbar.
+
+`return 1` gesperrt: Water/Turb, Decals, DLights, Player, Viewmodel, Vis. Engine-EFX ist draw-only hinter return 0, kein Takeover.
 
 ## #7 Engine-EFX Vertrag (2026-09-20, vor Produktcode)
 

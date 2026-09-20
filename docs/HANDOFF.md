@@ -3,7 +3,7 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
-## Stand 2026-09-20 — #7 Client-Triangles VERIFIED draw-only; Sprite Completion (Issue OPEN)
+## Stand 2026-09-20 — #7 Brush Special A (Anim/Conveyor/Fullbright); Issue OPEN
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
 PX3B: `bbe418d` / v0.1.12, Cert `8443d0d` / v0.1.13, Issue #5 geschlossen.
@@ -13,7 +13,8 @@ PX4B.1: `344bf73` / v0.1.19. Issue #9 offen (ruhend).
 #7 Brush visuell: `59f4921` / v0.1.20, Cert `fba5b54` / v0.1.21.
 #7 Engine-EFX Split: `41ee26f` / v0.1.22. Offscreen `c365cda` / v0.1.23. Docs `ba75509` / v0.1.24.
 #7 Client-Triangles Split: `362f1dc` / v0.1.26. Offscreen `191651b` / v0.1.27. Docs `fede75a` / v0.1.28.
-Spectator-Overview Cert + Sprite Completion: dieser Stand.
+Spectator-Overview Cert: `e917629` / v0.1.29. Sprite Completion: `ec42664` / v0.1.30.
+#7 Brush Special A: dieser Stand.
 `GL_RenderFrame` bleibt 0.
 
 ```
@@ -24,7 +25,13 @@ Sprite modes:
     SPR_ANGLED: implemented, runtime NOT REPRODUCIBLE WITH CURRENT GAME CONTENT
     frame lerp: VERIFIED
     sprite lighting: VERIFIED (Xash sprite lighting / lightmap-style pass)
-Brush special cases: PENDING/DEFERRED
+Brush special:
+    texture animation: VERIFIED (cs_assault +0/+1 chain, tex_changed, pixel CRC differ, mesh/rebuild unchanged)
+    conveyor: VERIFIED (de_torn func_conveyor, UV offset, geom unchanged)
+    fullbright: implemented, runtime NOT REPRODUCIBLE WITH CURRENT GAME CONTENT
+    water/turb: DEFERRED
+    decals: DEFERRED
+    dlights: DEFERRED
 ```
 
 **PrimeXT-Pin:** Tag `continious`, SHA `46fb05b41e58ed887718649e1720313baaac9a35` (2026-08-23).
@@ -44,7 +51,7 @@ Rolle: nur lesen. Clone ohne Submodule nach `refs/primext/` (gitignored).
 - Brücke: `cdll_int.cpp` — `GL_RenderFrame` void + `return 0`; `HUD_AddEntity` spiegelt und behält Return
 
 **CVar:** `r_csretro_renderer` 0 = Xash-only. 1 = Offscreen World+Brush+Sprites+Non-Player-Studio+FOLLOW+draw-only EFX+draw-only Client-Triangles + sichtbarer Xash-Fallback.
-Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`, `./scripts/px7-efx-xash-gate.sh`, `./scripts/px7-efx-offscreen-probe.sh`, `./scripts/px7-tri-xash-gate.sh`, `./scripts/px7-tri-offscreen-probe.sh`, `./scripts/px7-tri-overview-cert.sh`, `./scripts/px7-sprite-completion-probe.sh`.
+Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`, `./scripts/px7-efx-xash-gate.sh`, `./scripts/px7-efx-offscreen-probe.sh`, `./scripts/px7-tri-xash-gate.sh`, `./scripts/px7-tri-offscreen-probe.sh`, `./scripts/px7-tri-overview-cert.sh`, `./scripts/px7-sprite-completion-probe.sh`, `./scripts/px7-brush-special-a-probe.sh`.
 Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts/px4a-visual-cert.sh` → `build/px4a-cert-shots/`; `./scripts/px7-brush-visual-cert.sh` → `build/px7-brush-cert-shots/` (nicht committed).
 
 **Callbacks an:** `Mod_ProcessUserData`, `R_NewMap`, `GL_BuildLightmaps`, `R_ClearScene` (additiv, nur CS-Retro-Liste).
@@ -57,7 +64,7 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Transform: GoldSrc `R_RotateForEntity` / `R_TranslateForEntity` (origin, yaw, −pitch, roll).
 - Opaque `kRenderNormal` + TransTexture/Color/Alpha/Add. Lightmaps über `PARM_TEX_LIGHTMAP`.
 - Probe PASS + Visual `./scripts/px7-brush-visual-cert.sh` PASS: aztec Welt/Viewmodel/HUD; assault `func_door_rotating *11` index 19 origin 696 2236 48 sichtbar geschlossen → Kante → offen. Mapchange dust + `vid_setmode`. Movement-Gate PASS. `GL_RenderFrame` immer 0.
-- Sonderflächen DEFERRED: SURF_DRAWTURB/water, tex anim, decals, dlights; conveyor/fullbright laut Research.
+- Sonderflächen: Texture-Anim VERIFIED, Conveyor VERIFIED, Fullbright implemented / runtime N/R. DEFERRED: SURF_DRAWTURB/water, decals, dlights.
 
 **#7 Engine-EFX (VERIFIED draw-only ownership 2026-09-20)**
 - Vertrag: `docs/research/px1-primext.md`. `GL_DrawParticles` bleibt unsicher (Advance). Produktpfad ist `DrawEFX(..., draw_only=1)`.
@@ -83,19 +90,29 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Lighting: `Xash sprite lighting / lightmap-style pass` via `gEngfuncs.pTriAPI->LightAtPoint`, renderer-owned White-Texture, DepthFunc EQUAL + Restore. aztec SPR_ALPHTEST `candidates=14 lightatpoint=14 pass=14`.
 - Probe: `./scripts/px7-sprite-completion-probe.sh` PASS. HE/Smoke/Flash, `r_sprite_lerping`/`r_sprite_lighting` 0/1, aztec→dust→assault, `vid_setmode`. Movement-Gate PASS.
 
+**#7 Brush Special A (2026-09-20, Issue bleibt OPEN)**
+- Ein Draw-Pfad: `client/render/render_bsp_mesh.cpp` für World und Brush. Animation/Conveyor/Fullbright zur Draw-Zeit, Mesh-Cache bleibt. Kein zweiter Brush-Renderer.
+- Texture-Animation: Xash `R_TextureAnimation` (Alternate bei Snapshot-`frame != 0`, 10 fps bei `PARM_TEX_FLAGS`/`TF_QUAKEPAL` sonst 20). Batch-Key = Basis-Textur + Lightmap + Flags. **VERIFIED** `cs_assault` `+0/+1` chain `candidates=19 tex_changed=1` pixel `crc_a=c6874c8c crc_b=9e35736d`, verts/rebuild/geom unchanged.
+- Alternate: implementiert. Runtime **NOT REPRODUCIBLE** (`alternate_used=0`, kein Entity-Frame ≠ 0).
+- Random tiled (`-`): Stock-CS hat Surfaces (aztec ~1955). Xash `rtable` ist `COM_RandomLong` im Ref-Init, nicht Client-API. Keine erfundene Tabelle. BSP-zugewiesene Kachel. Follow-up: rtable-API oder BSP-Kachel belassen.
+- Conveyor: UV-Offset nur beim Vertex-Output, `xr_texture_t.width`, Speed aus Snapshot-`rendercolor`. **VERIFIED** `de_torn` `func_conveyor` `candidates=20 uv_changed=1 geom_unchanged=1`.
+- Fullbright: zweiter Pass ONE,ONE, DepthMask off, Fog Push/Pop. Runtime **NOT REPRODUCIBLE** (`fb_texturenum=0` auf aztec/torn/dust/assault).
+- Water/Turb weiter skip. Keine Decals, keine DLights. `PARM_TEX_LIGHTMAP` unverändert.
+- Probe: `./scripts/px7-brush-special-a-probe.sh` PASS. aztec→torn→dust→assault, `vid_setmode`. Movement-Gate PASS. `GL_RenderFrame` immer 0.
+
 **PX4B.1** (ruhend)
 - FOLLOW parent graph implementiert. Player-parent deferred. Stock-CS: **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT**.
 - Player bleibt C. Issue #9 offen, ruht bis A/B-Beweis. Kein Player-Produktcode in diesem Slice.
 - Read-only: Variante B kann `gait`/`player_info_t` nicht isolieren ohne GSMR- oder `PlayerInfo`-Änderung (`IEngineStudio.PlayerInfo()` ist Live-State).
 
 **Offen vor return 1**
-- [#7](https://github.com/benjarogit/csretro/issues/7): Brush VERIFIED, Engine-EFX VERIFIED, Client-Triangles VERIFIED draw-only, Sprite Completion (ANGLED implemented / runtime NOT REPRODUCIBLE, lerp VERIFIED, lighting VERIFIED). Brush-Sonderflächen (turb/decals/dlights) DEFERRED. Issue bleibt OPEN
+- [#7](https://github.com/benjarogit/csretro/issues/7): Brush VERIFIED, Engine-EFX VERIFIED, Client-Triangles VERIFIED draw-only, Sprite Completion (ANGLED implemented / runtime NOT REPRODUCIBLE, lerp VERIFIED, lighting VERIFIED). Brush Special A: Anim VERIFIED, Conveyor VERIFIED, Fullbright implemented / N/R. Water/Turb, Decals, DLights DEFERRED. Issue bleibt OPEN
 - Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)) — Variante C, Blocker vor `return 1`
 - Player-parent FOLLOW (Slice in #9, hängt an Player-Safety)
 - Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10))
 - Vis
 
-**Nächster Schritt:** #7 Brush-Sonderflächen (SURF_DRAWTURB/water, tex anim, decals, dlights) — nur nach neuer Freigabe. Kein Viewmodel. `return 1` weiter gesperrt. Kein nächster Slice ohne neue Freigabe. #9/#10/#1/#2/#3 nicht anfassen.
+**Nächster Schritt:** #7 Brush Special B (SURF_DRAWTURB/water: subdiv, UV-Warp, Vertex-Wave, trans Water-Pass) — nur nach neuer Freigabe. Danach Decals/DLights. Kein Viewmodel. `return 1` weiter gesperrt. Kein nächster Slice ohne neue Freigabe. #9/#10/#1/#2/#3 nicht anfassen.
 
 **PX0 bleibt offen**
 - #1 Movement Replay: https://github.com/benjarogit/csretro/issues/1

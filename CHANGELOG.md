@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.31 — 2026-09-20
+
+### Renderer
+
+- #7 Brush Special A: Texture-Animation, SURF_CONVEYOR und Fullbright-Overlay im gemeinsamen BSP-Mesh-Pfad (World+Brush). Animation/Scroll zur Draw-Zeit, Cache bleibt. Anim VERIFIED auf `cs_assault` (+0/+1, Pixel-CRC), Conveyor VERIFIED auf `de_torn`. Fullbright implementiert, Runtime auf Stock-CS NOT REPRODUCIBLE. Water/Decals/DLights unverändert deferred. `GL_RenderFrame` bleibt 0. Issue #7 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.30 — 2026-09-20
 
 ### Renderer

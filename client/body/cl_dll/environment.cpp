@@ -798,6 +798,48 @@ void CEnvironment::Update()
 	m_flOldTime = clientTime;
 }
 
+unsigned int CEnvironment::StateHash() const
+{
+	auto mix = []( unsigned int h, unsigned int v ) -> unsigned int {
+		h ^= v;
+		h *= 16777619u;
+		return h;
+	};
+	auto mixf = [&mix]( unsigned int h, float f ) -> unsigned int {
+		union { float f; unsigned int u; } x;
+		x.f = f;
+		return mix( h, x.u );
+	};
+
+	unsigned int h = 2166136261u;
+	h = mix( h, (unsigned int)m_rains.size() );
+	h = mix( h, (unsigned int)m_snows.size() );
+	h = mixf( h, m_flOldTime );
+	h = mixf( h, m_flNextWindChangeTime );
+	h = mixf( h, m_flDesiredWindSpeed );
+	h = mixf( h, m_flIdealYaw );
+	h = mixf( h, m_flWeatherValue );
+	h = mixf( h, m_vecWind.x );
+	h = mixf( h, m_vecWind.y );
+	h = mixf( h, m_vecWind.z );
+	h = mixf( h, m_vecWeatherOrigin.x );
+	h = mixf( h, m_vecWeatherOrigin.y );
+	h = mixf( h, m_vecWeatherOrigin.z );
+	for ( const auto& rain : m_rains )
+	{
+		h = mix( h, (unsigned int)rain.entIndex );
+		h = mixf( h, rain.updateTime );
+		h = mix( h, (unsigned int)rain.flags );
+	}
+	for ( const auto& snow : m_snows )
+	{
+		h = mix( h, (unsigned int)snow.entIndex );
+		h = mixf( h, snow.updateTime );
+		h = mix( h, (unsigned int)snow.flags );
+	}
+	return h;
+}
+
 bool CEnvironment::ShouldUpdateWind() const
 {
 	for (const auto& rain : m_rains)

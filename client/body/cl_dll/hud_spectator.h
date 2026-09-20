@@ -67,7 +67,11 @@ public:
 	bool AddOverviewEntity( int type, struct cl_entity_s *ent, const char *modelname );
 	void CheckOverviewEntities();
 	void DrawOverview();
-	void DrawOverviewEntities();
+	bool OverviewShouldDraw() const;
+	void AdvanceOverviewState();
+	void DrawOverviewReadOnly( bool writeHudPlayerPos );
+	unsigned int OverviewStateHash() const;
+	void DrawOverviewEntities( bool writeHudPlayerPos );
 	void GetMapPosition( float * returnvec );
 	void DrawOverviewLayer();
 	void LoadMapSprites();

@@ -82,6 +82,12 @@
 #define GL_POLYGON_OFFSET_FILL 0x8037
 #define GL_POLYGON_OFFSET_FACTOR 0x8038
 #define GL_POLYGON_OFFSET_UNITS 0x2A00
+#define GL_FOG 0x0B60
+#define GL_FOG_DENSITY 0x0B62
+#define GL_FOG_START 0x0B63
+#define GL_FOG_END 0x0B64
+#define GL_FOG_MODE 0x0B65
+#define GL_FOG_COLOR 0x0B66
 
 CSRETRO_GL gXRGL;
 
@@ -171,6 +177,12 @@ typedef struct GLState_s
 	unsigned char poly_offset;
 	float poly_factor;
 	float poly_units;
+	unsigned char fog;
+	int fog_mode;
+	float fog_density;
+	float fog_start;
+	float fog_end;
+	float fog_color[4];
 	int saved;
 } GLState;
 
@@ -232,6 +244,9 @@ int CSRETRO_Backend_Init( struct render_api_s *api )
 	LOAD1( PolygonMode, "glPolygonMode" );
 	LOAD1( ShadeModel, "glShadeModel" );
 	LOAD1( PolygonOffset, "glPolygonOffset" );
+	LOAD1( Fogi, "glFogi" );
+	LOAD1( Fogf, "glFogf" );
+	LOAD1( Fogfv, "glFogfv" );
 
 	pglGenFramebuffers = (PFN_GEN)LoadProc( "glGenFramebuffers", "glGenFramebuffersEXT" );
 	pglDeleteFramebuffers = (PFN_DEL)LoadProc( "glDeleteFramebuffers", "glDeleteFramebuffersEXT" );
@@ -364,6 +379,7 @@ static void SaveState( void )
 		s_saved.cull = gXRGL.IsEnabled( GL_CULL_FACE );
 		s_saved.alpha_test = gXRGL.IsEnabled( GL_ALPHA_TEST );
 		s_saved.poly_offset = gXRGL.IsEnabled( GL_POLYGON_OFFSET_FILL );
+		s_saved.fog = gXRGL.IsEnabled( GL_FOG );
 	}
 	if( gXRGL.GetBooleanv )
 	{
@@ -382,7 +398,12 @@ static void SaveState( void )
 		gXRGL.GetFloatv( GL_DEPTH_RANGE, s_saved.depth_range );
 		gXRGL.GetFloatv( GL_POLYGON_OFFSET_FACTOR, &s_saved.poly_factor );
 		gXRGL.GetFloatv( GL_POLYGON_OFFSET_UNITS, &s_saved.poly_units );
+		gXRGL.GetFloatv( GL_FOG_DENSITY, &s_saved.fog_density );
+		gXRGL.GetFloatv( GL_FOG_START, &s_saved.fog_start );
+		gXRGL.GetFloatv( GL_FOG_END, &s_saved.fog_end );
+		gXRGL.GetFloatv( GL_FOG_COLOR, s_saved.fog_color );
 	}
+	gXRGL.GetIntegerv( GL_FOG_MODE, &s_saved.fog_mode );
 	if( !s_saved.depth_range[1] )
 		s_saved.depth_range[1] = 1.0f;
 	gXRGL.GetIntegerv( GL_POLYGON_MODE, s_saved.polygon_mode );
@@ -544,7 +565,71 @@ static void RestoreState( void )
 			gXRGL.LoadIdentity();
 		gXRGL.MatrixMode( (unsigned int)s_saved.matrix_mode );
 	}
+	if ( s_saved.fog )
+		gXRGL.Enable( GL_FOG );
+	else
+		gXRGL.Disable( GL_FOG );
+	if ( gXRGL.Fogi && s_saved.fog_mode )
+		gXRGL.Fogi( GL_FOG_MODE, s_saved.fog_mode );
+	if ( gXRGL.Fogf )
+	{
+		gXRGL.Fogf( GL_FOG_DENSITY, s_saved.fog_density );
+		gXRGL.Fogf( GL_FOG_START, s_saved.fog_start );
+		gXRGL.Fogf( GL_FOG_END, s_saved.fog_end );
+	}
+	if ( gXRGL.Fogfv )
+		gXRGL.Fogfv( GL_FOG_COLOR, s_saved.fog_color );
 	s_saved.saved = 0;
+}
+
+static struct
+{
+	unsigned char fog;
+	int fog_mode;
+	float fog_density;
+	float fog_start;
+	float fog_end;
+	float fog_color[4];
+	int saved;
+} s_fog_push;
+
+void CSRETRO_Backend_PushFog( void )
+{
+	memset( &s_fog_push, 0, sizeof( s_fog_push ) );
+	if( !gXRGL.IsEnabled )
+		return;
+	s_fog_push.fog = gXRGL.IsEnabled( GL_FOG );
+	if( gXRGL.GetIntegerv )
+		gXRGL.GetIntegerv( GL_FOG_MODE, &s_fog_push.fog_mode );
+	if( gXRGL.GetFloatv )
+	{
+		gXRGL.GetFloatv( GL_FOG_DENSITY, &s_fog_push.fog_density );
+		gXRGL.GetFloatv( GL_FOG_START, &s_fog_push.fog_start );
+		gXRGL.GetFloatv( GL_FOG_END, &s_fog_push.fog_end );
+		gXRGL.GetFloatv( GL_FOG_COLOR, s_fog_push.fog_color );
+	}
+	s_fog_push.saved = 1;
+}
+
+void CSRETRO_Backend_PopFog( void )
+{
+	if( !s_fog_push.saved || !gXRGL.Enable )
+		return;
+	if( s_fog_push.fog )
+		gXRGL.Enable( GL_FOG );
+	else
+		gXRGL.Disable( GL_FOG );
+	if( gXRGL.Fogi && s_fog_push.fog_mode )
+		gXRGL.Fogi( GL_FOG_MODE, s_fog_push.fog_mode );
+	if( gXRGL.Fogf )
+	{
+		gXRGL.Fogf( GL_FOG_DENSITY, s_fog_push.fog_density );
+		gXRGL.Fogf( GL_FOG_START, s_fog_push.fog_start );
+		gXRGL.Fogf( GL_FOG_END, s_fog_push.fog_end );
+	}
+	if( gXRGL.Fogfv )
+		gXRGL.Fogfv( GL_FOG_COLOR, s_fog_push.fog_color );
+	s_fog_push.saved = 0;
 }
 
 int CSRETRO_Backend_BeginOffscreen( void )
@@ -570,6 +655,7 @@ int CSRETRO_Backend_BeginOffscreen( void )
 	gXRGL.DepthFunc( GL_LEQUAL );
 	gXRGL.Disable( GL_BLEND );
 	gXRGL.Disable( GL_POLYGON_OFFSET_FILL );
+	gXRGL.Disable( GL_FOG );
 	gXRGL.Enable( GL_CULL_FACE );
 	gXRGL.CullFace( GL_BACK );
 	gXRGL.FrontFace( GL_CCW );

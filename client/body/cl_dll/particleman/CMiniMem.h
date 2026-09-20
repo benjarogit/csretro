@@ -30,7 +30,10 @@ public:
 
 	void Deallocate(void* memory);
 
-	void ProcessAll(); //Processes all
+	void ProcessAll(); // Advance + visible Render (legacy combined)
+	void AdvanceAll();
+	void RenderAll(bool update_pvs_cache);
+	unsigned int StateHash() const;
 
 	void Reset(); //clears memory, setting all particles to not used.
 

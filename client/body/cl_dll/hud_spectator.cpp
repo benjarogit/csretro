@@ -1378,7 +1378,7 @@ void CHudSpectator::DrawOverviewLayer()
 	}
 }
 
-void CHudSpectator::DrawOverviewEntities()
+void CHudSpectator::DrawOverviewEntities(bool writeHudPlayerPos)
 {
 	int				i,ir,ig,ib;
 	struct model_s *hSpriteModel;
@@ -1388,7 +1388,8 @@ void CHudSpectator::DrawOverviewEntities()
 	float rmatrix[3][4];	// transformation matrix
 	
 	float			zScale = (90.0f - v_angles[0] ) / 90.0f;
-
+	vec3_t			localPlayerPos[MAX_PLAYERS];
+	vec3_t			*playerPos = writeHudPlayerPos ? m_vPlayerPos : localPlayerPos;
 
 	z = m_OverviewData.layersHeights[0] * zScale;
 	// get yellow/brown HUD color
@@ -1400,7 +1401,7 @@ void CHudSpectator::DrawOverviewEntities()
 	gEngfuncs.pTriAPI->CullFace( TRI_NONE );
 
 	for (i=0; i < MAX_PLAYERS; i++ )
-		m_vPlayerPos[i][2] = -1;	// mark as invisible
+		playerPos[i][2] = -1;	// mark as invisible
 
 	// draw all players
 	for (i=0 ; i < MAX_OVERVIEW_ENTITIES ; i++)
@@ -1509,9 +1510,9 @@ void CHudSpectator::DrawOverviewEntities()
 
 		int playerNum = ent->index - 1;
 
-		m_vPlayerPos[playerNum][0] = screen[0];
-		m_vPlayerPos[playerNum][1] = screen[1] + offset.Length();
-		m_vPlayerPos[playerNum][2] = 1;	// mark player as visible
+		playerPos[playerNum][0] = screen[0];
+		playerPos[playerNum][1] = screen[1] + offset.Length();
+		playerPos[playerNum][2] = 1;	// mark player as visible
 	}
 
 	if ( !m_pip->value || !m_drawcone->value )
@@ -1581,34 +1582,89 @@ void CHudSpectator::DrawOverviewEntities()
 
 
 
-void CHudSpectator::DrawOverview()
-{
-	static bool glClearForce = false;
-	static float old_glClearValue;
+static bool s_overviewGlClearForce = false;
+static float s_overviewOldGlClearValue;
 
-	// draw only in sepctator mode
-	if ( !g_iUser1 || (m_iDrawCycle == 0 &&  ( (g_iUser1 != OBS_MAP_FREE) && (g_iUser1 != OBS_MAP_CHASE) )) || (m_iDrawCycle == 1 && m_pip->value < INSET_MAP_FREE) )
+bool CHudSpectator::OverviewShouldDraw() const
+{
+	if ( !g_iUser1 )
+		return false;
+	if ( m_iDrawCycle == 0 && ( g_iUser1 != OBS_MAP_FREE ) && ( g_iUser1 != OBS_MAP_CHASE ) )
+		return false;
+	if ( m_iDrawCycle == 1 && m_pip->value < INSET_MAP_FREE )
+		return false;
+	return true;
+}
+
+void CHudSpectator::AdvanceOverviewState()
+{
+	if ( !OverviewShouldDraw() )
 	{
-		// fix non clearing background for overview
-		if( glClearForce )
+		if ( s_overviewGlClearForce )
 		{
-			gEngfuncs.Cvar_SetValue("gl_clear", old_glClearValue );
-			glClearForce = false;
+			gEngfuncs.Cvar_SetValue( "gl_clear", s_overviewOldGlClearValue );
+			s_overviewGlClearForce = false;
 		}
 		return;
 	}
 
-	// fix non clearing background for overview
-	if( !glClearForce )
+	if ( !s_overviewGlClearForce )
 	{
-		old_glClearValue = CVAR_GET_FLOAT("gl_clear");
-		gEngfuncs.Cvar_Set("gl_clear", "1");
-		glClearForce = true;
+		s_overviewOldGlClearValue = CVAR_GET_FLOAT( "gl_clear" );
+		gEngfuncs.Cvar_Set( "gl_clear", "1" );
+		s_overviewGlClearForce = true;
 	}
 
-	DrawOverviewLayer();
-	DrawOverviewEntities();
 	CheckOverviewEntities();
+}
+
+void CHudSpectator::DrawOverviewReadOnly( bool writeHudPlayerPos )
+{
+	if ( !OverviewShouldDraw() )
+		return;
+
+	DrawOverviewLayer();
+	DrawOverviewEntities( writeHudPlayerPos );
+}
+
+void CHudSpectator::DrawOverview()
+{
+	AdvanceOverviewState();
+	DrawOverviewReadOnly( true );
+}
+
+static unsigned int OverviewHashMix( unsigned int h, unsigned int v )
+{
+	h ^= v;
+	h *= 16777619u;
+	return h;
+}
+
+static unsigned int OverviewHashFloat( unsigned int h, float f )
+{
+	union { float f; unsigned int u; } x;
+	x.f = f;
+	return OverviewHashMix( h, x.u );
+}
+
+unsigned int CHudSpectator::OverviewStateHash() const
+{
+	unsigned int h = 2166136261u;
+	h = OverviewHashMix( h, s_overviewGlClearForce ? 1u : 0u );
+	h = OverviewHashFloat( h, s_overviewOldGlClearValue );
+	h = OverviewHashFloat( h, CVAR_GET_FLOAT( "gl_clear" ) );
+	h = OverviewHashMix( h, (unsigned int)g_iUser1 );
+	h = OverviewHashMix( h, (unsigned int)m_iDrawCycle );
+	for ( int i = 0; i < MAX_OVERVIEW_ENTITIES; i++ )
+	{
+		h = OverviewHashMix( h, (unsigned int)m_OverviewEntities[i].hSprite );
+		h = OverviewHashFloat( h, (float)m_OverviewEntities[i].killTime );
+		if ( m_OverviewEntities[i].entity )
+			h = OverviewHashMix( h, (unsigned int)m_OverviewEntities[i].entity->index );
+		else
+			h = OverviewHashMix( h, 0u );
+	}
+	return h;
 }
 void CHudSpectator::CheckOverviewEntities()
 {

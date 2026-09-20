@@ -80,16 +80,15 @@ CMiniMem* CMiniMem::Instance()
 
 void CMiniMem::ProcessAll()
 {
+	AdvanceAll();
+	RenderAll(true);
+}
+
+void CMiniMem::AdvanceAll()
+{
 	const float time = gEngfuncs.GetClientTime();
 
-	//Clear list of visible particles.
-	_visibleParticles = 0;
-
-	//Divide the particle list in two: the list of visible particles and the list of invisible particles.
-	//Remove any particles that have died.
-	std::size_t invisibleCount = 0;
-
-	for (std::size_t i = 0; i < (_particles.size() - invisibleCount);)
+	for (std::size_t i = 0; i < _particles.size();)
 	{
 		auto effect = _particles[i];
 
@@ -102,51 +101,80 @@ void CMiniMem::ProcessAll()
 		{
 			effect->Die();
 			delete effect;
-
-			//Don't do this! operator delete removes the effect from the list.
-			//_particles.erase(_particles.begin() + i);
 			continue;
-		}
-
-		if (effect->CheckVisibility())
-		{
-			auto player = gEngfuncs.GetLocalPlayer();
-			effect->SetPlayerDistance((player->origin - effect->m_vOrigin).Length()*(player->origin - effect->m_vOrigin).Length());
-
-			++_visibleParticles;
-		}
-		else
-		{
-			if (i + invisibleCount < _particles.size())
-			{
-				//There is an effect we haven't checked yet.
-				//Put the invisible effect at the end of the list and check the other effect next.
-				std::swap(_particles[i], _particles[_particles.size() - 1 - invisibleCount]);
-				++invisibleCount;
-				continue;
-			}
-			//No more unchecked effects in the list.
 		}
 
 		++i;
 	}
 
-	std::sort(_particles.begin(), _particles.begin() + _visibleParticles, [](const CBaseParticle* lhs, const CBaseParticle* rhs)
-		{
-			//Particles are ordered farthest to nearest so they can be drawn in order.
-			const float lhsDistance = lhs->GetPlayerDistance();
-			const float rhsDistance = rhs->GetPlayerDistance();
+	g_flOldTime = time;
+}
 
-			return lhsDistance > rhsDistance;
-		});
-
-	for (std::size_t i = 0; i < _visibleParticles; ++i)
+void CMiniMem::RenderAll(bool update_pvs_cache)
+{
+	struct RenderParticleRef
 	{
-		auto effect = _particles[i];
-		effect->Draw();
+		CBaseParticle* particle;
+		float distance;
+	};
+
+	_visibleParticles = 0;
+	g_cFrustum.CalculateFrustum();
+
+	std::vector<RenderParticleRef> refs;
+	refs.reserve(_particles.size());
+
+	cl_entity_t* player = gEngfuncs.GetLocalPlayer();
+	const Vector playerOrigin = player ? player->origin : Vector(0, 0, 0);
+
+	for (auto* effect : _particles)
+	{
+		if (!effect->EvaluateVisibilityForRender(update_pvs_cache))
+			continue;
+
+		const Vector delta = playerOrigin - effect->m_vOrigin;
+		const float distance = delta.Length() * delta.Length();
+		if (update_pvs_cache)
+			effect->SetPlayerDistance(distance);
+		refs.push_back({effect, distance});
 	}
 
-	g_flOldTime = time;
+	std::sort(refs.begin(), refs.end(), [](const RenderParticleRef& lhs, const RenderParticleRef& rhs)
+		{
+			return lhs.distance > rhs.distance;
+		});
+
+	_visibleParticles = refs.size();
+	for (const auto& ref : refs)
+		ref.particle->Draw();
+}
+
+static unsigned int MiniHashMix(unsigned int h, unsigned int v)
+{
+	h ^= v;
+	h *= 16777619u;
+	return h;
+}
+
+static unsigned int MiniHashFloat(unsigned int h, float f)
+{
+	union { float f; unsigned int u; } x;
+	x.f = f;
+	return MiniHashMix(h, x.u);
+}
+
+unsigned int CMiniMem::StateHash() const
+{
+	unsigned int h = 2166136261u;
+	h = MiniHashMix(h, static_cast<unsigned int>(_particles.size()));
+	h = MiniHashFloat(h, g_flOldTime);
+	for (std::size_t i = 0; i < _particles.size(); ++i)
+	{
+		h = MiniHashMix(h, static_cast<unsigned int>(i));
+		if (_particles[i])
+			_particles[i]->HashSimState(h);
+	}
+	return h;
 }
 
 int CMiniMem::ApplyForce(Vector vOrigin, Vector vDirection, float flRadius, float flStrength)

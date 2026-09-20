@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.26 — 2026-09-20
+
+### Renderer
+
+- #7 Client-Triangles intern split: Overview Advance vs DrawReadOnly, ParticleMan Advance vs Render (lokale Render-Refs, kein Live-List-Sort, FacePlayer ohne Winkel-Write), Environment/Molotov nur im sichtbaren Xash-Frame, Fog als Render-State. `HUD_DrawNormalTriangles` / `HUD_DrawTransparentTriangles` bleiben Xash-Exports (Advance+Draw). Xash-only Gate PASS. ParticleMan/Wetter auf Stock-CS NOT REPRODUCIBLE WITH CURRENT GAME CONTENT. Issue #7 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.25 — 2026-09-20
 
 ### Architektur / Dokumentation

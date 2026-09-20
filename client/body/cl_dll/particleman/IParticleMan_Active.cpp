@@ -113,6 +113,12 @@ void IParticleMan_Active::SetVariables(float flGravity, Vector vViewAngles)
 
 void IParticleMan_Active::Update()
 {
+	Advance();
+	Render(true);
+}
+
+void IParticleMan_Active::Advance()
+{
 	g_pParticleMan = this;
 
 	const float time = gEngfuncs.GetClientTime();
@@ -122,7 +128,6 @@ void IParticleMan_Active::Update()
 		auto& member = g_pForceList[i];
 		if (member.m_flDieTime != 0 && member.m_flDieTime < time)
 		{
-			//Always swap to last before erasing to make it cheaper to do.
 			if (i + 1 < g_pForceList.size())
 			{
 				std::swap(member, g_pForceList[g_pForceList.size() - 1]);
@@ -143,14 +148,55 @@ void IParticleMan_Active::Update()
 		memory->ApplyForce(member.m_vOrigin, member.m_vDirection, member.m_flRadius, member.m_flStrength);
 	}
 
-	g_cFrustum.CalculateFrustum();
+	memory->AdvanceAll();
+}
 
-	memory->ProcessAll();
+void IParticleMan_Active::Render(bool update_pvs_cache)
+{
+	g_pParticleMan = this;
+	CMiniMem::Instance()->RenderAll(update_pvs_cache);
 
 	if (nullptr != cl_pmanstats && cl_pmanstats->value == 1)
 	{
-		//TODO: engine doesn't support printing size_t, use local printf
 		gEngfuncs.Con_NPrintf(15, "Number of Particles: %d", static_cast<int>(CMiniMem::Instance()->GetTotalParticles()));
 		gEngfuncs.Con_NPrintf(16, "Particles Drawn: %d", static_cast<int>(CMiniMem::Instance()->GetDrawnParticles()));
 	}
+}
+
+static unsigned int PManHashMix(unsigned int h, unsigned int v)
+{
+	h ^= v;
+	h *= 16777619u;
+	return h;
+}
+
+static unsigned int PManHashFloat(unsigned int h, float f)
+{
+	union { float f; unsigned int u; } x;
+	x.f = f;
+	return PManHashMix(h, x.u);
+}
+
+unsigned int IParticleMan_Active::StateHash() const
+{
+	unsigned int h = CMiniMem::Instance()->StateHash();
+	h = PManHashMix(h, static_cast<unsigned int>(g_pForceList.size()));
+	for (const auto& member : g_pForceList)
+	{
+		h = PManHashFloat(h, member.m_vOrigin.x);
+		h = PManHashFloat(h, member.m_vOrigin.y);
+		h = PManHashFloat(h, member.m_vOrigin.z);
+		h = PManHashFloat(h, member.m_vDirection.x);
+		h = PManHashFloat(h, member.m_vDirection.y);
+		h = PManHashFloat(h, member.m_vDirection.z);
+		h = PManHashFloat(h, member.m_flRadius);
+		h = PManHashFloat(h, member.m_flStrength);
+		h = PManHashFloat(h, member.m_flDieTime);
+	}
+	return h;
+}
+
+int IParticleMan_Active::ParticleCount() const
+{
+	return static_cast<int>(CMiniMem::Instance()->GetTotalParticles());
 }

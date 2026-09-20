@@ -36,6 +36,10 @@ void CSRETRO_Backend_PrepareImmediateDraw( void );
 void CSRETRO_Backend_BindTexture( int tmu, unsigned int texnum );
 void CSRETRO_Backend_CleanupTextures( void );
 
+// Fog is TriAPI render-state. Push/Pop around offscreen triangle draws so Xash-visible fog stays put.
+void CSRETRO_Backend_PushFog( void );
+void CSRETRO_Backend_PopFog( void );
+
 typedef struct CSRETRO_GL_s
 {
 	void ( *ClearColor )( float r, float g, float b, float a );
@@ -83,6 +87,9 @@ typedef struct CSRETRO_GL_s
 	void ( *PolygonMode )( unsigned int face, unsigned int mode );
 	void ( *ShadeModel )( unsigned int mode );
 	void ( *PolygonOffset )( float factor, float units );
+	void ( *Fogi )( unsigned int pname, int param );
+	void ( *Fogf )( unsigned int pname, float param );
+	void ( *Fogfv )( unsigned int pname, const float *params );
 } CSRETRO_GL;
 
 extern CSRETRO_GL gXRGL;

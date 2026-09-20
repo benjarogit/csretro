@@ -242,6 +242,7 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 
 	EnsureEngine();
 	EnsureCvars();
+	CSRETRO_ClientTriangles_BeginFrame();
 	if( !ProbeEnabled() )
 	{
 		RunProbeSeq();
@@ -568,10 +569,32 @@ static void RunProbeSeq( void )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int efx = s_probe_seq->value >= 4.0f;
+			int tri = s_probe_seq->value >= 5.0f;
+			int efx = !tri && s_probe_seq->value >= 4.0f;
 			int brush = !efx && s_probe_seq->value >= 3.0f;
 			int px3c = !efx && !brush && s_probe_seq->value >= 2.0f;
-			if( efx )
+			if( tri )
+			{
+				if( s_probe_step == 0 && elapsed >= 6.0f )
+				{
+					s_probe_step = 1;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 16.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 20.0f )
+				{
+					s_probe_step = 3;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
+					gEngfuncs.pfnClientCmd( "quit\n" );
+				}
+			}
+			else if( efx )
 			{
 				if( s_probe_step == 0 && elapsed >= 3.0f )
 				{

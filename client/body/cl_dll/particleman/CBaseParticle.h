@@ -48,7 +48,10 @@ public:
 
 	virtual void Think(float time);
 	virtual bool CheckVisibility();
+	// Render-only visibility. Offscreen must pass update_pvs_cache=false.
+	virtual bool EvaluateVisibilityForRender(bool update_pvs_cache);
 	virtual void Draw();
+	void HashSimState(unsigned int& h) const;
 	virtual void Animate(float time);
 	virtual void AnimateAndDie(float time);
 	virtual void Expand(float time);

@@ -26,6 +26,16 @@ void CSRETRO_Renderer_ClearScene( void );
 // Mirror only. Does not change HUD_AddEntity's return value.
 void CSRETRO_Renderer_AddEntity( int type, struct cl_entity_s *ent );
 
+// Client-triangle ownership. Advance once per visible Xash frame. Draw-only has no simulation.
+void CSRETRO_ClientTriangles_BeginFrame( void );
+void CSRETRO_ClientTriangles_AdvanceNormal( void );
+void CSRETRO_ClientTriangles_DrawNormalOnly( void );
+void CSRETRO_ClientTriangles_AdvanceParticleMan( void );
+void CSRETRO_ClientTriangles_RenderParticleMan( int update_pvs_cache );
+void CSRETRO_ClientTriangles_AdvanceEnvironment( void );
+void CSRETRO_ClientTriangles_AdvanceMolotovHeld( void );
+void CSRETRO_ClientTriangles_DrawTransparentOnly( void );
+
 #ifdef __cplusplus
 }
 #endif

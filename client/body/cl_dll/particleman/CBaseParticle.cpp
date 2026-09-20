@@ -115,17 +115,27 @@ void CBaseParticle::InitializeSprite(Vector org, Vector normal, model_s* sprite,
 
 bool CBaseParticle::CheckVisibility()
 {
+	return EvaluateVisibilityForRender(true);
+}
+
+bool CBaseParticle::EvaluateVisibilityForRender(bool update_pvs_cache)
+{
 	const float radius = m_flSize / 5.0;
+	bool inPVS = m_bInPVS;
 
 	if (gEngfuncs.GetClientTime() >= m_flNextPVSCheck)
 	{
 		const Vector radiusVector{radius, radius, radius};
 		Vector mins = m_vOrigin - radiusVector;
 		Vector maxs = m_vOrigin + radiusVector;
+		const bool nowInPVS = gEngfuncs.pTriAPI->BoxInPVS(mins, maxs) != 0;
 
-		m_bInPVS = gEngfuncs.pTriAPI->BoxInPVS(mins, maxs) != 0;
-
-		m_flNextPVSCheck = gEngfuncs.GetClientTime() + 0.1;
+		if (update_pvs_cache)
+		{
+			m_bInPVS = nowInPVS;
+			m_flNextPVSCheck = gEngfuncs.GetClientTime() + 0.1;
+		}
+		inPVS = nowInPVS;
 	}
 
 	if ((m_iRenderFlags & CULL_FRUSTUM_SPHERE) != 0)
@@ -150,7 +160,7 @@ bool CBaseParticle::CheckVisibility()
 		}
 	}
 
-	if (!m_bInPVS)
+	if (!inPVS)
 	{
 		return (m_iRenderFlags & CULL_PVS) == 0;
 	}
@@ -176,14 +186,15 @@ void CBaseParticle::Draw()
 		//gEngfuncs.Con_Printf("Intensity: %g. Color: %g, %g, %g\n", intensity, vColor.x, vColor.y, vColor.z);
 	}
 
+	Vector drawAngles = m_vAngles;
 	if ((m_iRenderFlags & (RENDER_FACEPLAYER | RENDER_FACEPLAYER_ROTATEZ)) != 0)
 	{
-		m_vAngles.x = g_vViewAngles.x;
-		m_vAngles.y = g_vViewAngles.y;
+		drawAngles.x = g_vViewAngles.x;
+		drawAngles.y = g_vViewAngles.y;
 
 		if ((m_iRenderFlags & RENDER_FACEPLAYER_ROTATEZ) == 0)
 		{
-			m_vAngles.z = g_vViewAngles.z;
+			drawAngles.z = g_vViewAngles.z;
 		}
 	}
 
@@ -211,7 +222,7 @@ void CBaseParticle::Draw()
 	resultColor.z = clamp(resultColor.z, 0.f, 255.f);
 
 	Vector forward, right, up;
-	gEngfuncs.pfnAngleVectors(m_vAngles, forward, right, up);
+	gEngfuncs.pfnAngleVectors(drawAngles, forward, right, up);
 
 	const float radius = m_flSize;
 	const Vector width = right * radius * m_flStretchX;
@@ -247,6 +258,64 @@ void CBaseParticle::Draw()
 
 	gEngfuncs.pTriAPI->RenderMode(kRenderNormal);
 	gEngfuncs.pTriAPI->CullFace(TRI_FRONT);
+}
+
+static unsigned int ParticleHashMix(unsigned int h, unsigned int v)
+{
+	h ^= v;
+	h *= 16777619u;
+	return h;
+}
+
+static unsigned int ParticleHashFloat(unsigned int h, float f)
+{
+	union { float f; unsigned int u; } x;
+	x.f = f;
+	return ParticleHashMix(h, x.u);
+}
+
+void CBaseParticle::HashSimState(unsigned int& h) const
+{
+	h = ParticleHashMix(h, static_cast<unsigned int>(m_iRenderFlags));
+	h = ParticleHashFloat(h, m_flNextPVSCheck);
+	h = ParticleHashMix(h, m_bInPVS ? 1u : 0u);
+	h = ParticleHashMix(h, static_cast<unsigned int>(m_iCollisionFlags));
+	h = ParticleHashFloat(h, m_flPlayerDistance);
+	h = ParticleHashFloat(h, m_flSize);
+	h = ParticleHashFloat(h, m_flScaleSpeed);
+	h = ParticleHashFloat(h, m_flContractSpeed);
+	h = ParticleHashFloat(h, m_flStretchX);
+	h = ParticleHashFloat(h, m_flStretchY);
+	h = ParticleHashFloat(h, m_flBrightness);
+	h = ParticleHashFloat(h, m_flFadeSpeed);
+	h = ParticleHashFloat(h, m_flTimeCreated);
+	h = ParticleHashFloat(h, m_flDieTime);
+	h = ParticleHashFloat(h, m_flGravity);
+	h = ParticleHashMix(h, static_cast<unsigned int>(m_iFramerate));
+	h = ParticleHashMix(h, static_cast<unsigned int>(m_iNumFrames));
+	h = ParticleHashMix(h, static_cast<unsigned int>(m_iFrame));
+	h = ParticleHashMix(h, static_cast<unsigned int>(m_iRendermode));
+	h = ParticleHashFloat(h, m_vOrigin.x);
+	h = ParticleHashFloat(h, m_vOrigin.y);
+	h = ParticleHashFloat(h, m_vOrigin.z);
+	h = ParticleHashFloat(h, m_vPrevOrigin.x);
+	h = ParticleHashFloat(h, m_vPrevOrigin.y);
+	h = ParticleHashFloat(h, m_vPrevOrigin.z);
+	h = ParticleHashFloat(h, m_vVelocity.x);
+	h = ParticleHashFloat(h, m_vVelocity.y);
+	h = ParticleHashFloat(h, m_vVelocity.z);
+	h = ParticleHashFloat(h, m_vAngles.x);
+	h = ParticleHashFloat(h, m_vAngles.y);
+	h = ParticleHashFloat(h, m_vAngles.z);
+	h = ParticleHashFloat(h, m_vAVelocity.x);
+	h = ParticleHashFloat(h, m_vAVelocity.y);
+	h = ParticleHashFloat(h, m_vAVelocity.z);
+	h = ParticleHashMix(h, m_bInWater ? 1u : 0u);
+	h = ParticleHashFloat(h, m_flNextCollisionTime);
+	h = ParticleHashMix(h, static_cast<unsigned int>(m_szClassname[0]));
+	h = ParticleHashMix(h, static_cast<unsigned int>(m_szClassname[1]));
+	h = ParticleHashMix(h, static_cast<unsigned int>(m_szClassname[2]));
+	h = ParticleHashMix(h, static_cast<unsigned int>(m_szClassname[3]));
 }
 
 void CBaseParticle::Animate(float time)

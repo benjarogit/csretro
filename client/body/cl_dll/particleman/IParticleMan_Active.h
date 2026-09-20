@@ -24,6 +24,10 @@ public:
 
 	void SetUp(cl_enginefunc_t* pEnginefuncs) override;
 	void Update() override;
+	void Advance();
+	void Render(bool update_pvs_cache);
+	unsigned int StateHash() const;
+	int ParticleCount() const;
 	void SetVariables(float flGravity, Vector vViewAngles) override;
 	void ResetParticles() override;
 	void ApplyForce(Vector vOrigin, Vector vDirection, float flRadius, float flStrength, float flDuration) override;

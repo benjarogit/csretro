@@ -116,6 +116,7 @@ public:
 	void Reset();
 	void Clear();
 	void Update();
+	unsigned int StateHash() const;
 	void RestoreWeather();
 
 	int MsgFunc_Rain(const char *pszName, int iSize, void *pbuf);

@@ -30,6 +30,14 @@ enum
 
 enum
 {
+	XR_SPR_NORMAL = 0,
+	XR_SPR_ADDITIVE = 1,
+	XR_SPR_INDEXALPHA = 2,
+	XR_SPR_ALPHTEST = 3
+};
+
+enum
+{
 	XR_MOD_BRUSH = 0,
 	XR_MOD_SPRITE = 1,
 	XR_MOD_ALIAS = 2,

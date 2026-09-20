@@ -88,6 +88,12 @@
 #define GL_FOG_END 0x0B64
 #define GL_FOG_MODE 0x0B65
 #define GL_FOG_COLOR 0x0B66
+#define GL_CLAMP 0x2900
+#define GL_TEXTURE_WRAP_S 0x2802
+#define GL_TEXTURE_WRAP_T 0x2803
+#define GL_TEXTURE_MIN_FILTER 0x2801
+#define GL_TEXTURE_MAG_FILTER 0x2800
+#define GL_NEAREST 0x2600
 
 CSRETRO_GL gXRGL;
 
@@ -98,6 +104,7 @@ static unsigned int s_depth_rb = 0;
 static int s_color_texnum = 0;
 static unsigned int s_color_glname = 0;
 static int s_raw_color = 0;
+static unsigned int s_white_tex = 0;
 static int s_dumped_ppm = 0;
 
 static void *( *s_get_proc )( const char *name ) = NULL;
@@ -289,6 +296,9 @@ static void DestroyFBO( void )
 void CSRETRO_Backend_Shutdown( void )
 {
 	DestroyFBO();
+	if( s_white_tex && pglDeleteTextures )
+		pglDeleteTextures( 1, &s_white_tex );
+	s_white_tex = 0;
 	s_dumped_ppm = 0;
 	memset( &gXRGL, 0, sizeof( gXRGL ) );
 	s_api = NULL;
@@ -768,6 +778,29 @@ void CSRETRO_Backend_CleanupTextures( void )
 		gXRGL.Disable( GL_TEXTURE_2D );
 		gXRGL.ActiveTexture( GL_TEXTURE0 );
 	}
+}
+
+unsigned int CSRETRO_Backend_WhiteTexture( void )
+{
+	static const unsigned char px[4] = { 255, 255, 255, 255 };
+
+	if( s_white_tex )
+		return s_white_tex;
+	if( !pglGenTextures || !pglTexImage2D || !gXRGL.BindTexture )
+		return 0;
+	pglGenTextures( 1, &s_white_tex );
+	if( !s_white_tex )
+		return 0;
+	gXRGL.BindTexture( GL_TEXTURE_2D, s_white_tex );
+	pglTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, px );
+	if( pglTexParameteri )
+	{
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
+	}
+	return s_white_tex;
 }
 
 static unsigned int CRC32_Buf( const unsigned char *data, int len )

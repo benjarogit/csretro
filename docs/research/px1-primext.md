@@ -438,9 +438,9 @@ Issue [#6](https://github.com/benjarogit/csretro/issues/6). `GL_RenderFrame` ble
 | Brush-Entities | VERIFIED | offscreen Draw aus Mirror-Liste, Cache, opaque+trans, rotierende Tür visuell zertifiziert. [#7](https://github.com/benjarogit/csretro/issues/7) bleibt OPEN (EFX/Triangles) |
 | World+Sprite CRC | CONFIRMED | DoD präzisiert: echter Sprite-Pass ändert Offscreen-Pixel, nicht „winziger Smoke in 512²“. aztec `world=b574ac9e full=21e1f2db differ=1 normal_drawn=16`; spawn `world=9b241fd4 full=0742170e differ=1 normal_drawn=12` |
 | Engine-EFX `GL_DrawParticles` | VERIFIED draw-only | `DrawEFX(rvp, trans, draw_only=1)` mutiert Live-Listen nicht; Xash `draw_only=0` bleibt einziges Advance. [#7](https://github.com/benjarogit/csretro/issues/7) OPEN |
-| Client-Triangles | PENDING Research | siehe CLIENT TRIANGLE OWNERSHIP RESULT. Kein Produktcode. [#7](https://github.com/benjarogit/csretro/issues/7) |
+| Client-Triangles | VERIFIED draw-only | Spectator Map-Overview Cert PASS. [#7](https://github.com/benjarogit/csretro/issues/7) |
 | GL isolation (Sprite) | CONFIRMED soweit sichtbar | FBO nach World-Readback neu gebunden; blend/alpha/depth/cull/texenv/TMU/color/matrices Save+Restore; sichtbares Xash ohne Artefakte |
-| Fehlende Sprite-Modi | DEFERRED | `SPR_ANGLED`; Frame-Lerp; Sprite-Lightmap. [#7](https://github.com/benjarogit/csretro/issues/7) |
+| Sprite modes | ANGLED implemented / lerp VERIFIED / lighting VERIFIED | Siehe Sprite Completion unten. Brush-Sonderflächen DEFERRED |
 
 Provenance Sprite-Draw: PrimeXT `46fb05b` `client/render/gl_sprite.cpp` (Frame, Quad, Orientierung, Rendermode/color/amt), an CS-Retro-Kopien + Xash-`msprite_t`-View angepasst.
 
@@ -754,7 +754,7 @@ Xash R_DrawEntitiesOnList = einziges Advance+Draw
 | Teilstück | Status | Beleg |
 | --- | --- | --- |
 | Overview Advance/Draw | CONFIRMED split | `AdvanceOverviewState` besitzt `gl_clear` + `CheckOverviewEntities`. `DrawOverviewReadOnly` zeichnet Layer+Entities ohne Listen-Kill/CVar. FPS Draw-only no-op |
-| Overview runtime | verification pending | Spectator/Map-Overview nicht im Headless-FPS-Probe. Nicht CONFIRMED |
+| Overview runtime | VERIFIED | `./scripts/px7-tri-overview-cert.sh` PASS. OBS_MAP_FREE `user1=5`, Layer sichtbar, Liste `count=37/37 mutate=0`, `gl_clear before=0 after=0 mutate=0`, Restore beim Verlassen. Shots `build/px7-tri-overview-cert-shots/` |
 | ParticleMan Advance | CONFIRMED | Forces, Think, Die/Delete, `g_flOldTime`. Live-Liste unsortiert |
 | ParticleMan Render | CONFIRMED | Frustum, lokale `RenderParticleRef`, lokale Distanz, lokales Sort, Draw. Kein `SetPlayerDistance` offscreen |
 | Visibility | CONFIRMED | `EvaluateVisibilityForRender(update_pvs_cache)`. Offscreen schreibt PVS-Cache nicht |
@@ -766,11 +766,45 @@ Xash R_DrawEntitiesOnList = einziges Advance+Draw
 | Offscreen state hash | CONFIRMED | 150 Wetterpartikel `before=be0874ae after=be0874ae mutate=0` |
 | Double-advance | CONFIRMED | dieselbe Sequenz: draw-only hash → Xash `advanced=1` (`e7c63faf` vs `be0874ae`) |
 | Pixel proof | CONFIRMED | `offscreen tri proof ... differ=1 pass=trans count=150` |
-| Spectator | verification pending | nicht getestet |
+| Spectator | VERIFIED | echter Map-Overview (nicht FPS-Spectator). JUMP-Zyklus CHASE→IN_EYE→ROAMING→MAP_FREE. `spec_mode` allein reicht nach Team-Kill nicht (`CanSwitchObserverModes`) |
 | `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab |
 | Mapchange / vid_setmode | CONFIRMED | aztec→dust + `vid_setmode 1024 768` |
 | Movement-Gate | CONFIRMED | `./scripts/movement-contract-gate.sh` PASS |
 
-#7 bleibt OPEN. Spectator-Overview nicht VERIFIED. Restliche Sprite-Modi / Brush-Sonderflächen DEFERRED.
+#7 bleibt OPEN. Client-Triangles sind VERIFIED draw-only. Sprite Completion (ANGLED/Lerp/Lighting) siehe unten. Brush-Sonderflächen DEFERRED.
+
+## #7 Sprite Completion (Produkt, 2026-09-20)
+
+`GL_RenderFrame` bleibt 0. Eine Pipeline: `client/render/render_sprite.cpp`. Kein Aufruf von internem Xash `R_DrawSpriteModel`. Keine `render_api_t`-Erweiterung. CVars: `r_sprite_lerping`, `r_sprite_lighting` (keine CS-Retro-Doppel-CVars).
+
+```text
+Offscreen:
+  mirror snapshot (volle cl_entity_t inkl. latched)
+  → lokale Arbeitskopie
+  → Xash-Interpolation nur auf der Kopie
+  → Frames/Lerp zeichnen
+  → Arbeitskopie verwerfen
+Live latched before == after, mutate=0
+```
+
+| Teilstück | Status | Beleg |
+| --- | --- | --- |
+| SPR_ANGLED | implemented | 8 Richtungsframes, `angleframe = round((viewYaw - entityYaw + 45) / 360 * 8) - 4 & 7`. Code path CONFIRMED |
+| ANGLED runtime | NOT REPRODUCIBLE WITH CURRENT GAME CONTENT | `sprite angled path=0` auf Stock-CS aztec/HE/Smoke/Flash |
+| Frame lerp | VERIFIED | `r_sprite_lerping`, `numframes>1`, `texFormat==SPR_ADDITIVE`, nicht Normal/TransAlpha, kein EF_NOINTERP. `* 11.0`, Clamp beim Draw. Zwei Pässe wenn old≠current |
+| Lerp runtime | VERIFIED | HE-Tent `candidates=1 drawn=1 old_ne_current=1` fmt=1 mode=5 |
+| Live latched | VERIFIED | `before=4665539f after=4665539f mutate=0` (frame, prevblending, sequencetime, origin, angles, renderamt, rendercolor, effects) |
+| Sprite lighting | VERIFIED | `Xash sprite lighting / lightmap-style pass`. LightAtPoint + Modulation DepthFunc EQUAL, Blend ZERO/SRC_COLOR, renderer-owned White-Texture. Kein BSP-Atlas |
+| LightAtPoint | VERIFIED | `gEngfuncs.pTriAPI->LightAtPoint`. `candidates=14 lightatpoint=14 pass=14` auf aztec SPR_ALPHTEST (fmt=3, mode=2, amt=255) |
+| GL state | VERIFIED reviewed | Lighting Save/Restore DepthFunc/BlendFunc/AlphaFunc/DepthMask/Texture/Color/Cull. DepthFunc zurück auf vorherigen Wert, nicht pauschal LEQUAL |
+| Existing sprites | VERIFIED | HE TempEnt, Smoke/Flash-Wurf, ET_NORMAL aztec 16 drawn, Glow/Add/Alpha/Texture. `r_sprite_lerping`/`r_sprite_lighting` 0/1 |
+| Mapchange / vid_setmode | CONFIRMED | aztec→dust→assault + `vid_setmode 1024 768` |
+| Movement-Gate | CONFIRMED | `./scripts/movement-contract-gate.sh` PASS |
+| `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab |
+
+Probe: `./scripts/px7-sprite-completion-probe.sh`. Shots `build/px7-sprite-cert-shots/` (nicht committed).
+
+#7 bleibt OPEN wegen Brush-Sonderflächen. Player #9, Viewmodel #10, Vis unberührt.
+
 
 

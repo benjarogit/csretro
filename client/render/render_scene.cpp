@@ -12,7 +12,7 @@
 
 enum
 {
-	CSRETRO_STUDIO_SNAP_MAX = 256
+	CSRETRO_STUDIO_SNAP_MAX = 1024
 };
 
 static CSRETRO_EntCopy s_ents[CSRETRO_COPY_MAX];
@@ -107,7 +107,9 @@ void CSRETRO_Scene_Add( int type, struct cl_entity_s *ent )
 	dst->is_viewmodel = ( gEngfuncs.GetViewModel() == ent ) ? 1 : 0;
 	dst->is_follow = ( ent->curstate.movetype == MOVETYPE_FOLLOW ) ? 1 : 0;
 	dst->is_preview = ( ent->curstate.effects & EF_CSRETRO_PREVIEW ) ? 1 : 0;
-	if( ( kind == CSRETRO_KIND_STUDIO || kind == CSRETRO_KIND_STUDIO_LOCAL )
+	dst->live = ent;
+	if( ( kind == CSRETRO_KIND_STUDIO || kind == CSRETRO_KIND_STUDIO_LOCAL
+		|| kind == CSRETRO_KIND_TENT_SPRITE || kind == CSRETRO_KIND_NORMAL_SPRITE )
 		&& s_snap_count < CSRETRO_STUDIO_SNAP_MAX )
 	{
 		s_studio_snaps[s_snap_count] = *ent;

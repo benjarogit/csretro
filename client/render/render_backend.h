@@ -35,6 +35,7 @@ void CSRETRO_Backend_ApplyView( const float *vieworg, const float *viewangles, f
 void CSRETRO_Backend_PrepareImmediateDraw( void );
 void CSRETRO_Backend_BindTexture( int tmu, unsigned int texnum );
 void CSRETRO_Backend_CleanupTextures( void );
+unsigned int CSRETRO_Backend_WhiteTexture( void );
 
 // Fog is TriAPI render-state. Push/Pop around offscreen triangle draws so Xash-visible fog stays put.
 void CSRETRO_Backend_PushFog( void );

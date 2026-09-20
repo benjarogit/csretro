@@ -31,6 +31,7 @@ typedef struct CSRETRO_EntCopy_s
 	int is_viewmodel;
 	int is_follow;
 	int is_preview;
+	struct cl_entity_s *live;
 } CSRETRO_EntCopy;
 
 enum

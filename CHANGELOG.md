@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.30 — 2026-09-20
+
+### Renderer
+
+- #7 Sprite Completion: SPR_ANGLED (implementiert, Runtime auf Stock-CS NOT REPRODUCIBLE), Frame-Lerp VERIFIED (HE-Tent old≠current), Xash sprite lighting / lightmap-style pass VERIFIED (LightAtPoint, 14 ALPHTEST-Sprites auf de_aztec). Live-Latch mutate=0. `GL_RenderFrame` bleibt 0. Issue #7 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.29 — 2026-09-20
 
 ### Renderer

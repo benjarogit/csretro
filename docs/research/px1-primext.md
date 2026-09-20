@@ -576,7 +576,7 @@ Sonderflächen:
 | SURF_TRANSPARENT / Alpha-Test | IMPLEMENTED über `kRenderTransAlpha`. |
 | tex anim | VERIFIED — Draw-Zeit, Xash `R_TextureAnimation`. `cs_assault` +0/+1 `candidates=19 tex_changed=1` pixel `c6874c8c≠9e35736d`, Mesh/Rebuild unverändert. |
 | fullbright | implemented, runtime NOT REPRODUCIBLE — `fb_texturenum=0` auf aztec/torn/dust/assault. Overlay-Pass vorhanden. |
-| random tiled (`-`) | Stock-CS hat Surfaces. Xash `rtable` nicht in der Client-API (`COM_RandomLong` im Ref-Init). BSP-Kachel, keine erfundene Tabelle. Follow-up. |
+| random tiled (`-`) | VERIFIED — gemeinsamer Xash-Resolver `ResolveSurfaceTextureReadOnly`. de_aztec `candidates=1955 resolved=1955 fallback=0` pixel `921ad40d≠f9063657`. |
 | details | NOT NEEDED FOR CURRENT CS CONTENT |
 | decals | world VERIFIED — Offscreen-Walk von `pdecals`/`polys`. `de_aztec` bullet-hole pixel `31301f88≠8fc0c012`. Brush/moving implemented / N/R. |
 | dlights | world VERIFIED — HE `TE_EXPLOSION` `active=4` world `affected=48` patches=48 pixel `87aaaff8≠a2026c1c`. Brush/moving implemented / N/R. |
@@ -608,7 +608,7 @@ Client triangles: PENDING
 remaining sprite modes: PENDING
 ```
 
-Sonderfälle: SURF_DRAWTURB/water qualified; tex anim VERIFIED; conveyor VERIFIED; fullbright implemented / runtime N/R; world decals VERIFIED; brush decals implemented / N/R; world dlights VERIFIED; brush dlights implemented / N/R; random tiled Follow-up.
+Sonderfälle: SURF_DRAWTURB/water qualified; tex anim VERIFIED; conveyor VERIFIED; fullbright implemented / runtime N/R; world decals VERIFIED; brush decals implemented / N/R; world dlights VERIFIED; brush dlights implemented / N/R; random tiled VERIFIED. #7 CLOSED.
 
 ### #7 Brush Special A (2026-09-20)
 
@@ -618,7 +618,7 @@ Ein shared Mesh-Pfad `render_bsp_mesh.cpp`. Draw-Kontext (time, entity frame, re
 | --- | --- | --- |
 | Texture animation | VERIFIED | `cs_assault` `candidates=19 tex_changed=1` pixel `crc_a=c6874c8c crc_b=9e35736d`. `geom_unchanged=1` `rebuilds_unchanged=1`. |
 | Alternate | implemented / N/R | `alternate_used=0` |
-| Random tiled | Stock vorhanden, rtable nicht API | aztec ~1955 `-` Surfaces. Keine erfundene Tabelle. |
+| Random tiled | VERIFIED in Special E | gemeinsamer Resolver, siehe unten. |
 | Conveyor | VERIFIED | `de_torn` 20 candidates, UV `0.35326→0.33049`, verts 72090 unverändert. Speed aus Snapshot-rendercolor, Breite `xr_texture_t.width`. |
 | Fullbright | implemented / N/R | `fb_texturenum=0` Stock-CS aztec/torn/dust/assault. Pass: ONE,ONE, DepthMask off, Fog restore. |
 | Water | qualified | Capture aztec 12/76/444. Warp/Wave Draw-Zeit. Brush-Water torn VERIFIED. World-opaque Spawn-FBO N/R. Late alpha_cap=0 N/R. |
@@ -701,7 +701,30 @@ Klassische Surface-DLights, eine API. Xash bleibt Lifecycle-Owner (`CL_AllocDlig
 | Special A/B | CONFIRMED | Anim pixel `b2fb7384≠9e35736d`, Conveyor `uv_changed=1`, water capture |
 | Visible Xash / Frame | CONFIRMED 0 | Probe lehnt return 1 ab. Movement-Gate PASS. Mapchange + `vid_setmode` |
 
-Probe: `./scripts/px7-brush-special-d-dlights-probe.sh` PASS. PrimeXT-Shader-Lights/Shadowmaps/PBR nicht übernommen. Random tiled Follow-up unverändert. #7 bleibt OPEN.
+Probe: `./scripts/px7-brush-special-d-dlights-probe.sh` PASS. PrimeXT-Shader-Lights/Shadowmaps/PBR nicht übernommen. Random tiled siehe Special E.
+
+### #7 Brush Special E (2026-09-20)
+
+Eine Resolver-Implementierung. `R_ResolveSurfaceTexture` in `engine/ref/common/ref_context.c`. Sichtbares `R_TextureAnimation` und Offscreen `ResolveSurfaceTextureReadOnly` rufen dieselbe Funktion. `rtable` bleibt Ref-Init (`COM_RandomLong` + Seed 0). Keine Client-RNG, kein rtable-Export, keine zweite Formel.
+
+| Punkt | Status | Beleg |
+| --- | --- | --- |
+| Ownership | CONFIRMED | eine Engine-Funktion, Client nur API-Slot |
+| ABI | CONFIRMED | Tail nach `BuildSurfaceLightmapReadOnly`. `REF_API_VERSION` 21. v37 unverändert |
+| Per-surface | CONFIRMED | `CSRETRO_SurfaceSpan`, nicht Batch-Key |
+| Special A +anim | CONFIRMED | lokaler +0/+1-Pfad unverändert. assault `tex_changed=1` pixel `942285a8≠565439f4` |
+| Fullbright / Water | CONFIRMED Semantik | resolved Frame `fb_texturenum`; Turb nutzt denselben Resolver. Runtime N/R unverändert |
+| Alternate order | CONFIRMED Source | entity.frame → alternate_anims → rtable |
+| Geometry / rebuild | CONFIRMED | after first frame `geom_unchanged=1` `rebuilds_unchanged=1` |
+| Aztec inventory | VERIFIED | `candidates=1955 resolved=1955 fallback=0` `distinct=2` `differs=926` `variant0=933 variant1=1022` hash `42335c1c` |
+| Pixel | VERIFIED | isolated `-` only `base=921ad40d resolved=f9063657 differ=1` nonempty≈58500 |
+| Stability | VERIFIED | hash A=B=C über 1.557 s |
+| Mapchange | CONFIRMED | aztec→torn→assault→dust `stale_indices=0` |
+| vid_setmode | CONFIRMED | dust hash `0e722180` vor und nach `1024 768` |
+| Conveyor / Anim | CONFIRMED | torn `uv_changed=1`, assault anim proof |
+| Visible Xash / Frame | CONFIRMED 0 | Probe lehnt return 1 ab. Movement-Gate PASS |
+
+Probe: `./scripts/px7-random-tiled-probe.sh` PASS. #7 CLOSED. Player #9, Viewmodel #10, Vis unberührt.
 
 ## #7 Engine-EFX Vertrag (2026-09-20, vor Produktcode)
 
@@ -896,7 +919,7 @@ Live latched before == after, mutate=0
 
 Probe: `./scripts/px7-sprite-completion-probe.sh`. Shots `build/px7-sprite-cert-shots/` (nicht committed).
 
-#7 bleibt OPEN wegen Brush-Sonderflächen. Player #9, Viewmodel #10, Vis unberührt.
+#7 CLOSED (Special A/B/C/D/E complete). Player #9, Viewmodel #10, Vis unberührt.
 
 
 

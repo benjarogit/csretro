@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.38 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- #7 geschlossen: Brush Special A/B/C/D/E complete. Random tiled VERIFIED (`9bc0194` / v0.1.37). Qualifizierte N/R bleiben dokumentierte Content-Limits, kein offener Produkt-Unterpunkt. Player #9, Viewmodel #10 und Vis unberührt.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.37 — 2026-09-20
 
 ### Renderer

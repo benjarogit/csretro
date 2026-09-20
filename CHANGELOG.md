@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.34 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- #7 Status synchronisiert: water/turb qualified, world decals VERIFIED, brush decals implemented / runtime NOT REPRODUCIBLE, dlights DEFERRED. Random tiled bleibt Follow-up. Issue bleibt offen.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.33 — 2026-09-20
 
 ### Renderer

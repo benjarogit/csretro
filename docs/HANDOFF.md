@@ -16,7 +16,7 @@ PX4B.1: `344bf73` / v0.1.19. Issue #9 offen (ruhend).
 Spectator-Overview Cert: `e917629` / v0.1.29. Sprite Completion: `ec42664` / v0.1.30.
 #7 Brush Special A: `b4e4bcd` / v0.1.31.
 #7 Brush Special B: `251491a` / v0.1.32.
-#7 Brush Special C: dieser Stand.
+#7 Brush Special C: `42bb6df` / v0.1.33.
 `GL_RenderFrame` bleibt 0.
 
 ```

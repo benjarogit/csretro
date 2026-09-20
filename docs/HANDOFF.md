@@ -3,6 +3,28 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
+## Stand 2026-09-20 — PX5 Vis gestartet; #11 OPEN
+
+Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
+`GL_RenderFrame` bleibt 0. Issue #7/#9/#10 geschlossen. Issue #11 offen bis PX5-DoD.
+#1 #2 #3 unverändert OPEN.
+
+```
+r_csretro_renderer 0 → Xash sichtbar
+r_csretro_renderer 1 → CS-Retro offscreen + sichtbarer Xash-Fallback
+GL_RenderFrame        → immer 0
+```
+
+**Vertrag:** Xash/ref besitzt kanonische Frame-/Vis-Berechnung. Eine Tail-API
+(`PrepareCurrentFrameVis`) liefert current-frame Frustum/PVS/Surface-Maske/efrag-Inventar.
+Client kopiert PVS in einen eigenen Frame-Puffer. `Mod_GetCurrentVis` gibt genau diesen
+Puffer zurück. Keine zweite Client-PVS-Formel. `return 1` nicht starten.
+
+Issue: https://github.com/benjarogit/csretro/issues/11
+
+**Nächster Schritt:** PX5A–G hinter `return 0` fertigmachen. Kein sichtbarer Takeover.
+#1 #2 #3 nicht schließen. #7 #9 #10 nicht wieder öffnen.
+
 ## Stand 2026-09-20 — PX4C.2 Event-Ownership VERIFIED; #10 CLOSED
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.

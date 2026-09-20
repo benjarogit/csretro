@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.48 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- PX5 Vis gestartet. Issue [#11](https://github.com/benjarogit/csretro/issues/11): current-frame Frustum/PVS, `Mod_GetCurrentVis`, World-Surface-Vis, efrag, Sky, globale Trans-Ordnung, R_RenderScene-Audit. `GL_RenderFrame` bleibt 0. #7/#9/#10 bleiben geschlossen. #1/#2/#3 bleiben offen.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.47 — 2026-09-20
 
 ### Architektur / Dokumentation

@@ -266,7 +266,7 @@ Xash NULL-prüft jeden Slot. Bewertung für einen späteren Custom-Frame, nicht 
 | `R_SpeedsMessage` | `gl_backend.c:30` | not needed yet |
 | `Mod_ProcessUserData` | `gl_context.c:133/156` (Modell load/unload) | needed for world preparation |
 | `R_ProcessEntData` | `gl_context.c:305` (nur GL) | needed only later (PrimeXT Studio-Instances; erster World-Nachweis ohne) |
-| `Mod_GetCurrentVis` | `gl_rsurf.c:114` nur wenn `tr.fCustomRendering` | needed before return 1 |
+| `Mod_GetCurrentVis` | `gl_rsurf.c:114` nur wenn `tr.fCustomRendering` | PX5 / [#11](https://github.com/benjarogit/csretro/issues/11): Client-Frame-Puffer, kein `RI.visbytes`-Pointer |
 | `R_NewMap` | `gl_context.c:436` | needed for world preparation |
 | `R_ClearScene` | `gl_rmain.c:224` | needed before return 1 |
 | `CL_UpdateLatchedVars` | `cl_frame.c:228/285` | needed only later (Studio-Lerp), evtl. before return 1 wenn Custom-Studio |
@@ -1009,7 +1009,15 @@ Probe: `./scripts/px4c1-viewmodel-body-probe.sh` PASS. Shots `build/px4c1-viewmo
 
 Probe: `./scripts/px4c2-viewmodel-events-probe.sh` PASS. PX4C.1 weiter PASS. Shots `build/px4c2-viewmodel-shots/` (nicht committed).
 
-#10 CLOSED. Bekannter Blocker vor return 1: Vis. Vis nicht gestartet. Inferno nicht #2.
+#10 CLOSED. Bekannter Blocker vor return 1: Vis. Gestartet als [#11](https://github.com/benjarogit/csretro/issues/11). Inferno nicht #2.
+
+## PX5 — Vis / Final Frame Ownership (2026-09-20)
+
+Issue [#11](https://github.com/benjarogit/csretro/issues/11). `GL_RenderFrame` bleibt 0.
+
+Vertrag: Xash/ref berechnet current-frame Frustum/Viewleaf/PVS (`R_SetupFrustum`, `R_FindViewLeaf`, `R_MarkLeaves`). Eine Tail-API kopiert den Zustand an CS Retro. Client besitzt einen eigenen PVS-Frame-Puffer; `Mod_GetCurrentVis` gibt genau diesen Puffer zurück. Keine zweite Client-`R_MarkLeaves`-Formel. Draw/Clear/Fog/Ripple/`R_PushDlights` bleiben im sichtbaren Xash-Pfad.
+
+DoD und Slice-Liste stehen im Issue. `return 1` ist nicht Teil von PX5.
 
 
 

@@ -3,6 +3,41 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
+## Stand 2026-09-20 — PX6A Mode-2 Takeover Gate; #12 OPEN
+
+Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
+Issue #7/#9/#10/#11 geschlossen. #1 #2 #3 unverändert OPEN.
+Issue #12 OPEN bis vollständiges DoD / visuelle Zertifizierung.
+
+```
+r_csretro_renderer 0 → Xash only, GL_RenderFrame = 0
+r_csretro_renderer 1 → CS-Retro 512² offscreen + sichtbarer Xash, return 0
+r_csretro_renderer 2 → CS-Retro visible takeover candidate (PX6A)
+```
+
+**Mode-2 Vertrag:** Pre-commit Eligibility → FBO/Present-Preflight → `PrepareCustomFrame`
+(frametime, framecount++, PushDlights, Vis consume, PlayerLight) → Draw (EFX/Triangles
+owned advance) → Present/Blit → `FinalizeCustomFrame` → `return 1`.
+Nach Commit kein Xash-Fallback im selben Frame. Default bleibt 0. Mode 1 unverändert.
+
+```
+REF_API_VERSION 25: PrepareCustomFrame / FinalizeCustomFrame /
+  CustomFrameFogPre / CustomFrameFogPost / CustomFrameExtraUpdate
+Takeover-FBO = viewport-sized (nicht 512)
+Present = glBlitFramebuffer
+Overview / Cubemap / Preview / r_ripple≠0 / Alias → return 0 pre-commit
+```
+
+Probe: `./scripts/px6a-takeover-probe.sh` PASS.
+Mode-1 Smoke PASS (return 0, kein Takeover).
+Log: `build/run-gate/px6a/merged-px6a.log`.
+vid_setmode: FBO folgt Viewport (Gamescope clampte 1024×768 → 640×480; recreate VERIFIED).
+
+**Nicht:** Mode 1 = visible custom; Default auf 2; Xash-Fallback entfernen; #12 schließen ohne DoD.
+
+**Nächster Schritt:** visuelle Zertifizierung / DoD-Rest für #12; danach Freigabe für Promotion.
+#1 #2 #3 nicht schließen.
+
 ## Stand 2026-09-20 — PX5.1 Sky + Trans; #11 CLOSED
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.

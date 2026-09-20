@@ -479,30 +479,40 @@ void DLLEXPORT HUD_DirectorMessage( int iSize, void *pbuf )
 ==========================
 HUD_GetRenderInterface
 
-PX2/PX3B: own render_interface_t. GL_RenderFrame is the only visible-frame hook
-and always returns 0. Offscreen probe lives in client/render/, never takes over Xash.
+PX2/PX3B/PX6A: own render_interface_t. Mode 0/1 return 0.
+Mode 2 may return 1 behind the PX6A takeover lifecycle gate.
 ==========================
 */
 
 static cvar_t *r_csretro_renderer = NULL;
 static int s_glRenderFrameLogged = 0;
 
-// Unconditional 0. No code path — including CVar 1 — may return 1.
 static int CSRETRO_GL_RenderFrame( const struct ref_viewpass_s *rvp )
 {
-	CSRETRO_Renderer_Frame( rvp );
+	int rc = CSRETRO_Renderer_Frame( rvp );
+	int mode = 0;
+
+	if( r_csretro_renderer )
+	{
+		if( r_csretro_renderer->value >= 1.5f )
+			mode = 2;
+		else if( r_csretro_renderer->value >= 0.5f )
+			mode = 1;
+	}
 
 	if( !s_glRenderFrameLogged )
 	{
 		s_glRenderFrameLogged = 1;
 		gEngfuncs.Con_Printf( "CS Retro: GL_RenderFrame callback reached\n" );
-		if( r_csretro_renderer && r_csretro_renderer->value != 0.0f )
+		if( mode == 2 )
+			gEngfuncs.Con_Printf( "CS Retro: r_csretro_renderer 2 takeover candidate (return=%i)\n", rc );
+		else if( mode == 1 )
 			gEngfuncs.Con_Printf( "CS Retro: r_csretro_renderer 1 offscreen probe, visible frame stays Xash\n" );
 		else
 			gEngfuncs.Con_Printf( "CS Retro: Xash fallback selected\n" );
 	}
 
-	return 0;
+	return rc;
 }
 
 static void CSRETRO_GL_BuildLightmaps( void )
@@ -561,7 +571,7 @@ int DLLEXPORT HUD_GetRenderInterface( int version, render_api_t *renderfuncs, re
 
 	s_glRenderFrameLogged = 0;
 	gEngfuncs.Con_Printf( "CS Retro: HUD_GetRenderInterface accepted v%i\n", CL_RENDER_INTERFACE_VERSION );
-	gEngfuncs.Con_Printf( "CS Retro: CS-Retro render callbacks registered (GL_RenderFrame always 0, R_ClearScene additive, Mod_GetCurrentVis active)\n" );
+	gEngfuncs.Con_Printf( "CS Retro: CS-Retro render callbacks registered (GL_RenderFrame mode0/1=0, mode2=takeover gate, R_ClearScene additive, Mod_GetCurrentVis active)\n" );
 
 	return true;
 }

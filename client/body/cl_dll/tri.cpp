@@ -41,6 +41,8 @@ static int s_tri_drawonly_reached_logged;
 static unsigned int s_tri_pman_drawonly_hash;
 static unsigned int s_tri_overview_drawonly_hash;
 static int s_tri_frame_noted;
+static int s_tri_owned_normal;
+static int s_tri_owned_trans;
 
 static IParticleMan_Active *ActiveParticleMan( void )
 {
@@ -65,6 +67,8 @@ void CSRETRO_ClientTriangles_BeginFrame( void )
 	s_tri_molotov_adv = 0;
 	s_tri_drawonly_normal = 0;
 	s_tri_drawonly_trans = 0;
+	s_tri_owned_normal = 0;
+	s_tri_owned_trans = 0;
 	s_tri_frame_noted = 1;
 }
 
@@ -195,6 +199,36 @@ int CSRETRO_ClientTriangles_ParticleCount( void )
 {
 	IParticleMan_Active *pman = ActiveParticleMan();
 	return pman ? pman->ParticleCount() : 0;
+}
+
+void CSRETRO_ClientTriangles_OwnedNormalPass( void )
+{
+	s_tri_owned_normal++;
+	CSRETRO_ClientTriangles_AdvanceNormal();
+	gHUD.m_Spectator.DrawOverviewReadOnly( true );
+}
+
+void CSRETRO_ClientTriangles_OwnedTransparentPass( void )
+{
+	s_tri_owned_trans++;
+	RenderFog();
+	if ( g_pParticleMan )
+	{
+		CSRETRO_ClientTriangles_AdvanceParticleMan();
+		CSRETRO_ClientTriangles_RenderParticleMan( 1 );
+		CSRETRO_ClientTriangles_AdvanceEnvironment();
+	}
+	CSRETRO_ClientTriangles_AdvanceMolotovHeld();
+}
+
+int CSRETRO_ClientTriangles_OwnedNormalCount( void )
+{
+	return s_tri_owned_normal;
+}
+
+int CSRETRO_ClientTriangles_OwnedTransparentCount( void )
+{
+	return s_tri_owned_trans;
 }
 
 void CSRETRO_ClientTriangles_DrawTransparentOnly( void )

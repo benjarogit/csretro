@@ -32,6 +32,16 @@ _Static_assert( offsetof( render_api_t, PrepareCurrentFrameVis ) == offsetof( re
 	"v37 prefix: PrepareCurrentFrameVis must be the tail slot after RunViewmodelEventsOnce" );
 _Static_assert( offsetof( render_api_t, GetEntityRenderInfoReadOnly ) == offsetof( render_api_t, PrepareCurrentFrameVis ) + sizeof( void * ),
 	"v37 prefix: GetEntityRenderInfoReadOnly must be the tail slot after PrepareCurrentFrameVis" );
+_Static_assert( offsetof( render_api_t, PrepareCustomFrame ) == offsetof( render_api_t, GetEntityRenderInfoReadOnly ) + sizeof( void * ),
+	"v37 prefix: PrepareCustomFrame must follow GetEntityRenderInfoReadOnly" );
+_Static_assert( offsetof( render_api_t, FinalizeCustomFrame ) == offsetof( render_api_t, PrepareCustomFrame ) + sizeof( void * ),
+	"v37 prefix: FinalizeCustomFrame must follow PrepareCustomFrame" );
+_Static_assert( offsetof( render_api_t, CustomFrameFogPre ) == offsetof( render_api_t, FinalizeCustomFrame ) + sizeof( void * ),
+	"v37 prefix: CustomFrameFogPre must follow FinalizeCustomFrame" );
+_Static_assert( offsetof( render_api_t, CustomFrameFogPost ) == offsetof( render_api_t, CustomFrameFogPre ) + sizeof( void * ),
+	"v37 prefix: CustomFrameFogPost must follow CustomFrameFogPre" );
+_Static_assert( offsetof( render_api_t, CustomFrameExtraUpdate ) == offsetof( render_api_t, CustomFrameFogPost ) + sizeof( void * ),
+	"v37 prefix: CustomFrameExtraUpdate must follow CustomFrameFogPost" );
 
 static void R_ClearScreen( void )
 {
@@ -473,6 +483,11 @@ static void R_FillRenderAPI( render_api_t *api )
 	api->RunViewmodelEventsOnce   = R_RunViewmodelEventsOnce;
 	api->PrepareCurrentFrameVis   = R_PrepareCurrentFrameVis;
 	api->GetEntityRenderInfoReadOnly = R_GetEntityRenderInfoReadOnly;
+	api->PrepareCustomFrame       = R_PrepareCustomFrame;
+	api->FinalizeCustomFrame      = R_FinalizeCustomFrame;
+	api->CustomFrameFogPre        = R_CustomFrameFogPre;
+	api->CustomFrameFogPost       = R_CustomFrameFogPost;
+	api->CustomFrameExtraUpdate   = R_CustomFrameExtraUpdate;
 	api->LightVec                 = R_LightVec;
 	api->StudioGetTexture         = R_StudioGetTexture;
 	api->GL_GetProcAddress        = R_GetProcAddress;

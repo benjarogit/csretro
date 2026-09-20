@@ -211,6 +211,9 @@ typedef struct
 	qboolean		fFlipViewModel;
 	qboolean		csretro_vis_prepared;
 	qboolean		csretro_cross_leaf;
+	qboolean		csretro_custom_prepared;
+	qboolean		csretro_player_light_done;
+	qboolean		csretro_custom_finalized;
 
 	byte		visbytes[(MAX_MAP_LEAFS+7)/8];	// member custom PVS
 	int		block_size;			// lightmap blocksize
@@ -375,6 +378,11 @@ void R_MarkLeaves( void );
 void R_PrepareViewState( void );
 int R_PrepareCurrentFrameVis( struct csretro_vis_request_s *req );
 int R_GetEntityRenderInfoReadOnly( const struct cl_entity_s *ent, struct csretro_entity_render_info_s *out );
+int R_PrepareCustomFrame( const struct ref_viewpass_s *rvp, struct csretro_custom_frame_info_s *out );
+void R_FinalizeCustomFrame( void );
+void R_CustomFrameFogPre( void );
+void R_CustomFrameFogPost( void );
+void R_CustomFrameExtraUpdate( void );
 void R_CollectWorldVisibility( struct csretro_vis_request_s *req, struct csretro_frame_vis_s *info );
 int R_DrawPreparedSky( const byte *mask, int mask_bytes, struct csretro_frame_vis_s *info );
 void R_DrawWorld( void );

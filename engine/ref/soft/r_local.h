@@ -226,6 +226,9 @@ typedef struct
 	qboolean     fResetVis;
 	qboolean     fFlipViewModel;
 	qboolean     csretro_vis_prepared;
+	qboolean     csretro_custom_prepared;
+	qboolean     csretro_player_light_done;
+	qboolean     csretro_custom_finalized;
 
 	// tree visualization stuff
 	int          recursion_level;
@@ -466,6 +469,11 @@ int R_RunViewmodelEventsOnce( void );
 void R_RunViewmodelEvents( void );
 int R_PrepareCurrentFrameVis( struct csretro_vis_request_s *req );
 int R_GetEntityRenderInfoReadOnly( const struct cl_entity_s *ent, struct csretro_entity_render_info_s *out );
+int R_PrepareCustomFrame( const struct ref_viewpass_s *rvp, struct csretro_custom_frame_info_s *out );
+void R_FinalizeCustomFrame( void );
+void R_CustomFrameFogPre( void );
+void R_CustomFrameFogPost( void );
+void R_CustomFrameExtraUpdate( void );
 void R_DrawViewModel( void );
 void R_DecalShoot( int textureIndex, int entityIndex, int modelIndex, vec3_t pos, int flags, float scale );
 void R_DecalRemoveAll( int texture );

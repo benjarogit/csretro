@@ -108,6 +108,14 @@ static int s_raw_color = 0;
 static unsigned int s_white_tex = 0;
 static int s_dumped_ppm = 0;
 
+// Mode-2 viewport-sized takeover target (separate from 512 diagnostic FBO).
+static unsigned int s_to_fbo = 0;
+static unsigned int s_to_depth_rb = 0;
+static unsigned int s_to_color = 0;
+static int s_to_w = 0;
+static int s_to_h = 0;
+static int s_to_active = 0;
+
 static void *( *s_get_proc )( const char *name ) = NULL;
 
 static void *LoadProc( const char *a, const char *b )
@@ -147,6 +155,8 @@ static PFN_GENTTEX pglGenTextures = NULL;
 static PFN_DEL pglDeleteTextures = NULL;
 static PFN_TEXIMAGE pglTexImage2D = NULL;
 static PFN_TEXPARAMI pglTexParameteri = NULL;
+typedef void ( *PFN_BLIT )( int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0, int dstX1, int dstY1, unsigned int mask, unsigned int filter );
+static PFN_BLIT pglBlitFramebuffer = NULL;
 
 typedef struct GLState_s
 {
@@ -269,12 +279,29 @@ int CSRETRO_Backend_Init( struct render_api_s *api )
 	pglDeleteTextures = (PFN_DEL)LoadProc( "glDeleteTextures", NULL );
 	pglTexImage2D = (PFN_TEXIMAGE)LoadProc( "glTexImage2D", NULL );
 	pglTexParameteri = (PFN_TEXPARAMI)LoadProc( "glTexParameteri", NULL );
+	pglBlitFramebuffer = (PFN_BLIT)LoadProc( "glBlitFramebuffer", "glBlitFramebufferEXT" );
 
 	if( !gXRGL.Clear || !gXRGL.Begin || !gXRGL.GetIntegerv || !gXRGL.BindFramebuffer || !pglGenFramebuffers )
 		return 0;
 
 	s_ready = 1;
 	return 1;
+}
+
+static void DestroyTakeoverFBO( void )
+{
+	if( s_to_fbo && pglDeleteFramebuffers )
+		pglDeleteFramebuffers( 1, &s_to_fbo );
+	s_to_fbo = 0;
+	if( s_to_depth_rb && pglDeleteRenderbuffers )
+		pglDeleteRenderbuffers( 1, &s_to_depth_rb );
+	s_to_depth_rb = 0;
+	if( s_to_color && pglDeleteTextures )
+		pglDeleteTextures( 1, &s_to_color );
+	s_to_color = 0;
+	s_to_w = 0;
+	s_to_h = 0;
+	s_to_active = 0;
 }
 
 static void DestroyFBO( void )
@@ -292,6 +319,7 @@ static void DestroyFBO( void )
 	s_color_texnum = 0;
 	s_color_glname = 0;
 	s_raw_color = 0;
+	DestroyTakeoverFBO();
 }
 
 void CSRETRO_Backend_Shutdown( void )
@@ -712,10 +740,14 @@ void CSRETRO_Backend_ApplyView( const float *vieworg, const float *viewangles, f
 
 void CSRETRO_Backend_PrepareImmediateDraw( void )
 {
-	if( gXRGL.BindFramebuffer && s_fbo )
-		gXRGL.BindFramebuffer( GL_FRAMEBUFFER, s_fbo );
+	int fw = s_to_active && s_to_w > 0 ? s_to_w : CSRETRO_OFFSCREEN_SIZE;
+	int fh = s_to_active && s_to_h > 0 ? s_to_h : CSRETRO_OFFSCREEN_SIZE;
+	unsigned int fbo = s_to_active && s_to_fbo ? s_to_fbo : s_fbo;
+
+	if( gXRGL.BindFramebuffer && fbo )
+		gXRGL.BindFramebuffer( GL_FRAMEBUFFER, fbo );
 	if( gXRGL.Viewport )
-		gXRGL.Viewport( 0, 0, CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE );
+		gXRGL.Viewport( 0, 0, fw, fh );
 	if( gXRGL.UseProgram )
 		gXRGL.UseProgram( 0 );
 	if( gXRGL.BindVertexArray )
@@ -821,7 +853,9 @@ static void FillProof( CSRETRO_OffscreenProof *proof, int write_ppm )
 {
 	unsigned char *pixels = NULL;
 	int i, nonempty = 0;
-	const int count = CSRETRO_OFFSCREEN_SIZE * CSRETRO_OFFSCREEN_SIZE;
+	const int fw = s_to_active && s_to_w > 0 ? s_to_w : CSRETRO_OFFSCREEN_SIZE;
+	const int fh = s_to_active && s_to_h > 0 ? s_to_h : CSRETRO_OFFSCREEN_SIZE;
+	const int count = fw * fh;
 
 	if( proof )
 		memset( proof, 0, sizeof( *proof ) );
@@ -841,7 +875,7 @@ static void FillProof( CSRETRO_OffscreenProof *proof, int write_ppm )
 	}
 	if( gXRGL.PixelStorei )
 		gXRGL.PixelStorei( GL_PACK_ALIGNMENT, 1 );
-	gXRGL.ReadPixels( 0, 0, CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, pixels );
+	gXRGL.ReadPixels( 0, 0, fw, fh, GL_RGBA, GL_UNSIGNED_BYTE, pixels );
 	for( i = 0; i < count; i++ )
 	{
 		const unsigned char *p = pixels + i * 4;
@@ -851,8 +885,8 @@ static void FillProof( CSRETRO_OffscreenProof *proof, int write_ppm )
 	if( proof )
 	{
 		proof->target_ok = 1;
-		proof->width = CSRETRO_OFFSCREEN_SIZE;
-		proof->height = CSRETRO_OFFSCREEN_SIZE;
+		proof->width = fw;
+		proof->height = fh;
 		proof->nonempty_pixels = nonempty;
 		proof->empty = nonempty == 0;
 		if( s_api && s_api->pfnFileBufferCRC32 )
@@ -866,8 +900,7 @@ static void FillProof( CSRETRO_OffscreenProof *proof, int write_ppm )
 		unsigned char *ppm = (unsigned char *)malloc( (size_t)rgb_len + 64 );
 		if( ppm )
 		{
-			int hdr = snprintf( (char *)ppm, 64, "P6\n%i %i\n255\n",
-				CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE );
+			int hdr = snprintf( (char *)ppm, 64, "P6\n%i %i\n255\n", fw, fh );
 			int p;
 			unsigned char *dst = ppm + hdr;
 			for( p = 0; p < count; p++ )
@@ -895,7 +928,9 @@ int CSRETRO_Backend_DumpPPM( const char *name )
 	unsigned char *pixels = NULL;
 	unsigned char *ppm = NULL;
 	int i, ok = 0;
-	const int count = CSRETRO_OFFSCREEN_SIZE * CSRETRO_OFFSCREEN_SIZE;
+	const int fw = s_to_active && s_to_w > 0 ? s_to_w : CSRETRO_OFFSCREEN_SIZE;
+	const int fh = s_to_active && s_to_h > 0 ? s_to_h : CSRETRO_OFFSCREEN_SIZE;
+	const int count = fw * fh;
 	const int rgb_len = count * 3;
 
 	if( !name || !name[0] || !gXRGL.ReadPixels || !s_api || !s_api->pfnSaveFile )
@@ -905,12 +940,11 @@ int CSRETRO_Backend_DumpPPM( const char *name )
 		return 0;
 	if( gXRGL.PixelStorei )
 		gXRGL.PixelStorei( GL_PACK_ALIGNMENT, 1 );
-	gXRGL.ReadPixels( 0, 0, CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, pixels );
+	gXRGL.ReadPixels( 0, 0, fw, fh, GL_RGBA, GL_UNSIGNED_BYTE, pixels );
 	ppm = (unsigned char *)malloc( (size_t)rgb_len + 64 );
 	if( ppm )
 	{
-		int hdr = snprintf( (char *)ppm, 64, "P6\n%i %i\n255\n",
-			CSRETRO_OFFSCREEN_SIZE, CSRETRO_OFFSCREEN_SIZE );
+		int hdr = snprintf( (char *)ppm, 64, "P6\n%i %i\n255\n", fw, fh );
 		unsigned char *dst = ppm + hdr;
 		for( i = 0; i < count; i++ )
 		{
@@ -939,4 +973,131 @@ void CSRETRO_Backend_EndOffscreen( CSRETRO_OffscreenProof *proof, int do_readbac
 	RestoreState();
 	if( s_api && s_api->GL_CleanUpTextureUnits )
 		s_api->GL_CleanUpTextureUnits( 0 );
+}
+
+static int EnsureTakeoverFBO( int w, int h )
+{
+	unsigned int status;
+
+	if( w <= 0 || h <= 0 )
+		return 0;
+	if( s_to_fbo && s_to_w == w && s_to_h == h )
+		return 1;
+	if( !s_ready || !pglGenFramebuffers || !pglGenTextures || !pglTexImage2D
+		|| !pglGenRenderbuffers || !pglFramebufferTexture2D || !pglCheckFramebufferStatus )
+		return 0;
+
+	DestroyTakeoverFBO();
+
+	pglGenTextures( 1, &s_to_color );
+	gXRGL.BindTexture( GL_TEXTURE_2D, s_to_color );
+	pglTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL );
+	if( pglTexParameteri )
+	{
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
+	}
+
+	pglGenRenderbuffers( 1, &s_to_depth_rb );
+	pglBindRenderbuffer( GL_RENDERBUFFER, s_to_depth_rb );
+	pglRenderbufferStorage( GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h );
+
+	pglGenFramebuffers( 1, &s_to_fbo );
+	gXRGL.BindFramebuffer( GL_FRAMEBUFFER, s_to_fbo );
+	pglFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_to_color, 0 );
+	pglFramebufferRenderbuffer( GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, s_to_depth_rb );
+	status = pglCheckFramebufferStatus( GL_FRAMEBUFFER );
+	gXRGL.BindFramebuffer( GL_FRAMEBUFFER, 0 );
+	pglBindRenderbuffer( GL_RENDERBUFFER, 0 );
+	gXRGL.BindTexture( GL_TEXTURE_2D, 0 );
+
+	if( status != GL_FRAMEBUFFER_COMPLETE )
+	{
+		DestroyTakeoverFBO();
+		return 0;
+	}
+	s_to_w = w;
+	s_to_h = h;
+	return 1;
+}
+
+int CSRETRO_Backend_TakeoverPresentCapable( void )
+{
+	return s_ready && pglBlitFramebuffer && gXRGL.BindFramebuffer ? 1 : 0;
+}
+
+int CSRETRO_Backend_EnsureTakeoverTarget( int w, int h )
+{
+	return EnsureTakeoverFBO( w, h );
+}
+
+int CSRETRO_Backend_BeginTakeover( int w, int h )
+{
+	if( !EnsureTakeoverFBO( w, h ) )
+		return 0;
+	if( !pglBlitFramebuffer )
+		return 0;
+
+	SaveState();
+	s_to_active = 1;
+	gXRGL.BindFramebuffer( GL_FRAMEBUFFER, s_to_fbo );
+	if( gXRGL.UseProgram )
+		gXRGL.UseProgram( 0 );
+	if( gXRGL.BindVertexArray )
+		gXRGL.BindVertexArray( 0 );
+	if( gXRGL.BindBuffer )
+	{
+		gXRGL.BindBuffer( GL_ARRAY_BUFFER, 0 );
+		gXRGL.BindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+	}
+	gXRGL.Viewport( 0, 0, w, h );
+	gXRGL.Disable( GL_SCISSOR_TEST );
+	gXRGL.Enable( GL_DEPTH_TEST );
+	gXRGL.DepthMask( GL_TRUE );
+	gXRGL.DepthFunc( GL_LEQUAL );
+	gXRGL.Disable( GL_BLEND );
+	gXRGL.Disable( GL_POLYGON_OFFSET_FILL );
+	gXRGL.Disable( GL_FOG );
+	gXRGL.Enable( GL_CULL_FACE );
+	gXRGL.CullFace( GL_BACK );
+	gXRGL.FrontFace( GL_CCW );
+	if( gXRGL.ColorMask )
+		gXRGL.ColorMask( 1, 1, 1, 1 );
+	gXRGL.ClearColor( 0.04f, 0.04f, 0.12f, 1.0f );
+	gXRGL.Clear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+	return 1;
+}
+
+int CSRETRO_Backend_PresentTakeover( int dst_x, int dst_y, int dst_w, int dst_h )
+{
+	if( !s_to_active || !s_to_fbo || !pglBlitFramebuffer || !gXRGL.BindFramebuffer )
+		return 0;
+	if( dst_w <= 0 || dst_h <= 0 )
+		return 0;
+
+	gXRGL.BindFramebuffer( GL_READ_FRAMEBUFFER, s_to_fbo );
+	gXRGL.BindFramebuffer( GL_DRAW_FRAMEBUFFER, (unsigned int)s_saved.fbo );
+	pglBlitFramebuffer( 0, 0, s_to_w, s_to_h,
+		dst_x, dst_y, dst_x + dst_w, dst_y + dst_h,
+		GL_COLOR_BUFFER_BIT, GL_NEAREST );
+	gXRGL.BindFramebuffer( GL_FRAMEBUFFER, s_to_fbo );
+	return 1;
+}
+
+void CSRETRO_Backend_EndTakeover( void )
+{
+	s_to_active = 0;
+	RestoreState();
+	if( s_api && s_api->GL_CleanUpTextureUnits )
+		s_api->GL_CleanUpTextureUnits( 0 );
+}
+
+void CSRETRO_Backend_TakeoverSize( int *w, int *h )
+{
+	if( w )
+		*w = s_to_w;
+	if( h )
+		*h = s_to_h;
 }

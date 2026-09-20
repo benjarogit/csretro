@@ -42,6 +42,14 @@ unsigned int CSRETRO_Backend_WhiteTexture( void );
 void CSRETRO_Backend_PushFog( void );
 void CSRETRO_Backend_PopFog( void );
 
+// Mode-2 viewport-sized takeover target. Separate from 512 diagnostic FBO.
+int CSRETRO_Backend_TakeoverPresentCapable( void );
+int CSRETRO_Backend_EnsureTakeoverTarget( int w, int h );
+int CSRETRO_Backend_BeginTakeover( int w, int h );
+int CSRETRO_Backend_PresentTakeover( int dst_x, int dst_y, int dst_w, int dst_h );
+void CSRETRO_Backend_EndTakeover( void );
+void CSRETRO_Backend_TakeoverSize( int *w, int *h );
+
 typedef struct CSRETRO_GL_s
 {
 	void ( *ClearColor )( float r, float g, float b, float a );

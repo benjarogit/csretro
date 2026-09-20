@@ -1107,6 +1107,95 @@ int R_PrepareCurrentFrameVis( csretro_vis_request_t *req )
 }
 
 /*
+===============
+R_PrepareCustomFrame
+
+Stateful Mode-2 takeover prepare. Exactly once per custom frame:
+frametime, framecount++, R_PushDlights, Vis consume, player light.
+No visible geometry. After this the client must Finalize + return 1.
+===============
+*/
+int R_PrepareCustomFrame( const ref_viewpass_t *rvp, csretro_custom_frame_info_t *out )
+{
+	csretro_custom_frame_info_t local;
+	csretro_custom_frame_info_t *info = out ? out : &local;
+
+	memset( info, 0, sizeof( *info ));
+	info->version = CSRETRO_CUSTOM_FRAME_INFO_VERSION;
+
+	if( rvp )
+		RI.rvp = *rvp;
+
+	info->framecount_before = tr.framecount;
+
+	if( !FBitSet( RI.rvp.flags, RF_DRAW_CUBEMAP ))
+		tr.frametime = gp_cl->time - gp_cl->oldtime;
+	else
+		tr.frametime = 0.0;
+	info->frametime_set = 1;
+
+	tr.framecount++;
+	info->framecount_after = tr.framecount;
+
+	tr.dlightframecount = R_PushDlights( WORLDMODEL, tr.framecount );
+	info->dlight_pushes = 1;
+
+	if( tr.csretro_vis_prepared )
+	{
+		info->vis_consumed = 1;
+		tr.csretro_vis_prepared = false;
+	}
+	else
+	{
+		R_PrepareViewState();
+		R_SetupGL( false );
+		R_MarkLeaves();
+		info->vis_consumed = 0;
+	}
+
+	R_GatherPlayerLight( tr.viewent );
+	tr.csretro_player_light_done = true;
+	info->player_light = 1;
+
+	tr.csretro_custom_prepared = true;
+	tr.csretro_custom_finalized = false;
+	return 1;
+}
+
+/*
+===============
+R_FinalizeCustomFrame
+
+Closes Mode-2 ownership: viewmodel event frame-end exactly once.
+Clears custom prepare flags so the next Xash frame starts clean.
+===============
+*/
+void R_FinalizeCustomFrame( void )
+{
+	R_NoteViewmodelEventsFrameEnd();
+	tr.csretro_custom_finalized = true;
+	tr.csretro_custom_prepared = false;
+	tr.csretro_player_light_done = false;
+	tr.csretro_vis_prepared = false;
+}
+
+void R_CustomFrameFogPre( void )
+{
+	R_DrawFog();
+	R_CheckGLFog();
+}
+
+void R_CustomFrameFogPost( void )
+{
+	R_CheckFog();
+}
+
+void R_CustomFrameExtraUpdate( void )
+{
+	gEngfuncs.CL_ExtraUpdate();
+}
+
+/*
 ================
 R_RenderScene
 
@@ -1269,7 +1358,14 @@ void R_RenderFrame( const ref_viewpass_t *rvp )
 
 		if( gEngfuncs.drawFuncs->GL_RenderFrame( rvp ))
 		{
-			R_GatherPlayerLight( tr.viewent );
+			if( !tr.csretro_player_light_done )
+				R_GatherPlayerLight( tr.viewent );
+			if( !tr.csretro_custom_finalized )
+				R_NoteViewmodelEventsFrameEnd();
+			tr.csretro_custom_prepared = false;
+			tr.csretro_player_light_done = false;
+			tr.csretro_custom_finalized = false;
+			tr.csretro_vis_prepared = false;
 			tr.realframecount++;
 			tr.fResetVis = true;
 			return;
@@ -1277,6 +1373,9 @@ void R_RenderFrame( const ref_viewpass_t *rvp )
 	}
 
 	tr.fCustomRendering = false;
+	tr.csretro_custom_prepared = false;
+	tr.csretro_player_light_done = false;
+	tr.csretro_custom_finalized = false;
 	if( !FBitSet( RI.rvp.flags, RF_ONLY_CLIENTDRAW ))
 		R_RunViewmodelEventsOnce();
 	R_NoteViewmodelEventsFrameEnd();

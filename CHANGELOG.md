@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.51 — 2026-09-20
+
+### Renderer
+
+- PX6A Mode-2 Takeover-Gate (`r_csretro_renderer 2`): viewport-großes Takeover-FBO, `glBlitFramebuffer`-Present, Engine-Lifecycle `PrepareCustomFrame` / `FinalizeCustomFrame` / Fog / ExtraUpdate (`REF_API_VERSION` 25). Mode 0/1 unverändert (`return 0`). Mode 2 `return 1` nur nach Preflight+Commit; Overview/Ripple/Cubemap/Preview/Alias → pre-commit `return 0`. EFX und Client-Triangles owned Advance exactly once. Probe `scripts/px6a-takeover-probe.sh` PASS. Issue #12 bleibt OPEN bis vollständiges DoD. Default bleibt 0; Mode 1 wird nicht zum sichtbaren Custom.
+
+Mode 2 übernimmt erstmals Advances hinter dem Gate; Default und Mode 1 bleiben Xash-sichtbar.  
+Mode 2 may return 1 behind the takeover gate; default and Mode 1 stay Xash-visible.
+
 ## 0.1.50 — 2026-09-20
 
 ### Renderer

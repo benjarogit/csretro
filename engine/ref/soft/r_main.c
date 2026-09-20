@@ -1212,7 +1212,14 @@ void GAME_EXPORT R_RenderFrame( const ref_viewpass_t *rvp )
 
 		if( gEngfuncs.drawFuncs->GL_RenderFrame( rvp ))
 		{
-			// R_GatherPlayerLight( tr.viewent );
+			if( !tr.csretro_player_light_done )
+				R_GatherPlayerLight( tr.viewent );
+			if( !tr.csretro_custom_finalized )
+				R_NoteViewmodelEventsFrameEnd();
+			tr.csretro_custom_prepared = false;
+			tr.csretro_player_light_done = false;
+			tr.csretro_custom_finalized = false;
+			tr.csretro_vis_prepared = false;
 			tr.realframecount++;
 			tr.fResetVis = true;
 			return;
@@ -1220,6 +1227,9 @@ void GAME_EXPORT R_RenderFrame( const ref_viewpass_t *rvp )
 	}
 
 	tr.fCustomRendering = false;
+	tr.csretro_custom_prepared = false;
+	tr.csretro_player_light_done = false;
+	tr.csretro_custom_finalized = false;
 	if( !FBitSet( RI.rvp.flags, RF_ONLY_CLIENTDRAW ))
 		R_RunViewmodelEventsOnce();
 	R_NoteViewmodelEventsFrameEnd();
@@ -1538,6 +1548,57 @@ int R_GetEntityRenderInfoReadOnly( const cl_entity_t *ent, csretro_entity_render
 		out->distance = DotProduct( vecLen, vecLen );
 	}
 	return 1;
+}
+
+int R_PrepareCustomFrame( const ref_viewpass_t *rvp, csretro_custom_frame_info_t *out )
+{
+	csretro_custom_frame_info_t local;
+	csretro_custom_frame_info_t *info = out ? out : &local;
+
+	memset( info, 0, sizeof( *info ));
+	info->version = CSRETRO_CUSTOM_FRAME_INFO_VERSION;
+	if( rvp )
+		RI.rvp = *rvp;
+	info->framecount_before = tr.framecount;
+	tr.frametime = gp_cl->time - gp_cl->oldtime;
+	info->frametime_set = 1;
+	tr.framecount++;
+	info->framecount_after = tr.framecount;
+	tr.dlightframecount = R_PushDlights( WORLDMODEL, tr.framecount );
+	info->dlight_pushes = 1;
+	if( tr.csretro_vis_prepared )
+	{
+		info->vis_consumed = 1;
+		tr.csretro_vis_prepared = false;
+	}
+	R_GatherPlayerLight( tr.viewent );
+	tr.csretro_player_light_done = true;
+	info->player_light = 1;
+	tr.csretro_custom_prepared = true;
+	tr.csretro_custom_finalized = false;
+	return 1;
+}
+
+void R_FinalizeCustomFrame( void )
+{
+	R_NoteViewmodelEventsFrameEnd();
+	tr.csretro_custom_finalized = true;
+	tr.csretro_custom_prepared = false;
+	tr.csretro_player_light_done = false;
+	tr.csretro_vis_prepared = false;
+}
+
+void R_CustomFrameFogPre( void )
+{
+}
+
+void R_CustomFrameFogPost( void )
+{
+}
+
+void R_CustomFrameExtraUpdate( void )
+{
+	gEngfuncs.CL_ExtraUpdate();
 }
 
 /*

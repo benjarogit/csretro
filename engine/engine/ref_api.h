@@ -93,7 +93,12 @@ GNU General Public License for more details.
 // 24. CS Retro: render_api_t tail GetEntityRenderInfoReadOnly. One Xash
 //     classification for effective rendermode / opaque / fxblend / sort
 //     distance. No client studio-texture analysis. v37 prefix unchanged.
-#define REF_API_VERSION 24
+// 25. CS Retro: render_api_t tail PrepareCustomFrame / FinalizeCustomFrame /
+//     CustomFrameFogPre / CustomFrameFogPost / CustomFrameExtraUpdate.
+//     Mode-2 visible takeover owns frametime, framecount, R_PushDlights,
+//     player light, fog helpers, ExtraUpdate, and viewmodel event frame-end
+//     exactly once. v37 prefix unchanged.
+#define REF_API_VERSION 25
 
 #define TF_SKY		(TF_SKYSIDE|TF_NOMIPMAP|TF_ALLOW_NEAREST)
 #define TF_FONT		(TF_NOMIPMAP|TF_CLAMP|TF_ALLOW_NEAREST)

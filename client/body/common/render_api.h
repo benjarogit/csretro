@@ -233,6 +233,19 @@ typedef struct csretro_entity_render_info_s
 	float		distance;
 } csretro_entity_render_info_t;
 
+#define CSRETRO_CUSTOM_FRAME_INFO_VERSION	1
+
+typedef struct csretro_custom_frame_info_s
+{
+	int		version;
+	int		framecount_before;
+	int		framecount_after;
+	int		dlight_pushes;
+	int		player_light;
+	int		frametime_set;
+	int		vis_consumed;
+} csretro_custom_frame_info_t;
+
 typedef struct csretro_vis_request_s
 {
 	int		version;
@@ -361,6 +374,17 @@ typedef struct render_api_s
 	// distance with the same bbox-average rule as R_TransEntityCompare.
 	// Does not advance Fade/Solid/Hologram state or seed RNG.
 	int		(*GetEntityRenderInfoReadOnly)( const struct cl_entity_s *ent, struct csretro_entity_render_info_s *out );
+	// PX6A custom-frame lifecycle. PrepareCustomFrame owns frametime,
+	// framecount++, R_PushDlights, Vis consume/reuse setup, and
+	// R_GatherPlayerLight exactly once. No visible geometry. After this
+	// call the client must FinalizeCustomFrame and return 1 — no Xash
+	// fallback in the same frame. Fog/ExtraUpdate helpers wrap the same
+	// Xash functions used by R_RenderScene.
+	int		(*PrepareCustomFrame)( const struct ref_viewpass_s *rvp, struct csretro_custom_frame_info_s *out );
+	void		(*FinalizeCustomFrame)( void );
+	void		(*CustomFrameFogPre)( void );
+	void		(*CustomFrameFogPost)( void );
+	void		(*CustomFrameExtraUpdate)( void );
 } render_api_t;
 
 // render callbacks

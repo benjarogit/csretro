@@ -10,6 +10,7 @@
 #include "render_dlight.h"
 #include "render_vis.h"
 #include "render_trans.h"
+#include "render_takeover.h"
 
 #include "hud.h"
 #include "cl_util.h"
@@ -33,6 +34,16 @@ static_assert( offsetof( render_api_t, PrepareCurrentFrameVis ) == offsetof( ren
 	"v37 prefix: PrepareCurrentFrameVis must be the tail slot after RunViewmodelEventsOnce" );
 static_assert( offsetof( render_api_t, GetEntityRenderInfoReadOnly ) == offsetof( render_api_t, PrepareCurrentFrameVis ) + sizeof( void * ),
 	"v37 prefix: GetEntityRenderInfoReadOnly must be the tail slot after PrepareCurrentFrameVis" );
+static_assert( offsetof( render_api_t, PrepareCustomFrame ) == offsetof( render_api_t, GetEntityRenderInfoReadOnly ) + sizeof( void * ),
+	"v37 prefix: PrepareCustomFrame must follow GetEntityRenderInfoReadOnly" );
+static_assert( offsetof( render_api_t, FinalizeCustomFrame ) == offsetof( render_api_t, PrepareCustomFrame ) + sizeof( void * ),
+	"v37 prefix: FinalizeCustomFrame must follow PrepareCustomFrame" );
+static_assert( offsetof( render_api_t, CustomFrameFogPre ) == offsetof( render_api_t, FinalizeCustomFrame ) + sizeof( void * ),
+	"v37 prefix: CustomFrameFogPre must follow FinalizeCustomFrame" );
+static_assert( offsetof( render_api_t, CustomFrameFogPost ) == offsetof( render_api_t, CustomFrameFogPre ) + sizeof( void * ),
+	"v37 prefix: CustomFrameFogPost must follow CustomFrameFogPre" );
+static_assert( offsetof( render_api_t, CustomFrameExtraUpdate ) == offsetof( render_api_t, CustomFrameFogPost ) + sizeof( void * ),
+	"v37 prefix: CustomFrameExtraUpdate must follow CustomFrameFogPost" );
 
 static cvar_t *s_renderer = NULL;
 static cvar_t *s_dump = NULL;
@@ -40,6 +51,9 @@ static cvar_t *s_probe_seq = NULL;
 static int s_inited = 0;
 static int s_backend_ok = 0;
 static int s_proof_logged = 0;
+static int s_px6a_logged = 0;
+static int s_px6a_last_fw = 0;
+static int s_px6a_last_fh = 0;
 static int s_sprite_logged = 0;
 static int s_normal_crc_logged = 0;
 static int s_tent_proof_logged = 0;
@@ -453,26 +467,60 @@ static void LogRandomTiled( const CSRETRO_MeshDrawStats *ms )
 		ms->verts );
 }
 
-void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
+int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 {
 	CSRETRO_WorldStats st;
 	CSRETRO_OffscreenProof proof;
 	int dump;
+	int mode;
+	int takeover = 0;
+	int efx_draw_only = 1;
+	int committed = 0;
+	int present_ok = 0;
+	int reject = CSRETRO_TAKEOVER_OK;
+	CSRETRO_TakeoverProof tp;
+	csretro_custom_frame_info_t cfi;
+
+	memset( &tp, 0, sizeof( tp ) );
+	memset( &cfi, 0, sizeof( cfi ) );
 
 	if( !rvp )
-		return;
-	if( !( rvp->flags & RF_DRAW_WORLD ) )
-		return;
+		return 0;
 
 	EnsureEngine();
 	EnsureCvars();
+	mode = CSRETRO_Renderer_Mode();
+	tp.mode = mode;
+
+	if( mode == 0 )
+	{
+		RunProbeSeq();
+		return 0;
+	}
+
+	// Mode 1 diagnostic still requires RF_DRAW_WORLD like before.
+	if( mode == 1 && !( rvp->flags & RF_DRAW_WORLD ) )
+		return 0;
+
 	CSRETRO_ClientTriangles_BeginFrame();
 	CSRETRO_BspMesh_BeginFrame();
 	CSRETRO_Decal_BeginFrame();
-	if( !ProbeEnabled() )
+	CSRETRO_Takeover_ResetProof();
+
+	if( mode == 2 )
 	{
-		RunProbeSeq();
-		return;
+		if( !CSRETRO_Takeover_Eligible( rvp, &reject ) )
+		{
+			tp.eligible = 0;
+			tp.reject_reason = reject;
+			tp.return_code = 0;
+			CSRETRO_Takeover_NoteProof( &tp );
+			RunProbeSeq();
+			return 0;
+		}
+		tp.eligible = 1;
+		takeover = 1;
+		efx_draw_only = 0;
 	}
 
 	// Events before BeginOffscreen. FBO failure still leaves the claimed
@@ -519,7 +567,14 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				s_proof_logged = 1;
 				gEngfuncs.Con_Printf( "CS Retro: offscreen backend unavailable — Xash fallback unchanged\n" );
 			}
-			return;
+			if( takeover )
+			{
+				tp.reject_reason = CSRETRO_TAKEOVER_REJECT_BACKEND;
+				tp.return_code = 0;
+				CSRETRO_Takeover_NoteProof( &tp );
+			}
+			RunProbeSeq();
+			return 0;
 		}
 	}
 
@@ -531,14 +586,93 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_World_OnNewMap();
 	}
 
-	if( !CSRETRO_Backend_BeginOffscreen() )
+	// --- PRE-COMMIT (Mode 2): no stateful advances yet ---
+	if( takeover )
+	{
+		tp.viewport_w = rvp->viewport[2];
+		tp.viewport_h = rvp->viewport[3];
+		if( CSRETRO_Scene_HasAlias() )
+		{
+			tp.reject_reason = CSRETRO_TAKEOVER_REJECT_ALIAS;
+			tp.return_code = 0;
+			CSRETRO_Takeover_NoteProof( &tp );
+			RunProbeSeq();
+			return 0;
+		}
+		if( !CSRETRO_Backend_TakeoverPresentCapable() )
+		{
+			tp.reject_reason = CSRETRO_TAKEOVER_REJECT_PRESENT;
+			tp.return_code = 0;
+			CSRETRO_Takeover_NoteProof( &tp );
+			RunProbeSeq();
+			return 0;
+		}
+		if( !gRenderAPI.PrepareCustomFrame || !gRenderAPI.FinalizeCustomFrame )
+		{
+			tp.reject_reason = CSRETRO_TAKEOVER_REJECT_PREPARE;
+			tp.return_code = 0;
+			CSRETRO_Takeover_NoteProof( &tp );
+			RunProbeSeq();
+			return 0;
+		}
+		if( !CSRETRO_Backend_EnsureTakeoverTarget( tp.viewport_w, tp.viewport_h ) )
+		{
+			tp.reject_reason = CSRETRO_TAKEOVER_REJECT_FBO;
+			tp.return_code = 0;
+			CSRETRO_Takeover_NoteProof( &tp );
+			RunProbeSeq();
+			return 0;
+		}
+		CSRETRO_Backend_TakeoverSize( &tp.fbo_w, &tp.fbo_h );
+		if( tp.fbo_w != tp.viewport_w || tp.fbo_h != tp.viewport_h )
+		{
+			tp.reject_reason = CSRETRO_TAKEOVER_REJECT_FBO;
+			tp.return_code = 0;
+			CSRETRO_Takeover_NoteProof( &tp );
+			RunProbeSeq();
+			return 0;
+		}
+		tp.preflight_ok = 1;
+
+		// --- TAKEOVER COMMITTED: no same-frame Xash fallback ---
+		if( !gRenderAPI.PrepareCustomFrame( rvp, &cfi ) )
+		{
+			tp.reject_reason = CSRETRO_TAKEOVER_REJECT_PREPARE;
+			tp.return_code = 0;
+			CSRETRO_Takeover_NoteProof( &tp );
+			RunProbeSeq();
+			return 0;
+		}
+		committed = 1;
+		tp.committed = 1;
+		tp.framecount_before = cfi.framecount_before;
+		tp.framecount_after = cfi.framecount_after;
+		tp.dlight_pushes = cfi.dlight_pushes;
+		tp.player_light = cfi.player_light;
+		tp.vis_consumed = cfi.vis_consumed;
+
+		if( !CSRETRO_Backend_BeginTakeover( tp.viewport_w, tp.viewport_h ) )
+		{
+			CSRETRO_Takeover_LatchFault();
+			if( gRenderAPI.FinalizeCustomFrame )
+				gRenderAPI.FinalizeCustomFrame();
+			tp.fault_latched = 1;
+			tp.return_code = 1;
+			CSRETRO_Takeover_NoteProof( &tp );
+			gEngfuncs.Con_Printf( "CS Retro: PX6A BeginTakeover failed after commit — fault latched, return 1\n" );
+			RunProbeSeq();
+			return 1;
+		}
+	}
+	else if( !CSRETRO_Backend_BeginOffscreen() )
 	{
 		if( !s_proof_logged )
 		{
 			s_proof_logged = 1;
 			gEngfuncs.Con_Printf( "CS Retro: offscreen FBO failed — Xash fallback unchanged\n" );
 		}
-		return;
+		RunProbeSeq();
+		return 0;
 	}
 
 	{
@@ -592,6 +726,9 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_OffscreenProof after_sky;
 			const csretro_frame_vis_t *vi = CSRETRO_Vis_Info();
 
+			if( takeover && gRenderAPI.CustomFrameFogPre )
+				gRenderAPI.CustomFrameFogPre();
+
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 			if( gXRGL.Disable )
@@ -625,6 +762,13 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		memset( &world_base_proof, 0, sizeof( world_base_proof ) );
 		CSRETRO_Backend_SampleProof( &world_base_proof );
 		CSRETRO_DLight_NoteWorldCrc( world_base_proof.crc, CSRETRO_DLight_PatchCount() );
+		if( takeover && gRenderAPI.CustomFrameFogPost )
+			gRenderAPI.CustomFrameFogPost();
+		if( takeover && gRenderAPI.CustomFrameExtraUpdate )
+		{
+			gRenderAPI.CustomFrameExtraUpdate();
+			tp.extra_updates++;
+		}
 		if( CSRETRO_World_HasWater() && world_ctx.water_alpha >= 1.0f )
 		{
 			CSRETRO_OffscreenProof after_water;
@@ -872,7 +1016,9 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 			if( gRenderAPI.DrawEFX )
-				gRenderAPI.DrawEFX( rvp, 0, 1 );
+				gRenderAPI.DrawEFX( rvp, 0, efx_draw_only );
+			if( takeover )
+				tp.efx_solid++;
 			memset( &after_solid_efx, 0, sizeof( after_solid_efx ) );
 			CSRETRO_Backend_SampleProof( &after_solid_efx );
 			if( s_efx_crc_logged != 1 && before_solid_efx.crc != after_solid_efx.crc )
@@ -890,7 +1036,10 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_Backend_SampleProof( &before_tri_n );
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
-			CSRETRO_ClientTriangles_DrawNormalOnly();
+			if( takeover )
+				CSRETRO_ClientTriangles_OwnedNormalPass();
+			else
+				CSRETRO_ClientTriangles_DrawNormalOnly();
 			memset( &after_tri_n, 0, sizeof( after_tri_n ) );
 			CSRETRO_Backend_SampleProof( &after_tri_n );
 			if( s_tri_crc_logged != 1 && before_tri_n.crc != after_tri_n.crc
@@ -1057,7 +1206,10 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_Backend_SampleProof( &after_sprites );
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
-			CSRETRO_ClientTriangles_DrawTransparentOnly();
+			if( takeover )
+				CSRETRO_ClientTriangles_OwnedTransparentPass();
+			else
+				CSRETRO_ClientTriangles_DrawTransparentOnly();
 			memset( &after_tri_t, 0, sizeof( after_tri_t ) );
 			CSRETRO_Backend_SampleProof( &after_tri_t );
 			if( s_tri_crc_logged != 1 && after_sprites.crc != after_tri_t.crc
@@ -1071,7 +1223,9 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 			if( gRenderAPI.DrawEFX )
-				gRenderAPI.DrawEFX( rvp, 1, 1 );
+				gRenderAPI.DrawEFX( rvp, 1, efx_draw_only );
+			if( takeover )
+				tp.efx_trans++;
 			memset( &after_trans_efx, 0, sizeof( after_trans_efx ) );
 			CSRETRO_Backend_SampleProof( &after_trans_efx );
 			if( s_efx_crc_logged != 1 && after_tri_t.crc != after_trans_efx.crc )
@@ -1232,7 +1386,44 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				dump = s_dump && s_dump->value != 0.0f;
 				memset( &proof, 0, sizeof( proof ) );
 				CSRETRO_DLight_EndOffscreen();
-				CSRETRO_Backend_EndOffscreen( &proof, 1 );
+				if( takeover )
+				{
+					if( gRenderAPI.CustomFrameExtraUpdate )
+					{
+						gRenderAPI.CustomFrameExtraUpdate();
+						tp.extra_updates++;
+					}
+					CSRETRO_Backend_SampleProof( &proof );
+					present_ok = CSRETRO_Backend_PresentTakeover(
+						rvp->viewport[0], rvp->viewport[1],
+						rvp->viewport[2], rvp->viewport[3] );
+					tp.present_ok = present_ok;
+					if( !present_ok )
+					{
+						CSRETRO_Takeover_LatchFault();
+						tp.fault_latched = 1;
+						gEngfuncs.Con_Printf( "CS Retro: PX6A present failed after commit — fault latched, return 1\n" );
+					}
+					CSRETRO_Backend_EndTakeover();
+					if( gRenderAPI.FinalizeCustomFrame )
+						gRenderAPI.FinalizeCustomFrame();
+					if( !s_px6a_logged || tp.fbo_w != s_px6a_last_fw || tp.fbo_h != s_px6a_last_fh )
+					{
+						s_px6a_logged = 1;
+						s_px6a_last_fw = tp.fbo_w;
+						s_px6a_last_fh = tp.fbo_h;
+						gEngfuncs.Con_Printf(
+							"CS Retro: PX6A takeover present=%i fbo=%ix%i viewport=%ix%i framecount=%i→%i dlight=%i efx_s=%i efx_t=%i tri_n=%i tri_t=%i extra=%i\n",
+							present_ok, tp.fbo_w, tp.fbo_h, tp.viewport_w, tp.viewport_h,
+							tp.framecount_before, tp.framecount_after, tp.dlight_pushes,
+							tp.efx_solid, tp.efx_trans,
+							CSRETRO_ClientTriangles_OwnedNormalCount(),
+							CSRETRO_ClientTriangles_OwnedTransparentCount(),
+							tp.extra_updates );
+					}
+				}
+				else
+					CSRETRO_Backend_EndOffscreen( &proof, 1 );
 				if( scene.follow_drawn > 0 && s_follow_crc_logged != 1 )
 				{
 					int fdiffer = after_studio.crc != proof.crc ? 1 : 0;
@@ -1425,6 +1616,18 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 
 	(void)dump;
 	RunProbeSeq();
+
+	if( takeover && committed )
+	{
+		tp.tri_normal_owned = CSRETRO_ClientTriangles_OwnedNormalCount();
+		tp.tri_trans_owned = CSRETRO_ClientTriangles_OwnedTransparentCount();
+		tp.return_code = 1;
+		CSRETRO_Takeover_NoteProof( &tp );
+		return 1;
+	}
+	if( mode != 2 && CSRETRO_Takeover_FaultLatched() )
+		CSRETRO_Takeover_ClearFault();
+	return 0;
 }
 
 static void RunProbeSeq( void )
@@ -1436,9 +1639,10 @@ static void RunProbeSeq( void )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int visc = s_probe_seq->value >= 14.0f;
-			int viewmodelc = !visc && s_probe_seq->value >= 12.0f;
-			int playerc = !visc && !viewmodelc && s_probe_seq->value >= 11.0f;
+			int takeoverc = s_probe_seq->value >= 15.0f;
+			int visc = !takeoverc && s_probe_seq->value >= 14.0f;
+			int viewmodelc = !takeoverc && !visc && s_probe_seq->value >= 12.0f;
+			int playerc = !takeoverc && !visc && !viewmodelc && s_probe_seq->value >= 11.0f;
 			int randomc = !viewmodelc && !playerc && s_probe_seq->value >= 10.0f;
 			int dlightc = !viewmodelc && !playerc && !randomc && s_probe_seq->value >= 9.0f;
 			int decalc = !viewmodelc && !playerc && !dlightc && !randomc && s_probe_seq->value >= 8.0f;
@@ -1448,7 +1652,106 @@ static void RunProbeSeq( void )
 			int efx = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
 			int brush = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
 			int px3c = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
-			if( visc )
+			if( takeoverc )
+			{
+				if( s_probe_step == 0 && elapsed >= 2.0f )
+				{
+					s_probe_step = 1;
+					gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 2.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A renderer 2\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 5.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.pfnClientCmd( "give weapon_ak47; weapon_ak47; +attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A fire ak47\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 8.0f )
+				{
+					s_probe_step = 3;
+					gEngfuncs.pfnClientCmd( "give weapon_hegrenade; weapon_hegrenade; +attack; wait; -attack; +attack; wait; -attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A throw he\n" );
+				}
+				else if( s_probe_step == 3 && elapsed >= 12.0f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.pfnClientCmd( "dev_overview 1\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A dev_overview 1\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 15.0f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.pfnClientCmd( "dev_overview 0\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A dev_overview 0\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 17.0f )
+				{
+					s_probe_step = 6;
+					gEngfuncs.Cvar_SetValue( "r_ripple", 1.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A r_ripple 1\n" );
+				}
+				else if( s_probe_step == 6 && elapsed >= 20.0f )
+				{
+					s_probe_step = 7;
+					gEngfuncs.Cvar_SetValue( "r_ripple", 0.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A r_ripple 0\n" );
+				}
+				else if( s_probe_step == 7 && elapsed >= 22.0f )
+				{
+					s_probe_step = 8;
+					gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 0.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A mode 2→0\n" );
+				}
+				else if( s_probe_step == 8 && elapsed >= 24.0f )
+				{
+					s_probe_step = 9;
+					gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 2.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A mode 0→2\n" );
+				}
+				else if( s_probe_step == 9 && elapsed >= 26.0f )
+				{
+					s_probe_step = 10;
+					gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 1.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A mode 2→1\n" );
+				}
+				else if( s_probe_step == 10 && elapsed >= 28.0f )
+				{
+					s_probe_step = 11;
+					gEngfuncs.Cvar_SetValue( "r_csretro_renderer", 2.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A mode 1→2\n" );
+				}
+				else if( s_probe_step == 11 && elapsed >= 30.0f )
+				{
+					s_probe_step = 12;
+					gEngfuncs.pfnClientCmd( "map de_torn\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A map de_torn\n" );
+				}
+				else if( s_probe_step == 12 && elapsed >= 37.0f )
+				{
+					s_probe_step = 13;
+					gEngfuncs.pfnClientCmd( "map cs_assault\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A map cs_assault\n" );
+				}
+				else if( s_probe_step == 13 && elapsed >= 44.0f )
+				{
+					s_probe_step = 14;
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A map de_dust\n" );
+				}
+				else if( s_probe_step == 14 && elapsed >= 51.0f )
+				{
+					s_probe_step = 15;
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 15 && elapsed >= 55.0f )
+				{
+					s_probe_step = 16;
+					gEngfuncs.pfnClientCmd( "quit\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq PX6A quit\n" );
+				}
+			}
+			else if( visc )
 			{
 				if( s_probe_step == 0 && elapsed >= 2.0f )
 				{

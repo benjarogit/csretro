@@ -49,6 +49,7 @@ set(CS_SOURCES
     "${RENDER_DIR}/render_dlight.cpp"
     "${RENDER_DIR}/render_vis.cpp"
     "${RENDER_DIR}/render_trans.cpp"
+    "${RENDER_DIR}/render_takeover.cpp"
 )
 
 if(NOT HAVE_STRLCPY)

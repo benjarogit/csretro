@@ -437,8 +437,8 @@ Issue [#6](https://github.com/benjarogit/csretro/issues/6). `GL_RenderFrame` ble
 | Studio | CONFIRMED nicht gezeichnet | `Studio classified: N local: N (not drawn)` |
 | Brush-Entities | VERIFIED | offscreen Draw aus Mirror-Liste, Cache, opaque+trans, rotierende Tür visuell zertifiziert. [#7](https://github.com/benjarogit/csretro/issues/7) bleibt OPEN (EFX/Triangles) |
 | World+Sprite CRC | CONFIRMED | DoD präzisiert: echter Sprite-Pass ändert Offscreen-Pixel, nicht „winziger Smoke in 512²“. aztec `world=b574ac9e full=21e1f2db differ=1 normal_drawn=16`; spawn `world=9b241fd4 full=0742170e differ=1 normal_drawn=12` |
-| Engine-EFX `GL_DrawParticles` | DEFERRED | `CL_ThinkParticle` ändert Sim-State. [#7](https://github.com/benjarogit/csretro/issues/7) |
-| Client-Triangles | DEFERRED | ParticleMan/Fog/`EV_UpdateMolotovHeld` ändern State. [#7](https://github.com/benjarogit/csretro/issues/7) |
+| Engine-EFX `GL_DrawParticles` | VERIFIED draw-only | `DrawEFX(rvp, trans, draw_only=1)` mutiert Live-Listen nicht; Xash `draw_only=0` bleibt einziges Advance. [#7](https://github.com/benjarogit/csretro/issues/7) OPEN |
+| Client-Triangles | PENDING Research | siehe CLIENT TRIANGLE OWNERSHIP RESULT. Kein Produktcode. [#7](https://github.com/benjarogit/csretro/issues/7) |
 | GL isolation (Sprite) | CONFIRMED soweit sichtbar | FBO nach World-Readback neu gebunden; blend/alpha/depth/cull/texenv/TMU/color/matrices Save+Restore; sichtbares Xash ohne Artefakte |
 | Fehlende Sprite-Modi | DEFERRED | `SPR_ANGLED`; Frame-Lerp; Sprite-Lightmap. [#7](https://github.com/benjarogit/csretro/issues/7) |
 
@@ -609,7 +609,7 @@ remaining sprite modes: PENDING
 
 Sonderfälle bleiben separat: SURF_DRAWTURB/water DEFERRED; tex anim DEFERRED; decals DEFERRED; dlights DEFERRED; conveyor/fullbright laut Research.
 
-`return 1` gesperrt: Engine-EFX, Client-Triangles, restliche Sprite-Modi, Player, Viewmodel, Vis, Turb/Decals.
+`return 1` gesperrt: Client-Triangles, restliche Sprite-Modi, Player, Viewmodel, Vis, Turb/Decals. Engine-EFX ist draw-only hinter return 0, kein Takeover.
 
 ## #7 Engine-EFX Vertrag (2026-09-20, vor Produktcode)
 
@@ -652,4 +652,86 @@ Server-Beams: `R_BeamDrawCustomEntity` baut einen **lokalen** `BEAM` aus `cl_ent
 Ziel-Semantik dauerhaft: **UPDATE/ADVANCE genau einmal pro Frame. DRAW null-/ein-/mehrfach ohne Simulation oder Listenbesitz zu ändern.**
 
 Xash-only (`r_csretro_renderer 0`) muss exakt **einen** normalen Effektzyklus behalten (sichtbar + einmalige Sim), bevor der Client den draw-only-Einstieg bekommt.
+
+## #7 Engine-EFX draw-only (Produkt, 2026-09-20)
+
+`GL_RenderFrame` bleibt 0. Eine Client-API: `render_api_t.DrawEFX(rvp, trans_pass, draw_only)` am Ende nach dem eingefrorenen v37-Prefix. Kein heimliches v37-Semantik-Upgrade; PrimeXT-Pin unverändert. Engine↔Ref intern: `REF_API_VERSION` 18→19 (`draw_only` an `CL_DrawEFX` / Particles / Tracers / Beams).
+
+```text
+Offscreen (r_csretro_renderer 1):
+  World → opaque Brush → Studio → FOLLOW
+  → DrawEFX(rvp, 0, 1)   // solid, draw-only
+  → trans Brush → Sprites
+  → DrawEFX(rvp, 1, 1)   // trans, draw-only
+  → FBO finish → restore → return 0
+Xash R_DrawEntitiesOnList = einziges Advance+Draw
+```
+
+| Teilstück | Status | Beleg |
+| --- | --- | --- |
+| Particles draw-only | CONFIRMED | `CL_DrawParticles(..., draw_only)` liest org/color/die/type/unused; kein Think, kein `p->color=` |
+| Tracers draw-only | CONFIRMED | Geometrie aus org/vel/ramp; kein org/vel/unused/gravity; CVar-Flags unangetastet |
+| Beams draw-only | CONFIRMED reviewed | Server-Beam bleibt lokaler `BEAM`. Temp: `copy=*live; R_BeamDraw(&copy)`. `FracNoise` no-op. Follow kein alloc/free/drift. Stock-CS: **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT** (`beams=0`) |
+| Cleanup ownership | CONFIRMED | `CL_FreeDeadBeams` / `R_FreeDeadParticles` nur wenn `!draw_only` |
+| Xash-only Gate | CONFIRMED | `./scripts/px7-efx-xash-gate.sh` PASS: `r_csretro_renderer 0`, AK-Schuss `advance trans=1 particles=4 tracers=8`, kein draw-only, HE geworfen |
+| Offscreen solid EFX | CONFIRMED called | `DrawEFX(rvp, 0, 1)` vor trans Brush. CRC-Proof typisch auf Trans-Pass (Particles/Tracer) |
+| Offscreen trans EFX | CONFIRMED | AK-Schuss `draw-only trans=1 particles=4 tracers=7 mutate=0`; CRC `b2b51f56`→`a60d9dc4` differ=1 pass=trans |
+| Double-advance | CONFIRMED | dieselbe Frame: draw-only hash `324710fc` → Xash advance `0e539cc1 advanced=1`. Offscreen verdoppelt nicht |
+| `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab |
+| Mapchange / vid_setmode | CONFIRMED | aztec→dust + `vid_setmode 1024 768` |
+| Movement-Gate | CONFIRMED | `./scripts/movement-contract-gate.sh` PASS |
+| Sichtbares Xash | CONFIRMED | sichtbarer EFX-Pfad bleibt Xash (return 0). `GL_INVALID_ENUM` Overlay wie PX4A (`gl_rmain.c:800` Fehlerqueue, kein neuer EFX-Leak) |
+| HE / Smoke / Flash | CONFIRMED Xash-sichtbar | Probe wirft HE; sichtbarer Frame unverändert Xash. Inferno **nicht** #2 |
+
+#7 bleibt OPEN. Client-Triangles PENDING. Brush-Sonderflächen / restliche Sprite-Modi DEFERRED.
+
+```
+Brush entities: VERIFIED
+Engine EFX: VERIFIED draw-only ownership
+Client triangles: PENDING
+remaining sprite modes / brush special cases: PENDING/DEFERRED
+```
+
+## CLIENT TRIANGLE OWNERSHIP RESULT
+
+Kein Produktcode. Quellen: `client/body/cl_dll/tri.cpp`, `particleman/IParticleMan_Active.cpp`, `particleman/CMiniMem.cpp`, `environment.cpp`, `events/event_createinferno.cpp`, Aufrufer `engine/ref/gl/gl_rmain.c` `R_DrawEntitiesOnList`.
+
+**Overview draw-only?:** `HUD_DrawNormalTriangles` = `gHUD.m_Spectator.DrawOverview()` CONFIRMED. Im FPS (`g_iUser1==0`) Early-Return plus optionales `gl_clear`-Restore. Spectator-Pfad setzt `gl_clear`, zeichnet Layer/Entities, `CheckOverviewEntities` löscht alte Overview-Slots. **Kein** reines Draw: CVar- und Listenmutation. Nicht als Offscreen-Draw-Only aufrufen.
+
+**Fog state ownership:** `HUD_DrawTransparentTriangles` → `RenderFog()` schreibt TriAPI `FogParams` + `Fog` (GL-Fog). Liest `g_FogParameters` und `cl_fog_*`. Kein Particle-Think. Offscreen nur mit GL-Restore; Ownership bleibt Xash-visible Pass.
+
+**ParticleMan split proposal:** `IParticleMan_Active::SetRender(int)` setzt nur `g_iRenderMode`. **Kein Leser** im CS-Retro-Baum — **kein** belegter Draw/Think-Split. `Update()` räumt Forces, `ApplyForce`, Frustum, dann `CMiniMem::ProcessAll()`: **Think + Die + Visibility + Sort + Draw** in einem Loop (`CMiniMem.cpp:81–147`), danach `g_flOldTime = time`.
+
+**Environment update ownership:** `g_Environment.Update()` Wind + Rain/Snow-Spawn (`updateTime` / `m_flOldTime`). Doppelt aufrufen = doppelte Spawns und doppelte Wind-Schritte.
+
+**Molotov-held ownership:** `EV_UpdateMolotovHeld()` Wick-`TEMPENTITY` (Alloc, origin, die). Nicht 2×/Frame. Viewmodel-Wick bleibt #10.
+
+**exact current call order** (`gl_rmain.c` `R_DrawEntitiesOnList`):
+
+```text
+solid ents (brush/alias/studio)
+solid sprites
+CL_DrawEFX(frametime, false, false)     // Engine, nicht Client-Triangles
+HUD_DrawNormalTriangles                 // Spectator DrawOverview
+trans ents (brush/alias/studio/sprite)
+HUD_DrawTransparentTriangles            // Fog + ParticleMan.Update + Environment.Update + EV_UpdateMolotovHeld
+CL_DrawEFX(frametime, true, false)
+R_DrawViewModel
+```
+
+**safe offscreen calls:** keine der aktuellen HUD-Triangle-Funktionen als Ganzes. Fog-GL allein nur mit Save/Restore und ohne zweiten `Update()`. Spectator-Overview nur wenn draw-only-Split existiert (heute nicht).
+
+**unsafe duplicate calls:** `HUD_DrawTransparentTriangles` gesamt; `g_pParticleMan->Update()` / `ProcessAll()`; `g_Environment.Update()`; `EV_UpdateMolotovHeld()`; Spectator `DrawOverview()` (CVar + Entity-Kill-Liste).
+
+**recommended permanent split:** analog Engine-EFX.
+
+- ParticleMan: `AdvanceParticles()` (Think/Die/Forces/`g_flOldTime`) einmal/Frame; `RenderParticles()` (Visibility/Sort/Draw, kein Die). `SetRender` nicht verwenden.
+- Environment: `AdvanceWeather()` (Wind/Spawn) einmal; Draw bleibt ParticleMan-Draw.
+- Molotov: Advance nur im sichtbaren Xash-Frame (oder Viewmodel-Slice).
+- Overview: Draw vs `CheckOverviewEntities`/`gl_clear` trennen, falls Spectator offscreen je nötig.
+- Eine Client-API, kein dritter Weg neben `DrawEFX`.
+
+**files affected:** `tri.cpp`, `IParticleMan_Active.cpp` / `.h`, `CMiniMem.cpp` / `.h`, `environment.cpp` / `.h`, `event_createinferno.cpp` (Wick), später `render_core.cpp` Aufrufordnung analog `R_DrawEntitiesOnList`.
+
+**tests:** Xash-only Gate: ein ParticleMan-/Wetter-Zyklus bei `r_csretro_renderer 0`. Offscreen: draw-only reached, ParticleMan-Origin/Die-Hash mutate=0, Xash-Advance danach `advanced=1`. Kein Dummy-Gameplay. Kein Triangle-Produkt in diesem Slice.
 

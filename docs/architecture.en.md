@@ -9,7 +9,7 @@ CS Retro (one codebase)
 ├── Client: one client_amd64.so
 │   ├── CS body (Velaron/NextClient-derived)
 │   ├── Movement/prediction (same contract as the GameDLL)
-│   └── PrimeXT-derived tech (`client/render/`; PX3B world/BSP, PX3C entity/sprite, PX4A non-player studio, PX4B.1 FOLLOW, #7 brush)
+│   └── PrimeXT-derived tech (`client/render/`; PX3B world/BSP, PX3C entity/sprite, PX4A non-player studio, PX4B.1 FOLLOW, #7 brush + engine EFX draw-only)
 ├── Menu library: CS Retro InGameUi (VGUI2 stays valid; ImGui for tools)
 └── GameDLL: ReGameDLL-derived — rules, weapons, inferno, ZBot
 ```
@@ -55,4 +55,4 @@ A port should identify its source, commit, affected files, license notices and t
 Do not add a second parallel implementation of **product logic**. The Xash world renderer may remain as a diagnostic/A/B fallback (`r_csretro_renderer 0`).
 PrimeXT updates are ported into the now-owned CS Retro implementation; they do not restore old upstream layers.
 Binding integration plan: PX0 (contracts/baselines) before productive renderer work (PX2).
-PX1 research and port matrix: [docs/research/px1-primext.md](research/px1-primext.md). PX2 (`17bd79f`) is the `HUD_GetRenderInterface` bridge. PX3A: strategy C. PX3B (`bbe418d`, visually certified): world/offscreen. PX3C (visually certified, #6 closed): entity mirror + sprite offscreen. PX4A (visually certified, #8 closed): non-player studio offscreen via GSMR `STUDIO_RENDER`. PX4B.1: non-player FOLLOW path exists, not reproducible on stock CS maps. #7 brush entities offscreen (shared mesh, cache, opaque+trans, rotating door). `GL_RenderFrame` stays 0. Remaining work before return 1: [#7](https://github.com/benjarogit/csretro/issues/7) EFX/triangles, player [#9](https://github.com/benjarogit/csretro/issues/9), viewmodel [#10](https://github.com/benjarogit/csretro/issues/10). Visible takeover only after full entity/EFX/studio ownership.
+PX1 research and port matrix: [docs/research/px1-primext.md](research/px1-primext.md). PX2 (`17bd79f`) is the `HUD_GetRenderInterface` bridge. PX3A: strategy C. PX3B (`bbe418d`, visually certified): world/offscreen. PX3C (visually certified, #6 closed): entity mirror + sprite offscreen. PX4A (visually certified, #8 closed): non-player studio offscreen via GSMR `STUDIO_RENDER`. PX4B.1: non-player FOLLOW path exists, not reproducible on stock CS maps. #7 brush visually certified; engine EFX draw-only behind `GL_RenderFrame` 0 (Xash remains the only advance). Client triangles and brush special cases stay in [#7](https://github.com/benjarogit/csretro/issues/7). Remaining work before return 1: triangles #7, player [#9](https://github.com/benjarogit/csretro/issues/9), viewmodel [#10](https://github.com/benjarogit/csretro/issues/10). Visible takeover only after full entity/EFX/studio ownership.

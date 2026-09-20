@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.24 — 2026-09-20
+
+### Architektur / Dokumentation
+
+- #7 Engine-EFX draw-only Ownership dokumentiert: Particles/Tracers/Beams-Split, `DrawEFX` ABI, Offscreen-Nachweis (`mutate=0`, CRC differ, Double-Advance). Client-Triangle-Ownership Research ohne Produktcode. Issue #7 bleibt offen.
+
+Diese Version ändert keinen Produktcode.  
+This release contains no product-code change.
+
 ## 0.1.23 — 2026-09-20
 
 ### Renderer

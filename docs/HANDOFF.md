@@ -3,20 +3,22 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
-## Stand 2026-09-20 — #7 Engine-EFX draw-only (Brush VERIFIED)
+## Stand 2026-09-20 — #7 Engine-EFX draw-only (VERIFIED, Issue OPEN)
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
 PX3B: `bbe418d` / v0.1.12, Cert `8443d0d` / v0.1.13, Issue #5 geschlossen.
 PX3C: `d3de222` / v0.1.14, Cert `9c7e7ae` / v0.1.15, Issue #6 geschlossen.
 PX4A: `29f5a3c` / v0.1.16, Visual `b42359a` / v0.1.18, Issue #8 geschlossen.
 PX4B.1: `344bf73` / v0.1.19. Issue #9 offen (ruhend).
-#7 Brush visuell: `59f4921` / v0.1.20, Cert dieser Stand. `GL_RenderFrame` bleibt 0.
+#7 Brush visuell: `59f4921` / v0.1.20, Cert `fba5b54` / v0.1.21.
+#7 Engine-EFX Split: `41ee26f` / v0.1.22. Offscreen `c365cda` / v0.1.23. Docs dieser Stand.
+`GL_RenderFrame` bleibt 0.
 
 ```
 Brush entities: VERIFIED
-Engine EFX: PENDING
+Engine EFX: VERIFIED draw-only ownership
 Client triangles: PENDING
-remaining sprite modes: PENDING
+remaining sprite modes / brush special cases: PENDING/DEFERRED
 ```
 
 **PrimeXT-Pin:** Tag `continious`, SHA `46fb05b41e58ed887718649e1720313baaac9a35` (2026-08-23).
@@ -31,10 +33,11 @@ Rolle: nur lesen. Clone ohne Submodule nach `refs/primext/` (gitignored).
 - Entity-Spiegel: `client/render/render_scene.cpp` — volle `cl_entity_t`-Kopie inkl. latched, kein Steal
 - Sprite offscreen: `client/render/render_sprite.cpp`
 - Studio offscreen: `client/render/render_studio.cpp` — GSMR `STUDIO_RENDER` only, Snapshot, CurrentEntity save/restore; FOLLOW child nur bei Non-Player-Parent in der Mirror-Liste
+- Engine-EFX: `gRenderAPI.DrawEFX(rvp, trans, draw_only)` — CS-Retro-Extension am Ende von `render_api_t` (v37-Prefix eingefroren). Intern Ref `REF_API_VERSION` 19
 - Brücke: `cdll_int.cpp` — `GL_RenderFrame` void + `return 0`; `HUD_AddEntity` spiegelt und behält Return
 
-**CVar:** `r_csretro_renderer` 0 = Xash-only. 1 = Offscreen World+Brush+Sprites+Non-Player-Studio+FOLLOW + sichtbarer Xash-Fallback.
-Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`.
+**CVar:** `r_csretro_renderer` 0 = Xash-only. 1 = Offscreen World+Brush+Sprites+Non-Player-Studio+FOLLOW+draw-only EFX + sichtbarer Xash-Fallback.
+Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`, `./scripts/px7-efx-xash-gate.sh`, `./scripts/px7-efx-offscreen-probe.sh`.
 Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts/px4a-visual-cert.sh` → `build/px4a-cert-shots/`; `./scripts/px7-brush-visual-cert.sh` → `build/px7-brush-cert-shots/` (nicht committed).
 
 **Callbacks an:** `Mod_ProcessUserData`, `R_NewMap`, `GL_BuildLightmaps`, `R_ClearScene` (additiv, nur CS-Retro-Liste).
@@ -48,10 +51,14 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Opaque `kRenderNormal` + TransTexture/Color/Alpha/Add. Lightmaps über `PARM_TEX_LIGHTMAP`.
 - Probe PASS + Visual `./scripts/px7-brush-visual-cert.sh` PASS: aztec Welt/Viewmodel/HUD; assault `func_door_rotating *11` index 19 origin 696 2236 48 sichtbar geschlossen → Kante → offen. Mapchange dust + `vid_setmode`. Movement-Gate PASS. `GL_RenderFrame` immer 0.
 - Sonderflächen DEFERRED: SURF_DRAWTURB/water, tex anim, decals, dlights; conveyor/fullbright laut Research.
-- #7 bleibt OPEN (Engine-EFX, Client-Triangles, restliche Sprite-Modi).
 
-**#7 Engine-EFX (dieser Slice, PENDING)**
-- Vertrag: `docs/research/px1-primext.md`. `GL_DrawParticles` / `CL_DrawEFX` ist für einen zweiten Strategie-C-Offscreen-Aufruf **nicht** sicher (Live-Listen, kein Snapshot). `frametime=0` ist kein draw-only. Player bleibt C.
+**#7 Engine-EFX (VERIFIED draw-only ownership 2026-09-20)**
+- Vertrag: `docs/research/px1-primext.md`. `GL_DrawParticles` bleibt unsicher (Advance). Produktpfad ist `DrawEFX(..., draw_only=1)`.
+- Intern: Particles/Tracers ohne Think; Beams `copy=*live`; Dead-list nur im Advance.
+- Xash-only Gate PASS (AK-Schuss particles+tracers, kein draw-only).
+- Offscreen: draw-only `mutate=0` auf Trans-Pass; CRC differ=1; Xash `advanced=1` dieselbe Frame. Beams Stock-CS NOT REPRODUCIBLE.
+- Reihenfolge: World → opaque Brush → Studio → FOLLOW → solid EFX draw-only → trans Brush → Sprites → trans EFX draw-only → restore → return 0.
+- Player bleibt C. Kein Triangle-Produktcode.
 
 **PX4B.1** (ruhend)
 - FOLLOW parent graph implementiert. Player-parent deferred. Stock-CS: **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT**.
@@ -59,13 +66,13 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Read-only: Variante B kann `gait`/`player_info_t` nicht isolieren ohne GSMR- oder `PlayerInfo`-Änderung (`IEngineStudio.PlayerInfo()` ist Live-State).
 
 **Offen vor return 1**
-- [#7](https://github.com/benjarogit/csretro/issues/7): Engine-EFX (`GL_DrawParticles` / Think), Client-Triangles (ParticleMan / Fog / Wick), `SPR_ANGLED` / Frame-Lerp / Sprite-Lightmap; Brush-Sonderflächen (turb/decals/dlights) DEFERRED
+- [#7](https://github.com/benjarogit/csretro/issues/7): Client-Triangles (ParticleMan / Fog / Wick), `SPR_ANGLED` / Frame-Lerp / Sprite-Lightmap; Brush-Sonderflächen (turb/decals/dlights) DEFERRED. Engine-EFX draw-only ist drin, Issue bleibt OPEN
 - Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)) — Variante C, Blocker vor `return 1`
 - Player-parent FOLLOW (Slice in #9, hängt an Player-Safety)
 - Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10))
 - Vis
 
-**Nächster Schritt:** Engine-EFX draw-only (#7): intern Particles/Tracers/Beams split, Xash-only Gate, dann eine Client-API `DrawEFX(rvp, trans, draw_only)`, dann Offscreen. Kein Triangle-Produktcode. Kein Viewmodel. `return 1` weiter gesperrt.
+**Nächster Schritt:** Client-Triangles draw-only (#7 Research ist da, kein Produkt in diesem Slice). Danach restliche Sprite-Modi / Brush-Sonderflächen. Kein Viewmodel. `return 1` weiter gesperrt.
 
 **PX0 bleibt offen**
 - #1 Movement Replay: https://github.com/benjarogit/csretro/issues/1

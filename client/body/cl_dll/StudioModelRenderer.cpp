@@ -852,7 +852,7 @@ bool CStudioModelRenderer::EffectiveRightHand(void) const
 	{
 		if (m_pStudioHeader && strstr(m_pStudioHeader->name, "shield"))
 			shield = true;
-		else if (m_pRenderModel && m_pRenderModel->name && strstr(m_pRenderModel->name, "shield"))
+		else if (m_pRenderModel && m_pRenderModel->name[0] && strstr(m_pRenderModel->name, "shield"))
 			shield = true;
 	}
 

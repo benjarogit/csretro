@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.44 — 2026-09-20
+
+### Renderer
+
+- PX4C.1 Viewmodel-Studio-Body offscreen: exakte Xash-Eligibility, Snapshot statt Live, `StudioDrawViewmodelOffscreen` nach Transparent EFX und vor Late Water, DepthRange save/0.3-span/restore, CurrentEntity/Model save/restore. Keine Scene-Mirror-Viewmodels, keine Events, kein zusätzlicher Wick-Capture. `GL_RenderFrame` bleibt 0. Issue #10 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.43 — 2026-09-20
 
 ### Renderer

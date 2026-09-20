@@ -20,6 +20,7 @@
 #include "camera.h"
 #include "cdll_dll.h"
 #include "pm_shared.h"
+#include "events.h"
 
 #include <string.h>
 #include <math.h>
@@ -28,7 +29,27 @@ extern engine_studio_api_t IEngineStudio;
 extern int g_iUser1;
 extern int g_iUser2;
 
+#ifndef GL_DEPTH_RANGE
+#define GL_DEPTH_RANGE 0x0B70
+#endif
+#ifndef GL_DEPTH_TEST
+#define GL_DEPTH_TEST 0x0B71
+#endif
+#ifndef GL_BLEND
+#define GL_BLEND 0x0BE2
+#endif
+#ifndef GL_DEPTH_WRITEMASK
+#define GL_DEPTH_WRITEMASK 0x0B73
+#endif
+#ifndef GL_VIEWPORT
+#define GL_VIEWPORT 0x0BA2
+#endif
+#ifndef GL_FRAMEBUFFER_BINDING
+#define GL_FRAMEBUFFER_BINDING 0x8CA6
+#endif
+
 static CSRETRO_StudioPlayerProof s_player_proof;
+static CSRETRO_StudioViewmodelProof s_vm_proof;
 static int s_player_logged = 0;
 static int s_local_logged = 0;
 static int s_pending_visible = 0;
@@ -128,6 +149,86 @@ static unsigned int HashEntityMut( const cl_entity_t *ent )
 	for( i = 0; i < 2; i++ )
 		h = MixU32( h, ent->latched.prevseqblending[i] );
 	return h;
+}
+
+static unsigned int HashViewModel( const cl_entity_t *ent )
+{
+	unsigned int h = 2166136261u;
+	int i;
+
+	if( !ent )
+		return 0;
+	h = MixFloat( h, ent->origin[0] );
+	h = MixFloat( h, ent->origin[1] );
+	h = MixFloat( h, ent->origin[2] );
+	h = MixFloat( h, ent->angles[0] );
+	h = MixFloat( h, ent->angles[1] );
+	h = MixFloat( h, ent->angles[2] );
+	h = MixU32( h, (unsigned int)ent->curstate.sequence );
+	h = MixFloat( h, ent->curstate.frame );
+	h = MixFloat( h, ent->curstate.animtime );
+	for( i = 0; i < 4; i++ )
+		h = MixU32( h, ent->curstate.controller[i] );
+	for( i = 0; i < 4; i++ )
+		h = MixU32( h, ent->curstate.blending[i] );
+	h = MixFloat( h, ent->latched.prevanimtime );
+	h = MixFloat( h, ent->latched.sequencetime );
+	h = MixU32( h, (unsigned int)ent->latched.prevsequence );
+	h = MixFloat( h, ent->latched.prevframe );
+	for( i = 0; i < 4; i++ )
+		h = MixU32( h, ent->latched.prevcontroller[i] );
+	for( i = 0; i < 2; i++ )
+		h = MixU32( h, ent->latched.prevblending[i] );
+	for( i = 0; i < 2; i++ )
+		h = MixU32( h, ent->latched.prevseqblending[i] );
+	h = MixU32( h, (unsigned int)ent->curstate.body );
+	h = MixU32( h, (unsigned int)ent->curstate.rendermode );
+	h = MixU32( h, (unsigned int)ent->curstate.renderfx );
+	h = MixU32( h, (unsigned int)ent->curstate.renderamt );
+	for( i = 0; i < 4; i++ )
+	{
+		h = MixFloat( h, ent->attachment[i][0] );
+		h = MixFloat( h, ent->attachment[i][1] );
+		h = MixFloat( h, ent->attachment[i][2] );
+	}
+	return h;
+}
+
+static unsigned int HashWickState( void )
+{
+	unsigned int h = 2166136261u;
+	float org[3];
+	float time = 0.0f;
+	int valid = 0;
+
+	memset( org, 0, sizeof( org ) );
+	EV_ReadMolotovWickState( org, &time, &valid );
+	h = MixFloat( h, org[0] );
+	h = MixFloat( h, org[1] );
+	h = MixFloat( h, org[2] );
+	h = MixFloat( h, time );
+	h = MixU32( h, (unsigned int)valid );
+	return h;
+}
+
+static void NoteViewmodelWeapon( const char *name )
+{
+	if( !name || !name[0] )
+		return;
+	if( strstr( name, "v_glock" ) || strstr( name, "v_usp" ) || strstr( name, "v_deagle" ) )
+		s_vm_proof.weapons_pistol = 1;
+	if( strstr( name, "v_ak47" ) || strstr( name, "v_m4a1" ) || strstr( name, "v_aug" ) || strstr( name, "v_galil" ) || strstr( name, "v_famas" ) )
+		s_vm_proof.weapons_rifle = 1;
+	if( strstr( name, "v_knife" ) )
+		s_vm_proof.weapons_knife = 1;
+	if( strstr( name, "v_hegrenade" ) )
+		s_vm_proof.weapons_he = 1;
+	if( strstr( name, "v_smokegrenade" ) )
+		s_vm_proof.weapons_smoke = 1;
+	if( strstr( name, "v_flashbang" ) )
+		s_vm_proof.weapons_flash = 1;
+	if( strstr( name, "v_molotov" ) )
+		s_vm_proof.weapons_molotov = 1;
 }
 
 static player_info_t *LivePlayerInfo( const cl_entity_t *snap )
@@ -930,4 +1031,208 @@ void CSRETRO_Studio_ResetPlayerProof( void )
 	s_local_logged = 0;
 	s_pending_visible = 0;
 	s_pending_index = -1;
+}
+
+void CSRETRO_Studio_GetViewmodelProof( CSRETRO_StudioViewmodelProof *out )
+{
+	if( !out )
+		return;
+	*out = s_vm_proof;
+}
+
+void CSRETRO_Studio_ResetViewmodelProof( void )
+{
+	memset( &s_vm_proof, 0, sizeof( s_vm_proof ) );
+	g_StudioRenderer.ResetOffscreenViewmodelProof();
+}
+
+int CSRETRO_Studio_DrawViewmodel( const ref_viewpass_t *rvp )
+{
+	cl_entity_t *live_vm;
+	cl_entity_t vm_snapshot;
+	cl_entity_t *saved_ent = NULL;
+	struct model_s *saved_model = NULL;
+	cl_entity_t *local;
+	cvar_t *drawvm;
+	cvar_t *righthand;
+	float depth_saved[2];
+	float depth_during[2];
+	float depth_after[2];
+	unsigned char depth_test_before = 0, depth_test_after = 0;
+	unsigned char depth_mask_before = 0, depth_mask_after = 0;
+	unsigned char blend_before = 0, blend_after = 0;
+	int viewport_before[4], viewport_after[4];
+	int fbo_before = 0, fbo_after = 0;
+	int flags;
+	int thirdperson = 0;
+	int health = 0;
+	int ok;
+	int events_before;
+	int wick_attempts_before;
+	int wick_captures_before;
+
+	if( !gRenderAPI.R_SetCurrentEntity )
+		return 0;
+
+	s_vm_proof.drawn_frame = 0;
+	s_vm_proof.eligible = 0;
+
+	live_vm = gEngfuncs.GetViewModel();
+	if( live_vm && live_vm->model )
+	{
+		s_vm_proof.candidates = 1;
+		if( live_vm->model->type == mod_studio )
+			s_vm_proof.studio_candidates = 1;
+		else
+			s_vm_proof.alias_seen = 1;
+		strncpy( s_vm_proof.model, live_vm->model->name, sizeof( s_vm_proof.model ) - 1 );
+		NoteViewmodelWeapon( live_vm->model->name );
+		if( strstr( live_vm->model->name, "v_molotov" ) )
+			s_vm_proof.wick_candidate = 1;
+	}
+
+	flags = rvp ? rvp->flags : 0;
+	s_vm_proof.draw_world = ( flags & RF_DRAW_WORLD ) ? 1 : 0;
+	s_vm_proof.only_clientdraw = ( flags & RF_ONLY_CLIENTDRAW ) ? 1 : 0;
+	s_vm_proof.cubemap = ( flags & RF_DRAW_CUBEMAP ) ? 1 : 0;
+	if( gRenderAPI.RenderGetParm )
+	{
+		thirdperson = (int)gRenderAPI.RenderGetParm( PARM_THIRDPERSON, 0 );
+		health = (int)gRenderAPI.RenderGetParm( PARM_LOCAL_HEALTH, 0 );
+	}
+	s_vm_proof.thirdperson = thirdperson;
+	s_vm_proof.health = health;
+	drawvm = gEngfuncs.pfnGetCvarPointer( "r_drawviewmodel" );
+	s_vm_proof.drawviewmodel = ( drawvm && drawvm->value != 0.0f ) ? 1 : 0;
+	local = gEngfuncs.GetLocalPlayer();
+	s_vm_proof.local_index = local ? local->index : 0;
+	s_vm_proof.viewentity = rvp ? rvp->viewentity : 0;
+
+	if( !( flags & RF_DRAW_WORLD ) )
+		return 0;
+	if( flags & RF_ONLY_CLIENTDRAW )
+		return 0;
+	if( !s_vm_proof.drawviewmodel )
+		return 0;
+	if( thirdperson )
+		return 0;
+	if( flags & RF_DRAW_CUBEMAP )
+		return 0;
+	if( health <= 0 )
+		return 0;
+	if( !local || !rvp || rvp->viewentity != local->index )
+		return 0;
+	if( !live_vm || !live_vm->model || live_vm->model->type != mod_studio )
+		return 0;
+
+	s_vm_proof.eligible = 1;
+	vm_snapshot = *live_vm;
+	s_vm_proof.live_hash_before = HashViewModel( live_vm );
+	s_vm_proof.wick_hash_before = HashWickState();
+	s_vm_proof.sequence = live_vm->curstate.sequence;
+	s_vm_proof.frame = live_vm->curstate.frame;
+	righthand = gHUD.cl_righthand;
+	s_vm_proof.righthand_before = righthand ? righthand->value : 0.0f;
+
+	if( IEngineStudio.GetCurrentEntity )
+		saved_ent = IEngineStudio.GetCurrentEntity();
+	if( saved_ent )
+		saved_model = saved_ent->model;
+
+	memset( depth_saved, 0, sizeof( depth_saved ) );
+	memset( depth_during, 0, sizeof( depth_during ) );
+	memset( depth_after, 0, sizeof( depth_after ) );
+	memset( viewport_before, 0, sizeof( viewport_before ) );
+	memset( viewport_after, 0, sizeof( viewport_after ) );
+	if( gXRGL.GetFloatv )
+		gXRGL.GetFloatv( GL_DEPTH_RANGE, depth_saved );
+	if( gXRGL.IsEnabled )
+	{
+		depth_test_before = gXRGL.IsEnabled( GL_DEPTH_TEST );
+		blend_before = gXRGL.IsEnabled( GL_BLEND );
+	}
+	if( gXRGL.GetBooleanv )
+		gXRGL.GetBooleanv( GL_DEPTH_WRITEMASK, &depth_mask_before );
+	if( gXRGL.GetIntegerv )
+	{
+		gXRGL.GetIntegerv( GL_VIEWPORT, viewport_before );
+		gXRGL.GetIntegerv( GL_FRAMEBUFFER_BINDING, &fbo_before );
+	}
+
+	if( gXRGL.DepthRange )
+		gXRGL.DepthRange( (double)depth_saved[0], (double)( depth_saved[0] + 0.3f * ( depth_saved[1] - depth_saved[0] ) ) );
+	if( gXRGL.GetFloatv )
+		gXRGL.GetFloatv( GL_DEPTH_RANGE, depth_during );
+
+	events_before = g_StudioRenderer.OffscreenViewmodelEvents();
+	wick_attempts_before = g_StudioRenderer.OffscreenWickAttempts();
+	wick_captures_before = g_StudioRenderer.OffscreenWickCaptures();
+
+	gRenderAPI.R_SetCurrentEntity( &vm_snapshot );
+	// Snapshot only. Never live. STUDIO_RENDER only. GSMR bone cache is overwritten
+	// here after Player/FOLLOW; visible Xash rebuilds its own studio context.
+	ok = g_StudioRenderer.StudioDrawViewmodelOffscreen( STUDIO_RENDER );
+
+	gRenderAPI.R_SetCurrentEntity( saved_ent );
+	if( gRenderAPI.R_SetCurrentModel )
+		gRenderAPI.R_SetCurrentModel( saved_model );
+
+	if( gXRGL.DepthRange )
+		gXRGL.DepthRange( (double)depth_saved[0], (double)depth_saved[1] );
+	if( gXRGL.GetFloatv )
+		gXRGL.GetFloatv( GL_DEPTH_RANGE, depth_after );
+
+	s_vm_proof.depth_before[0] = depth_saved[0];
+	s_vm_proof.depth_before[1] = depth_saved[1];
+	s_vm_proof.depth_during[0] = depth_during[0];
+	s_vm_proof.depth_during[1] = depth_during[1];
+	s_vm_proof.depth_after[0] = depth_after[0];
+	s_vm_proof.depth_after[1] = depth_after[1];
+	s_vm_proof.depth_restore = ( depth_after[0] == depth_saved[0] && depth_after[1] == depth_saved[1] ) ? 1 : 0;
+
+	if( gXRGL.IsEnabled )
+	{
+		depth_test_after = gXRGL.IsEnabled( GL_DEPTH_TEST );
+		blend_after = gXRGL.IsEnabled( GL_BLEND );
+	}
+	if( gXRGL.GetBooleanv )
+		gXRGL.GetBooleanv( GL_DEPTH_WRITEMASK, &depth_mask_after );
+	if( gXRGL.GetIntegerv )
+	{
+		gXRGL.GetIntegerv( GL_VIEWPORT, viewport_after );
+		gXRGL.GetIntegerv( GL_FRAMEBUFFER_BINDING, &fbo_after );
+	}
+	s_vm_proof.gl_restore = ( depth_test_before == depth_test_after
+		&& depth_mask_before == depth_mask_after
+		&& blend_before == blend_after
+		&& viewport_before[0] == viewport_after[0]
+		&& viewport_before[1] == viewport_after[1]
+		&& viewport_before[2] == viewport_after[2]
+		&& viewport_before[3] == viewport_after[3]
+		&& fbo_before == fbo_after ) ? 1 : 0;
+
+	s_vm_proof.live_hash_after = HashViewModel( live_vm );
+	s_vm_proof.snap_hash_after = HashViewModel( &vm_snapshot );
+	s_vm_proof.wick_hash_after = HashWickState();
+	s_vm_proof.live_mutate = ( s_vm_proof.live_hash_before != s_vm_proof.live_hash_after ) ? 1 : 0;
+	s_vm_proof.wick_mutate = ( s_vm_proof.wick_hash_before != s_vm_proof.wick_hash_after ) ? 1 : 0;
+	s_vm_proof.righthand_after = righthand ? righthand->value : 0.0f;
+	s_vm_proof.righthand_mutate = ( s_vm_proof.righthand_before != s_vm_proof.righthand_after ) ? 1 : 0;
+	if( g_StudioRenderer.OffscreenViewmodelEvents() != events_before )
+		s_vm_proof.events = 1;
+	s_vm_proof.wick_attempts = g_StudioRenderer.OffscreenWickAttempts();
+	s_vm_proof.wick_captures = g_StudioRenderer.OffscreenWickCaptures();
+	if( g_StudioRenderer.OffscreenWickCaptures() != wick_captures_before )
+		s_vm_proof.wick_captures = g_StudioRenderer.OffscreenWickCaptures();
+	(void)wick_attempts_before;
+	s_vm_proof.special_flip = g_StudioRenderer.ViewmodelSpecialFlip();
+	s_vm_proof.shield_detected = g_StudioRenderer.ViewmodelShieldDetected();
+
+	if( ok )
+	{
+		s_vm_proof.drawn++;
+		s_vm_proof.drawn_frame = 1;
+	}
+
+	return ok ? 1 : 0;
 }

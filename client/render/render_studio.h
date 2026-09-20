@@ -83,3 +83,56 @@ typedef struct CSRETRO_StudioPlayerProof_s
 void CSRETRO_Studio_GetPlayerProof( CSRETRO_StudioPlayerProof *out );
 int CSRETRO_Studio_ProbeLookTarget( float *origin );
 void CSRETRO_Studio_ResetPlayerProof( void );
+
+typedef struct CSRETRO_StudioViewmodelProof_s
+{
+	int candidates;
+	int studio_candidates;
+	int alias_seen;
+	int eligible;
+	int drawn;
+	int drawn_frame;
+	int events;
+	int live_mutate;
+	int righthand_mutate;
+	int wick_candidate;
+	int wick_attempts;
+	int wick_captures;
+	int wick_mutate;
+	int depth_restore;
+	int special_flip;
+	int shield_detected;
+	int thirdperson;
+	int health;
+	int drawviewmodel;
+	int cubemap;
+	int only_clientdraw;
+	int draw_world;
+	int viewentity;
+	int local_index;
+	unsigned int live_hash_before;
+	unsigned int live_hash_after;
+	unsigned int snap_hash_after;
+	unsigned int wick_hash_before;
+	unsigned int wick_hash_after;
+	float depth_before[2];
+	float depth_during[2];
+	float depth_after[2];
+	float righthand_before;
+	float righthand_after;
+	int gl_restore;
+	char model[64];
+	int weapons_pistol;
+	int weapons_rifle;
+	int weapons_knife;
+	int weapons_he;
+	int weapons_smoke;
+	int weapons_flash;
+	int weapons_molotov;
+	int sequence;
+	float frame;
+} CSRETRO_StudioViewmodelProof;
+
+int CSRETRO_Studio_DrawViewmodel( const struct ref_viewpass_s *rvp );
+void CSRETRO_Studio_GetViewmodelProof( CSRETRO_StudioViewmodelProof *out );
+void CSRETRO_Studio_ResetViewmodelProof( void );

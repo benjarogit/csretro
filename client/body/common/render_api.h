@@ -69,6 +69,9 @@ GNU General Public License for more details.
 // Decode: uint32_t bits = (uint32_t)parm; memcpy(&float, &bits, 4). Never assign the intptr_t to a float.
 #define PARM_WATER_ALPHA_VALUE	41
 #define PARM_MAP_HAS_LITWATER	42	// 0/1, FWORLD_HAS_LITWATER. Not a world-struct export.
+// Existing Xash engine parms (engine/ref_api.h). Client reads them via RenderGetParm. No new slot.
+#define PARM_THIRDPERSON	-2
+#define PARM_LOCAL_HEALTH	-10
 
 // skybox ordering
 enum

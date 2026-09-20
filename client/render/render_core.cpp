@@ -42,6 +42,16 @@ static int s_player_crc_logged = 0;
 static int s_player_hash_logged = 0;
 static int s_local_proof_logged = 0;
 static int s_shadow_proof_logged = 0;
+static int s_vm_crc_logged = 0;
+static int s_vm_hash_logged = 0;
+static int s_vm_depth_logged = 0;
+static int s_vm_gate_logged = 0;
+static int s_vm_molotov_logged = 0;
+static int s_vm_cvar_logged = 0;
+static int s_vm_third_logged = 0;
+static int s_vm_dead_logged = 0;
+static int s_vm_knife_logged = 0;
+static char s_vm_last_model[64];
 static int s_follow_crc_logged = 0;
 static int s_follow_detail_logged = 0;
 static int s_brush_crc_logged = 0;
@@ -101,6 +111,17 @@ static void ResetSpriteProof( void )
 	s_shadow_proof_logged = 0;
 	s_follow_crc_logged = 0;
 	CSRETRO_Studio_ResetPlayerProof();
+	CSRETRO_Studio_ResetViewmodelProof();
+	s_vm_crc_logged = 0;
+	s_vm_hash_logged = 0;
+	s_vm_depth_logged = 0;
+	s_vm_gate_logged = 0;
+	s_vm_molotov_logged = 0;
+	s_vm_cvar_logged = 0;
+	s_vm_third_logged = 0;
+	s_vm_dead_logged = 0;
+	s_vm_knife_logged = 0;
+	s_vm_last_model[0] = '\0';
 	s_follow_detail_logged = 0;
 	s_brush_crc_logged = 0;
 	s_brush_move_crc_logged = 0;
@@ -964,6 +985,117 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 					"CS Retro: offscreen efx proof before_crc=%08x after_crc=%08x differ=1 pass=trans\n",
 					after_tri_t.crc, after_trans_efx.crc );
 			}
+			{
+				CSRETRO_OffscreenProof before_vm;
+				CSRETRO_OffscreenProof after_vm;
+				CSRETRO_StudioViewmodelProof vp;
+				memset( &before_vm, 0, sizeof( before_vm ) );
+				CSRETRO_Backend_SampleProof( &before_vm );
+				CSRETRO_Backend_PrepareImmediateDraw();
+				CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+				CSRETRO_Studio_DrawViewmodel( rvp );
+				memset( &after_vm, 0, sizeof( after_vm ) );
+				CSRETRO_Backend_SampleProof( &after_vm );
+				CSRETRO_Studio_GetViewmodelProof( &vp );
+				if( !s_vm_hash_logged && vp.candidates )
+				{
+					s_vm_hash_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: viewmodel live hash before=%08x after_offscreen=%08x live_mutate=%i snap_after=%08x events=%i righthand_mutate=%i\n",
+						vp.live_hash_before, vp.live_hash_after, vp.live_mutate,
+						vp.snap_hash_after, vp.events, vp.righthand_mutate );
+				}
+				if( !s_vm_depth_logged && vp.eligible )
+				{
+					s_vm_depth_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: viewmodel depth before=%.5f/%.5f during=%.5f/%.5f after=%.5f/%.5f restore=%i gl_restore=%i\n",
+						vp.depth_before[0], vp.depth_before[1],
+						vp.depth_during[0], vp.depth_during[1],
+						vp.depth_after[0], vp.depth_after[1],
+						vp.depth_restore, vp.gl_restore );
+				}
+				if( vp.drawn_frame > 0 && s_vm_crc_logged != 1 )
+				{
+					int differ = before_vm.crc != after_vm.crc ? 1 : 0;
+					gEngfuncs.Con_Printf(
+						"CS Retro: offscreen viewmodel proof before_crc=%08x after_crc=%08x differ=%i candidates=%i studio=%i drawn=%i events=%i live_mutate=%i\n",
+						before_vm.crc, after_vm.crc, differ,
+						vp.candidates, vp.studio_candidates, vp.drawn,
+						vp.events, vp.live_mutate );
+					if( differ )
+						s_vm_crc_logged = 1;
+				}
+				if( vp.model[0] && strncmp( s_vm_last_model, vp.model, sizeof( s_vm_last_model ) ) != 0 )
+				{
+					strncpy( s_vm_last_model, vp.model, sizeof( s_vm_last_model ) - 1 );
+					gEngfuncs.Con_Printf(
+						"CS Retro: viewmodel weapon model=%s drawn_frame=%i eligible=%i pistol=%i rifle=%i knife=%i he=%i smoke=%i flash=%i molotov=%i\n",
+						vp.model, vp.drawn_frame, vp.eligible,
+						vp.weapons_pistol, vp.weapons_rifle, vp.weapons_knife,
+						vp.weapons_he, vp.weapons_smoke, vp.weapons_flash, vp.weapons_molotov );
+				}
+				if( !s_vm_gate_logged && vp.candidates )
+				{
+					s_vm_gate_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: viewmodel eligibility candidates=%i studio=%i alias=%i eligible=%i drawn_frame=%i drawvm=%i thirdperson=%i health=%i cubemap=%i only_client=%i world=%i viewentity=%i local=%i model=%s\n",
+						vp.candidates, vp.studio_candidates, vp.alias_seen, vp.eligible,
+						vp.drawn_frame, vp.drawviewmodel, vp.thirdperson, vp.health,
+						vp.cubemap, vp.only_clientdraw, vp.draw_world,
+						vp.viewentity, vp.local_index,
+						vp.model[0] ? vp.model : "-" );
+				}
+				if( vp.drawviewmodel == 0 && vp.candidates && !s_vm_cvar_logged )
+				{
+					s_vm_cvar_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: viewmodel r_drawviewmodel 0 candidate=%i drawn_frame=%i\n",
+						vp.candidates, vp.drawn_frame );
+				}
+				if( vp.drawviewmodel == 1 && vp.drawn_frame > 0 && s_vm_cvar_logged == 1 )
+				{
+					s_vm_cvar_logged = 2;
+					gEngfuncs.Con_Printf(
+						"CS Retro: viewmodel r_drawviewmodel 1 drawn_frame=%i drawn=%i\n",
+						vp.drawn_frame, vp.drawn );
+				}
+				if( vp.thirdperson && vp.candidates && !s_vm_third_logged )
+				{
+					s_vm_third_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: viewmodel thirdperson candidate=%i drawn_frame=%i\n",
+						vp.candidates, vp.drawn_frame );
+				}
+				if( vp.health <= 0 && vp.candidates && !s_vm_dead_logged )
+				{
+					s_vm_dead_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: viewmodel dead-player candidate=%i drawn_frame=%i health=%i\n",
+						vp.candidates, vp.drawn_frame, vp.health );
+				}
+				if( vp.weapons_knife && vp.drawn > 0 && !s_vm_knife_logged )
+				{
+					s_vm_knife_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: viewmodel knife special_flip=%i righthand=%.0f righthand_mutate=%i\n",
+						vp.special_flip, vp.righthand_after, vp.righthand_mutate );
+				}
+				if( vp.studio_candidates && !vp.alias_seen && s_vm_gate_logged == 1 )
+				{
+					s_vm_gate_logged = 2;
+					gEngfuncs.Con_Printf(
+						"CS Retro: viewmodel alias not required by current product content studio=1 alias=0\n" );
+				}
+				if( !s_vm_molotov_logged && vp.wick_candidate && vp.drawn > 0 )
+				{
+					s_vm_molotov_logged = 1;
+					gEngfuncs.Con_Printf(
+						"CS Retro: viewmodel molotov candidate=%i drawn=%i events=%i wick_attempts=%i wick_captures=%i wick_mutate=%i live_mutate=%i\n",
+						vp.wick_candidate, vp.drawn, vp.events,
+						vp.wick_attempts, vp.wick_captures, vp.wick_mutate, vp.live_mutate );
+				}
+			}
 			if( CSRETRO_World_HasWater() && world_ctx.water_alpha < 1.0f )
 			{
 				CSRETRO_OffscreenProof before_late;
@@ -1079,7 +1211,7 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				"CS Retro: Normal sprite mirrored: %i drawn: %i\n",
 				scene.normal_sprite, scene.normal_drawn );
 			gEngfuncs.Con_Printf(
-				"CS Retro: Studio classified: %i local: %i follow: %i viewmodel: %i preview: %i attempted: %i drawn: %i player_candidates=%i player_drawn=%i (events off, player=B isolated)\n",
+				"CS Retro: Studio classified: %i local: %i follow: %i viewmodel: %i preview: %i attempted: %i drawn: %i player_candidates=%i player_drawn=%i (events off, player=B isolated, viewmodel body after trans efx)\n",
 				scene.studio, scene.studio_local, scene.studio_follow,
 				scene.studio_viewmodel, scene.studio_preview,
 				scene.studio_attempted, scene.studio_drawn,
@@ -1208,17 +1340,185 @@ static void RunProbeSeq( void )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int playerc = s_probe_seq->value >= 11.0f;
-			int randomc = !playerc && s_probe_seq->value >= 10.0f;
-			int dlightc = !playerc && !randomc && s_probe_seq->value >= 9.0f;
-			int decalc = !playerc && !dlightc && !randomc && s_probe_seq->value >= 8.0f;
-			int waterb = !playerc && !randomc && !dlightc && !decalc && s_probe_seq->value >= 7.0f;
-			int special = !playerc && !randomc && !dlightc && !decalc && !waterb && s_probe_seq->value >= 6.0f;
-			int tri = !playerc && !randomc && !dlightc && !decalc && !waterb && !special && s_probe_seq->value >= 5.0f;
-			int efx = !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
-			int brush = !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
-			int px3c = !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
-			if( playerc )
+			int viewmodelc = s_probe_seq->value >= 12.0f;
+			int playerc = !viewmodelc && s_probe_seq->value >= 11.0f;
+			int randomc = !viewmodelc && !playerc && s_probe_seq->value >= 10.0f;
+			int dlightc = !viewmodelc && !playerc && !randomc && s_probe_seq->value >= 9.0f;
+			int decalc = !viewmodelc && !playerc && !dlightc && !randomc && s_probe_seq->value >= 8.0f;
+			int waterb = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && s_probe_seq->value >= 7.0f;
+			int special = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && s_probe_seq->value >= 6.0f;
+			int tri = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && s_probe_seq->value >= 5.0f;
+			int efx = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
+			int brush = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
+			int px3c = !viewmodelc && !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
+			if( viewmodelc )
+			{
+				if( s_probe_step == 0 && elapsed >= 2.0f )
+				{
+					float ang[3] = { 16.0f, 90.0f, 0.0f };
+					s_probe_step = 1;
+					gEngfuncs.SetViewAngles( ang );
+					gEngfuncs.Cvar_SetValue( "cl_righthand", 1.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel glock righthand 1\n" );
+					gEngfuncs.pfnClientCmd( "give weapon_glock18; give weapon_usp; weapon_glock18\n" );
+				}
+				else if( s_probe_step == 1 && elapsed >= 6.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.Cvar_SetValue( "cl_righthand", 0.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel righthand 0\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 9.0f )
+				{
+					s_probe_step = 3;
+					gEngfuncs.Cvar_SetValue( "cl_righthand", 1.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel knife righthand 0\n" );
+					gEngfuncs.pfnClientCmd( "give weapon_knife; weapon_knife\n" );
+					gEngfuncs.Cvar_SetValue( "cl_righthand", 0.0f );
+				}
+				else if( s_probe_step == 3 && elapsed >= 13.0f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.Cvar_SetValue( "cl_righthand", 1.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel knife righthand 1\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 16.0f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel ak47\n" );
+					gEngfuncs.pfnClientCmd( "give weapon_ak47; weapon_ak47\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 19.0f )
+				{
+					s_probe_step = 6;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel fire\n" );
+					gEngfuncs.pfnClientCmd( "+attack\n" );
+				}
+				else if( s_probe_step == 6 && elapsed >= 20.5f )
+				{
+					s_probe_step = 7;
+					gEngfuncs.pfnClientCmd( "-attack; +reload\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel reload\n" );
+				}
+				else if( s_probe_step == 7 && elapsed >= 23.0f )
+				{
+					s_probe_step = 8;
+					gEngfuncs.pfnClientCmd( "-reload; give weapon_hegrenade; weapon_hegrenade; +attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel he pull\n" );
+				}
+				else if( s_probe_step == 8 && elapsed >= 25.5f )
+				{
+					s_probe_step = 9;
+					gEngfuncs.pfnClientCmd( "-attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel he throw\n" );
+				}
+				else if( s_probe_step == 9 && elapsed >= 28.0f )
+				{
+					s_probe_step = 10;
+					gEngfuncs.pfnClientCmd( "give weapon_smokegrenade; weapon_smokegrenade; +attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel smoke pull\n" );
+				}
+				else if( s_probe_step == 10 && elapsed >= 30.5f )
+				{
+					s_probe_step = 11;
+					gEngfuncs.pfnClientCmd( "-attack; give weapon_flashbang; weapon_flashbang; +attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel flash pull\n" );
+				}
+				else if( s_probe_step == 11 && elapsed >= 33.0f )
+				{
+					s_probe_step = 12;
+					gEngfuncs.pfnClientCmd( "-attack; give weapon_molotov; weapon_molotov; +attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel molotov pull\n" );
+				}
+				else if( s_probe_step == 12 && elapsed >= 36.5f )
+				{
+					s_probe_step = 13;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel molotov wick\n" );
+				}
+				else if( s_probe_step == 13 && elapsed >= 38.5f )
+				{
+					s_probe_step = 14;
+					gEngfuncs.pfnClientCmd( "-attack\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel molotov throw\n" );
+				}
+				else if( s_probe_step == 14 && elapsed >= 42.0f )
+				{
+					s_probe_step = 15;
+					gEngfuncs.Cvar_SetValue( "r_drawviewmodel", 0.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_drawviewmodel 0\n" );
+				}
+				else if( s_probe_step == 15 && elapsed >= 45.0f )
+				{
+					s_probe_step = 16;
+					gEngfuncs.Cvar_SetValue( "r_drawviewmodel", 1.0f );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq r_drawviewmodel 1\n" );
+				}
+				else if( s_probe_step == 16 && elapsed >= 48.0f )
+				{
+					s_probe_step = 17;
+					gEngfuncs.Cvar_SetValue( "cam_idealdist", 128.0f );
+					cam_thirdperson = 1;
+					gEngfuncs.pfnClientCmd( "thirdperson\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel thirdperson\n" );
+				}
+				else if( s_probe_step == 17 && elapsed >= 51.0f )
+				{
+					s_probe_step = 18;
+					cam_thirdperson = 0;
+					gEngfuncs.pfnClientCmd( "firstperson; give weapon_shield\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel shield try\n" );
+				}
+				else if( s_probe_step == 18 && elapsed >= 54.0f )
+				{
+					CSRETRO_StudioViewmodelProof vp;
+					CSRETRO_Studio_GetViewmodelProof( &vp );
+					s_probe_step = 19;
+					if( vp.shield_detected )
+						gEngfuncs.Con_Printf( "CS Retro: viewmodel shield detected=%i special_flip=%i\n",
+							vp.shield_detected, vp.special_flip );
+					else
+						gEngfuncs.Con_Printf( "CS Retro: viewmodel shield implemented / runtime NOT REPRODUCIBLE WITH CURRENT GAME CONTENT\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel dead\n" );
+					gEngfuncs.pfnClientCmd( "kill\n" );
+				}
+				else if( s_probe_step == 19 && elapsed >= 58.0f )
+				{
+					s_probe_step = 20;
+					gEngfuncs.pfnClientCmd( "jointeam 1; joinclass 5\n" );
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq viewmodel restore team\n" );
+				}
+				else if( s_probe_step == 20 && elapsed >= 64.0f )
+				{
+					s_probe_step = 21;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_torn\n" );
+					gEngfuncs.pfnClientCmd( "map de_torn\n" );
+				}
+				else if( s_probe_step == 21 && elapsed >= 72.0f )
+				{
+					s_probe_step = 22;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map cs_assault\n" );
+					gEngfuncs.pfnClientCmd( "map cs_assault\n" );
+				}
+				else if( s_probe_step == 22 && elapsed >= 80.0f )
+				{
+					s_probe_step = 23;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+				}
+				else if( s_probe_step == 23 && elapsed >= 88.0f )
+				{
+					s_probe_step = 24;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 24 && elapsed >= 92.0f )
+				{
+					s_probe_step = 25;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
+					gEngfuncs.pfnClientCmd( "quit\n" );
+				}
+			}
+			else if( playerc )
 			{
 				if( s_probe_step == 0 && elapsed >= 2.0f )
 				{

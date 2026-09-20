@@ -3,13 +3,36 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
+## Stand 2026-09-20 — PX4B.2 Player Studio Isolation (Variante B) VERIFIED; #9 bleibt OPEN
+
+Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
+`GL_RenderFrame` bleibt 0. Issue #7 geschlossen. Issue #9 offen (Local Player deferred, Player-Shadows Takeover-Blocker, Player-parent FOLLOW N/R).
+
+```
+Remote Player isolated B: VERIFIED
+  live player_info BEFORE == AFTER_OFFSCREEN, AFTER_VISIBLE != BEFORE
+  live cl_entity mutate=0, snapshot copy changes
+  STUDIO_EVENTS=0, shadow_side_draw=0
+  pixels VERIFIED (aztec/torn/dust CRC differ=1)
+  models: gsg9/sas/gign (CT) + arctic (T)
+Local Player: consciously deferred (first-person world-studio exists when mirrored=1; SetupClientAnimation tot, m_bLocal=0)
+Player-parent FOLLOW: implemented / NOT REPRODUCIBLE WITH CURRENT GAME CONTENT
+Player shadows offscreen: not drawn (Takeover-Blocker, in #9 belassen)
+```
+
+**Produktpfad Player:** `StudioDrawPlayer` (sichtbar, Live-`PlayerInfo`) und `StudioDrawPlayerOffscreen` (lokale `player_info_t`, keine Events, kein Save/Restore, kein `r_shadows`) teilen `_StudioDrawPlayer` über `ResolvePlayerInfo`. Kein zweiter GSMR-Core. Scene-Mirror = Quelle. Kein Live-Writeback.
+
+Probe: `./scripts/px4b2-player-probe.sh` PASS. Movement-Gate PASS. Mapfolge aztec/torn/assault/dust + `vid_setmode`. Shots `build/px4b2-player-shots/` (nicht committed).
+
+**Nächster Schritt:** nur nach neuer Freigabe. #10 Viewmodel / Vis / `return 1` nicht starten. #9 nicht schließen, solange Local deferred oder Shadows für Takeover fehlen. #1 #2 #3 #7 #10 nicht anfassen.
+
 ## Stand 2026-09-20 — #7 Brush Special E (Random Tiled) VERIFIED; Issue CLOSED
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
 PX3B: `bbe418d` / v0.1.12, Cert `8443d0d` / v0.1.13, Issue #5 geschlossen.
 PX3C: `d3de222` / v0.1.14, Cert `9c7e7ae` / v0.1.15, Issue #6 geschlossen.
 PX4A: `29f5a3c` / v0.1.16, Visual `b42359a` / v0.1.18, Issue #8 geschlossen.
-PX4B.1: `344bf73` / v0.1.19. Issue #9 offen (ruhend).
+PX4B.1: `344bf73` / v0.1.19. PX4B.2: dieser Stand / v0.1.39. Issue #9 offen (Local deferred).
 #7 Brush visuell: `59f4921` / v0.1.20, Cert `fba5b54` / v0.1.21.
 #7 Engine-EFX Split: `41ee26f` / v0.1.22. Offscreen `c365cda` / v0.1.23. Docs `ba75509` / v0.1.24.
 #7 Client-Triangles Split: `362f1dc` / v0.1.26. Offscreen `191651b` / v0.1.27. Docs `fede75a` / v0.1.28.
@@ -51,7 +74,7 @@ Rolle: nur lesen. Clone ohne Submodule nach `refs/primext/` (gitignored).
 - Brush offscreen: `client/render/render_brush.cpp` — Cache nach `model_t*`, GoldSrc-Transform, opaque + trans + Brush-Water
 - Entity-Spiegel: `client/render/render_scene.cpp` — volle `cl_entity_t`-Kopie inkl. latched, kein Steal
 - Sprite offscreen: `client/render/render_sprite.cpp` — eine Pipeline; SPR_ANGLED, Frame-Lerp und Xash sprite-lighting (LightAtPoint + Modulationspass, kein zweiter BSP-Atlas)
-- Studio offscreen: `client/render/render_studio.cpp` — GSMR `STUDIO_RENDER` only, Snapshot, CurrentEntity save/restore; FOLLOW child nur bei Non-Player-Parent in der Mirror-Liste
+- Studio offscreen: `client/render/render_studio.cpp` — Non-Player `StudioDrawModel(STUDIO_RENDER)`; Remote-Player `StudioDrawPlayerOffscreen` auf lokaler `player_info_t`; FOLLOW non-player `StudioDrawModel(0)`, player-parent `StudioDrawPlayerOffscreen(0)` wenn vorhanden; CurrentEntity save/restore
 - Engine-EFX: `gRenderAPI.DrawEFX(rvp, trans, draw_only)` — CS-Retro-Extension am Ende von `render_api_t` (v37-Prefix eingefroren). Intern Ref `REF_API_VERSION` 21
 - Surface-DLights: `gRenderAPI.BuildSurfaceLightmapReadOnly(...)` — Tail-Slot nach DrawEFX. Xash evaluiert die Lightmap read-only; CS Retro besitzt transienten Atlas und Draw. Kein `R_PushDlights` offscreen.
 - Random tiled: `gRenderAPI.ResolveSurfaceTextureReadOnly(surface, entity_frame)` — Tail-Slot nach BuildSurfaceLightmapReadOnly. Eine Implementierung `R_ResolveSurfaceTexture`. Sichtbares `R_TextureAnimation` ist Wrapper. Keine Client-RNG, keine rtable-Export.
@@ -59,8 +82,8 @@ Rolle: nur lesen. Clone ohne Submodule nach `refs/primext/` (gitignored).
 - Brücke: `cdll_int.cpp` — `GL_RenderFrame` void + `return 0`; `HUD_AddEntity` spiegelt und behält Return
 - Water-Alpha: `PARM_WATER_ALPHA` = Map-Capability 0/1. `PARM_WATER_ALPHA_VALUE` = IEEE-754-Bits der effective wateralpha (1.0 ohne Capability). `PARM_MAP_HAS_LITWATER` 0/1. Kein neuer Funktionsslot.
 
-**CVar:** `r_csretro_renderer` 0 = Xash-only. 1 = Offscreen World+Brush+Sprites+Non-Player-Studio+FOLLOW+draw-only EFX+draw-only Client-Triangles + sichtbarer Xash-Fallback.
-Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`, `./scripts/px7-efx-xash-gate.sh`, `./scripts/px7-efx-offscreen-probe.sh`, `./scripts/px7-tri-xash-gate.sh`, `./scripts/px7-tri-offscreen-probe.sh`, `./scripts/px7-tri-overview-cert.sh`, `./scripts/px7-sprite-completion-probe.sh`, `./scripts/px7-brush-special-a-probe.sh`, `./scripts/px7-brush-special-b-probe.sh`, `./scripts/px7-brush-special-c-probe.sh`, `./scripts/px7-brush-special-d-dlights-probe.sh`, `./scripts/px7-random-tiled-probe.sh`.
+**CVar:** `r_csretro_renderer` 0 = Xash-only. 1 = Offscreen World+Brush+Sprites+Non-Player-Studio+Remote-Player-Studio (B)+FOLLOW+draw-only EFX+draw-only Client-Triangles + sichtbarer Xash-Fallback.
+Probes: `./scripts/px3b-offscreen-probe.sh`, `./scripts/px3c-offscreen-probe.sh`, `./scripts/px4a-offscreen-probe.sh`, `./scripts/px4b1-offscreen-probe.sh`, `./scripts/px4b2-player-probe.sh`, `./scripts/px7-brush-offscreen-probe.sh`, `./scripts/px7-efx-xash-gate.sh`, `./scripts/px7-efx-offscreen-probe.sh`, `./scripts/px7-tri-xash-gate.sh`, `./scripts/px7-tri-offscreen-probe.sh`, `./scripts/px7-tri-overview-cert.sh`, `./scripts/px7-sprite-completion-probe.sh`, `./scripts/px7-brush-special-a-probe.sh`, `./scripts/px7-brush-special-b-probe.sh`, `./scripts/px7-brush-special-c-probe.sh`, `./scripts/px7-brush-special-d-dlights-probe.sh`, `./scripts/px7-random-tiled-probe.sh`.
 Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts/px4a-visual-cert.sh` → `build/px4a-cert-shots/`; `./scripts/px7-brush-visual-cert.sh` → `build/px7-brush-cert-shots/` (nicht committed).
 
 **Callbacks an:** `Mod_ProcessUserData`, `R_NewMap`, `GL_BuildLightmaps`, `R_ClearScene` (additiv, nur CS-Retro-Liste).
@@ -81,7 +104,7 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Xash-only Gate PASS (AK-Schuss particles+tracers, kein draw-only).
 - Offscreen: draw-only `mutate=0` auf Trans-Pass; CRC differ=1; Xash `advanced=1` dieselbe Frame. Beams Stock-CS NOT REPRODUCIBLE.
 - Reihenfolge: World → opaque Brush → Studio → FOLLOW → solid EFX draw-only → Normal Client-Triangles draw-only → trans Brush → Sprites → Transparent Client-Triangles draw-only → trans EFX draw-only → restore → return 0.
-- Player bleibt C.
+- Player: Remote B VERIFIED, Local deferred (#9 OPEN).
 
 **#7 Client-Triangles (VERIFIED draw-only ownership 2026-09-20)**
 - Interne API, kein neuer Engine-ABI-Slot. Sichtbar: Advance einmal + Draw. Offscreen: Draw-only, return 0.
@@ -149,19 +172,19 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 - Mapchange aztec→torn→assault→dust `stale_indices=0`. `vid_setmode` auf dust: dieselbe `selection_hash`. Anim + Conveyor weiter PASS. Movement-Gate PASS. `GL_RenderFrame` immer 0.
 - Probe: `./scripts/px7-random-tiled-probe.sh` PASS. Shots `build/px7-random-tiled-shots/` (nicht committed).
 
-**PX4B.1** (ruhend)
-- FOLLOW parent graph implementiert. Player-parent deferred. Stock-CS: **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT**.
-- Player bleibt C. Issue #9 offen, ruht bis A/B-Beweis. Kein Player-Produktcode in diesem Slice.
-- Read-only: Variante B kann `gait`/`player_info_t` nicht isolieren ohne GSMR- oder `PlayerInfo`-Änderung (`IEngineStudio.PlayerInfo()` ist Live-State).
+**PX4B.2** (dieser Stand)
+- Variante B isoliert: Live `player_info_t` einmal lesen → lokale Kopie → Offscreen mutiert nur die Kopie → verwerfen → sichtbares Xash advanced Live genau einmal.
+- Remote Player VERIFIED. Local Player consciously deferred. Player-parent FOLLOW implemented / N/R. Player-Shadows offscreen fehlen (Takeover-Blocker, #9 bleibt OPEN).
+- PX4B.1 Non-Player-FOLLOW unverändert, Stock-CS weiter N/R.
 
 **Offen vor return 1**
-- [#7](https://github.com/benjarogit/csretro/issues/7): **CLOSED**. Brush Special A/B/C/D/E complete. Qualifizierte N/R (SPR_ANGLED, Fullbright, World-water special, Brush decals, premult/stencil, Brush DLight, dynamic litwater) sind Content-Limits, kein offener Produkt-Unterpunkt.
-- Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)) — Variante C, Blocker vor `return 1`
-- Player-parent FOLLOW (Slice in #9, hängt an Player-Safety)
+- [#7](https://github.com/benjarogit/csretro/issues/7): **CLOSED**. Brush Special A/B/C/D/E complete. Qualifizierte N/R sind Content-Limits, kein offener Produkt-Unterpunkt.
+- Player-Studio ([#9](https://github.com/benjarogit/csretro/issues/9)) — Remote B VERIFIED; Local deferred; Shadows für Takeover fehlen; Issue bleibt OPEN
+- Player-parent FOLLOW (in #9, implemented / runtime N/R)
 - Viewmodel ([#10](https://github.com/benjarogit/csretro/issues/10))
 - Vis
 
-**Nächster Schritt:** nur nach neuer Freigabe. Empfohlen: Player-Safety #9. Player / Viewmodel / Vis / `return 1` nicht starten. #9/#10/#1/#2/#3 nicht anfassen. #7 nicht wieder öffnen ohne konkretes Bug-Issue.
+**Nächster Schritt:** nur nach neuer Freigabe. #10 Viewmodel / Vis / `return 1` nicht starten. #9 nicht schließen. #1 #2 #3 #7 #10 nicht anfassen. #7 nicht wieder öffnen ohne konkretes Bug-Issue.
 
 **PX0 bleibt offen**
 - #1 Movement Replay: https://github.com/benjarogit/csretro/issues/1

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.39 — 2026-09-20
+
+### Renderer
+
+- PX4B.2 Player Studio Isolation (Variante B): gemeinsame GSMR-Naht `StudioDrawPlayer` / `StudioDrawPlayerOffscreen` über `ResolvePlayerInfo`. Offscreen seeden eine volle lokale `player_info_t`, mutiert nur die Kopie, schreibt nicht zurück. Keine Events, kein Local-Save/Restore, kein `r_shadows` Side-Draw. Remote-Player VERIFIED (Hash BEFORE==AFTER_OFFSCREEN, AFTER_VISIBLE≠BEFORE, live entity mutate=0, Pixel-CRC differ, T/CT-Modelle). Local Player consciously deferred. Player-parent FOLLOW implemented / runtime NOT REPRODUCIBLE. `GL_RenderFrame` bleibt 0. Issue #9 bleibt offen.
+
+Diese Version übernimmt den sichtbaren Frame nicht.  
+This release does not take over the visible frame.
+
 ## 0.1.38 — 2026-09-20
 
 ### Architektur / Dokumentation

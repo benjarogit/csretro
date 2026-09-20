@@ -67,19 +67,26 @@ public:
 	virtual void StudioProcessGait(entity_state_t *pplayer);
 	virtual int StudioDrawPlayer(int flags, entity_state_t *pplayer);
 	virtual int _StudioDrawPlayer(int flags, entity_state_t *pplayer);
+	int StudioDrawPlayerOffscreen(int flags, entity_state_t *pplayer, player_info_t *localInfo);
 	virtual void StudioFxTransform(cl_entity_t *ent, float transform[3][4]);
 	virtual void StudioPlayerBlend(mstudioseqdesc_t *pseqdesc, int *pBlend, float *pPitch);
 	virtual void CalculateYawBlend(entity_state_t *pplayer);
 	virtual void CalculatePitchBlend(entity_state_t *pplayer);
+	int OffscreenEventsFired(void) const { return m_nOffscreenEvents; }
+	int OffscreenShadowsDrawn(void) const { return m_nOffscreenShadows; }
 
 private:
 	void SavePlayerState(entity_state_t *pplayer);
 	void SetupClientAnimation(entity_state_t *pplayer);
 	void RestorePlayerState(entity_state_t *pplayer);
 	mstudioanim_t* LookupAnimation(mstudioseqdesc_t *pseqdesc, int index);
+	player_info_t *ResolvePlayerInfo(int index);
 
 private:
 	bool m_bLocal;
+	player_info_t *m_pOffscreenPlayerInfo;
+	int m_nOffscreenEvents;
+	int m_nOffscreenShadows;
 };
 
 extern CGameStudioModelRenderer g_StudioRenderer;

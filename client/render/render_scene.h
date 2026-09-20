@@ -64,6 +64,9 @@ typedef struct CSRETRO_SceneStats_s
 	int studio_preview;
 	int studio_attempted;
 	int studio_drawn;
+	int studio_player;
+	int studio_player_attempted;
+	int studio_player_drawn;
 	int follow_nonplayer_parent;
 	int follow_player_parent;
 	int follow_missing_parent;
@@ -87,3 +90,5 @@ void CSRETRO_Scene_NoteFollowParent( int is_player );
 void CSRETRO_Scene_NoteFollowMissing( void );
 void CSRETRO_Scene_NoteFollowDrawn( void );
 void CSRETRO_Scene_NoteFollowDeferred( void );
+void CSRETRO_Scene_NotePlayerAttempted( void );
+void CSRETRO_Scene_NotePlayerDrawn( void );

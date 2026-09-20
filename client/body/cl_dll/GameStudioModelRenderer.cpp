@@ -80,6 +80,35 @@ static client_anim_state_t g_clientstate;
 CGameStudioModelRenderer::CGameStudioModelRenderer(void)
 {
 	m_bLocal = false;
+	m_pOffscreenPlayerInfo = NULL;
+	m_nOffscreenEvents = 0;
+	m_nOffscreenShadows = 0;
+}
+
+player_info_t *CGameStudioModelRenderer::ResolvePlayerInfo(int index)
+{
+	if (m_pOffscreenPlayerInfo)
+		return m_pOffscreenPlayerInfo;
+	return IEngineStudio.PlayerInfo(index);
+}
+
+int CGameStudioModelRenderer::StudioDrawPlayerOffscreen(int flags, entity_state_t *pplayer, player_info_t *localInfo)
+{
+	int iret;
+	player_info_t *savedInfo = m_pOffscreenPlayerInfo;
+
+	if (!pplayer || !localInfo)
+		return 0;
+
+	// Same shared player draw as StudioDrawPlayer → _StudioDrawPlayer.
+	// Local player_info_t only. No events, no Save/Restore, no r_shadows.
+	flags &= ~STUDIO_EVENTS;
+	m_pOffscreenPlayerInfo = localInfo;
+	m_pplayer = pplayer;
+	iret = _StudioDrawPlayer(flags, pplayer);
+	m_pplayer = NULL;
+	m_pOffscreenPlayerInfo = savedInfo;
+	return iret;
 }
 
 mstudioanim_t *CGameStudioModelRenderer::LookupAnimation(mstudioseqdesc_t *pseqdesc, int index)
@@ -915,7 +944,7 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 	if (pplayer->gaitsequence && !preview)
 	{
 		vec3_t orig_angles(m_pCurrentEntity->angles);
-		m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
+		m_pPlayerInfo = ResolvePlayerInfo(m_nPlayerIndex);
 
 		StudioProcessGait(pplayer);
 
@@ -948,7 +977,7 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 		}
 		else
 		{
-			m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
+			m_pPlayerInfo = ResolvePlayerInfo(m_nPlayerIndex);
 			CalculatePitchBlend(pplayer);
 			CalculateYawBlend(pplayer);
 
@@ -974,7 +1003,7 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 		m_pPlayerInfo->gaityaw = 0.0f;
 	}
 	else
-		m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
+		m_pPlayerInfo = ResolvePlayerInfo(m_nPlayerIndex);
 
 	StudioSetupBones();
 	StudioSaveBones();
@@ -982,7 +1011,11 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 	m_pPlayerInfo->renderframe = m_nFrameCount;
 	m_pPlayerInfo = NULL;
 
-	if (flags & STUDIO_EVENTS && (!(flags & STUDIO_RENDER) || !pplayer->weaponmodel || !WeaponHasAttachments(pplayer)))
+	if (m_pOffscreenPlayerInfo)
+	{
+		// Offscreen: STUDIO_EVENTS stay 0. No StudioClientEvents, no live attachment writeback.
+	}
+	else if (flags & STUDIO_EVENTS && (!(flags & STUDIO_RENDER) || !pplayer->weaponmodel || !WeaponHasAttachments(pplayer)))
 	{
 		StudioCalcAttachments();
 		IEngineStudio.StudioClientEvents();
@@ -1008,7 +1041,7 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 		if (preview)
 			m_pPlayerInfo = &s_previewInfo;
 		else
-			m_pPlayerInfo = IEngineStudio.PlayerInfo(m_nPlayerIndex);
+			m_pPlayerInfo = ResolvePlayerInfo(m_nPlayerIndex);
 		m_nTopColor = m_pPlayerInfo->topcolor;
 
 		if (m_nTopColor < 0)
@@ -1058,7 +1091,7 @@ int CGameStudioModelRenderer::_StudioDrawPlayer(int flags, entity_state_t *pplay
 			m_pStudioHeader = saveheader;
 			IEngineStudio.StudioSetHeader(m_pStudioHeader);
 
-			if (flags & STUDIO_EVENTS)
+			if (!m_pOffscreenPlayerInfo && (flags & STUDIO_EVENTS))
 				IEngineStudio.StudioClientEvents();
 		}
 	}

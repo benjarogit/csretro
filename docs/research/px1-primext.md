@@ -470,7 +470,7 @@ Zweiter offscreen GSMR-Aufruf im selben Frame ist **nicht** nebenwirkungsfrei. G
 
 Spiegel = Kopie, keine Live-Pointer über Frames. Model-Pointer nur im Map-/Frame-Lifecycle.
 
-**Player:** Variante C (nicht doppelt zeichnen) bis Safety A/B trägt. **Viewmodel:** PX4C (DepthRange, Events, Wick, righthand). **FOLLOW:** eigener Slice (Parent in Mirror-Liste, `StudioMergeBones`). **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
+**Player:** bis PX4B.2 Variante C. PX4B.2 Remote-Player ist Variante B (isolierte `player_info_t`). Local deferred. **Viewmodel:** #10 (DepthRange, Events, Wick, righthand). **FOLLOW:** Non-Player PX4B.1; Player-parent PX4B.2 implemented / N/R. **Previews:** `EF_CSRETRO_PREVIEW`, eigener Callflow, nicht mit World-Offscreen mischen.
 
 Erster Draw-Slice (PX4A.1): `ET_NORMAL` + `mod_studio`, kein Viewmodel, kein Player, kein `MOVETYPE_FOLLOW`, nur `STUDIO_RENDER`.
 
@@ -496,7 +496,7 @@ Xash `R_DrawStudioModel` (`engine/ref/gl/gl_studio.c`): FOLLOW child → `CL_Get
 | Slice | Semantik | Status |
 | --- | --- | --- |
 | FOLLOW_NONPLAYER_PARENT | `StudioDrawModel(0)` auf Parent-Snapshot, Merge auf Child-Snapshot | implementiert; **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT** |
-| FOLLOW_PLAYER_PARENT | `StudioDrawPlayer(0)` würde `player_info_t`/gait mutieren, auch ohne RENDER/EVENTS | **DEFERRED** — kein `StudioDrawPlayer(0)` |
+| FOLLOW_PLAYER_PARENT | isoliertes `StudioDrawPlayerOffscreen(0)` auf Parent-Snapshot + lokale `player_info_t` | implemented; **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT** |
 
 CS-Inhalt: `CBasePlayerItem::AttachToPlayer` setzt `MOVETYPE_FOLLOW` + `EF_NODRAW` + `modelindex=0` (nicht in der Client-Draw-Liste). `CSprite::SetAttachment` ist Sprite, nicht Studio. Sichtbare Spielerwaffe = `StudioDrawPlayer` `weaponmodel` + `StudioMergeBones`, nicht ein FOLLOW-Child in `HUD_AddEntity`.
 
@@ -531,20 +531,47 @@ CS-Inhalt: `CBasePlayerItem::AttachToPlayer` setzt `MOVETYPE_FOLLOW` + `EF_NODRA
 
 - Parent-Lookup: `CSRETRO_Scene_FindByIndex(aiment)` in der Mirror-Liste derselben Frame. Kein `GetEntityByIndex`, keine Engine-Draw-Liste, keine Parent-Pointer über Frames.
 - Parent fehlt / nicht Studio / selbst FOLLOW / Preview / Viewmodel / DeadPlayer → Child offscreen nicht zeichnen, `missing_parent++`. Xash sichtbar unverändert.
-- Player-Parent (`player != 0` / `STUDIO_LOCAL` / snap.player) → `deferred_player++`, kein `StudioDrawPlayer(0)`.
+- Player-Parent remote: `StudioDrawPlayerOffscreen(0)` auf Parent-Snapshot + lokale `player_info_t` (PX4B.2). Local-Parent weiter deferred. Runtime Stock-CS: **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT**.
 - Non-Player-Parent: `R_SetCurrentEntity(parent_snap)` → `StudioDrawModel(0)` (Bone-Cache) → Child-Snapshot `origin`/`curstate.origin` = parent → `StudioDrawModel(STUDIO_RENDER)` → Merge. Nur Snapshots. `STUDIO_EVENTS` aus.
 - Diagnose: `FOLLOW nonplayer_parent=N player_parent=N missing_parent=N drawn=N deferred_player=N`.
 - Probe `de_aztec` + Bot + `de_dust` + AK give/drop: `follow: 0` durchgehend, alle FOLLOW-Zähler 0. Kein Dummy-Gameplay. **NOT REPRODUCIBLE WITH CURRENT GAME CONTENT**.
-- PX4A-Regression PASS. Movement-Gate PASS. `GL_RenderFrame` immer 0. Player C.
-- Issue #9 bleibt offen (Player-parent FOLLOW deferred, Player C). Status: `partial — PX4B.1 non-player FOLLOW implemented; Player Studio + player-parent FOLLOW pending`. Issue ruht.
+- PX4A-Regression PASS. Movement-Gate PASS. `GL_RenderFrame` immer 0.
+- Issue #9 blieb nach PX4B.1 offen; Player war C bis PX4B.2.
 
-### Player Variante B — Read-only (2026-09-20)
+### Player Variante B — Implementation (2026-09-20)
 
-Kein Player-Produktcode in diesem Slice.
+Kein zweiter Renderer. Eine Naht in `CGameStudioModelRenderer`:
 
-`IEngineStudio.PlayerInfo(i)` liefert den **Live**-`player_info_t*` der Engine. `StudioProcessGait` schreibt `gaitsequence` / `gaitframe` / `gaityaw` / `prevgaitorigin` über diesen Pointer. Preview nutzt bereits `static player_info_t s_previewInfo` — das Muster existiert, gilt aber nur für Previews.
+```
+StudioDrawPlayer → _StudioDrawPlayer (ResolvePlayerInfo → live)
+StudioDrawPlayerOffscreen → _StudioDrawPlayer (ResolvePlayerInfo → local copy)
+    flags &= ~STUDIO_EVENTS
+    kein SavePlayerState / SetupClientAnimation / RestorePlayerState
+    kein r_shadows
+```
 
-Isoliertes B bräuchte, dass `StudioDrawPlayer` eine lokale Kopie verwendet **oder** ein `PlayerInfo`-Hook. Ohne GSMR-/Engine-Änderung kann B gait nicht isolieren. Snapshot+Restore der Live-`player_info_t` um den Call herum wäre Variante A, nicht B. Ohne A/B-Beweis bleibt **C**.
+Seeding: ganze Live-`player_info_t` einmal kopieren (nicht nur vier Gait-Felder). Scene-Mirror liefert `cl_entity_t` + `entity_state_t`. GSMR-Mutationen treffen nur diese Kopien. Kein Writeback. Kein `GetEntityByIndex` für Offscreen-State.
+
+**Remote-B Probe** `./scripts/px4b2-player-probe.sh` (aztec/torn/assault/dust + `vid_setmode`):
+
+| Nachweis | Status | Beleg |
+| --- | --- | --- |
+| Live `player_info` BEFORE == AFTER_OFFSCREEN | VERIFIED | aztec `0e455eb3==0e455eb3` live_mutate=0 |
+| AFTER_VISIBLE != BEFORE | VERIFIED | `be0098c0 != 0e455eb3` visible_advanced=1 |
+| Live `cl_entity` mutate | VERIFIED | `entity_mutate=0`; Snapshot `snap_after` weicht ab |
+| STUDIO_EVENTS | VERIFIED | `events=0` |
+| Shadow side draw | VERIFIED | `shadow_side_draw=0` |
+| Pixel | VERIFIED | aztec `e1814848≠28bb413f`, torn `33715a15≠89312eab`, dust `a41117d1≠279348b5` |
+| Modelle | VERIFIED | CT `gsg9`/`sas`/`gign`, T `arctic` — zwei reale Player-Modelle, kein Dummy-Gameplay |
+| offscreen_local_final == visible_live_final | INFERRED mismatch | AddEntity-Snapshot + `GetTimes` in `GL_RenderFrame` ≠ späterer Live-Entity-Eingang des sichtbaren Xash-Calls. Kopie ändert sich (`local_final≠BEFORE`); Live erst nach Visible. Kein Leak. |
+| Local Player | DEFERRED | firstperson=1; mirrored=0/1 je nach Map; `m_bLocal=0` → SetupClientAnimation tot; nicht ins FBO gezwungen |
+| Player-parent FOLLOW | implemented / N/R | `follow_player_parent=0` auf Stock-CS |
+| Player-Shadows offscreen | DEFERRED | Takeover-Blocker, #9 bleibt OPEN |
+| CurrentEntity/Model | CONFIRMED | save/set/restore wie PX4A |
+| Visible Xash | CONFIRMED | Fallback-Log, kein return 1, Movement-Gate PASS |
+| `GL_RenderFrame` | CONFIRMED 0 | Probe lehnt return 1 ab |
+
+Variante C ist nicht mehr festgeschrieben. #9 bleibt OPEN (Local deferred + Shadows). Viewmodel #10. Vis unberührt. PrimeXT-Studio nicht übernommen.
 
 ### #7 Brush-Entity Draw (2026-09-20)
 
@@ -919,7 +946,7 @@ Live latched before == after, mutate=0
 
 Probe: `./scripts/px7-sprite-completion-probe.sh`. Shots `build/px7-sprite-cert-shots/` (nicht committed).
 
-#7 CLOSED (Special A/B/C/D/E complete). Player #9, Viewmodel #10, Vis unberührt.
+#7 CLOSED (Special A/B/C/D/E complete). Player #9 Remote B VERIFIED / Local deferred (OPEN). Viewmodel #10, Vis unberührt.
 
 
 

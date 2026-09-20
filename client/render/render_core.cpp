@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>
+#include <math.h>
 
 static_assert( offsetof( render_api_t, BuildSurfaceLightmapReadOnly ) == offsetof( render_api_t, DrawEFX ) + sizeof( void * ),
 	"v37 prefix: BuildSurfaceLightmapReadOnly must follow DrawEFX" );
@@ -36,6 +37,8 @@ static int s_tent_proof_logged = 0;
 static int s_tent_seen = 0;
 static int s_nodepth_try = 0;
 static int s_studio_crc_logged = 0;
+static int s_player_crc_logged = 0;
+static int s_player_hash_logged = 0;
 static int s_follow_crc_logged = 0;
 static int s_follow_detail_logged = 0;
 static int s_brush_crc_logged = 0;
@@ -89,7 +92,10 @@ static void ResetSpriteProof( void )
 	s_tent_seen = 0;
 	s_nodepth_try = 0;
 	s_studio_crc_logged = 0;
+	s_player_crc_logged = 0;
+	s_player_hash_logged = 0;
 	s_follow_crc_logged = 0;
+	CSRETRO_Studio_ResetPlayerProof();
 	s_follow_detail_logged = 0;
 	s_brush_crc_logged = 0;
 	s_brush_move_crc_logged = 0;
@@ -680,6 +686,42 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_Backend_PrepareImmediateDraw();
 		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 		CSRETRO_Studio_DrawList( &scene );
+		{
+			CSRETRO_OffscreenProof before_player;
+			CSRETRO_OffscreenProof after_player;
+			CSRETRO_StudioPlayerProof pp;
+			memset( &before_player, 0, sizeof( before_player ) );
+			CSRETRO_Backend_SampleProof( &before_player );
+			CSRETRO_Backend_PrepareImmediateDraw();
+			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+			CSRETRO_Studio_DrawPlayers( &scene );
+			memset( &after_player, 0, sizeof( after_player ) );
+			CSRETRO_Backend_SampleProof( &after_player );
+			CSRETRO_Studio_GetPlayerProof( &pp );
+			if( pp.drawn > 0 && s_player_crc_logged != 1 )
+			{
+				int differ = before_player.crc != after_player.crc ? 1 : 0;
+				gEngfuncs.Con_Printf(
+					"CS Retro: offscreen player proof before_crc=%08x after_crc=%08x differ=%i candidates=%i drawn=%i info_mutate=%i entity_mutate=%i events=%i shadow_side_draw=%i models_t=%i models_ct=%i distinct=%i a=%s b=%s\n",
+					before_player.crc, after_player.crc, differ,
+					pp.candidates, pp.drawn, pp.info_mutate, pp.entity_mutate,
+					pp.events, pp.shadow_side_draw, pp.models_t, pp.models_ct,
+					pp.distinct_models,
+					pp.model_a[0] ? pp.model_a : "-",
+					pp.model_b[0] ? pp.model_b : "-" );
+				if( differ )
+					s_player_crc_logged = 1;
+			}
+			if( pp.candidates > 0 && !s_player_hash_logged && pp.info_before )
+			{
+				s_player_hash_logged = 1;
+				gEngfuncs.Con_Printf(
+					"CS Retro: player_info live before=%08x after_offscreen=%08x mutate=%i entity_live_before=%08x after_offscreen=%08x entity_mutate=%i snap_after=%08x\n",
+					pp.info_before, pp.info_after_offscreen, pp.info_mutate,
+					pp.entity_live_before, pp.entity_live_after_offscreen,
+					pp.entity_mutate, pp.entity_snap_after );
+			}
+		}
 		CSRETRO_Studio_DrawFollow( &scene );
 		{
 			CSRETRO_OffscreenProof before_solid_efx;
@@ -1013,10 +1055,11 @@ void CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				"CS Retro: Normal sprite mirrored: %i drawn: %i\n",
 				scene.normal_sprite, scene.normal_drawn );
 			gEngfuncs.Con_Printf(
-				"CS Retro: Studio classified: %i local: %i follow: %i viewmodel: %i preview: %i attempted: %i drawn: %i (events off, player=C)\n",
+				"CS Retro: Studio classified: %i local: %i follow: %i viewmodel: %i preview: %i attempted: %i drawn: %i player_candidates=%i player_drawn=%i (events off, player=B isolated)\n",
 				scene.studio, scene.studio_local, scene.studio_follow,
 				scene.studio_viewmodel, scene.studio_preview,
-				scene.studio_attempted, scene.studio_drawn );
+				scene.studio_attempted, scene.studio_drawn,
+				scene.studio_player, scene.studio_player_drawn );
 			gEngfuncs.Con_Printf(
 				"CS Retro: FOLLOW nonplayer_parent=%i player_parent=%i missing_parent=%i drawn=%i deferred_player=%i\n",
 				scene.follow_nonplayer_parent, scene.follow_player_parent,
@@ -1141,16 +1184,77 @@ static void RunProbeSeq( void )
 			s_probe_start = now;
 		{
 			float elapsed = now - s_probe_start;
-			int randomc = s_probe_seq->value >= 10.0f;
-			int dlightc = !randomc && s_probe_seq->value >= 9.0f;
-			int decalc = !dlightc && !randomc && s_probe_seq->value >= 8.0f;
-			int waterb = !randomc && !dlightc && !decalc && s_probe_seq->value >= 7.0f;
-			int special = !randomc && !dlightc && !decalc && !waterb && s_probe_seq->value >= 6.0f;
-			int tri = !randomc && !dlightc && !decalc && !waterb && !special && s_probe_seq->value >= 5.0f;
-			int efx = !randomc && !dlightc && !decalc && !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
-			int brush = !randomc && !dlightc && !decalc && !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
-			int px3c = !randomc && !dlightc && !decalc && !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
-			if( randomc )
+			int playerc = s_probe_seq->value >= 11.0f;
+			int randomc = !playerc && s_probe_seq->value >= 10.0f;
+			int dlightc = !playerc && !randomc && s_probe_seq->value >= 9.0f;
+			int decalc = !playerc && !dlightc && !randomc && s_probe_seq->value >= 8.0f;
+			int waterb = !playerc && !randomc && !dlightc && !decalc && s_probe_seq->value >= 7.0f;
+			int special = !playerc && !randomc && !dlightc && !decalc && !waterb && s_probe_seq->value >= 6.0f;
+			int tri = !playerc && !randomc && !dlightc && !decalc && !waterb && !special && s_probe_seq->value >= 5.0f;
+			int efx = !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !tri && s_probe_seq->value >= 4.0f;
+			int brush = !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && s_probe_seq->value >= 3.0f;
+			int px3c = !playerc && !randomc && !dlightc && !decalc && !waterb && !special && !efx && !brush && s_probe_seq->value >= 2.0f;
+			if( playerc )
+			{
+				if( s_probe_step == 0 && elapsed >= 2.0f )
+				{
+					float target[3];
+					float ang[3] = { 8.0f, 90.0f, 0.0f };
+					int aimed = 0;
+					if( CSRETRO_Studio_ProbeLookTarget( target ) )
+					{
+						cl_entity_t *lp = gEngfuncs.GetLocalPlayer();
+						if( lp )
+						{
+							float dx = target[0] - lp->origin[0];
+							float dy = target[1] - lp->origin[1];
+							float dz = target[2] - lp->origin[2];
+							float dist = (float)sqrt( (double)( dx * dx + dy * dy ) );
+							ang[1] = (float)( atan2( (double)dy, (double)dx ) * 180.0 / 3.14159265358979323846 );
+							if( dist > 1.0f )
+								ang[0] = (float)( -atan2( (double)dz, (double)dist ) * 180.0 / 3.14159265358979323846 );
+							aimed = 1;
+						}
+					}
+					if( aimed || elapsed >= 6.0f )
+					{
+						s_probe_step = 1;
+						gEngfuncs.SetViewAngles( ang );
+						gEngfuncs.Con_Printf( "CS Retro: probe_seq player look aimed=%i\n", aimed );
+					}
+				}
+				else if( s_probe_step == 1 && elapsed >= 8.0f )
+				{
+					s_probe_step = 2;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_torn\n" );
+					gEngfuncs.pfnClientCmd( "map de_torn\n" );
+				}
+				else if( s_probe_step == 2 && elapsed >= 16.0f )
+				{
+					s_probe_step = 3;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map cs_assault\n" );
+					gEngfuncs.pfnClientCmd( "map cs_assault\n" );
+				}
+				else if( s_probe_step == 3 && elapsed >= 24.0f )
+				{
+					s_probe_step = 4;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq map de_dust\n" );
+					gEngfuncs.pfnClientCmd( "map de_dust\n" );
+				}
+				else if( s_probe_step == 4 && elapsed >= 32.0f )
+				{
+					s_probe_step = 5;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq vid_setmode 1024 768\n" );
+					gEngfuncs.pfnClientCmd( "vid_setmode 1024 768\n" );
+				}
+				else if( s_probe_step == 5 && elapsed >= 36.0f )
+				{
+					s_probe_step = 6;
+					gEngfuncs.Con_Printf( "CS Retro: probe_seq quit\n" );
+					gEngfuncs.pfnClientCmd( "quit\n" );
+				}
+			}
+			else if( randomc )
 			{
 				if( s_probe_step == 0 && elapsed >= 2.0f )
 				{

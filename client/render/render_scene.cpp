@@ -130,7 +130,11 @@ void CSRETRO_Scene_Add( int type, struct cl_entity_s *ent )
 	else if( kind == CSRETRO_KIND_BRUSH )
 		s_stats.brush++;
 	else if( kind == CSRETRO_KIND_STUDIO )
+	{
 		s_stats.studio++;
+		if( dst->player )
+			s_stats.studio_player++;
+	}
 	else if( kind == CSRETRO_KIND_STUDIO_LOCAL )
 		s_stats.studio_local++;
 	else
@@ -216,6 +220,16 @@ void CSRETRO_Scene_NoteFollowDrawn( void )
 void CSRETRO_Scene_NoteFollowDeferred( void )
 {
 	s_stats.follow_deferred_player++;
+}
+
+void CSRETRO_Scene_NotePlayerAttempted( void )
+{
+	s_stats.studio_player_attempted++;
+}
+
+void CSRETRO_Scene_NotePlayerDrawn( void )
+{
+	s_stats.studio_player_drawn++;
 }
 
 struct cl_entity_s *CSRETRO_Scene_StudioSnap( int snap_index )

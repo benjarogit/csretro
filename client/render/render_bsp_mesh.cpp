@@ -832,14 +832,14 @@ static int BindLightmap( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *b
 	if( has_lm && ctx && ctx->get_parm )
 	{
 		int lmtex = (int)ctx->get_parm( 7, (int)batch->lightmap ); // PARM_TEX_LIGHTMAP
-		if( lmtex > 0 && gXRGL.ActiveTexture )
+		if( lmtex > 0 )
 		{
 			CSRETRO_Backend_BindTexture( 1, (unsigned int)lmtex );
-			gXRGL.ActiveTexture( GL_TEXTURE1 );
-			gXRGL.Enable( GL_TEXTURE_2D );
+			if( gXRGL.Enable )
+				gXRGL.Enable( GL_TEXTURE_2D );
 			if( gXRGL.TexEnvi )
 				gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
-			gXRGL.ActiveTexture( GL_TEXTURE0 );
+			CSRETRO_Backend_SelectTexture( 0 ); /* keep TMU0 diffuse bind */
 			return 1;
 		}
 	}
@@ -848,25 +848,23 @@ static int BindLightmap( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshBatch *b
 
 static void UnbindLightmap( void )
 {
-	if( !gXRGL.ActiveTexture )
-		return;
-	gXRGL.ActiveTexture( GL_TEXTURE1 );
+	CSRETRO_Backend_SelectTexture( 1 );
 	if( gXRGL.Disable )
 		gXRGL.Disable( GL_TEXTURE_2D );
-	gXRGL.ActiveTexture( GL_TEXTURE0 );
+	CSRETRO_Backend_SelectTexture( 0 );
 }
 
 static int BindAtlas( void )
 {
 	unsigned int tex = CSRETRO_DLight_AtlasTexnum();
-	if( tex == 0 || !gXRGL.ActiveTexture )
+	if( tex == 0 )
 		return 0;
 	CSRETRO_Backend_BindTexture( 1, tex );
-	gXRGL.ActiveTexture( GL_TEXTURE1 );
-	gXRGL.Enable( GL_TEXTURE_2D );
+	if( gXRGL.Enable )
+		gXRGL.Enable( GL_TEXTURE_2D );
 	if( gXRGL.TexEnvi )
 		gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
-	gXRGL.ActiveTexture( GL_TEXTURE0 );
+	CSRETRO_Backend_SelectTexture( 0 );
 	return 1;
 }
 

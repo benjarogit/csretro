@@ -40,6 +40,7 @@ void CSRETRO_Backend_ApplyView( const float *vieworg, const float *viewangles, f
 // Immediate-mode draw on the bound FBO. Does not restore Xash state.
 void CSRETRO_Backend_PrepareImmediateDraw( void );
 void CSRETRO_Backend_BindTexture( int tmu, unsigned int texnum );
+void CSRETRO_Backend_SelectTexture( int tmu );
 void CSRETRO_Backend_CleanupTextures( void );
 /* After multitexture world/brush: resync Xash TMU + studio-safe GL state. */
 void CSRETRO_Backend_SyncTextureUnits( void );

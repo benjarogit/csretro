@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.1.53 — 2026-09-21
+
+### Renderer
+
+- Mode-2 Viewmodel (#15): Live-`tr.viewent` für Cull/Flip statt Snapshot; Lightmap-/Studio-Binds über `GL_SelectTexture` + `SyncTextureUnits` (CleanUp(1)), damit Skin nicht auf TMU1 landet.
+- HE-in-Smoke: Sprite-Lightmap-Pass über Backend-`BindTexture` + hartes Restore; `SyncTextureUnits` vor Sprite/Studio in der Trans-Liste; DLight-Atlas-Upload ohne raw `ActiveTexture`-Restore (Fix `GL error 0x500` bei HE). Present-Fault-Latch nur noch bei `r_csretro_offscreen_dump 1` (kein Ein-Frame-Xash-Flash im Play-Pfad).
+- Handoff: Modes F5/F6/F7 als Dev-Werkzeug dokumentiert; Ziel bleibt nur Mode 2.
+
+Default bleibt `r_csretro_renderer 0`. #12/#14/#15 bleiben OPEN bis Manual-DoD.  
+Default stays `r_csretro_renderer 0`. #12/#14/#15 stay OPEN until manual DoD.
+
 ## 0.1.52 — 2026-09-21
 
 ### Renderer

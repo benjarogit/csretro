@@ -1457,8 +1457,13 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 					}
 					if( CSRETRO_Backend_CheckGL( "present" ) )
 					{
-						CSRETRO_Takeover_LatchFault();
-						tp.fault_latched = 1;
+						/* Cert/dump: latch. Play: log only — HE/dlight once
+						 * triggered 0x500 and forced a one-frame Xash flash. */
+						if( s_dump && s_dump->value != 0.0f )
+						{
+							CSRETRO_Takeover_LatchFault();
+							tp.fault_latched = 1;
+						}
 					}
 					tp.present_ok = present_ok;
 					if( !present_ok )

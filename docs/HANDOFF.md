@@ -88,14 +88,28 @@ dann erst Features die Mode 0 nicht hat. Solange Mode 2 schlechter/kaputt ist:
 kein Gewinn für dich sichtbar — das ist der aktuelle Stand, kein Widerspruch zum Ziel.
 
 ### Was du jetzt tun sollst
-**Nichts Pflicht.** Freeze ok. A/B + Waffen + HE-in-Smoke sind drin — reicht.
-Optional nur wenn dir langweilig: Mode 2, weitere Effekte mit **F8** erwischen
-(Flashbang-Blind, Decals, andere Maps). Sonst: Spiel zu, ich arbeite am Code.
+Client neu gebaut. **F7 → Smoke → HE → F8**. Im Log darf bei HE kein
+`GL error 0x500 stage=present` mehr stehen.
 
-### Was ich jetzt tue (ohne dich)
-1. **#15** Viewmodel-Studio (alle Waffen) — Root Cause TMU/Lighting
-2. Nebenbei notieren: **HE-Explosion in Smoke** Mode 2 kaputt (Sprites/Partikel)
-3. **#14** Perf ohne Dump
+### Modes — wofür (kein Produkt-Feature)
+| Taste | Mode | Bedeutung |
+|-------|------|-----------|
+| F5 | 0 | Stock-Xash (Referenz, funktioniert) |
+| F6 | 1 | Diagnose: Xash sichtbar + unser Renderer offscreen |
+| F7 | 2 | Unser Takeover — **Ziel**, noch nicht freigabefähig |
+
+Die Umschaltung ist **nur Werkzeug**, solange Mode 2 Bugs/#14/#15 hat.
+Endzustand: **nur Mode 2**, Default, keine F5/F6/F7. Mode 2 bringt aktuell
+noch keine Verbesserung gegenüber 0 — genau deshalb ist er nicht Default.
+
+### Was ich jetzt tue
+1. **#15** — A/B ≈ Parität; DoD noch Manual.
+2. **HE-in-Smoke:** TMU-Sync in Trans + **DLight UploadPatch** ohne raw
+   `ActiveTexture`-Restore (Log: `GL error 0x500` genau bei HE). Present-Fault
+   latch nur noch bei dump=1 (sonst Ein-Frame-Xash-Flash).
+3. **#14** Perf — danach.
+
+**Alte Shots** vor 09:49 gelöscht; Session `0004–0007`, `0018–0030` behalten.
 
 ### Deine Shots (behalten)
 | Shot | Bedeutung |

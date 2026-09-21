@@ -551,7 +551,11 @@ static void RestoreState( void )
 			gXRGL.Disable( GL_TEXTURE_2D );
 		if( gXRGL.TexEnvi && s_saved.texenv0 )
 			gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, s_saved.texenv0 );
-		gXRGL.ActiveTexture( (unsigned int)s_saved.active_tex );
+		/* ActiveTexture(0) is INVALID_ENUM — only GL_TEXTUREi. */
+		if( s_saved.active_tex >= (int)GL_TEXTURE0 && s_saved.active_tex <= (int)( GL_TEXTURE0 + 31 ) )
+			gXRGL.ActiveTexture( (unsigned int)s_saved.active_tex );
+		else
+			gXRGL.ActiveTexture( GL_TEXTURE0 );
 	}
 	else if( gXRGL.BindTexture )
 		gXRGL.BindTexture( GL_TEXTURE_2D, (unsigned int)s_saved.tex0 );
@@ -586,7 +590,7 @@ static void RestoreState( void )
 		gXRGL.Enable( GL_CULL_FACE );
 	else
 		gXRGL.Disable( GL_CULL_FACE );
-	if( gXRGL.AlphaFunc )
+	if( gXRGL.AlphaFunc && s_saved.alpha_func )
 		gXRGL.AlphaFunc( (unsigned int)s_saved.alpha_func, s_saved.alpha_ref );
 	if( gXRGL.BlendEquation && s_saved.blend_eq )
 		gXRGL.BlendEquation( (unsigned int)s_saved.blend_eq );
@@ -786,7 +790,17 @@ void CSRETRO_Backend_PrepareImmediateDraw( void )
 		gXRGL.BindBuffer( GL_ARRAY_BUFFER, 0 );
 		gXRGL.BindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
 	}
-	if( gXRGL.ActiveTexture )
+	/* Prefer Xash SelectTexture so glState.activeTMU stays in sync.
+	 * Raw ActiveTexture after world multitexture left state on TMU1 while
+	 * GL was on TMU0 — CleanUpTextureUnits then disabled the wrong unit. */
+	if( s_api && s_api->GL_SelectTexture )
+	{
+		s_api->GL_SelectTexture( 1 );
+		if( gXRGL.Disable )
+			gXRGL.Disable( GL_TEXTURE_2D );
+		s_api->GL_SelectTexture( 0 );
+	}
+	else if( gXRGL.ActiveTexture )
 	{
 		gXRGL.ActiveTexture( GL_TEXTURE1 );
 		gXRGL.Disable( GL_TEXTURE_2D );
@@ -844,10 +858,22 @@ void CSRETRO_Backend_BindTexture( int tmu, unsigned int texnum )
 	}
 }
 
+void CSRETRO_Backend_SelectTexture( int tmu )
+{
+	if( s_api && s_api->GL_SelectTexture )
+		s_api->GL_SelectTexture( tmu );
+	else if( gXRGL.ActiveTexture )
+		gXRGL.ActiveTexture( GL_TEXTURE0 + (unsigned int)tmu );
+}
+
 void CSRETRO_Backend_CleanupTextures( void )
 {
-	if( s_api && s_api->GL_CleanUpTextureUnits )
-		s_api->GL_CleanUpTextureUnits( 0 );
+	if( s_api && s_api->GL_SelectTexture && s_api->GL_CleanUpTextureUnits )
+	{
+		s_api->GL_SelectTexture( 1 );
+		s_api->GL_CleanUpTextureUnits( 1 );
+		s_api->GL_SelectTexture( 0 );
+	}
 	else if( gXRGL.ActiveTexture )
 	{
 		gXRGL.ActiveTexture( GL_TEXTURE1 );
@@ -859,23 +885,31 @@ void CSRETRO_Backend_CleanupTextures( void )
 void CSRETRO_Backend_SyncTextureUnits( void )
 {
 	/*
-	 * Clean only TMU >= 1. CleanUpTextureUnits(0) also runs i==0 and
-	 * disables TEXTURE_2D / clears currentTextures[0] — Studio then binds
-	 * skins onto a dead unit (dark/corrupt viewmodel).
+	 * Land on TMU0 with TEXTURE_2D on and higher units off, with glState
+	 * matching hardware. Never call CleanUpTextureUnits while SelectTexture
+	 * may early-out on a desynced activeTMU — that disables the wrong unit
+	 * and leaves Studio skins on a dead TMU0 (black/corrupt viewmodel).
 	 */
-	if( s_api && s_api->GL_SelectTexture && s_api->GL_CleanUpTextureUnits )
+	if( s_api && s_api->GL_SelectTexture )
 	{
 		s_api->GL_SelectTexture( 1 );
-		s_api->GL_CleanUpTextureUnits( 1 ); /* ends on TMU0, unit0 intact */
+		if( gXRGL.Disable )
+		{
+			gXRGL.Disable( GL_TEXTURE_2D );
+			gXRGL.Disable( GL_TEXTURE_GEN_S );
+			gXRGL.Disable( GL_TEXTURE_GEN_T );
+		}
+		if( s_api->GL_CleanUpTextureUnits )
+			s_api->GL_CleanUpTextureUnits( 1 );
+		s_api->GL_SelectTexture( 0 );
 	}
 	else if( gXRGL.ActiveTexture )
 	{
 		gXRGL.ActiveTexture( GL_TEXTURE1 );
-		gXRGL.Disable( GL_TEXTURE_2D );
+		if( gXRGL.Disable )
+			gXRGL.Disable( GL_TEXTURE_2D );
 		gXRGL.ActiveTexture( GL_TEXTURE0 );
 	}
-	if( s_api && s_api->GL_SelectTexture )
-		s_api->GL_SelectTexture( 0 );
 	if( gXRGL.Enable )
 		gXRGL.Enable( GL_TEXTURE_2D );
 	if( gXRGL.Disable )

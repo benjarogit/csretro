@@ -3,6 +3,7 @@
 #include "render_brush.h"
 #include "render_sprite.h"
 #include "render_studio.h"
+#include "render_backend.h"
 
 #include "hud.h"
 #include "cl_util.h"
@@ -225,11 +226,21 @@ int CSRETRO_Trans_Draw( const float *vieworg, const float *viewangles,
 		if( items[i].kind == TRANS_BRUSH )
 			ok = CSRETRO_Brush_DrawOne( items[i].scene_index, stats );
 		else if( items[i].kind == TRANS_SPRITE )
+		{
+			/* Brush lightmaps leave TMU1 enabled; sprites must be single-texture. */
+			CSRETRO_Backend_SyncTextureUnits();
 			ok = CSRETRO_Sprite_DrawOne( items[i].scene_index, vieworg, viewangles, stats );
+		}
 		else if( items[i].kind == TRANS_STUDIO )
+		{
+			CSRETRO_Backend_SyncTextureUnits();
 			ok = CSRETRO_Studio_DrawOne( items[i].scene_index, stats );
+		}
 		else if( items[i].kind == TRANS_PLAYER )
+		{
+			CSRETRO_Backend_SyncTextureUnits();
 			ok = CSRETRO_Studio_DrawPlayerOne( items[i].scene_index, stats, rvp );
+		}
 		if( ok )
 			drawn++;
 	}

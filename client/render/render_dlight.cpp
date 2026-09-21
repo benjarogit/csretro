@@ -262,30 +262,20 @@ static void DestroyAtlas( void )
 static void UploadPatch( int x, int y, int w, int h, const unsigned char *rgba )
 {
 	int unpack = 4;
-	int bind0 = 0;
-	int active = GL_TEXTURE0;
-	unsigned int tmu0_bind = 0;
 
-	if( !pglTexSubImage2D || !s_atlas_texnum )
+	if( !pglTexSubImage2D || !s_atlas_texnum || w <= 0 || h <= 0 )
 		return;
 	if( gXRGL.GetIntegerv )
-	{
 		gXRGL.GetIntegerv( GL_UNPACK_ALIGNMENT, &unpack );
-		gXRGL.GetIntegerv( GL_ACTIVE_TEXTURE, &active );
-		gXRGL.GetIntegerv( GL_TEXTURE_BINDING_2D, &bind0 );
-	}
-	if( gRenderAPI.GL_Bind )
-		gRenderAPI.GL_Bind( 0, (unsigned int)s_atlas_texnum );
+	/* Must go through BindTexture so Xash glState.activeTMU stays synced.
+	 * Raw ActiveTexture(restore) after GL_Bind left glState on the wrong unit
+	 * and produced GL_INVALID_ENUM (0x500) on the next HE/dlight frame. */
+	CSRETRO_Backend_BindTexture( 0, (unsigned int)s_atlas_texnum );
 	if( gXRGL.PixelStorei )
 		gXRGL.PixelStorei( GL_UNPACK_ALIGNMENT, 1 );
 	pglTexSubImage2D( GL_TEXTURE_2D, 0, x, y, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba );
 	if( gXRGL.PixelStorei )
 		gXRGL.PixelStorei( GL_UNPACK_ALIGNMENT, unpack );
-	if( gXRGL.ActiveTexture )
-		gXRGL.ActiveTexture( (unsigned int)active );
-	if( gXRGL.BindTexture )
-		gXRGL.BindTexture( GL_TEXTURE_2D, (unsigned int)bind0 );
-	(void)tmu0_bind;
 }
 
 void CSRETRO_DLight_Init( void )
@@ -489,6 +479,7 @@ void CSRETRO_DLight_PrepareMesh( const CSRETRO_BspMesh *mesh, const cl_entity_t 
 	s_stats.patches = s_patch_n;
 	if( s_patch_n > 0 )
 		s_saw_patches = 1;
+	(void)CSRETRO_Backend_CheckGL( "dlight_upload" );
 }
 
 void CSRETRO_DLight_EndOffscreen( void )

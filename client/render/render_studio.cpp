@@ -1139,7 +1139,6 @@ void CSRETRO_Studio_ResetViewmodelProof( void )
 int CSRETRO_Studio_DrawViewmodel( const ref_viewpass_t *rvp )
 {
 	cl_entity_t *live_vm;
-	cl_entity_t vm_snapshot;
 	cl_entity_t *saved_ent = NULL;
 	struct model_s *saved_model = NULL;
 	cl_entity_t *local;
@@ -1216,7 +1215,6 @@ int CSRETRO_Studio_DrawViewmodel( const ref_viewpass_t *rvp )
 		return 0;
 
 	s_vm_proof.eligible = 1;
-	vm_snapshot = *live_vm;
 	s_vm_proof.live_hash_before = HashViewModel( live_vm );
 	s_vm_proof.wick_hash_before = HashWickState();
 	s_vm_proof.sequence = live_vm->curstate.sequence;
@@ -1258,9 +1256,13 @@ int CSRETRO_Studio_DrawViewmodel( const ref_viewpass_t *rvp )
 	wick_attempts_before = g_StudioRenderer.OffscreenWickAttempts();
 	wick_captures_before = g_StudioRenderer.OffscreenWickCaptures();
 
-	gRenderAPI.R_SetCurrentEntity( &vm_snapshot );
-	// Snapshot only. Never live. STUDIO_RENDER only. GSMR bone cache is overwritten
-	// here after Player/FOLLOW; visible Xash rebuilds its own studio context.
+	/*
+	 * Must be the live viewent pointer (same as tr.viewent). A stack snapshot
+	 * breaks R_AllowFlipViewModel (pointer identity) → Cull stays GL_FRONT
+	 * while client bones are already mirrored → black/corrupt triangles.
+	 * STUDIO_RENDER only; events stripped in StudioDrawViewmodelOffscreen.
+	 */
+	gRenderAPI.R_SetCurrentEntity( live_vm );
 	ok = g_StudioRenderer.StudioDrawViewmodelOffscreen( STUDIO_RENDER );
 
 	gRenderAPI.R_SetCurrentEntity( saved_ent );
@@ -1302,7 +1304,7 @@ int CSRETRO_Studio_DrawViewmodel( const ref_viewpass_t *rvp )
 		&& fbo_before == fbo_after ) ? 1 : 0;
 
 	s_vm_proof.live_hash_after = HashViewModel( live_vm );
-	s_vm_proof.snap_hash_after = HashViewModel( &vm_snapshot );
+	s_vm_proof.snap_hash_after = s_vm_proof.live_hash_after;
 	s_vm_proof.wick_hash_after = HashWickState();
 	s_vm_proof.live_mutate = ( s_vm_proof.live_hash_before != s_vm_proof.live_hash_after ) ? 1 : 0;
 	s_vm_proof.wick_mutate = ( s_vm_proof.wick_hash_before != s_vm_proof.wick_hash_after ) ? 1 : 0;

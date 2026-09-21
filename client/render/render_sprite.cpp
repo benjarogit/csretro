@@ -33,6 +33,7 @@
 #define GL_ONE 1
 #define GL_GREATER 0x0204
 #define GL_EQUAL 0x0202
+#define GL_LEQUAL 0x0203
 #define GL_SRC_COLOR 0x0300
 #define GL_ZERO 0
 #define GL_TEXTURE_ENV 0x2300
@@ -498,41 +499,6 @@ void CSRETRO_Sprite_SetNoDepth( int enabled )
 	s_nodepth = enabled ? 1 : 0;
 }
 
-static void RestoreSpriteGL( int depth_func, int blend_src, int blend_dst, int alpha_func,
-	float alpha_ref, unsigned char depth_mask, unsigned int tex, float color[4],
-	int cull_mode, unsigned char blend_on, unsigned char alpha_on, unsigned char cull_on )
-{
-	if( gXRGL.DepthFunc && depth_func )
-		gXRGL.DepthFunc( (unsigned int)depth_func );
-	if( gXRGL.BlendFunc )
-		gXRGL.BlendFunc( (unsigned int)blend_src, (unsigned int)blend_dst );
-	if( gXRGL.AlphaFunc )
-		gXRGL.AlphaFunc( (unsigned int)alpha_func, alpha_ref );
-	if( gXRGL.DepthMask )
-		gXRGL.DepthMask( depth_mask );
-	if( gXRGL.BindTexture )
-		gXRGL.BindTexture( GL_TEXTURE_2D, tex );
-	if( gXRGL.Color4f )
-		gXRGL.Color4f( color[0], color[1], color[2], color[3] );
-	if( gXRGL.CullFace && cull_mode )
-		gXRGL.CullFace( (unsigned int)cull_mode );
-	if( gXRGL.Enable && gXRGL.Disable )
-	{
-		if( blend_on )
-			gXRGL.Enable( GL_BLEND );
-		else
-			gXRGL.Disable( GL_BLEND );
-		if( alpha_on )
-			gXRGL.Enable( GL_ALPHA_TEST );
-		else
-			gXRGL.Disable( GL_ALPHA_TEST );
-		if( cull_on )
-			gXRGL.Enable( GL_CULL_FACE );
-		else
-			gXRGL.Disable( GL_CULL_FACE );
-	}
-}
-
 static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float *vright, const float *vup, const float *vforward, float view_yaw, float cl_time )
 {
 	const xr_model_t *mod;
@@ -702,6 +668,9 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 	if( gXRGL.Enable )
 		gXRGL.Enable( GL_TEXTURE_2D );
 
+	/* Belt: never draw sprites while TMU1 lightmap is still live. */
+	CSRETRO_Backend_SyncTextureUnits();
+
 	if( oldframe == frame || oldframe->gl_texturenum == frame->gl_texturenum )
 	{
 		if( gXRGL.Color4f )
@@ -735,51 +704,39 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 
 	if( lighting )
 	{
-		int depth_func = 0, blend_src = 0, blend_dst = 0, alpha_func = 0, cull_mode = 0, tex = 0;
-		float alpha_ref = 0.0f, cur_color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-		unsigned char depth_mask = 1, blend_on = 0, alpha_on = 0, cull_on = 0;
-
-		if( gXRGL.GetIntegerv )
-		{
-			gXRGL.GetIntegerv( GL_DEPTH_FUNC, &depth_func );
-			gXRGL.GetIntegerv( GL_BLEND_SRC, &blend_src );
-			gXRGL.GetIntegerv( GL_BLEND_DST, &blend_dst );
-			gXRGL.GetIntegerv( GL_ALPHA_TEST_FUNC, &alpha_func );
-			gXRGL.GetIntegerv( GL_TEXTURE_BINDING_2D, &tex );
-			gXRGL.GetIntegerv( GL_CULL_FACE_MODE, &cull_mode );
-		}
-		if( gXRGL.GetFloatv )
-		{
-			gXRGL.GetFloatv( GL_ALPHA_TEST_REF, &alpha_ref );
-			gXRGL.GetFloatv( GL_CURRENT_COLOR, cur_color );
-		}
-		if( gXRGL.GetBooleanv )
-			gXRGL.GetBooleanv( GL_DEPTH_WRITEMASK, &depth_mask );
-		if( gXRGL.IsEnabled )
-		{
-			blend_on = gXRGL.IsEnabled( GL_BLEND );
-			alpha_on = gXRGL.IsEnabled( GL_ALPHA_TEST );
-			cull_on = gXRGL.IsEnabled( GL_CULL_FACE );
-		}
-
 		white_tex = CSRETRO_Backend_WhiteTexture();
 		if( white_tex && gXRGL.Enable && gXRGL.Disable && gXRGL.BlendFunc && gXRGL.DepthFunc )
 		{
-			gXRGL.Enable( GL_BLEND );
-			gXRGL.DepthFunc( GL_EQUAL );
-			gXRGL.Disable( GL_ALPHA_TEST );
-			gXRGL.BlendFunc( GL_ZERO, GL_SRC_COLOR );
+			float lum = light[0] * 0.299f + light[1] * 0.587f + light[2] * 0.114f;
+			/* Near-black light × GL_ZERO,GL_SRC_COLOR → solid black quad. Skip. */
+			if( lum >= ( 16.0f / 255.0f ) )
+			{
+				gXRGL.Enable( GL_BLEND );
+				gXRGL.DepthFunc( GL_EQUAL );
+				gXRGL.Disable( GL_ALPHA_TEST );
+				gXRGL.BlendFunc( GL_ZERO, GL_SRC_COLOR );
+				if( gXRGL.TexEnvi )
+					gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
+				if( gXRGL.Color4f )
+					gXRGL.Color4f( light[0], light[1], light[2], alpha );
+				/* Must go through GL_Bind so glState.currentTextures matches GPU.
+				 * Raw BindTexture left state on the skin while GPU held white —
+				 * next GL_Bind early-out → solid-color (often black) quads. */
+				CSRETRO_Backend_BindTexture( 0, white_tex );
+				DrawQuad( frame, origin, right, up, scale );
+				s_light_pass++;
+			}
+			/* Always hard-restore like Xash — don't trust captured GL enums. */
+			gXRGL.DepthFunc( GL_LEQUAL );
+			if( gXRGL.AlphaFunc )
+				gXRGL.AlphaFunc( GL_GREATER, 0.0f );
+			gXRGL.Disable( GL_BLEND );
+			CSRETRO_Backend_BindTexture( 0, (unsigned int)frame->gl_texturenum );
+			if( gXRGL.Color4f )
+				gXRGL.Color4f( color[0], color[1], color[2], alpha );
 			if( gXRGL.TexEnvi )
 				gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
-			if( gXRGL.Color4f )
-				gXRGL.Color4f( light[0], light[1], light[2], alpha );
-			if( gXRGL.BindTexture )
-				gXRGL.BindTexture( GL_TEXTURE_2D, white_tex );
-			DrawQuad( frame, origin, right, up, scale );
-			s_light_pass++;
 		}
-		RestoreSpriteGL( depth_func, blend_src, blend_dst, alpha_func, alpha_ref, depth_mask,
-			(unsigned int)tex, cur_color, cull_mode, blend_on, alpha_on, cull_on );
 	}
 
 	/* Dump is cert-only. Play path (dump=0) must stay quiet.

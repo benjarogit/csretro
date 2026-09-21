@@ -222,24 +222,47 @@ int CSRETRO_Trans_Draw( const float *vieworg, const float *viewangles,
 	for( i = 0; i < count; i++ )
 	{
 		int ok = 0;
+		static int s_chk_brush, s_chk_sprite, s_chk_studio, s_chk_player;
 
 		if( items[i].kind == TRANS_BRUSH )
+		{
 			ok = CSRETRO_Brush_DrawOne( items[i].scene_index, stats );
+			if( ok && !s_chk_brush )
+			{
+				s_chk_brush = 1;
+				(void)CSRETRO_Backend_CheckGL( "trans_brush" );
+			}
+		}
 		else if( items[i].kind == TRANS_SPRITE )
 		{
 			/* Brush lightmaps leave TMU1 enabled; sprites must be single-texture. */
 			CSRETRO_Backend_SyncTextureUnits();
 			ok = CSRETRO_Sprite_DrawOne( items[i].scene_index, vieworg, viewangles, stats );
+			if( ok && !s_chk_sprite )
+			{
+				s_chk_sprite = 1;
+				(void)CSRETRO_Backend_CheckGL( "trans_sprite" );
+			}
 		}
 		else if( items[i].kind == TRANS_STUDIO )
 		{
 			CSRETRO_Backend_SyncTextureUnits();
 			ok = CSRETRO_Studio_DrawOne( items[i].scene_index, stats );
+			if( ok && !s_chk_studio )
+			{
+				s_chk_studio = 1;
+				(void)CSRETRO_Backend_CheckGL( "trans_studio" );
+			}
 		}
 		else if( items[i].kind == TRANS_PLAYER )
 		{
 			CSRETRO_Backend_SyncTextureUnits();
 			ok = CSRETRO_Studio_DrawPlayerOne( items[i].scene_index, stats, rvp );
+			if( ok && !s_chk_player )
+			{
+				s_chk_player = 1;
+				(void)CSRETRO_Backend_CheckGL( "trans_player" );
+			}
 		}
 		if( ok )
 			drawn++;

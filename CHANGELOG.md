@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.1.54 — 2026-09-21
+
+### Renderer
+
+- Mode-2 Perf (#14): `SyncTextureUnits` ohne per-Sprite `CleanUpTextureUnits` — Manual: F6-Lag weg; HE/Smoke optisch ok.
+- GL `0x500`: `GL_CLAMP` → `GL_CLAMP_TO_EDGE` (White-Tex/FBO); BlendEquation-Query gehärtet; White-Tex früh in BeginTakeover; FIRST-stage CheckGL (`after_trans` / `trans_*` / `white_tex` / `sprite_light_at_point`).
+- Present-GL-Fehler loggen ohne Play-Pfad-Fault-Latch (bereits 0.1.53); Spam auf FIRST-stage reduziert.
+
+Default bleibt `r_csretro_renderer 0`. #12/#15 OPEN; #14 stark verbessert.  
+Default stays `r_csretro_renderer 0`. #12/#15 OPEN; #14 much improved.
+
 ## 0.1.53 — 2026-09-21
 
 ### Renderer

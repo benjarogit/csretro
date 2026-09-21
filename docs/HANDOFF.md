@@ -87,9 +87,13 @@ Mode 2 = unser Takeover — DoD zuerst **Parität zu Mode 0** (gleiche Optik/Fee
 dann erst Features die Mode 0 nicht hat. Solange Mode 2 schlechter/kaputt ist:
 kein Gewinn für dich sichtbar — das ist der aktuelle Stand, kein Widerspruch zum Ziel.
 
-### Was du jetzt tun sollst
-Client neu gebaut. **F7 → Smoke → HE → F8**. Im Log darf bei HE kein
-`GL error 0x500 stage=present` mehr stehen.
+### Weiter (ohne Pflicht-Retest)
+- CLAMP_TO_EDGE, BlendEquation-Query gehärtet, White-Tex früh in BeginTakeover,
+  Substage-CheckGL (`white_tex` / `sprite_light_at_point` / `trans_*`).
+- Nächster Fokus nach cleanem Log: #15 DoD bestätigen, dann #12 neu bewerten.
+  Smoke-Dichte optional später. Default bleibt Mode 0.
+
+
 
 ### Modes — wofür (kein Produkt-Feature)
 | Taste | Mode | Bedeutung |

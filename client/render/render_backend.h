@@ -59,6 +59,7 @@ void CSRETRO_Backend_EndTakeover( void );
 void CSRETRO_Backend_TakeoverSize( int *w, int *h );
 /* Drain/report GL errors. Returns first error (0 = clean). Logs once per stage. */
 unsigned int CSRETRO_Backend_CheckGL( const char *stage );
+void CSRETRO_Backend_ResetGLErrorLog( void );
 
 typedef struct CSRETRO_GL_s
 {

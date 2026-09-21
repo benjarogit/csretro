@@ -656,6 +656,7 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 		{
 			float sampled[3] = { 0.0f, 0.0f, 0.0f };
 			gEngfuncs.pTriAPI->LightAtPoint( origin, sampled );
+			(void)CSRETRO_Backend_CheckGL( "sprite_light_at_point" );
 			s_light_at_point++;
 			light[0] = sampled[0] * ( 1.0f / 255.0f );
 			light[1] = sampled[1] * ( 1.0f / 255.0f );

@@ -98,7 +98,7 @@
 #define GL_FOG_END 0x0B64
 #define GL_FOG_MODE 0x0B65
 #define GL_FOG_COLOR 0x0B66
-#define GL_CLAMP 0x2900
+#define GL_CLAMP_TO_EDGE 0x812F
 #define GL_TEXTURE_WRAP_S 0x2802
 #define GL_TEXTURE_WRAP_T 0x2803
 #define GL_TEXTURE_MIN_FILTER 0x2801
@@ -450,7 +450,17 @@ static void SaveState( void )
 	gXRGL.GetIntegerv( GL_DEPTH_FUNC, &s_saved.depth_func );
 	gXRGL.GetIntegerv( GL_BLEND_SRC, &s_saved.blend_src );
 	gXRGL.GetIntegerv( GL_BLEND_DST, &s_saved.blend_dst );
-	gXRGL.GetIntegerv( GL_BLEND_EQUATION, &s_saved.blend_eq );
+	/* GL_BLEND_EQUATION can INVALID_ENUM on some GL stacks — only query if
+	 * BlendEquation is loaded, then accept default on error. */
+	s_saved.blend_eq = (int)GL_FUNC_ADD;
+	if( gXRGL.BlendEquation && gXRGL.GetIntegerv && gXRGL.GetError )
+	{
+		while( gXRGL.GetError() != GL_NO_ERROR )
+			;
+		gXRGL.GetIntegerv( GL_BLEND_EQUATION, &s_saved.blend_eq );
+		if( gXRGL.GetError() != GL_NO_ERROR || !s_saved.blend_eq )
+			s_saved.blend_eq = (int)GL_FUNC_ADD;
+	}
 	gXRGL.GetIntegerv( GL_ALPHA_TEST_FUNC, &s_saved.alpha_func );
 	if( gXRGL.GetFloatv )
 	{
@@ -475,8 +485,7 @@ static void SaveState( void )
 	gXRGL.GetIntegerv( GL_SHADE_MODEL, &s_saved.shade_model );
 	if( !s_saved.shade_model )
 		s_saved.shade_model = (int)GL_FLAT;
-	if( !s_saved.blend_eq )
-		s_saved.blend_eq = (int)GL_FUNC_ADD;
+	/* blend_eq already defaulted above */
 	gXRGL.GetIntegerv( GL_CULL_FACE_MODE, &s_saved.cull_mode );
 	gXRGL.GetIntegerv( GL_FRONT_FACE, &s_saved.front_face );
 	gXRGL.GetIntegerv( GL_ACTIVE_TEXTURE, &s_saved.active_tex );
@@ -885,22 +894,17 @@ void CSRETRO_Backend_CleanupTextures( void )
 void CSRETRO_Backend_SyncTextureUnits( void )
 {
 	/*
-	 * Land on TMU0 with TEXTURE_2D on and higher units off, with glState
-	 * matching hardware. Never call CleanUpTextureUnits while SelectTexture
-	 * may early-out on a desynced activeTMU — that disables the wrong unit
-	 * and leaves Studio skins on a dead TMU0 (black/corrupt viewmodel).
+	 * Land on TMU0 with TEXTURE_2D on and TMU1 off, glState in sync.
+	 * Do NOT call CleanUpTextureUnits here — smoke/HE frames invoke this
+	 * per sprite and CleanUp's texgen/texcoord path was flooding
+	 * GL_INVALID_ENUM (0x500) at present. Full CleanUp belongs once after
+	 * multitexture world/brush, not on the sprite hot path.
 	 */
 	if( s_api && s_api->GL_SelectTexture )
 	{
 		s_api->GL_SelectTexture( 1 );
 		if( gXRGL.Disable )
-		{
 			gXRGL.Disable( GL_TEXTURE_2D );
-			gXRGL.Disable( GL_TEXTURE_GEN_S );
-			gXRGL.Disable( GL_TEXTURE_GEN_T );
-		}
-		if( s_api->GL_CleanUpTextureUnits )
-			s_api->GL_CleanUpTextureUnits( 1 );
 		s_api->GL_SelectTexture( 0 );
 	}
 	else if( gXRGL.ActiveTexture )
@@ -943,9 +947,10 @@ unsigned int CSRETRO_Backend_WhiteTexture( void )
 	{
 		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
 		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
-		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 	}
+	(void)CSRETRO_Backend_CheckGL( "white_tex" );
 	return s_white_tex;
 }
 
@@ -1118,8 +1123,8 @@ static int EnsureTakeoverFBO( int w, int h )
 	{
 		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
 		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
-		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+		pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 	}
 
 	pglGenRenderbuffers( 1, &s_to_depth_rb );
@@ -1164,6 +1169,8 @@ int CSRETRO_Backend_BeginTakeover( int w, int h )
 
 	SaveState();
 	s_to_active = 1;
+	/* Create white sprite-light tex early so first smoke frame stays clean. */
+	(void)CSRETRO_Backend_WhiteTexture();
 	gXRGL.BindFramebuffer( GL_FRAMEBUFFER, s_to_fbo );
 	if( gXRGL.UseProgram )
 		gXRGL.UseProgram( 0 );
@@ -1225,22 +1232,54 @@ void CSRETRO_Backend_TakeoverSize( int *w, int *h )
 		*h = s_to_h;
 }
 
+static char s_glerr_seen[12][40];
+static int s_glerr_seen_n;
+
+void CSRETRO_Backend_ResetGLErrorLog( void )
+{
+	s_glerr_seen_n = 0;
+	memset( s_glerr_seen, 0, sizeof( s_glerr_seen ) );
+}
+
 unsigned int CSRETRO_Backend_CheckGL( const char *stage )
 {
 	unsigned int first = GL_NO_ERROR;
 	unsigned int err;
+	int i, known = 0;
 
 	if( !gXRGL.GetError )
 		return 0;
 	while( ( err = gXRGL.GetError() ) != GL_NO_ERROR )
 	{
 		if( first == GL_NO_ERROR )
-		{
 			first = err;
-			gEngfuncs.Con_Printf(
-				"CS Retro: GL error 0x%x stage=%s\n",
-				err, stage ? stage : "?" );
+	}
+	if( first == GL_NO_ERROR )
+		return 0;
+
+	if( stage )
+	{
+		for( i = 0; i < s_glerr_seen_n; i++ )
+		{
+			if( !strcmp( s_glerr_seen[i], stage ) )
+			{
+				known = 1;
+				break;
+			}
 		}
+		if( !known && s_glerr_seen_n < (int)( sizeof( s_glerr_seen ) / sizeof( s_glerr_seen[0] ) ) )
+		{
+			strncpy( s_glerr_seen[s_glerr_seen_n], stage, sizeof( s_glerr_seen[0] ) - 1 );
+			s_glerr_seen[s_glerr_seen_n][sizeof( s_glerr_seen[0] ) - 1] = '\0';
+			s_glerr_seen_n++;
+			gEngfuncs.Con_Printf(
+				"CS Retro: GL error 0x%x FIRST stage=%s\n",
+				first, stage );
+		}
+	}
+	else
+	{
+		gEngfuncs.Con_Printf( "CS Retro: GL error 0x%x stage=?\n", first );
 	}
 	return first;
 }

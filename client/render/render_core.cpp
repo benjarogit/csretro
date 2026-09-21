@@ -313,6 +313,7 @@ void CSRETRO_Renderer_Shutdown( void )
 void CSRETRO_Renderer_OnNewMap( void )
 {
 	EnsureEngine();
+	CSRETRO_Backend_ResetGLErrorLog();
 	CSRETRO_BspMesh_OnNewMap();
 	CSRETRO_World_OnNewMap();
 	CSRETRO_Brush_OnNewMap();
@@ -789,6 +790,11 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				s_sky_crc_logged = -1; /* play path: never spam */
 		}
 		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &world_ctx );
+		if( takeover )
+		{
+			CSRETRO_Backend_SyncTextureUnits();
+			(void)CSRETRO_Backend_CheckGL( "after_world" );
+		}
 		memset( &world_base_proof, 0, sizeof( world_base_proof ) );
 		CSRETRO_Backend_SampleProof( &world_base_proof );
 		CSRETRO_DLight_NoteWorldCrc( world_base_proof.crc, CSRETRO_DLight_PatchCount() );
@@ -921,6 +927,8 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		world_ctx.skip_base = 1;
 		world_ctx.skip_fullbright = 0;
 		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &world_ctx );
+		if( takeover )
+			CSRETRO_Backend_SyncTextureUnits();
 		memset( &world_proof, 0, sizeof( world_proof ) );
 		CSRETRO_Backend_SampleProof( &world_proof );
 		if( s_fb_proof_logged != 1 && world_base_proof.crc != world_proof.crc )
@@ -1052,6 +1060,8 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 		CSRETRO_Sprite_DrawSolid( org, ang, &scene );
 		CSRETRO_Studio_DrawFollow( &scene );
+		if( takeover )
+			(void)CSRETRO_Backend_CheckGL( "after_solid_sprites" );
 		{
 			CSRETRO_OffscreenProof before_solid_efx;
 			CSRETRO_OffscreenProof after_solid_efx;
@@ -1103,6 +1113,8 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_Backend_SampleProof( &before_trans_brush );
 			CSRETRO_Sprite_SetNoDepth( s_nodepth_try == 1 );
 			CSRETRO_Trans_Draw( org, ang, &scene, rvp );
+			if( takeover )
+				(void)CSRETRO_Backend_CheckGL( "after_trans" );
 			CSRETRO_Sprite_SetNoDepth( 0 );
 			if( s_water_crc_logged != 1 )
 			{
@@ -1269,7 +1281,10 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			if( gRenderAPI.DrawEFX )
 				gRenderAPI.DrawEFX( rvp, 1, efx_draw_only );
 			if( takeover )
+			{
 				tp.efx_trans++;
+				(void)CSRETRO_Backend_CheckGL( "after_efx_trans" );
+			}
 			memset( &after_trans_efx, 0, sizeof( after_trans_efx ) );
 			CSRETRO_Backend_SampleProof( &after_trans_efx );
 			if( s_efx_crc_logged != 1 && after_tri_t.crc != after_trans_efx.crc )

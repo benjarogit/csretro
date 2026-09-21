@@ -24,8 +24,14 @@
 #define GL_CULL_FACE 0x0B44
 #define GL_SCISSOR_TEST 0x0C11
 #define GL_LEQUAL 0x0203
+#define GL_FRONT 0x0404
 #define GL_BACK 0x0405
 #define GL_CCW 0x0901
+#define GL_NO_ERROR 0
+#define GL_INVALID_ENUM 0x0500
+#define GL_INVALID_VALUE 0x0501
+#define GL_INVALID_OPERATION 0x0502
+#define GL_OUT_OF_MEMORY 0x0505
 #define GL_MODELVIEW 0x1700
 #define GL_PROJECTION 0x1701
 #define GL_RGBA 0x1908
@@ -79,6 +85,9 @@
 #define GL_FRONT_AND_BACK 0x0408
 #define GL_FILL 0x1B02
 #define GL_FLAT 0x1D00
+#define GL_SMOOTH 0x1D01
+#define GL_TEXTURE_GEN_S 0x0C60
+#define GL_TEXTURE_GEN_T 0x0C61
 #define GL_TEXTURE_ENV_MODE 0x2200
 #define GL_POLYGON_OFFSET_FILL 0x8037
 #define GL_POLYGON_OFFSET_FACTOR 0x8038
@@ -107,6 +116,7 @@ static unsigned int s_color_glname = 0;
 static int s_raw_color = 0;
 static unsigned int s_white_tex = 0;
 static int s_dumped_ppm = 0;
+static int s_pixel_proof = 0;
 
 // Mode-2 viewport-sized takeover target (separate from 512 diagnostic FBO).
 static unsigned int s_to_fbo = 0;
@@ -255,6 +265,8 @@ int CSRETRO_Backend_Init( struct render_api_s *api )
 	LOAD2( BindVertexArray, "glBindVertexArray", NULL );
 	LOAD1( ColorMask, "glColorMask" );
 	LOAD1( TexEnvi, "glTexEnvi" );
+	LOAD1( GetTexEnviv, "glGetTexEnviv" );
+	LOAD1( GetError, "glGetError" );
 	LOAD1( AlphaFunc, "glAlphaFunc" );
 	LOAD2( BlendEquation, "glBlendEquation", "glBlendEquationEXT" );
 	LOAD1( Vertex3fv, "glVertex3fv" );
@@ -338,6 +350,16 @@ void CSRETRO_Backend_Shutdown( void )
 void CSRETRO_Backend_AllowDump( void )
 {
 	s_dumped_ppm = 0;
+}
+
+void CSRETRO_Backend_SetPixelProof( int enabled )
+{
+	s_pixel_proof = enabled ? 1 : 0;
+}
+
+int CSRETRO_Backend_PixelProofEnabled( void )
+{
+	return s_pixel_proof;
 }
 
 int CSRETRO_Backend_Ready( void )
@@ -470,12 +492,18 @@ static void SaveState( void )
 		if( gXRGL.IsEnabled )
 			s_saved.tex2d1 = gXRGL.IsEnabled( GL_TEXTURE_2D );
 		gXRGL.GetIntegerv( GL_TEXTURE_BINDING_2D, &s_saved.tex1 );
-		gXRGL.GetIntegerv( GL_TEXTURE_ENV_MODE, &s_saved.texenv1 );
+		if( gXRGL.GetTexEnviv )
+			gXRGL.GetTexEnviv( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &s_saved.texenv1 );
+		else
+			s_saved.texenv1 = (int)GL_MODULATE;
 		gXRGL.ActiveTexture( GL_TEXTURE0 );
 		if( gXRGL.IsEnabled )
 			s_saved.tex2d0 = gXRGL.IsEnabled( GL_TEXTURE_2D );
 		gXRGL.GetIntegerv( GL_TEXTURE_BINDING_2D, &s_saved.tex0 );
-		gXRGL.GetIntegerv( GL_TEXTURE_ENV_MODE, &s_saved.texenv0 );
+		if( gXRGL.GetTexEnviv )
+			gXRGL.GetTexEnviv( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &s_saved.texenv0 );
+		else
+			s_saved.texenv0 = (int)GL_MODULATE;
 	}
 	else
 		gXRGL.GetIntegerv( GL_TEXTURE_BINDING_2D, &s_saved.tex0 );
@@ -696,7 +724,8 @@ int CSRETRO_Backend_BeginOffscreen( void )
 	gXRGL.Disable( GL_POLYGON_OFFSET_FILL );
 	gXRGL.Disable( GL_FOG );
 	gXRGL.Enable( GL_CULL_FACE );
-	gXRGL.CullFace( GL_BACK );
+	/* Match Xash R_SetupGL / GL_Cull(GL_FRONT) — GoldSrc world winding. */
+	gXRGL.CullFace( GL_FRONT );
 	gXRGL.FrontFace( GL_CCW );
 	if( gXRGL.ColorMask )
 		gXRGL.ColorMask( 1, 1, 1, 1 );
@@ -763,12 +792,19 @@ void CSRETRO_Backend_PrepareImmediateDraw( void )
 		gXRGL.Disable( GL_TEXTURE_2D );
 		gXRGL.ActiveTexture( GL_TEXTURE0 );
 	}
+	/* Do not call CleanupTextures here — ~20×/frame thrash. Call
+	 * CSRETRO_Backend_SyncTextureUnits() once after multitexture passes
+	 * and before Studio/Viewmodel. */
 	if( gXRGL.Enable )
 	{
 		gXRGL.Enable( GL_TEXTURE_2D );
 		gXRGL.Enable( GL_DEPTH_TEST );
 		gXRGL.Enable( GL_CULL_FACE );
 	}
+	if( gXRGL.CullFace )
+		gXRGL.CullFace( GL_FRONT );
+	if( gXRGL.FrontFace )
+		gXRGL.FrontFace( GL_CCW );
 	if( gXRGL.DepthMask )
 		gXRGL.DepthMask( GL_TRUE );
 	if( gXRGL.DepthFunc )
@@ -784,8 +820,15 @@ void CSRETRO_Backend_PrepareImmediateDraw( void )
 		gXRGL.DepthRange( 0.0, 1.0 );
 	if( gXRGL.PolygonMode )
 		gXRGL.PolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+	/* Studio needs SMOOTH; FLAT left faceted/dark viewmodels after world batches. */
 	if( gXRGL.ShadeModel )
-		gXRGL.ShadeModel( GL_FLAT );
+		gXRGL.ShadeModel( GL_SMOOTH );
+	if( gXRGL.Disable )
+	{
+		gXRGL.Disable( GL_TEXTURE_GEN_S );
+		gXRGL.Disable( GL_TEXTURE_GEN_T );
+		gXRGL.Disable( GL_ALPHA_TEST );
+	}
 	if( gXRGL.TexEnvi )
 		gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
 }
@@ -811,6 +854,42 @@ void CSRETRO_Backend_CleanupTextures( void )
 		gXRGL.Disable( GL_TEXTURE_2D );
 		gXRGL.ActiveTexture( GL_TEXTURE0 );
 	}
+}
+
+void CSRETRO_Backend_SyncTextureUnits( void )
+{
+	/*
+	 * Clean only TMU >= 1. CleanUpTextureUnits(0) also runs i==0 and
+	 * disables TEXTURE_2D / clears currentTextures[0] — Studio then binds
+	 * skins onto a dead unit (dark/corrupt viewmodel).
+	 */
+	if( s_api && s_api->GL_SelectTexture && s_api->GL_CleanUpTextureUnits )
+	{
+		s_api->GL_SelectTexture( 1 );
+		s_api->GL_CleanUpTextureUnits( 1 ); /* ends on TMU0, unit0 intact */
+	}
+	else if( gXRGL.ActiveTexture )
+	{
+		gXRGL.ActiveTexture( GL_TEXTURE1 );
+		gXRGL.Disable( GL_TEXTURE_2D );
+		gXRGL.ActiveTexture( GL_TEXTURE0 );
+	}
+	if( s_api && s_api->GL_SelectTexture )
+		s_api->GL_SelectTexture( 0 );
+	if( gXRGL.Enable )
+		gXRGL.Enable( GL_TEXTURE_2D );
+	if( gXRGL.Disable )
+	{
+		gXRGL.Disable( GL_TEXTURE_GEN_S );
+		gXRGL.Disable( GL_TEXTURE_GEN_T );
+		gXRGL.Disable( GL_ALPHA_TEST );
+	}
+	if( gXRGL.ShadeModel )
+		gXRGL.ShadeModel( GL_SMOOTH );
+	if( gXRGL.TexEnvi )
+		gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
+	if( gXRGL.Color4f )
+		gXRGL.Color4f( 1.0f, 1.0f, 1.0f, 1.0f );
 }
 
 unsigned int CSRETRO_Backend_WhiteTexture( void )
@@ -920,6 +999,15 @@ static void FillProof( CSRETRO_OffscreenProof *proof, int write_ppm )
 
 void CSRETRO_Backend_SampleProof( CSRETRO_OffscreenProof *proof )
 {
+	if( !s_pixel_proof )
+	{
+		if( proof )
+		{
+			memset( proof, 0, sizeof( *proof ) );
+			proof->target_ok = 1;
+		}
+		return;
+	}
 	FillProof( proof, 0 );
 }
 
@@ -1061,7 +1149,8 @@ int CSRETRO_Backend_BeginTakeover( int w, int h )
 	gXRGL.Disable( GL_POLYGON_OFFSET_FILL );
 	gXRGL.Disable( GL_FOG );
 	gXRGL.Enable( GL_CULL_FACE );
-	gXRGL.CullFace( GL_BACK );
+	/* Match Xash R_SetupGL / GL_Cull(GL_FRONT) — GoldSrc world winding. */
+	gXRGL.CullFace( GL_FRONT );
 	gXRGL.FrontFace( GL_CCW );
 	if( gXRGL.ColorMask )
 		gXRGL.ColorMask( 1, 1, 1, 1 );
@@ -1100,4 +1189,24 @@ void CSRETRO_Backend_TakeoverSize( int *w, int *h )
 		*w = s_to_w;
 	if( h )
 		*h = s_to_h;
+}
+
+unsigned int CSRETRO_Backend_CheckGL( const char *stage )
+{
+	unsigned int first = GL_NO_ERROR;
+	unsigned int err;
+
+	if( !gXRGL.GetError )
+		return 0;
+	while( ( err = gXRGL.GetError() ) != GL_NO_ERROR )
+	{
+		if( first == GL_NO_ERROR )
+		{
+			first = err;
+			gEngfuncs.Con_Printf(
+				"CS Retro: GL error 0x%x stage=%s\n",
+				err, stage ? stage : "?" );
+		}
+	}
+	return first;
 }

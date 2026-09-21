@@ -3,6 +3,179 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
+## Stand 2026-09-20 — PX6A.2 Stabilization: #12 FAIL, #14+#15 OPEN
+
+Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
+**#12 OPEN — Mode 2 nicht freigabefähig** (World sichtbar ≠ spielbar).
+**#14 OPEN** Mode-2 Performance-Regression.
+**#15 OPEN** Mode-2 Viewmodel-Parity falsch.
+#1 #2 #3 #13 unverändert OPEN.
+**Release: NONE.** Keine Promotion. Kein Default→2. Kein Fallback-Kill.
+
+```
+r_csretro_renderer 0 → normales Spielen (empfohlen)
+r_csretro_renderer 1 → Diagnose offscreen + sichtbarer Xash
+r_csretro_renderer 2 → Takeover — World ok-ish, Perf+#15 blockieren
+```
+
+### Befund (Manual Play)
+- Fortschritt: World nicht mehr Clear-Color; Sky/HUD sichtbar.
+- Blocker A (#14): extremes Laggen — Cert-Hotpath (SampleProof/`glReadPixels`,
+  double World-Redraws, TMU-Cleanup×N, CheckGL-Spam).
+- Blocker B (#15): Viewmodel dunkel/falsch — Xash `glState.activeTMU` nach
+  Multitexture-World nicht synced; Studio band Skin auf falsche Unit.
+
+### In-Tree Fixes (noch nicht DoD-geschlossen)
+- SampleProof no-op wenn `r_csretro_offscreen_dump 0` (Play-Default).
+- Random-tiled double World-Redraw nur bei dump=1.
+- `CSRETRO_Backend_SyncTextureUnits()` vor Studio/Player/Viewmodel —
+  **CleanUp(1) nicht CleanUp(0)** (0 disablte TMU0 → dunkles VM).
+- PrepareImmediateDraw ohne CleanupTextures×20/Frame.
+- CheckGL preflight/world/begin nur bei dump=1; Present behält Check.
+- ShadeModel SMOOTH + TexGen aus.
+- Play-Pfad: kein per-frame sky/viewmodel `Con_Printf` bei CRC=0
+  (Log `play-20260920-202645`: ~1600 Spam-Zeilen in ~13s Mode 2).
+- Sprite dump nur bei `r_csretro_offscreen_dump 1`; TempEnt-Bug
+  (s_dump_left nie dekrementiert → Dauer-Spam) behoben.
+
+### DoD zum Schließen (binär — nur interaktiver `play.sh`)
+
+**Kein Schließen aus Codeanalyse oder altem Log.** Logs müssen die gebaute
+Client-SO der Fixes tragen. `r_csretro_offscreen_dump` muss `0` sein.
+
+**Optik-Erwartung:** Mode 2 soll sich **wie Mode 0 anfühlen/aussehen**
+(Parität). Kein „schönerer Renderer“, kein Bloom/Shadowmap-Delta erwarten.
+
+**#14 bleibt OPEN**, wenn Lag vs Mode 0 noch deutlich spürbar ist **oder**
+der Runtime-Log permanent `sprite dump` / `pixelproof` spammt.
+**#15 bleibt OPEN**, wenn eine einzige Waffe sichtbar abweicht.
+Erst wenn **beides** im normalen `play.sh`-Lauf sauber ist → #14+#15 schließen;
+danach #12 **neu bewerten**, nicht automatisch schließen.
+
+#### Pflicht-Durchlauf (A/B Parität — stumpf)
+1. `./scripts/build-client.sh && ./scripts/play.sh` · `de_dust`
+2. Feste Kameraposition, **F9** Glock in der Hand
+3. **F5** (Mode 0) → **F8** Screenshot
+4. **Nicht bewegen:** **F7** (Mode 2) → **F8** Screenshot
+5. Nur noch **F10** AK + **F11** Knife ebenso (0 dann 2, gleiche Pose)
+6. Kurz HE / Smoke / Flash prüfen (liegen nach F11 bereit)
+7. Ablage: neuer `play-*.log` + die 0/2-Paare
+   (`CSRETRO_TEST renderer=` Zeilen im Log = Bestätigung der Umschaltung)
+
+**Nur darauf schauen (nicht Schattenqualität/Bloom/„moderner“):**
+- Waffe gleich hell/dunkel? gleiche Texturfarben?
+- gleiche Größe/Position/Handedness? Knife gleiche Seite?
+- keine schwarzen Flächen / fehlende Polygone?
+- Animation normal?
+- #14: Mode 2 fühlt sich ≈ so flüssig wie Mode 0?
+
+**#15 bestätigt** (Manual 2026-09-21): Mode-2 Viewmodel falsch.
+Saubere Paare: `de_dust_shot0004/0005` und `0006/0007` (F5→F8, F7→F8).
+Alte 0000–0003 gelöscht.
+
+**Freeze-Time-Bug (fix):** Create Game schrieb `listenserver.cfg`, hat sie aber
+nie `exec`'t → GameDLL-Default `mp_freezetime 15`. Fix in `profile.cpp`
+(`exec listenserver.cfg` vor `map`). Menü neu gebaut — nächster `play.sh`.
+
+## Stand 2026-09-21 — Zielbild + Manual (play-20260921-093130)
+
+### PrimeXT — was das Ziel ist
+**Nicht:** CS Retro wird PrimeXT / soll „schöner als 1.6“ aussehen.
+**Sondern:** PrimeXT ist **Ideen-/Technik-Quelle**. Was dort besser gelöst ist
+(Studio, Licht, Sprites, …), Portieren wir **selektiv** in unseren Renderer.
+Mode 2 = unser Takeover — DoD zuerst **Parität zu Mode 0** (gleiche Optik/Feel),
+dann erst Features die Mode 0 nicht hat. Solange Mode 2 schlechter/kaputt ist:
+kein Gewinn für dich sichtbar — das ist der aktuelle Stand, kein Widerspruch zum Ziel.
+
+### Was du jetzt tun sollst
+**Nichts Pflicht.** Freeze ok. A/B + Waffen + HE-in-Smoke sind drin — reicht.
+Optional nur wenn dir langweilig: Mode 2, weitere Effekte mit **F8** erwischen
+(Flashbang-Blind, Decals, andere Maps). Sonst: Spiel zu, ich arbeite am Code.
+
+### Was ich jetzt tue (ohne dich)
+1. **#15** Viewmodel-Studio (alle Waffen) — Root Cause TMU/Lighting
+2. Nebenbei notieren: **HE-Explosion in Smoke** Mode 2 kaputt (Sprites/Partikel)
+3. **#14** Perf ohne Dump
+
+### Deine Shots (behalten)
+| Shot | Bedeutung |
+|------|-----------|
+| 0000 / 0001 | Glock Mode0 vs Mode2 — #15 |
+| 0002 | AK Mode2 — gleiches VM-Problem |
+| 0008–0017 | HE in Smoke Mode2 — Sprite/Partikel-Fehler |
+
+### Was du getestet hast — bestätigt
+- Alle Waffen-VMs Mode 2 falsch (nicht nur Glock)
+- HE in Smoke: blockige/weiße Artefakte, Sortierung, kaputte Explosionssprites
+- F8-Spam für kurze Blitze = sinnvoll
+
+## Stand 2026-09-21 — Manual A/B + Freeze-Fix
+
+**Shots (aktuell):** `de_dust_shot0004`/`0005` und `0006`/`0007`
+(Log `play-20260921-091625`: F9→F5→F8→F7→F8, zweimal). 0000–0003 gelöscht.
+
+**#15 OPEN bestätigt:** Mode 2 Viewmodel = schwarze Dreiecks-Artefakte;
+World ≈ Mode 0. **#14** ohne Dump noch offen.
+
+**Freeze 15s — Root Cause:** `Profile_Start` schrieb `listenserver.cfg`,
+`exec`'te sie aber nicht vor `map` → GameDLL-Default 15. Fix + Menü-Rebuild.
+Nächster Start: `./scripts/play.sh` (frisch). Freezetime 0 → ReGameDLL +2s Intro
+( praktisch sofort beweglich, nicht 15).
+
+## Stand 2026-09-20 — PX6A.2: Mode-2 Lag + Viewmodel (#12 OPEN)
+
+Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
+Issue #7/#9/#10/#11 geschlossen. **#12 OPEN** (Mode 2 noch nicht spielbar freigegeben).
+#1 #2 #3 unverändert OPEN. **#13** Console Clipboard separat OPEN.
+**Release: NONE.** Keine Promotion.
+
+```
+r_csretro_renderer 0 → normales Spielen (empfohlen)
+r_csretro_renderer 1 → Diagnose offscreen + sichtbarer Xash
+r_csretro_renderer 2 → Takeover — Recovery in Arbeit
+```
+
+World nach Cull/`GL_FRONT` wieder sichtbar. Offene Mode-2-Bugs:
+- Lag: jedes Frame viele volle FBO-`glReadPixels` (SampleProof) → jetzt hinter
+  `r_csretro_offscreen_dump` (Probes setzen 1, Play-Pfad 0).
+- Viewmodel dunkel/falsch: `PrepareImmediateDraw` stellte TMU per Raw-GL um,
+  Xash-`glState.activeTMU` blieb auf Lightmap-Unit → Studio-Bind falsch;
+  plus `ShadeModel(GL_SMOOTH)`, TexGen aus.
+
+Bitte: `./scripts/build-client.sh && ./scripts/play.sh` → `r_csretro_renderer 2`.
+
+**Nicht:** Default→2, Mode-1 Promotion, Fallback entfernen, Release/Tag.
+
+**Nächster Schritt:** Mode-2 spielbar (FPS + korrektes Viewmodel) → dann #12 Close erwägen.
+#13 parallel möglich. #1/#2/#3 nicht schließen.
+
+## Stand 2026-09-20 — PX6A.2 Recovery: Mode-2 World kaputt (#12 OPEN)
+
+Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
+Issue #7/#9/#10/#11 geschlossen. **#12 wieder OPEN** (Manual-Repro de_dust).
+#1 #2 #3 unverändert OPEN. **#13** Console Clipboard separat OPEN.
+**Release: NONE.** Keine Promotion.
+
+```
+r_csretro_renderer 0 → normales Spielen (empfohlen)
+r_csretro_renderer 1 → Diagnose offscreen + sichtbarer Xash
+r_csretro_renderer 2 → Takeover — derzeit World = Clear-Color (10,10,31)
+```
+
+Manual-Repro (`b266384`, `./scripts/play.sh`, Mode 2): Sky/HUD/Viewmodel ok,
+World = Backend-Clear. PX6A.1 Cert bleibt historischer Lauf, **nicht** Produktfreigabe.
+
+Recovery-Stand: `SaveState`/Water/Decal TexEnv via `glGetTexEnviv`; Cull `GL_FRONT`
+wie Xash `R_SetupGL` (war `GL_BACK` → World weggecullt); GL-Fence; Fault-Latch
+gilt ein Xash-Frame, dann Retry. `px6a-takeover-probe` PASS ohne `GL_INVALID_ENUM`.
+
+Bitte manuell: `./scripts/build-client.sh && ./scripts/play.sh` → `r_csretro_renderer 2`.
+
+**Nicht:** Default→2, Mode-1 Promotion, Fallback entfernen, Release/Tag.
+
+**Nächster Schritt:** Mode-2 World visuell spielbar → dann erst #12 wieder Close erwägen.
+#13 parallel möglich. #1/#2/#3 nicht schließen.
+
 ## Stand 2026-09-20 — PX6A.1 Visual Cert PASS; #12 CLOSED
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
@@ -412,5 +585,23 @@ Visual: `./scripts/px3c-visual-cert.sh` → `build/px3c-cert-shots/`; `./scripts
 
 **Start:** nur `./scripts/play.sh`. Root-`play.sh` nicht committen. Keine Zweitinstanz.
 Build-Client: `./scripts/build-client.sh` → `build/client-cmake/client/client_amd64.so`.
+
+**Play-Test-Regeln** (jeder `play.sh`-Start): `$16000`, `mp_buytime -1`,
+`mp_freezetime 0`, `mp_buy_anywhere 1`, `mp_round_infinite 1`, `sv_cheats 1`.
+Quelle: `scripts/play-test-rules.cfg` → `listenserver.cfg`, Create-Game-Defaults in
+`data/ui-overrides/cstrike/settings.scr`.
+
+**F-Tasten** (`scripts/play-test-client.cfg` → `csretro_play_test.cfg`, **F4** = Legende):
+| Taste | Aktion |
+|-------|--------|
+| F1 | max money |
+| F2 / F3 | god / noclip |
+| F5 / F6 / F7 | renderer 0 / 1 / 2 |
+| F8 | screenshot (A/B: Pose halten → F5→F8, F7→F8) |
+| F9 / F10 / F11 | Glock / AK47 / Knife+Nades |
+| KP− / KP+ / KP_Enter | FPS / dump OFF / dump ON (lag!) |
+| F12 | Engine-Snapshot (unverändert) |
+
+A/B-DoD ohne Konsole: F9 → Pose → **F5→F8** → **F7→F8** (dann F10/F11 ebenso).
 
 **Kein `GL_RenderFrame → 1`.** Locks: Inferno/Zippo-Gameplay, CS2-Waffen, `pm_shared`, ImGui, PhysX, HDR/PBR, Entity-Steal, sichtbarer Custom-Frame, PrimeXT-Studio parallel.

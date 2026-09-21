@@ -49,7 +49,16 @@ void Profile_WriteListen(const ServerProfile *p)
 void Profile_Start(const ServerProfile *p)
 {
 	Profile_WriteListen(p);
+	// listenserver.cfg must be exec'd before map — Xash does not auto-exec
+	// lservercfgfile (only dedicated servercfgfile). Without this, GameDLL
+	// keeps stock defaults (mp_freezetime 15, startmoney 800, …).
+	char execCmd[128];
+	snprintf(execCmd, sizeof(execCmd), "exec listenserver.cfg\n");
+	if (gEng.pfnClientCmd)
+		gEng.pfnClientCmd(1, execCmd);
+
 	char cmd[256];
 	snprintf(cmd, sizeof(cmd), "maxplayers %d; map %s\n", p->maxplayers, p->map.c_str());
-	gEng.pfnClientCmd(0, cmd);
+	if (gEng.pfnClientCmd)
+		gEng.pfnClientCmd(0, cmd);
 }

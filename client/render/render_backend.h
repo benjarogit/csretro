@@ -27,7 +27,12 @@ int CSRETRO_Backend_Ready( void );
 int CSRETRO_Backend_BeginOffscreen( void );
 void CSRETRO_Backend_EndOffscreen( CSRETRO_OffscreenProof *proof, int do_readback );
 
+// Pixelproof ReadPixels — play path keeps this off; probes set dump=1.
+void CSRETRO_Backend_SetPixelProof( int enabled );
+int CSRETRO_Backend_PixelProofEnabled( void );
+
 // Read FBO while still bound. Does not restore GL state.
+// No-op (target_ok=1, crc=0) when pixelproof is disabled.
 void CSRETRO_Backend_SampleProof( CSRETRO_OffscreenProof *proof );
 int CSRETRO_Backend_DumpPPM( const char *name );
 
@@ -36,6 +41,8 @@ void CSRETRO_Backend_ApplyView( const float *vieworg, const float *viewangles, f
 void CSRETRO_Backend_PrepareImmediateDraw( void );
 void CSRETRO_Backend_BindTexture( int tmu, unsigned int texnum );
 void CSRETRO_Backend_CleanupTextures( void );
+/* After multitexture world/brush: resync Xash TMU + studio-safe GL state. */
+void CSRETRO_Backend_SyncTextureUnits( void );
 unsigned int CSRETRO_Backend_WhiteTexture( void );
 
 // Fog is TriAPI render-state. Push/Pop around offscreen triangle draws so Xash-visible fog stays put.
@@ -49,6 +56,8 @@ int CSRETRO_Backend_BeginTakeover( int w, int h );
 int CSRETRO_Backend_PresentTakeover( int dst_x, int dst_y, int dst_w, int dst_h );
 void CSRETRO_Backend_EndTakeover( void );
 void CSRETRO_Backend_TakeoverSize( int *w, int *h );
+/* Drain/report GL errors. Returns first error (0 = clean). Logs once per stage. */
+unsigned int CSRETRO_Backend_CheckGL( const char *stage );
 
 typedef struct CSRETRO_GL_s
 {
@@ -90,6 +99,8 @@ typedef struct CSRETRO_GL_s
 	void ( *BindVertexArray )( unsigned int array );
 	void ( *ColorMask )( unsigned char r, unsigned char g, unsigned char b, unsigned char a );
 	void ( *TexEnvi )( unsigned int target, unsigned int pname, int param );
+	void ( *GetTexEnviv )( unsigned int target, unsigned int pname, int *params );
+	unsigned int ( *GetError )( void );
 	void ( *AlphaFunc )( unsigned int func, float ref );
 	void ( *BlendEquation )( unsigned int mode );
 	void ( *Vertex3fv )( const float *v );

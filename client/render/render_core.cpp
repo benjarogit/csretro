@@ -519,6 +519,9 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			tp.reject_reason = reject;
 			tp.return_code = 0;
 			CSRETRO_Takeover_NoteProof( &tp );
+			/* Latch means: this next frame is Xash; then allow Mode-2 retry. */
+			if( reject == CSRETRO_TAKEOVER_REJECT_FAULT_LATCH )
+				CSRETRO_Takeover_ClearFault();
 			RunProbeSeq();
 			return 0;
 		}
@@ -638,6 +641,9 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			return 0;
 		}
 		tp.preflight_ok = 1;
+		/* Drain stale GL errors only when dumping — play path skips the sync. */
+		if( s_dump && s_dump->value != 0.0f )
+			(void)CSRETRO_Backend_CheckGL( "mode2-preflight" );
 
 		// --- TAKEOVER COMMITTED: no same-frame Xash fallback ---
 		if( !gRenderAPI.PrepareCustomFrame( rvp, &cfi ) )
@@ -668,6 +674,12 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			RunProbeSeq();
 			return 1;
 		}
+		if( ( s_dump && s_dump->value != 0.0f )
+			&& CSRETRO_Backend_CheckGL( "begin_takeover" ) )
+		{
+			CSRETRO_Takeover_LatchFault();
+			tp.fault_latched = 1;
+		}
 	}
 	else if( !CSRETRO_Backend_BeginOffscreen() )
 	{
@@ -695,7 +707,9 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			world_scale_before = world_live->curstate.scale;
 		world_ctx.skip_fullbright = 1;
 		CSRETRO_DLight_BeginOffscreen();
-		if( !s_rnd_px_logged )
+		/* Full-FBO glReadPixels every frame = Mode-2 lag. Probes set dump=1. */
+		CSRETRO_Backend_SetPixelProof( s_dump && s_dump->value != 0.0f );
+		if( !s_rnd_px_logged && CSRETRO_Backend_PixelProofEnabled() )
 		{
 			CSRETRO_WorldStats wst;
 			CSRETRO_World_GetStats( &wst );
@@ -741,35 +755,49 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
 			if( gXRGL.Disable )
 				gXRGL.Disable( 0x0B44 ); /* GL_CULL_FACE — sky winding vs FBO cull */
-			memset( &before_sky, 0, sizeof( before_sky ) );
-			CSRETRO_Backend_SampleProof( &before_sky );
+			if( CSRETRO_Backend_PixelProofEnabled() )
+			{
+				memset( &before_sky, 0, sizeof( before_sky ) );
+				CSRETRO_Backend_SampleProof( &before_sky );
+			}
 			CSRETRO_Vis_DrawSky();
 			if( gXRGL.Enable )
 				gXRGL.Enable( 0x0B44 );
-			CSRETRO_Backend_PrepareImmediateDraw();
-			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
-			memset( &after_sky, 0, sizeof( after_sky ) );
-			CSRETRO_Backend_SampleProof( &after_sky );
-			if( vi && vi->sky_candidates > 0 && !s_sky_crc_logged )
+			if( CSRETRO_Backend_PixelProofEnabled() )
 			{
-				int differ = before_sky.crc != after_sky.crc ? 1 : 0;
-				gEngfuncs.Con_Printf(
-					"CS Retro: sky pixelproof before=%08x after=%08x differ=%i candidates=%i drawn=%i nonempty=%i farclip=%.1f sides=%i applyview=1\n",
-					before_sky.crc, after_sky.crc, differ,
-					vi->sky_candidates, vi->sky_drawn, after_sky.nonempty_pixels,
-					vi->farclip, vi->sky_sides_nonempty );
-				if( differ && after_sky.nonempty_pixels > 0 && vi->farclip > 0.0f
-					&& vi->sky_sides_nonempty > 0 )
+				CSRETRO_Backend_PrepareImmediateDraw();
+				CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+				memset( &after_sky, 0, sizeof( after_sky ) );
+				CSRETRO_Backend_SampleProof( &after_sky );
+				if( vi && vi->sky_candidates > 0 && !s_sky_crc_logged )
 				{
-					s_sky_crc_logged = 1;
-					CSRETRO_Backend_DumpPPM( "csretro_sky.ppm" );
+					int differ = before_sky.crc != after_sky.crc ? 1 : 0;
+					gEngfuncs.Con_Printf(
+						"CS Retro: sky pixelproof before=%08x after=%08x differ=%i candidates=%i drawn=%i nonempty=%i farclip=%.1f sides=%i applyview=1\n",
+						before_sky.crc, after_sky.crc, differ,
+						vi->sky_candidates, vi->sky_drawn, after_sky.nonempty_pixels,
+						vi->farclip, vi->sky_sides_nonempty );
+					if( differ && after_sky.nonempty_pixels > 0 && vi->farclip > 0.0f
+						&& vi->sky_sides_nonempty > 0 )
+					{
+						s_sky_crc_logged = 1;
+						CSRETRO_Backend_DumpPPM( "csretro_sky.ppm" );
+					}
 				}
 			}
+			else if( !s_sky_crc_logged )
+				s_sky_crc_logged = -1; /* play path: never spam */
 		}
 		CSRETRO_World_Draw( org, ang, rvp->fov_x, rvp->fov_y, &world_ctx );
 		memset( &world_base_proof, 0, sizeof( world_base_proof ) );
 		CSRETRO_Backend_SampleProof( &world_base_proof );
 		CSRETRO_DLight_NoteWorldCrc( world_base_proof.crc, CSRETRO_DLight_PatchCount() );
+		if( takeover && s_dump && s_dump->value != 0.0f
+			&& CSRETRO_Backend_CheckGL( "world" ) )
+		{
+			CSRETRO_Takeover_LatchFault();
+			tp.fault_latched = 1;
+		}
 		if( takeover && gRenderAPI.CustomFrameFogPost )
 		{
 			gRenderAPI.CustomFrameFogPost();
@@ -959,6 +987,7 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 		}
 		CSRETRO_Backend_PrepareImmediateDraw();
 		CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+		CSRETRO_Backend_SyncTextureUnits();
 		CSRETRO_Studio_DrawList( &scene );
 		{
 			CSRETRO_OffscreenProof before_player;
@@ -968,11 +997,13 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 			CSRETRO_Backend_SampleProof( &before_player );
 			CSRETRO_Backend_PrepareImmediateDraw();
 			CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+			CSRETRO_Backend_SyncTextureUnits();
 			CSRETRO_Studio_DrawPlayers( &scene, rvp );
 			memset( &after_player, 0, sizeof( after_player ) );
 			CSRETRO_Backend_SampleProof( &after_player );
 			CSRETRO_Studio_GetPlayerProof( &pp );
-			if( pp.drawn > 0 && s_player_crc_logged != 1 )
+			if( CSRETRO_Backend_PixelProofEnabled()
+				&& pp.drawn > 0 && s_player_crc_logged != 1 )
 			{
 				int differ = before_player.crc != after_player.crc ? 1 : 0;
 				gEngfuncs.Con_Printf(
@@ -986,6 +1017,8 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				if( differ )
 					s_player_crc_logged = 1;
 			}
+			else if( !CSRETRO_Backend_PixelProofEnabled() && s_player_crc_logged == 0 )
+				s_player_crc_logged = -1;
 			if( pp.candidates > 0 && !s_player_hash_logged && pp.info_before )
 			{
 				s_player_hash_logged = 1;
@@ -1254,6 +1287,7 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 				CSRETRO_Backend_SampleProof( &before_vm );
 				CSRETRO_Backend_PrepareImmediateDraw();
 				CSRETRO_Backend_ApplyView( org, ang, rvp->fov_x, rvp->fov_y );
+				CSRETRO_Backend_SyncTextureUnits();
 				CSRETRO_Studio_DrawViewmodel( rvp );
 				memset( &after_vm, 0, sizeof( after_vm ) );
 				CSRETRO_Backend_SampleProof( &after_vm );
@@ -1276,7 +1310,8 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 						vp.depth_after[0], vp.depth_after[1],
 						vp.depth_restore, vp.gl_restore );
 				}
-				if( vp.drawn_frame > 0 && s_vm_crc_logged != 1 )
+				if( CSRETRO_Backend_PixelProofEnabled()
+					&& vp.drawn_frame > 0 && s_vm_crc_logged != 1 )
 				{
 					int differ = before_vm.crc != after_vm.crc ? 1 : 0;
 					gEngfuncs.Con_Printf(
@@ -1287,6 +1322,8 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 					if( differ )
 						s_vm_crc_logged = 1;
 				}
+				else if( !CSRETRO_Backend_PixelProofEnabled() && s_vm_crc_logged == 0 )
+					s_vm_crc_logged = -1;
 				if( vp.model[0] && strncmp( s_vm_last_model, vp.model, sizeof( s_vm_last_model ) ) != 0 )
 				{
 					strncpy( s_vm_last_model, vp.model, sizeof( s_vm_last_model ) - 1 );
@@ -1417,6 +1454,11 @@ int CSRETRO_Renderer_Frame( const struct ref_viewpass_s *rvp )
 						present_ok = CSRETRO_Backend_PresentTakeover(
 							rvp->viewport[0], rvp->viewport[1],
 							rvp->viewport[2], rvp->viewport[3] );
+					}
+					if( CSRETRO_Backend_CheckGL( "present" ) )
+					{
+						CSRETRO_Takeover_LatchFault();
+						tp.fault_latched = 1;
 					}
 					tp.present_ok = present_ok;
 					if( !present_ok )

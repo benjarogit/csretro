@@ -15,7 +15,7 @@ DESCRIPTION SERVER_OPTIONS
 	{
 		"#Valve_Hostname"
 		{ STRING }
-		{ "Counter-Strike" }
+		{ "CS Retro" }
 	}
 
 	"maxplayers"
@@ -32,11 +32,18 @@ DESCRIPTION SERVER_OPTIONS
 		{ "" }
 	}
 
+	"sv_cheats"
+	{
+		"#CsretroGameUI_Cheats"
+		{ BOOL }
+		{ "1" }
+	}
+
 	"mp_timelimit"
 	{
 		"#Cstrike_Timelimit"
 		{ NUMBER 0.000000 -1.000000 }
-		{ "20.000000" }
+		{ "0.000000" }
 	}
 
 	"mp_winlimit"
@@ -57,7 +64,7 @@ DESCRIPTION SERVER_OPTIONS
 	{
 		"#Cstrike_RoundTime"
 		{ NUMBER 0.000000 15.000000 }
-		{ "5.000000" }
+		{ "9.000000" }
 	}
 
 	"mp_c4timer"
@@ -71,21 +78,41 @@ DESCRIPTION SERVER_OPTIONS
 	{
 		"#Cstrike_FreezeTime"
 		{ NUMBER 0.000000 60.000000 }
-		{ "15.000000" }
+		{ "0.000000" }
 	}
 
 	"mp_buytime"
 	{
 		"#Cstrike_BuyTime"
-		{ NUMBER 0.250000 -1.000000 }
-		{ "1.500000" }
+		{ NUMBER -1.000000 9.000000 }
+		{ "-1.000000" }
+	}
+
+	"mp_buy_anywhere"
+	{
+		"#CsretroGameUI_BuyAnywhere"
+		{
+			LIST
+			"#CsretroGameUI_BuyAnywhere_Off" "0"
+			"#CsretroGameUI_BuyAnywhere_Both" "1"
+			"#CsretroGameUI_BuyAnywhere_T" "2"
+			"#CsretroGameUI_BuyAnywhere_CT" "3"
+		}
+		{ "1.000000" }
+	}
+
+	"mp_round_infinite"
+	{
+		"#CsretroGameUI_RoundInfinite"
+		{ BOOL }
+		{ "1" }
 	}
 
 	"mp_startmoney"
 	{
 		"#Cstrike_StartMoney"
 		{ NUMBER 800.000000 16000.000000 }
-		{ "800.000000" }
+		{ "16000.000000" }
 	}
 
 	"mp_maxmoney"
@@ -106,7 +133,7 @@ DESCRIPTION SERVER_OPTIONS
 	{
 		"#Cstrike_Allow_Flashlight"
 		{ BOOL }
-		{ "0" }
+		{ "1" }
 	}
 
 	"mp_forcecamera"
@@ -153,14 +180,14 @@ DESCRIPTION SERVER_OPTIONS
 	{
 		"#CsretroGameUI_AutoTeamBalance"
 		{ BOOL }
-		{ "1" }
+		{ "0" }
 	}
 
 	"mp_limitteams"
 	{
 		"#CsretroGameUI_LimitTeams"
 		{ NUMBER 0.000000 20.000000 }
-		{ "2.000000" }
+		{ "0.000000" }
 	}
 
 	"mp_hostagepenalty"

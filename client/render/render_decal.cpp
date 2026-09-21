@@ -184,7 +184,10 @@ static void SnapGL( DecalGLSnap *s )
 	{
 		gXRGL.GetIntegerv( GL_BLEND_SRC, &s->blend_src );
 		gXRGL.GetIntegerv( GL_BLEND_DST, &s->blend_dst );
-		gXRGL.GetIntegerv( GL_TEXTURE_ENV_MODE, &s->texenv );
+		if( gXRGL.GetTexEnviv )
+			gXRGL.GetTexEnviv( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &s->texenv );
+		else
+			s->texenv = (int)GL_MODULATE;
 		gXRGL.GetIntegerv( GL_TEXTURE_BINDING_2D, &s->tex0 );
 		gXRGL.GetIntegerv( 0x0B45, &s->cull_mode ); // GL_CULL_FACE_MODE
 	}

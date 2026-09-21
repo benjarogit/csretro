@@ -1128,7 +1128,10 @@ void CSRETRO_BspMesh_Draw( const CSRETRO_BspMesh *mesh, const CSRETRO_MeshDrawCo
 		{
 			gXRGL.GetIntegerv( 0x0BE1, &blend_src ); // GL_BLEND_SRC
 			gXRGL.GetIntegerv( 0x0BE0, &blend_dst ); // GL_BLEND_DST
-			gXRGL.GetIntegerv( GL_TEXTURE_ENV_MODE, &texenv );
+			if( gXRGL.GetTexEnviv )
+				gXRGL.GetTexEnviv( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &texenv );
+			else
+				texenv = (int)GL_MODULATE;
 		}
 
 		CSRETRO_Backend_PushFog();
@@ -1262,7 +1265,10 @@ static void WaterSnap( WaterGLSnap *s )
 	{
 		gXRGL.GetIntegerv( 0x0BE1, &s->blend_src );
 		gXRGL.GetIntegerv( 0x0BE0, &s->blend_dst );
-		gXRGL.GetIntegerv( GL_TEXTURE_ENV_MODE, &s->texenv );
+		if( gXRGL.GetTexEnviv )
+			gXRGL.GetTexEnviv( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &s->texenv );
+		else
+			s->texenv = (int)GL_MODULATE;
 		gXRGL.GetIntegerv( 0x0B45, &s->cull_mode ); // GL_CULL_FACE_MODE
 	}
 	if( gXRGL.GetFloatv )

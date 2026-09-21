@@ -782,7 +782,11 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 			(unsigned int)tex, cur_color, cull_mode, blend_on, alpha_on, cull_on );
 	}
 
-	if( s_dump_left > 0 || ( e->kind == CSRETRO_KIND_TENT_SPRITE && !s_tent_dumped ) )
+	/* Dump is cert-only. Play path (dump=0) must stay quiet.
+	 * Bug: tent branch set s_tent_dumped but never decremented s_dump_left,
+	 * so every TempEnt every frame kept matching s_dump_left > 0. */
+	if( CSRETRO_Backend_PixelProofEnabled()
+		&& ( s_dump_left > 0 || ( e->kind == CSRETRO_KIND_TENT_SPRITE && !s_tent_dumped ) ) )
 	{
 		float dx = origin[0] - vieworg[0];
 		float dy = origin[1] - vieworg[1];
@@ -800,7 +804,7 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 			e->rendermode, scale, e->renderamt, hdr->texFormat, frames.lerp, lighting, s_angled_path );
 		if( e->kind == CSRETRO_KIND_TENT_SPRITE )
 			s_tent_dumped = 1;
-		else if( s_dump_left > 0 )
+		if( s_dump_left > 0 )
 			s_dump_left--;
 	}
 

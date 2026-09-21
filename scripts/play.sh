@@ -57,6 +57,23 @@ echo "CSRETRO_PLAY_LOG engine=${RUN}/engine.log"
 if [[ "${CSRETRO_PLAY_KEEP_FIXTURES:-0}" != 1 ]]; then
 	csretro_play_sanitize_usercfg "${RUN}" "${GAMEDATA}"
 fi
+# Renderer/weapon A/B: infinite buy, no freeze, max money, buy anywhere.
+# Create Game defaults: data/ui-overrides/cstrike/settings.scr (also staged here
+# so Create Game / filesystem see play-test defaults without stale gamedata).
+cp -a "${ROOT}/data/ui-overrides/cstrike/settings.scr" "${RUN}/cstrike/settings.scr"
+cp -a "${ROOT}/scripts/play-test-rules.cfg" "${RUN}/cstrike/listenserver.cfg"
+cp -a "${ROOT}/scripts/play-test-client.cfg" "${RUN}/cstrike/csretro_play_test.cfg"
+if [[ ! -f "${RUN}/cstrike/userconfig.cfg" ]]; then
+	printf '%s\n' \
+		'// CS Retro userconfig — user bindings only.' \
+		'// Automated 3C/gate aliases live in build/run-3c, not here.' \
+		> "${RUN}/cstrike/userconfig.cfg"
+fi
+if ! rg -q 'csretro_play_test\.cfg' "${RUN}/cstrike/userconfig.cfg" 2>/dev/null; then
+	printf '\n%s\n' 'exec csretro_play_test.cfg' >> "${RUN}/cstrike/userconfig.cfg"
+fi
+echo "CSRETRO_PLAY_TEST_RULES listenserver=maxmoney/buytime-1/freezetime0/buy_anywhere/round_infinite"
+echo "CSRETRO_PLAY_TEST_CLIENT F5/F6/F7=renderer0/1/2 F8=shot F9/F10/F11=weapons F1=money F4=help"
 csretro_play_print_exec_context "${RUN}" "${GAMEDATA}"
 cp -a "${GAMEDLL}" "${RUN}/cstrike/dlls/cs_amd64.so"
 cp -a "${CLIENT}" "${RUN}/cstrike/cl_dlls/client_amd64.so"

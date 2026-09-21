@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.1.52 — 2026-09-21
+
+### Renderer
+
+- Mode-2 Stabilization (#12 OPEN, #14+#15 OPEN): SampleProof/`glReadPixels` und Sprite-Dump nur noch hinter `r_csretro_offscreen_dump`; TMU-Sync vor Studio (`CleanUp(1)` nicht `CleanUp(0)`); ShadeModel SMOOTH + TexGen aus; CheckGL-/Proof-Spam im Play-Pfad gedrosselt. Manual A/B: World ≈ Mode 0, Viewmodel Mode 2 weiterhin kaputt (alle Waffen) plus HE-in-Smoke Sprite-Artefakte.
+
+### Play / Create Game
+
+- `scripts/play-test-rules.cfg` + `play-test-client.cfg`: Test-Listenregeln (max money, buytime −1, freezetime 0, buy anywhere) und F-Tasten (F5/F6/F7 Renderer, F8 Shot, F9–F11 Waffen). Create-Game-Defaults in `settings.scr`. `Profile_Start` exec't `listenserver.cfg` vor `map` (Fix: Freezetime blieb sonst bei GameDLL-Default 15).
+
+Default bleibt `r_csretro_renderer 0`. Kein Release-Promotion von Mode 2.  
+Default stays `r_csretro_renderer 0`. Mode 2 is not promoted.
+
 ## 0.1.51 — 2026-09-20
 
 ### Renderer

@@ -3,6 +3,38 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
+## Stand 2026-09-21 — Classic-CS-1.6-Movement-Restore
+
+Aktiver PM-Pfad: `client/body/pm_shared` (Prediction) und
+`server/game/regamedll/pm_shared` (Autoritaet). `client_mini` aus NextClient
+ist in dieser Xash-Runtime kein alternativer PM-Pfad: `HUD_PlayerMove` wird
+weitergeleitet; seine relevanten Unterschiede sind View-/Weapon-Feel.
+
+| Mechanik | Current CS Retro | Velaron | NextClient | Entscheidung |
+|---|---|---|---|---|
+| Boden-, Luftbeschleunigung und Friction | Kernformeln gleich | Referenz | keine alternative PM | beibehalten |
+| Post-Jump-Recovery `fuser2` | 450 ms, verkuerzte Drossel | 1315.789429 ms | keine PM-Alternative | auf 1315.789429 ms in Client und GameDLL restauriert |
+| Auto-/Extended-Bhop | ReGame-CVars vorhanden, Defaults 0 | klassischer Ablauf | keine PM-Alternative | Defaults 0 belassen; bei Runtime-Test kontrollieren |
+| ReGame-Stamina | optional, Default 0 | nicht aktiv | keine PM-Alternative | 0 belassen, da keine passende Client-Prediction existiert |
+| Weapon lag | `cl_weaponlag 0` | klassisches View-Feel | aktiver Feel-Pfad | Default 1, persistente Mouse-Option hinzugefuegt |
+| Bob | `cl_bobstyle 0/1` | Style 1 = alter Sway | Style 0 ohne zusaetzlichen Winkelsway | unabhaengige Feel-Option, kein Physics-Fix |
+
+Die konkrete Fehlursache fuer den zu leichten Bunnyhop war die beiderseitige
+Verkuerzung der im WalkMove wirksamen Recovery von 1315.789429 auf 450 ms. Der
+Restore ist absichtlich lockstep: beide PM-Implementierungen setzen jetzt den
+Velaron-Wert, und `scripts/movement-contract-gate.sh` erzwingt ihn.
+
+Validiert: `./scripts/movement-contract-gate.sh`, `csretro_client`,
+`csretro_menu` und `csretro_gamedll` bauen erfolgreich. Die GameDLL erzeugt
+weiterhin vorhandene, nicht durch diesen Slice verursachte Compilerwarnungen.
+
+Offener Gameplay-DoD, nicht aus Source-Paritaet schliessen: frischer
+`./scripts/play.sh`-Lauf mit Standstill-Beschleunigung, Volltempo-Reversal,
+A/D-Wechsel, Strafe mit Mausdrehung, Einzel-/Kettenjumps, Duck/Unduck und
+Duck-Jump. Dabei serverseitig kontrollieren:
+`sv_autobunnyhopping 0`, `sv_enablebunnyhopping 0`,
+`mp_stamina_restore_rate 0`, `mp_unduck_method 0`, `mp_jump_height 45`.
+
 ## Stand 2026-09-20 — PX6A.2 Stabilization: #12 FAIL, #14+#15 OPEN
 
 Verbindlich: eine CS-Retro-Codebasis. Xash = einzige Runtime. Eine `client_amd64.so`.
@@ -77,43 +109,34 @@ Alte 0000–0003 gelöscht.
 nie `exec`'t → GameDLL-Default `mp_freezetime 15`. Fix in `profile.cpp`
 (`exec listenserver.cfg` vor `map`). Menü neu gebaut — nächster `play.sh`.
 
-## Stand 2026-09-21 — Zielbild + Manual (play-20260921-093130)
+## Stand 2026-09-21 — Warteschlange (nicht nur HE/GL)
 
-### PrimeXT — was das Ziel ist
-**Nicht:** CS Retro wird PrimeXT / soll „schöner als 1.6“ aussehen.
-**Sondern:** PrimeXT ist **Ideen-/Technik-Quelle**. Was dort besser gelöst ist
-(Studio, Licht, Sprites, …), Portieren wir **selektiv** in unseren Renderer.
-Mode 2 = unser Takeover — DoD zuerst **Parität zu Mode 0** (gleiche Optik/Feel),
-dann erst Features die Mode 0 nicht hat. Solange Mode 2 schlechter/kaputt ist:
-kein Gewinn für dich sichtbar — das ist der aktuelle Stand, kein Widerspruch zum Ziel.
+**Zielbild unverändert:** PrimeXT = selektive Ideenquelle. Mode 2 zuerst
+**Parität zu Mode 0**, dann Features die Mode 0 nicht hat. Modes F5/F6/F7 =
+Dev-Werkzeug, Endzustand nur Mode 2.
 
-### Weiter (ohne Pflicht-Retest)
-- CLAMP_TO_EDGE, BlendEquation-Query gehärtet, White-Tex früh in BeginTakeover,
-  Substage-CheckGL (`white_tex` / `sprite_light_at_point` / `trans_*`).
-- Nächster Fokus nach cleanem Log: #15 DoD bestätigen, dann #12 neu bewerten.
-  Smoke-Dichte optional später. Default bleibt Mode 0.
+### Queue (Reihenfolge)
 
+| Prio | Item | Stand |
+|------|------|--------|
+| 1 | **#15** Viewmodel-Parität Mode 2≈0 | Fix gebaut; DoD = Manual A/B F9–F11 |
+| 2 | **#14** Mode-2 Perf | Manual: F6-Lag weg (0.1.54). DoD schließen wenn F7≈F5 Feel |
+| 3 | **#12** Mode 2 freigabefähig? | Neu bewerten erst nach #14+#15 DoD |
+| 4 | HE/Smoke/Flash Parität | Optisch ok unter F7; Rest-`0x500` Härten in 0.1.54 — **kein weiteres Tunneln** |
+| 5 | PrimeXT-Selektiv (Studio/Licht/Sprites …) | **Erst nach** spielbarem Mode-2-DoD |
+| — | #1 #2 #3 #13 | Unverändert OPEN, parallel möglich (#13) |
 
-
-### Modes — wofür (kein Produkt-Feature)
-| Taste | Mode | Bedeutung |
-|-------|------|-----------|
-| F5 | 0 | Stock-Xash (Referenz, funktioniert) |
-| F6 | 1 | Diagnose: Xash sichtbar + unser Renderer offscreen |
-| F7 | 2 | Unser Takeover — **Ziel**, noch nicht freigabefähig |
-
-Die Umschaltung ist **nur Werkzeug**, solange Mode 2 Bugs/#14/#15 hat.
-Endzustand: **nur Mode 2**, Default, keine F5/F6/F7. Mode 2 bringt aktuell
-noch keine Verbesserung gegenüber 0 — genau deshalb ist er nicht Default.
+**Nicht:** Endlos an einem Effekt (HE/GL) bleiben, während die Queue steht.
+Smoke-Dichte / „schöner als 1.6“ = später, nach Parität.
 
 ### Was ich jetzt tue
-1. **#15** — A/B ≈ Parität; DoD noch Manual.
-2. **HE-in-Smoke:** TMU-Sync in Trans + **DLight UploadPatch** ohne raw
-   `ActiveTexture`-Restore (Log: `GL error 0x500` genau bei HE). Present-Fault
-   latch nur noch bei dump=1 (sonst Ein-Frame-Xash-Flash).
-3. **#14** Perf — danach.
+1. #15 DoD — A/B Glock/AK/Knife (F5↔F7, F8), Handoff schließen wenn ok
+2. #14 DoD — wenn Feel ≈ Mode 0: schließen
+3. #12 neu bewerten
+4. Dann nächster PrimeXT-/Renderer-Slice aus Research (nicht Mikro-GL)
 
-**Alte Shots** vor 09:49 gelöscht; Session `0004–0007`, `0018–0030` behalten.
+Default bleibt `r_csretro_renderer 0` bis #12 bewusst freigegeben.
+
 
 ### Deine Shots (behalten)
 | Shot | Bedeutung |

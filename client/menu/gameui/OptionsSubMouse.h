@@ -49,6 +49,7 @@ private:
 	CKeyToggleCheckButton *m_pMouseLookCheckBox = nullptr;
 	CCvarToggleCheckButton *m_pMouseFilterCheckBox = nullptr;
 	CCvarToggleCheckButton *m_pMouseRawInputCheckBox = nullptr;
+	CCvarToggleCheckButton *m_pWeaponLagCheckBox = nullptr;
 	CCvarToggleCheckButton *m_pJoystickCheckBox = nullptr;
 	CKeyToggleCheckButton *m_pJoystickLookCheckBox = nullptr;
 	CCvarSlider *m_pMouseSensitivitySlider = nullptr;

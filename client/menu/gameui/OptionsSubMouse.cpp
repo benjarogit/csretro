@@ -25,6 +25,7 @@ COptionsSubMouse::COptionsSubMouse(Panel *parent) : PropertyPage(parent, "Option
 	m_pMouseLookCheckBox = new CKeyToggleCheckButton(this, "MouseLook", "#GameUI_MouseLook", "in_mlook", "mlook");
 	m_pMouseFilterCheckBox = new CCvarToggleCheckButton(this, "MouseFilter", "#GameUI_MouseFilter", "look_filter");
 	m_pMouseRawInputCheckBox = new CCvarToggleCheckButton(this, "RawInput", "#GameUI_RawInput", "m_rawinput");
+	m_pWeaponLagCheckBox = new CCvarToggleCheckButton(this, "WeaponLag", "Weapon lag", "cl_weaponlag");
 	m_pJoystickCheckBox = new CCvarToggleCheckButton(this, "Joystick", "#GameUI_Joystick", "joystick");
 	m_pJoystickLookCheckBox = new CKeyToggleCheckButton(this, "JoystickLook", "#GameUI_JoystickLook", "in_jlook", "jlook");
 	m_pMouseSensitivitySlider = new CCvarSlider(this, "Slider", "#GameUI_MouseSensitivity", 0.2f, 20.0f, "sensitivity");
@@ -49,6 +50,7 @@ void COptionsSubMouse::OnResetData()
 	m_pMouseLookCheckBox->Reset();
 	m_pMouseFilterCheckBox->Reset();
 	m_pMouseRawInputCheckBox->Reset();
+	m_pWeaponLagCheckBox->Reset();
 	m_pJoystickCheckBox->Reset();
 	m_pJoystickLookCheckBox->Reset();
 	m_pMouseSensitivitySlider->Reset();
@@ -62,6 +64,7 @@ void COptionsSubMouse::OnApplyChanges()
 	m_pMouseLookCheckBox->ApplyChanges();
 	m_pMouseFilterCheckBox->ApplyChanges();
 	m_pMouseRawInputCheckBox->ApplyChanges();
+	m_pWeaponLagCheckBox->ApplyChanges();
 	m_pJoystickCheckBox->ApplyChanges();
 	m_pJoystickLookCheckBox->ApplyChanges();
 	m_pAutoAimCheckBox->ApplyChanges();

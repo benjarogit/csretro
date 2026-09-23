@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# PX0 Movement-Gate: Client und GameDLL müssen denselben deterministischen Vertrag
-# in den Header-Konstanten und der fuser2-Landebremse teilen.
+# Movement gate: client and GameDLL must share the classic CS 1.6 contract.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,10 +45,10 @@ for name in "${NAMES[@]}"; do
 	[[ "${cv}" == "${sv}" ]] || fail "${name}: client='${cv}' server='${sv}'"
 done
 
-rg -q 'pmove->fuser2 = 450' "${CLIENT_C}" || fail "Client setzt fuser2-Hitch nicht auf 450"
-rg -q 'pmove->fuser2 = 450' "${SERVER_C}" || fail "GameDLL setzt fuser2-Hitch nicht auf 450"
+rg -q 'pmove->fuser2 = 1315\.789429' "${CLIENT_C}" || fail "Client setzt fuser2-Recovery nicht auf den Velaron-Wert"
+rg -q 'pmove->fuser2 = 1315\.789429' "${SERVER_C}" || fail "GameDLL setzt fuser2-Recovery nicht auf den Velaron-Wert"
 rg -q 'pmove->velocity\[0\] \*= flRatio' "${CLIENT_C}" || fail "Client wendet fuser2-Hitch in WalkMove nicht an"
 rg -q 'pmove->velocity\[0\] \*= flRatio' "${SERVER_C}" || fail "GameDLL wendet fuser2-Hitch in WalkMove nicht an"
 
 echo "MOVEMENT_CONTRACT_GATE PASS"
-echo "Konstanten Client=GameDLL; fuser2-Hitch 450 ms beiderseits."
+echo "Konstanten Client=GameDLL; fuser2-Recovery 1315.789429 ms wie Velaron beiderseits."

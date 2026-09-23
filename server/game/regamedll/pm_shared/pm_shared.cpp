@@ -2817,9 +2817,7 @@ void EXT_FUNC __API_HOOK(PM_Jump)()
 		pmove->velocity[2] *= flRatio;
 	}
 
-	// Stock 1.6 is ~1.32 s of per-frame speed multiply after every jump.
-	// Keep a short landing hitch; 450 ms is enough to feel, not to glue.
-	pmove->fuser2 = 450.0;
+	pmove->fuser2 = 1315.789429;
 
 	// Decay it for simulation
 	PM_FixupGravityVelocity();

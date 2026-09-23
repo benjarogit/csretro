@@ -76,6 +76,7 @@ cvar_t	*scr_ofsz;
 cvar_t	*v_centermove;
 cvar_t	*v_centerspeed;
 
+cvar_t	*cl_bobstyle;
 cvar_t	*cl_bobcycle;
 cvar_t	*cl_bob;
 cvar_t	*cl_bobup;
@@ -885,10 +886,12 @@ void V_CalcNormalRefdef ( struct ref_params_s *pparams )
 	}
 	view->origin[2] += bob;
 
-	// throw in a little tilt.
-	view->angles[YAW]   -= bob * 0.5;
-	view->angles[ROLL]  -= bob * 1;
-	view->angles[PITCH] -= bob * 0.3;
+	if ( cl_bobstyle && (int)cl_bobstyle->value == 1 )
+	{
+		view->angles[YAW]   -= bob * 0.5;
+		view->angles[ROLL]  -= bob;
+		view->angles[PITCH] -= bob * 0.3;
+	}
 
 	// pushing the view origin down off of the same X/Z plane as the ent's origin will give the
 	// gun a very nice 'shifting' effect when the player looks up/down. If there is a problem
@@ -1896,6 +1899,7 @@ void V_Init (void)
 	v_centermove		= gEngfuncs.pfnRegisterVariable( "v_centermove", "0.15", 0 );
 	v_centerspeed		= gEngfuncs.pfnRegisterVariable( "v_centerspeed","500", 0 );
 
+	cl_bobstyle			= gEngfuncs.pfnRegisterVariable( "cl_bobstyle", "0", FCVAR_ARCHIVE );
 	cl_bobcycle			= gEngfuncs.pfnRegisterVariable( "cl_bobcycle","0.8", 0 );// best default for my experimental gun wag (sjb)
 	cl_bob				= gEngfuncs.pfnRegisterVariable( "cl_bob","0.01", FCVAR_ARCHIVE );// best default for my experimental gun wag (sjb)
 	cl_bobup			= gEngfuncs.pfnRegisterVariable( "cl_bobup","0.5", 0 );
@@ -1903,5 +1907,5 @@ void V_Init (void)
 	cl_chasedist		= gEngfuncs.pfnRegisterVariable( "cl_chasedist","112", 0 );
 
 	cl_quakeguns		= gEngfuncs.pfnRegisterVariable( "cl_quakeguns", "0", FCVAR_ARCHIVE );
-	cl_weaponlag		= gEngfuncs.pfnRegisterVariable( "cl_weaponlag", "0", FCVAR_ARCHIVE );
+	cl_weaponlag		= gEngfuncs.pfnRegisterVariable( "cl_weaponlag", "1", FCVAR_ARCHIVE );
 }

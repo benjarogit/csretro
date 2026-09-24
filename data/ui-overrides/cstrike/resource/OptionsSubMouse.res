@@ -298,6 +298,58 @@
 		"dulltext"		"0"
 		"brighttext"		"0"
 	}
+	"FastSwitch"
+	{
+		"ControlName"		"CheckButton"
+		"fieldName"		"FastSwitch"
+		"xpos"		"36"
+		"ypos"		"210"
+		"wide"		"155"
+		"tall"		"24"
+		"visible"		"1"
+		"enabled"		"1"
+		"tabPosition"		"9"
+		"labelText"		"#CsretroGameUI_FastSwitch"
+	}
+	"FastSwitchLabel"
+	{
+		"ControlName"		"Label"
+		"fieldName"		"FastSwitchLabel"
+		"xpos"		"200"
+		"ypos"		"213"
+		"wide"		"300"
+		"tall"		"24"
+		"visible"		"1"
+		"enabled"		"1"
+		"labelText"		"#CsretroGameUI_FastSwitchLabel"
+		"dulltext"		"1"
+	}
+	"AutoWeaponSwitch"
+	{
+		"ControlName"		"CheckButton"
+		"fieldName"		"AutoWeaponSwitch"
+		"xpos"		"36"
+		"ypos"		"236"
+		"wide"		"155"
+		"tall"		"24"
+		"visible"		"1"
+		"enabled"		"1"
+		"tabPosition"		"10"
+		"labelText"		"#CsretroGameUI_AutoWeaponSwitch"
+	}
+	"AutoWeaponSwitchLabel"
+	{
+		"ControlName"		"Label"
+		"fieldName"		"AutoWeaponSwitchLabel"
+		"xpos"		"200"
+		"ypos"		"239"
+		"wide"		"300"
+		"tall"		"24"
+		"visible"		"1"
+		"enabled"		"1"
+		"labelText"		"#CsretroGameUI_AutoWeaponSwitchLabel"
+		"dulltext"		"1"
+	}
 	"Slider"
 	{
 		"ControlName"		"CCvarSlider"
@@ -310,7 +362,7 @@
 		"pinCorner"		"0"
 		"visible"		"1"
 		"enabled"		"1"
-		"tabPosition"		"9"
+		"tabPosition"		"11"
 	}  
 	"SensitivityLabel"     
 	{

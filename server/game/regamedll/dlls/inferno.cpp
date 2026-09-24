@@ -124,10 +124,18 @@ void CInferno::Precache()
 	PRECACHE_MODEL("sprites/grenade/molotov_fire_column.spr");
 }
 
-CInferno *CInferno::CreateInferno(entvars_t *pevOwner, const Vector &origin, int weaponId, unsigned short usEvent)
+CInferno *CInferno::CreateInferno(entvars_t *pevOwner, const Vector &origin, const Vector &impactNormal, int weaponId, unsigned short usEvent)
 {
 	if (PointInActiveSmoke(origin))
+	{
+		if (csretro_fire_debug.value != 0.0f)
+			ALERT(at_console, "CSRETRO_FIRE inferno_rejected reason=active_smoke origin=(%.1f %.1f %.1f)\n", origin.x, origin.y, origin.z);
 		return nullptr;
+	}
+
+	if (csretro_fire_debug.value != 0.0f)
+		ALERT(at_console, "CSRETRO_FIRE inferno_created weapon=%d origin=(%.1f %.1f %.1f) normal=(%.2f %.2f %.2f)\n",
+			weaponId, origin.x, origin.y, origin.z, impactNormal.x, impactNormal.y, impactNormal.z);
 
 	CInferno *pInferno = GetClassPtr<CCSInferno>((CInferno *)nullptr);
 	pInferno->Spawn();
@@ -159,20 +167,20 @@ CInferno *CInferno::CreateInferno(entvars_t *pevOwner, const Vector &origin, int
 	EMIT_SOUND(ENT(pInferno->pev), CHAN_WEAPON, "weapons/grenade/molotov_explode.wav", VOL_NORM, ATTN_NORM);
 	EMIT_SOUND(ENT(pInferno->pev), CHAN_STATIC, "weapons/grenade/molotov_idle_loop.wav", 0.55f, ATTN_NORM);
 
-	pInferno->Playback(INFERNO_EV_START, origin);
+	pInferno->Playback(INFERNO_EV_START, origin, impactNormal);
 	pInferno->SetThink(&CInferno::InfernoThink);
 	pInferno->pev->nextthink = gpGlobals->time + 0.05f;
 	return pInferno;
 }
 
-void CInferno::Playback(int mode, const Vector &origin)
+void CInferno::Playback(int mode, const Vector &origin, const Vector &impactNormal)
 {
 	if (!m_usEvent)
 		return;
 
 	Vector eventOrigin = origin;
 	PLAYBACK_EVENT_FULL(FEV_RELIABLE | FEV_GLOBAL, edict(), m_usEvent, 0,
-		(float *)&eventOrigin, (float *)&g_vecZero,
+		(float *)&eventOrigin, (float *)&impactNormal,
 		Q_max(m_flExpireTime - gpGlobals->time, 0.1f), m_config.flameLifetime,
 		mode, m_iWeaponId, FALSE, FALSE);
 
@@ -238,37 +246,69 @@ void CInferno::InfernoThink()
 bool CInferno::TryAddChild(const InfernoNode &parent, const Vector &dir)
 {
 	if (m_iNodeCount >= m_config.maxFlames)
+	{
+		if (csretro_fire_debug.value != 0.0f)
+			ALERT(at_console, "CSRETRO_FIRE node_rejected reason=max_flames\n");
 		return false;
+	}
 
 	Vector dest = parent.origin + dir * m_config.flameSpacing;
 	if ((dest - m_nodes[0].origin).Length() > m_config.maxRange)
+	{
+		if (csretro_fire_debug.value != 0.0f)
+			ALERT(at_console, "CSRETRO_FIRE node_rejected reason=max_range dest=(%.1f %.1f %.1f)\n", dest.x, dest.y, dest.z);
 		return false;
+	}
 
 	if (PointInActiveSmoke(dest))
+	{
+		if (csretro_fire_debug.value != 0.0f)
+			ALERT(at_console, "CSRETRO_FIRE node_rejected reason=smoke dest=(%.1f %.1f %.1f)\n", dest.x, dest.y, dest.z);
 		return false;
+	}
 
 	for (int i = 0; i < m_iNodeCount; i++)
 	{
 		if ((m_nodes[i].origin - dest).Length() < 20.0f)
+		{
+			if (csretro_fire_debug.value != 0.0f)
+				ALERT(at_console, "CSRETRO_FIRE node_rejected reason=duplicate dest=(%.1f %.1f %.1f)\n", dest.x, dest.y, dest.z);
 			return false;
+		}
 	}
 
 	TraceResult tr;
 	UTIL_TraceLine(parent.origin + Vector(0, 0, 8), dest + Vector(0, 0, 8), ignore_monsters, ENT(pev), &tr);
 	if (tr.flFraction < 1.0f)
+	{
+		if (csretro_fire_debug.value != 0.0f)
+			ALERT(at_console, "CSRETRO_FIRE node_rejected reason=blocked fraction=%.2f dest=(%.1f %.1f %.1f)\n", tr.flFraction, dest.x, dest.y, dest.z);
 		return false;
+	}
 
 	UTIL_TraceLine(dest + Vector(0, 0, 32), dest + Vector(0, 0, -72), ignore_monsters, ENT(pev), &tr);
 	if (tr.flFraction >= 1.0f || !IsWalkableNormal(tr.vecPlaneNormal))
+	{
+		if (csretro_fire_debug.value != 0.0f)
+			ALERT(at_console, "CSRETRO_FIRE node_rejected reason=no_walkable_support fraction=%.2f normal=(%.2f %.2f %.2f) dest=(%.1f %.1f %.1f)\n",
+				tr.flFraction, tr.vecPlaneNormal.x, tr.vecPlaneNormal.y, tr.vecPlaneNormal.z, dest.x, dest.y, dest.z);
 		return false;
+	}
 
 	if (PointInActiveSmoke(tr.vecEndPos))
+	{
+		if (csretro_fire_debug.value != 0.0f)
+			ALERT(at_console, "CSRETRO_FIRE node_rejected reason=smoke_support origin=(%.1f %.1f %.1f)\n", tr.vecEndPos.x, tr.vecEndPos.y, tr.vecEndPos.z);
 		return false;
+	}
 
 	InfernoNode &child = m_nodes[m_iNodeCount++];
 	child.origin = tr.vecEndPos;
 	child.depth = parent.depth + 1;
 	child.active = true;
+	if (csretro_fire_debug.value != 0.0f)
+		ALERT(at_console, "CSRETRO_FIRE node index=%d depth=%d origin=(%.1f %.1f %.1f)\n",
+			m_iNodeCount - 1, child.depth, child.origin.x, child.origin.y, child.origin.z);
 	Playback(INFERNO_EV_NODE, child.origin);
 	return true;
 }

@@ -29,7 +29,7 @@
 
 #include "com_model.h"
 
-#define SMOKE_CLOUDS 20
+#define SMOKE_CLOUDS 24
 
 void EV_CreateSmoke(event_args_s *args)
 {
@@ -45,8 +45,8 @@ void EV_CreateSmoke(event_args_s *args)
 			Vector org = args->origin;
 			if( i != 0 )
 			{
-				org.x += Com_RandomFloat(-100.0f, 100.0f);
-				org.y += Com_RandomFloat(-100.0f, 100.0f);
+				org.x += Com_RandomFloat(-80.0f, 80.0f);
+				org.y += Com_RandomFloat(-80.0f, 80.0f);
 			}
 			org.z += 30; 
 
@@ -79,12 +79,12 @@ void EV_CreateSmoke(event_args_s *args)
 				pTemp->entity.curstate.rendercolor.r = Com_RandomLong(210, 230);
 				pTemp->entity.curstate.rendercolor.g = Com_RandomLong(210, 230);
 				pTemp->entity.curstate.rendercolor.b = Com_RandomLong(210, 230);
-				pTemp->entity.curstate.scale = 5.0f;
+				pTemp->entity.curstate.scale = 5.25f;
 
 				// make it move slowly
 				pTemp->entity.baseline.origin.x = Com_RandomLong(-5, 5);
 				pTemp->entity.baseline.origin.y = Com_RandomLong(-5, 5);
-				pTemp->entity.baseline.renderamt = 18;
+				pTemp->entity.baseline.renderamt = 16;
 
 				if( i == 0 )
 				{

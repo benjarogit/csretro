@@ -54,7 +54,7 @@ public:
 
 	void EXPORT InfernoThink();
 
-	static CInferno *CreateInferno(entvars_t *pevOwner, const Vector &origin, int weaponId, unsigned short usEvent);
+	static CInferno *CreateInferno(entvars_t *pevOwner, const Vector &origin, const Vector &impactNormal, int weaponId, unsigned short usEvent);
 	static const InfernoConfig &ConfigForWeapon(int weaponId);
 	static bool IsWalkableNormal(const Vector &normal);
 	static bool PointInActiveSmoke(const Vector &origin);
@@ -63,7 +63,7 @@ public:
 private:
 	void SpreadTick();
 	void DamageTick();
-	void Playback(int mode, const Vector &origin);
+	void Playback(int mode, const Vector &origin, const Vector &impactNormal = g_vecZero);
 	void Extinguish();
 	bool TryAddChild(const InfernoNode &parent, const Vector &dir);
 	bool PlayerInNode(CBasePlayer *pPlayer, const InfernoNode &node) const;

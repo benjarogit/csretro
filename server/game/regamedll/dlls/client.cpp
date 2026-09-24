@@ -3727,6 +3727,29 @@ void EXT_FUNC InternalCommand(edict_t *pEntity, const char *pcmd, const char *pa
 				pPlayer->SmartRadio();
 			}
 #ifdef REGAMEDLL_ADD
+			else if (FStrEq(pcmd, "csretro_test_nades"))
+			{
+				if (CVAR_GET_FLOAT("sv_cheats") == 0.0f)
+					return;
+
+				const char *weapons[] = {
+					"weapon_knife", "weapon_hegrenade", "weapon_smokegrenade", "weapon_flashbang",
+					pPlayer->m_iTeam == CT ? "weapon_incgrenade" : "weapon_molotov"
+				};
+
+				for (const char *weapon : weapons)
+				{
+					const auto pInfo = GetWeaponInfo(weapon);
+					if (!pInfo)
+						continue;
+
+					pPlayer->GiveNamedItemEx(pInfo->entityName);
+					pPlayer->GiveAmmo(pInfo->maxRounds, pInfo->ammoName2);
+				}
+
+				ALERT(at_console, "CSRETRO_TEST_NADES team=%s fire=%s\n",
+					GetTeam(pPlayer->m_iTeam), pPlayer->m_iTeam == CT ? "weapon_incgrenade" : "weapon_molotov");
+			}
 			else if (FStrEq(pcmd, "give"))
 			{
 				if (CVAR_GET_FLOAT("sv_cheats") != 0.0f && CMD_ARGC() > 1 && FStrnEq(parg1, "weapon_", sizeof("weapon_") - 1))

@@ -303,12 +303,12 @@ int CHudAmmo::Init(void)
 	Reset();
 
 	m_pHud_DrawHistory_Time = CVAR_CREATE( "hud_drawhistory_time", HISTORY_DRAW_TIME, 0 );
-	m_pHud_FastSwitch = CVAR_CREATE( "hud_fastswitch", "0", FCVAR_ARCHIVE );		// controls whether or not weapons can be selected in one keypress
+	m_pHud_FastSwitch = CVAR_CREATE( "hud_fastswitch", "1", FCVAR_ARCHIVE );		// controls whether or not weapons can be selected in one keypress
 	// CVAR_CREATE( "cl_observercrosshair", "1", 0 );
 	m_pClCrosshairColor = (convar_t*)CVAR_CREATE( "cl_crosshair_color", "50 250 50", FCVAR_ARCHIVE );
 	m_pClCrosshairTranslucent = (convar_t*)CVAR_CREATE( "cl_crosshair_translucent", "1", FCVAR_ARCHIVE );
-	m_pClCrosshairSize = (convar_t*)CVAR_CREATE( "cl_crosshair_size", "auto", FCVAR_ARCHIVE );
-	m_pClDynamicCrosshair = CVAR_CREATE("cl_dynamiccrosshair", "1", FCVAR_ARCHIVE);
+	m_pClCrosshairSize = (convar_t*)CVAR_CREATE( "cl_crosshair_size", "small", FCVAR_ARCHIVE );
+	m_pClDynamicCrosshair = CVAR_CREATE("cl_dynamiccrosshair", "0", FCVAR_ARCHIVE);
 
 	m_hStaticSpr = 0;
 
@@ -673,7 +673,12 @@ int CHudAmmo::MsgFunc_CurWeapon(const char *pszName, int iSize, void *pbuf )
 	if ( iState == 0 )	// we're not the current weapon, so update no more
 		return 1;
 
+	const int previousWeaponId = m_pWeapon ? m_pWeapon->iId : 0;
 	m_pWeapon = pWeapon;
+	if ((iId == WEAPON_MOLOTOV || iId == WEAPON_INCGRENADE) && previousWeaponId != iId)
+	{
+		HUD_SendWeaponAnim(3, iId, 0, 1);
+	}
 
 	if( gHUD.m_iFOV >= 90 )
 	{ // normal crosshairs

@@ -66,7 +66,7 @@ void CGrenade::__API_HOOK(Explode)(TraceResult *pTrace, int bitsDamageType)
 		UTIL_DecalTrace(pTrace, DECAL_SCORCH1);
 	else
 		UTIL_DecalTrace(pTrace, DECAL_SCORCH2);
-	
+
 #ifndef REGAMEDLL_FIXES
 	// unused
 	flRndSound = RANDOM_FLOAT(0, 1);
@@ -1688,14 +1688,25 @@ CGrenade *CGrenade::ShootFireGrenade(entvars_t *pevOwner, Vector vecStart, Vecto
 	return pGrenade;
 }
 
-void CGrenade::FireGrenadeIgnite(const Vector &origin)
+void CGrenade::FireGrenadeIgnite(const Vector &origin, const Vector &impactNormal)
 {
-	CInferno::CreateInferno(pev->owner ? VARS(pev->owner) : nullptr, origin, m_iFireWeaponId, m_usEvent);
+	if (csretro_fire_debug.value != 0.0f)
+	{
+		ALERT(at_console, "CSRETRO_FIRE ignite weapon=%d grenade=(%.1f %.1f %.1f) origin=(%.1f %.1f %.1f) normal=(%.2f %.2f %.2f) velocity=(%.1f %.1f %.1f) bounces=%d world=%d enemy=%d\n",
+			m_iFireWeaponId, pev->origin.x, pev->origin.y, pev->origin.z, origin.x, origin.y, origin.z,
+			impactNormal.x, impactNormal.y, impactNormal.z, pev->velocity.x, pev->velocity.y, pev->velocity.z,
+			m_iBounceCount, m_bHasTouchedWorld, m_bHasBouncedOffEnemy);
+	}
+	CInferno::CreateInferno(pev->owner ? VARS(pev->owner) : nullptr, origin, impactNormal, m_iFireWeaponId, m_usEvent);
 	UTIL_Remove(this);
 }
 
 void CGrenade::FireGrenadeBreak()
 {
+	if (csretro_fire_debug.value != 0.0f)
+		ALERT(at_console, "CSRETRO_FIRE break origin=(%.1f %.1f %.1f) velocity=(%.1f %.1f %.1f) air_fuse_expired=%d water=%d sky=%d\n",
+			pev->origin.x, pev->origin.y, pev->origin.z, pev->velocity.x, pev->velocity.y, pev->velocity.z,
+			gpGlobals->time >= m_flFireAirFuse, pev->waterlevel != 0, UTIL_PointContents(pev->origin) == CONTENTS_SKY);
 	EMIT_SOUND(ENT(pev), CHAN_WEAPON, "weapons/grenade/molotov_hit.wav", 0.6f, ATTN_NORM);
 	EMIT_SOUND(ENT(pev), CHAN_ITEM, "weapons/grenade/molotov_gibs.wav", 0.55f, ATTN_NORM);
 
@@ -1815,7 +1826,15 @@ bool CGrenade::FireGrenadeFindFloor(Vector &outOrigin, bool allowSettleSlope)
 		if (tr.fStartSolid)
 			UTIL_TraceLine(start + Vector(0, 0, 32.0f), start + Vector(0, 0, -INFERNO_AIR_TRANSFER), ignore_monsters, ENT(pev), &tr);
 
-		if (tr.flFraction >= 1.0f || FireGrenadeIsSky(tr) || CInferno::PointInActiveSmoke(tr.vecEndPos))
+		const bool noFloor = tr.flFraction >= 1.0f;
+		const bool sky = !noFloor && FireGrenadeIsSky(tr);
+		const bool smoke = !noFloor && !sky && CInferno::PointInActiveSmoke(tr.vecEndPos);
+		if (csretro_fire_debug.value != 0.0f)
+			ALERT(at_console, "CSRETRO_FIRE support offset=(%.0f %.0f %.0f) fraction=%.2f end=(%.1f %.1f %.1f) normal=(%.2f %.2f %.2f) nofloor=%d sky=%d smoke=%d\n",
+				offset.x, offset.y, offset.z, tr.flFraction, tr.vecEndPos.x, tr.vecEndPos.y, tr.vecEndPos.z,
+				tr.vecPlaneNormal.x, tr.vecPlaneNormal.y, tr.vecPlaneNormal.z, noFloor, sky, smoke);
+
+		if (noFloor || sky || smoke)
 			continue;
 
 		if (CInferno::IsWalkableNormal(tr.vecPlaneNormal))
@@ -1844,9 +1863,14 @@ bool CGrenade::FireGrenadeTryTransferIgnite(bool allowSettleSlope)
 {
 	Vector floor;
 	if (!FireGrenadeFindFloor(floor, allowSettleSlope))
+	{
+		if (csretro_fire_debug.value != 0.0f)
+			ALERT(at_console, "CSRETRO_FIRE ignition_rejected reason=no_usable_support origin=(%.1f %.1f %.1f) settle_slope=%d\n",
+				pev->origin.x, pev->origin.y, pev->origin.z, allowSettleSlope);
 		return false;
+	}
 
-	FireGrenadeIgnite(floor);
+	FireGrenadeIgnite(floor, Vector(0, 0, 1));
 	return true;
 }
 
@@ -1887,6 +1911,12 @@ void CGrenade::FireGrenadeTouch(CBaseEntity *pOther)
 	TraceResult tr;
 	Vector dir = pev->velocity.Length() > 1.0f ? pev->velocity.Normalize() : Vector(0, 0, -1);
 	UTIL_TraceLine(pev->origin - dir * 12.0f, pev->origin + dir * 24.0f, ignore_monsters, ENT(pev), &tr);
+	if (csretro_fire_debug.value != 0.0f)
+		ALERT(at_console, "CSRETRO_FIRE touch other=%s origin=(%.1f %.1f %.1f) velocity=(%.1f %.1f %.1f) fraction=%.2f hit=(%.1f %.1f %.1f) normal=(%.2f %.2f %.2f) ground=%d\n",
+			STRING(pOther->pev->classname), pev->origin.x, pev->origin.y, pev->origin.z,
+			pev->velocity.x, pev->velocity.y, pev->velocity.z, tr.flFraction,
+			tr.vecEndPos.x, tr.vecEndPos.y, tr.vecEndPos.z, tr.vecPlaneNormal.x, tr.vecPlaneNormal.y, tr.vecPlaneNormal.z,
+			(pev->flags & FL_ONGROUND) != 0);
 
 	if (tr.flFraction < 1.0f)
 	{
@@ -1896,20 +1926,32 @@ void CGrenade::FireGrenadeTouch(CBaseEntity *pOther)
 
 		if (CInferno::IsWalkableNormal(tr.vecPlaneNormal) && !CInferno::PointInActiveSmoke(tr.vecEndPos))
 		{
-			FireGrenadeIgnite(tr.vecEndPos);
+			FireGrenadeIgnite(tr.vecEndPos, tr.vecPlaneNormal);
 			return;
 		}
 
-		// Wall/corner: ignite only if the floor is already under the nade,
-		// not if we are still flying over a corridor 128u below.
-		TraceResult down;
-		UTIL_TraceLine(pev->origin, pev->origin + Vector(0, 0, -INFERNO_NEAR_FLOOR), ignore_monsters, ENT(pev), &down);
-		if (down.flFraction < 1.0f && !FireGrenadeIsSky(down)
-			&& CInferno::IsWalkableNormal(down.vecPlaneNormal)
-			&& !CInferno::PointInActiveSmoke(down.vecEndPos))
+		// Wall/corner: only transfer to a nearby usable surface. Match the
+		// settled-grenade support footprint so a crate edge can ignite its top.
+		const Vector offsets[] =
 		{
-			FireGrenadeIgnite(down.vecEndPos);
-			return;
+			Vector(0, 0, 0),
+			Vector(8, 0, 0),
+			Vector(-8, 0, 0),
+			Vector(0, 8, 0),
+			Vector(0, -8, 0),
+		};
+
+		for (const Vector &offset : offsets)
+		{
+			TraceResult down;
+			UTIL_TraceLine(pev->origin + offset, pev->origin + offset + Vector(0, 0, -INFERNO_NEAR_FLOOR), ignore_monsters, ENT(pev), &down);
+			if (down.flFraction < 1.0f && !FireGrenadeIsSky(down)
+				&& CInferno::IsWalkableNormal(down.vecPlaneNormal)
+				&& !CInferno::PointInActiveSmoke(down.vecEndPos))
+			{
+				FireGrenadeIgnite(down.vecEndPos, down.vecPlaneNormal);
+				return;
+			}
 		}
 	}
 

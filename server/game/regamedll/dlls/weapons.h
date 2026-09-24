@@ -242,7 +242,7 @@ public:
 	void EXPORT FireGrenadeTouch(CBaseEntity *pOther);
 	void EXPORT C4Think();
 
-	void FireGrenadeIgnite(const Vector &origin);
+	void FireGrenadeIgnite(const Vector &origin, const Vector &impactNormal);
 	void FireGrenadeBreak();
 	bool FireGrenadeFindFloor(Vector &outOrigin, bool allowSettleSlope);
 	bool FireGrenadeTryTransferIgnite(bool allowSettleSlope = false);

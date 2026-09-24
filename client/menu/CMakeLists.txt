@@ -168,6 +168,7 @@ add_library(csretro_menu SHARED
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsKeyboardGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubMouse.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsMouseGate.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubBuyScript.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubAudio.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsAudioGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubVideo.cpp"

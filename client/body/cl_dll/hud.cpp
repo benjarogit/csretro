@@ -310,7 +310,7 @@ void CHud :: Init( void )
 		( gEngfuncs.pfnGetNativeObject && gEngfuncs.pfnGetNativeObject( "MenuFactory" ) );
 	CVAR_CREATE( "_vgui_menus", wantVguiMenus ? "1" : "0", FCVAR_ARCHIVE | FCVAR_USERINFO );
 	gEngfuncs.Cvar_Set( "_vgui_menus", wantVguiMenus ? "1" : "0" );
-	CVAR_CREATE( "_cl_autowepswitch", "1", FCVAR_ARCHIVE | FCVAR_USERINFO );
+	CVAR_CREATE( "_cl_autowepswitch", "0", FCVAR_ARCHIVE | FCVAR_USERINFO );
 	CVAR_CREATE( "_ah", "0", FCVAR_ARCHIVE | FCVAR_USERINFO );
 
 	CVAR_CREATE( "checkscoreboard", "1", FCVAR_ARCHIVE );

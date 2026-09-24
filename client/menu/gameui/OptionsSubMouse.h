@@ -23,6 +23,7 @@ public:
 	void OnPageShow() override;
 	void OnResetData() override;
 	void OnApplyChanges() override;
+	void PerformLayout() override;
 
 	// Functional gate helpers (CSRETRO_OPTIONS_GATE)
 	void Gate_SetSensitivityPending(float value);
@@ -50,6 +51,8 @@ private:
 	CCvarToggleCheckButton *m_pMouseFilterCheckBox = nullptr;
 	CCvarToggleCheckButton *m_pMouseRawInputCheckBox = nullptr;
 	CCvarToggleCheckButton *m_pWeaponLagCheckBox = nullptr;
+	CCvarToggleCheckButton *m_pFastSwitchCheckBox = nullptr;
+	CCvarToggleCheckButton *m_pAutoWeaponSwitchCheckBox = nullptr;
 	CCvarToggleCheckButton *m_pJoystickCheckBox = nullptr;
 	CKeyToggleCheckButton *m_pJoystickLookCheckBox = nullptr;
 	CCvarSlider *m_pMouseSensitivitySlider = nullptr;

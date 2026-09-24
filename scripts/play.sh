@@ -32,6 +32,9 @@ mkdir -p "${RUN}/cstrike/dlls" "${RUN}/cstrike/cl_dlls" "${RUN}/valve" "${RUN}/c
 csretro_stage_valve_loc \
 	"${ROOT}/data/ui-overrides/cstrike/resource/csretro_gameui_english.txt" \
 	"${RUN}/cstrike/resource/csretro_gameui_english.txt"
+csretro_stage_valve_loc \
+	"${ROOT}/data/ui-overrides/cstrike/resource/csretro_gameui_german.txt" \
+	"${RUN}/cstrike/resource/csretro_gameui_german.txt"
 for play_txt in autobuy.txt rebuy.txt; do
 	if [[ -f "${ROOT}/data/ui-overrides/cstrike/${play_txt}" ]]; then
 		cp -a "${ROOT}/data/ui-overrides/cstrike/${play_txt}" "${RUN}/cstrike/${play_txt}"

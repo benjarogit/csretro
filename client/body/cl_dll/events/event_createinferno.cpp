@@ -127,6 +127,27 @@ void SpawnInfernoSprite(const Vector &origin, int weaponId, float remaining, flo
 	pTemp->entity.curstate.iuser2 = weaponId;
 	pTemp->entity.curstate.iuser3 = infernoId;
 }
+
+void SpawnInfernoImpact(const Vector &origin, const Vector &normal, int weaponId, int infernoId)
+{
+	Vector effectOrigin = origin + normal * 2.0f;
+	if (weaponId == WEAPON_INCGRENADE)
+		gEngfuncs.pEfxAPI->R_SparkEffect(effectOrigin, 7, 45, 110);
+	else
+		gEngfuncs.pEfxAPI->R_ParticleBurst(effectOrigin, 18, 225, 0.35f);
+
+	dlight_t *light = gEngfuncs.pEfxAPI->CL_AllocDlight(0x4D4F0000 | (infernoId & 0xFFFF));
+	if (!light)
+		return;
+
+	light->origin = effectOrigin;
+	light->radius = weaponId == WEAPON_INCGRENADE ? 104.0f : 92.0f;
+	light->color.r = 255;
+	light->color.g = weaponId == WEAPON_INCGRENADE ? 190 : 112;
+	light->color.b = weaponId == WEAPON_INCGRENADE ? 64 : 18;
+	light->die = gEngfuncs.GetClientTime() + 0.18f;
+	light->decay = 360.0f;
+}
 }
 
 void EV_ReadMolotovWickState(float origin[3], float *time, int *valid)
@@ -329,5 +350,13 @@ void EV_CreateInferno(event_args_s *args)
 	// One short ignition plume; spread nodes add only low ground fire. Spawning
 	// a full-height column for every node turns the inferno into a bright wall.
 	if (mode == kInfernoEvStart)
+	{
+		Vector impactNormal(args->angles);
+		if (impactNormal.Length() < 0.1f)
+			impactNormal = Vector(0, 0, 1);
+		else
+			impactNormal = impactNormal.Normalize();
+		SpawnInfernoImpact(args->origin, impactNormal, weaponId, args->entindex);
 		SpawnInfernoSprite(args->origin, weaponId, remaining, lifetime, true, args->entindex);
+	}
 }

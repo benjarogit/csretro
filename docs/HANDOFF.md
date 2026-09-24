@@ -3,6 +3,42 @@
 Lebender Arbeitsstand. Öffentliche Docs: `docs/status.de.md`, `docs/architecture.de.md`.
 PX1–PX4B / #7: `docs/research/px1-primext.md`.
 
+## Stand 2026-09-21 — Fire Grenade Impact / Models / Deploy (#16, #17)
+
+Issues: [#16](https://github.com/benjarogit/csretro/issues/16) Impact-Visual,
+[#17](https://github.com/benjarogit/csretro/issues/17) fehlende Deploy-Animation.
+Xash bleibt die einzige Runtime; PrimeXT, AMXX und externe RAR-Assets sind nur
+Referenzen und keine Produktabhaengigkeiten.
+
+| Quelle | Befund | Entscheidung |
+|---|---|---|
+| Aktive `v_molotov.mdl` / `v_incgrenade.mdl` | Je vier Sequenzen: idle, pullpin, throw, deploy (Index 3) | Behalten; technisch kompatibel |
+| `959_fix_molotov_gre.rar` | Deploy und Underhand vorhanden | Reference Only; Herkunft/Lizenz ungeklärt |
+| `cs_go_molotov.rar` TT/CT | Draw bei Index 3 vorhanden | Reference Only; Herkunft/Lizenz ungeklärt |
+| PrimeXT | Ideen fuer Impact-/Partikel-Feel | Selektiv nativ adaptiert, kein Renderer-Import |
+| Medusath / AMXX `molotov_incendiary.sma` | Ideen fuer Farb- und Impact-Unterscheidung | Reference Only; keine AMXX-Abhaengigkeit |
+
+Implementiert: Die autoritative GameDLL uebergibt beim existierenden
+`createinferno`-Start-Event die Kollisionsnormale im bisher ungenutzten
+`angles`-Payload. Der Xash-Client erzeugt genau einmal pro Inferno-Start einen
+Molotov-Partikelburst oder Incendiary-Sparks sowie ein kurzes, typspezifisches
+Dynamic-Light. Node-Events erhalten keine zusaetzlichen Effekte; Schaden,
+Radius, Dauer, Spread, Team- und Smoke-Regeln bleiben unveraendert.
+
+Der Deploy-Fix repariert die 5-Bit-Delta-Grenze der Weapon-IDs 32/33: Beim
+serverbestaetigten `CurWeapon`-Wechsel auf Molotov oder Incendiary wird Sequenz
+3 ueber `HUD_SendWeaponAnim(..., force=1)` sichtbar und mit dem vorhandenen
+Client-Animationszustand synchronisiert. Andere Waffen und Animationen bleiben
+unberuehrt.
+
+Build-Status: `cmake --build build/client-cmake -j2 && cmake --build
+build/gamedll-cmake -j2` erfolgreich; vorhandene Projektwarnungen bleiben.
+
+Offener Ingame-DoD: T/CT-Deploy; HE/Flash/Smoke -> Molotov und -> Incendiary
+sowie Rueckwechsel; erstes M1; Boden-, Wand/Ecken- und Hang-Aufprall; mehrere
+gleichzeitige Infernos; Mode 0, gegebenenfalls Mode 2; Regression von
+HE/Flash/Smoke und unveraenderte Gameplay-Werte.
+
 ## Stand 2026-09-21 — Classic-CS-1.6-Movement-Restore
 
 Aktiver PM-Pfad: `client/body/pm_shared` (Prediction) und

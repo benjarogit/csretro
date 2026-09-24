@@ -641,6 +641,7 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 	}
 
 	ApplyMode( e->rendermode );
+	(void)CSRETRO_Backend_CheckGL( "sprite_apply_mode" );
 	if( s_nodepth && gXRGL.Disable )
 		gXRGL.Disable( GL_DEPTH_TEST );
 	if( ( e->rendermode == kRenderGlow || e->rendermode == kRenderTransAdd
@@ -702,6 +703,7 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 			DrawQuad( frame, origin, right, up, scale );
 		}
 	}
+	(void)CSRETRO_Backend_CheckGL( "sprite_base_quad" );
 
 	if( lighting )
 	{
@@ -739,6 +741,7 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 				gXRGL.TexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
 		}
 	}
+	(void)CSRETRO_Backend_CheckGL( "sprite_lighting" );
 
 	/* Dump is cert-only. Play path (dump=0) must stay quiet.
 	 * Bug: tent branch set s_tent_dumped but never decremented s_dump_left,
@@ -773,6 +776,7 @@ static int DrawOne( const CSRETRO_EntCopy *e, const float *vieworg, const float 
 	}
 	if( gXRGL.DepthMask )
 		gXRGL.DepthMask( GL_TRUE );
+	(void)CSRETRO_Backend_CheckGL( "sprite_restore" );
 	return 1;
 }
 

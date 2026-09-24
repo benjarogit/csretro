@@ -121,8 +121,8 @@ void COptionsSubMouse::PerformLayout()
 	const int right = 32;
 	const int gap = 14;
 	const int available = std::max(120, wide - left - right);
-	const int labelWide = std::min(210, std::max(155, available * 2 / 5));
 	const bool stacked = available < 480;
+	const int labelWide = stacked ? available : std::max(155, available * 3 / 5);
 	int y = 32;
 
 	for (const Row &row : rows)

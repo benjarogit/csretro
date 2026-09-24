@@ -3,6 +3,7 @@
 #include "OptionsClassicMetrics.h"
 #include "OptionsSubAudio.h"
 #include "OptionsSubBuyScript.h"
+#include "OptionsSubGeneral.h"
 #include "OptionsSubKeyboard.h"
 #include "OptionsSubMouse.h"
 #include "OptionsSubVideo.h"
@@ -44,7 +45,8 @@ COptionsDialog::COptionsDialog(Panel *parent)
 		sheet->SetTabHeight(24);
 	}
 
-	// Keine Stub-Tabs. Sichtbar: Keyboard | Mouse | Audio | Video | Buy Script
+	// Keine Stub-Tabs. Sichtbar: General | Keyboard | Mouse | Audio | Video | Buy Script
+	RegisterPage(new COptionsSubGeneral(this), "General", "#CsretroGameUI_General");
 	RegisterPage(new COptionsSubKeyboard(this), "Keyboard", "#GameUI_Keyboard");
 	RegisterPage(new COptionsSubMouse(this), "Mouse", "#GameUI_Mouse");
 	RegisterPage(new COptionsSubAudio(this), "Audio", "#GameUI_Audio");

@@ -16,11 +16,11 @@ namespace
 {
 constexpr const char *kBuildStamp = __DATE__ " " __TIME__;
 
-#if defined(CSRETRO_MENU_GIT_REV)
-constexpr const char *kGitRev = CSRETRO_MENU_GIT_REV;
-#else
-constexpr const char *kGitRev = "unknown";
-#endif
+const char *MenuGitRevision()
+{
+	const char *revision = getenv("CSRETRO_MENU_GIT_REV");
+	return revision && *revision ? revision : "runtime-unset";
+}
 } // namespace
 
 bool CsretroMenu_CaptureDebugEnabled()
@@ -58,7 +58,7 @@ void CsretroMenu_LogProvenance(const char *where)
 	snprintf(msg, sizeof(msg),
 		"CSRETRO_MENU_PROVENANCE where=%s git=%s built=\"%s\" loaded=%s CSRETRO_MENU_SO=%s sha256=%s capture_debug=%d extApi=%d pid=%d",
 		where ? where : "?",
-		kGitRev,
+		MenuGitRevision(),
 		kBuildStamp,
 		path,
 		menuEnv && *menuEnv ? menuEnv : "(unset)",

@@ -4,18 +4,6 @@ project(csretro_menu LANGUAGES CXX)
 
 option(CSRETRO_MENU_SANITIZE "ASan+UBSan (Entwicklungsbuild der Menü-Lib)" OFF)
 
-execute_process(
-	COMMAND git rev-parse --short=12 HEAD
-	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../.."
-	OUTPUT_VARIABLE CSRETRO_MENU_GIT_REV
-	OUTPUT_STRIP_TRAILING_WHITESPACE
-	ERROR_QUIET
-)
-if(NOT CSRETRO_MENU_GIT_REV)
-	set(CSRETRO_MENU_GIT_REV "nogit")
-endif()
-add_compile_definitions(CSRETRO_MENU_GIT_REV="${CSRETRO_MENU_GIT_REV}")
-
 set(BODY "${CSRETRO_ROOT}/client/body")
 set(SDK "${CSRETRO_ROOT}/client/dep/NclNitroApi/dep/ncl-hl1-source-sdk")
 set(VGUI "${CMAKE_CURRENT_SOURCE_DIR}/vgui")
@@ -164,6 +152,7 @@ add_library(csretro_menu SHARED
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsAdaptiveLayout.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsLayoutGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsMetricsDump.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubGeneral.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubKeyboard.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsKeyboardGate.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/gameui/OptionsSubMouse.cpp"

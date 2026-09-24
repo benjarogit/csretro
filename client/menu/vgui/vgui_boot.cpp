@@ -1,4 +1,5 @@
 #include "vgui_boot.h"
+#include "steam_language.h"
 #include "window_geometry.h"
 #include "menu_runtime_info.h"
 #include "../gameui/CreateGameDialog.h"
@@ -189,7 +190,13 @@ void VGuiXash_Init()
 	Csretro_SystemSetCommandLine(getenv("CSRETRO_CMDLINE"));
 
 	if (g_pVGuiSystem)
+	{
 		g_pVGuiSystem->SetUserConfigFile("csretro_vgui_settings.vdf", "GAMECONFIG");
+		char persistedLanguage[32] = "";
+		if (g_pVGuiSystem->GetRegistryString("csretro.language", persistedLanguage, sizeof(persistedLanguage)))
+			Csretro_SetUiLanguage(persistedLanguage);
+	}
+	Menu_Con("CSRETRO_UI_LANGUAGE %s", Csretro_GetUiLanguage());
 
 	if (!vgui2::VGui_InitInterfacesList("csretro_menu", factories, 1))
 	{

@@ -36,7 +36,7 @@ csretro_stage_valve_loc \
 	"${ROOT}/data/ui-overrides/cstrike/resource/csretro_gameui_german.txt" \
 	"${RUN}/cstrike/resource/csretro_gameui_german.txt"
 for play_txt in autobuy.txt rebuy.txt; do
-	if [[ -f "${ROOT}/data/ui-overrides/cstrike/${play_txt}" ]]; then
+	if [[ -f "${ROOT}/data/ui-overrides/cstrike/${play_txt}" && ! -e "${RUN}/cstrike/${play_txt}" ]]; then
 		cp -a "${ROOT}/data/ui-overrides/cstrike/${play_txt}" "${RUN}/cstrike/${play_txt}"
 	fi
 done
@@ -50,6 +50,16 @@ if [[ -d "${ROOT}/data/ui-overrides/cstrike/sound/announcer" ]]; then
 fi
 PLAY_STAMP="$(date +%Y%m%d-%H%M%S)"
 PLAY_LOG="${RUN}/logs/play-${PLAY_STAMP}.log"
+PLAY_LOG_KEEP="${CSRETRO_PLAY_LOG_KEEP:-20}"
+if ! [[ "${PLAY_LOG_KEEP}" =~ ^[0-9]+$ ]] || (( PLAY_LOG_KEEP < 1 )); then
+	echo "play: CSRETRO_PLAY_LOG_KEEP must be a positive integer" >&2
+	exit 1
+fi
+# Reserve one retained slot for the session log that tee creates below.
+mapfile -t OLD_PLAY_LOGS < <(find "${RUN}/logs" -maxdepth 1 -type f -name 'play-*.log' -printf '%f\n' | sort -r | tail -n +${PLAY_LOG_KEEP})
+for old_log in "${OLD_PLAY_LOGS[@]}"; do
+	rm -f "${RUN}/logs/${old_log}"
+done
 ln -sfn "play-${PLAY_STAMP}.log" "${RUN}/logs/play-latest.log"
 ln -sfn "logs/play-${PLAY_STAMP}.log" "${RUN}/play.log"
 # Ab hier: Terminal und Session-Log gleichzeitig.
@@ -112,6 +122,7 @@ export XASH3D_BASEDIR="${RUN}"
 export CSRETRO_UI_OVERRIDE="${ROOT}/data/ui-overrides/cstrike"
 export CSRETRO_MENU_SO="${MENU_ABS}"
 export CSRETRO_MENU_SHA256="${MENU_SHA}"
+export CSRETRO_MENU_GIT_REV="${GIT_REV}$(git -C "${ROOT}" diff --quiet || printf '+dirty')"
 export CSRETRO_RUN_DIR="${RUN}"
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-x11}"
 

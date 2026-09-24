@@ -29,18 +29,21 @@ csretro_gamedata_require() {
     printf '%s\n' "${gd}"
 }
 
-# Valve ILocalize liest nur UTF-16LE. Eine UTF-8-Kopie im BASEDIR überschattet
-# die gültige Datei in GameData und erzeugt CSRETRO_LOC_MISSING ohne Absturz.
+# Repository-Quellen sind UTF-8 ohne BOM. Valve ILocalize liest dagegen nur
+# UTF-16LE mit genau einem BOM im BASEDIR. Nicht anhand von `file` verzweigen:
+# eine beschädigte oder versehentlich umkodierte Quelle darf nie durchkopiert
+# werden.
 csretro_stage_valve_loc() {
-	local src="${1:?}" dst="${2:?}"
+    local src="${1:?}" dst="${2:?}" tmp
 	[[ -f "${src}" ]] || return 0
 	mkdir -p "$(dirname "${dst}")"
-	if file -b "${src}" | grep -qi 'UTF-16'; then
-		cp -a "${src}" "${dst}"
-		return 0
-	fi
+    tmp="${dst}.tmp.$$"
 	{
 		printf '\xff\xfe'
 		iconv -f UTF-8 -t UTF-16LE "${src}"
-	} > "${dst}"
+    } > "${tmp}" || {
+        rm -f "${tmp}"
+        return 1
+    }
+    mv -f "${tmp}" "${dst}"
 }

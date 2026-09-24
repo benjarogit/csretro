@@ -155,6 +155,15 @@ static void AddDefaultSearchPaths()
 	const char *overrideEnv = getenv("CSRETRO_UI_OVERRIDE");
 	if (overrideEnv && *overrideEnv)
 		fs->AddSearchPath(overrideEnv, "GAME");
+	if (basedir && *basedir)
+	{
+		// Staged runtime overlays must precede their read-only GameData copies.
+		snprintf(buf, sizeof(buf), "%s/cstrike", basedir);
+		fs->AddSearchPath(buf, "GAME");
+		fs->AddSearchPath(buf, "GAMECONFIG");
+		fs->AddSearchPath(basedir, "GAMECONFIG");
+		fs->AddSearchPath(basedir, "DEFAULTGAME");
+	}
 
 	if (rodir && *rodir)
 	{
@@ -165,15 +174,6 @@ static void AddDefaultSearchPaths()
 		snprintf(buf, sizeof(buf), "%s/platform", rodir);
 		fs->AddSearchPathNoWrite(buf, "PLATFORM");
 	}
-	if (basedir && *basedir)
-	{
-		// Same folder Host_WriteConfig uses: $XASH3D_BASEDIR/cstrike/config.cfg
-		snprintf(buf, sizeof(buf), "%s/cstrike", basedir);
-		fs->AddSearchPath(buf, "GAMECONFIG");
-		fs->AddSearchPath(basedir, "GAMECONFIG");
-		fs->AddSearchPath(basedir, "DEFAULTGAME");
-	}
-
 }
 
 void VGuiXash_Init()
@@ -228,13 +228,19 @@ void VGuiXash_Init()
 			{"resource/vgui_%language%.txt", "vgui"},
 			{"resource/cstrike_%language%.txt", "cstrike"},
 			{"resource/platform_%language%.txt", "platform"},
-			// CS-Retro pin: Steam Build 5971 tab „Mouse“ (aktuelles Steam-gameui hat „Aim“).
-			{"resource/csretro_gameui_%language%.txt", "csretro_gameui"},
 		};
 		for (const LocFile &lf : files)
 		{
 			const bool ok = g_pVGuiLocalize->AddFile(::g_pFullFileSystem, lf.path);
 			Menu_Con("CSRETRO_LOC_%s %s", lf.tag, ok ? "OK" : "FAIL");
+		}
+		const char *basedir = getenv("XASH3D_BASEDIR");
+		if (basedir && *basedir)
+		{
+			char customLocalization[1024];
+			snprintf(customLocalization, sizeof(customLocalization), "%s/cstrike/resource/csretro_gameui_%%language%%.txt", basedir);
+			const bool ok = g_pVGuiLocalize->AddFile(::g_pFullFileSystem, customLocalization);
+			Menu_Con("CSRETRO_LOC_csretro_gameui %s", ok ? "OK" : "FAIL");
 		}
 		// Probe: fehlender String darf nicht still als #Token durchgehen.
 		const char *probes[] = {

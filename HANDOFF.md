@@ -63,6 +63,48 @@ all e2e checks passed
    sprites and a material preset from `server/api/amxx_test/`; a missing model
    aborts the map load.
 
+## Distribution and data acquisition
+
+- **Docker is not the shipping path.** The container in `server/pack/` exists for
+  reproducible tests and CI. Players and server admins get a normal, portable
+  installation: a directory plus `csretro.sh` (G09). Docker stays an optional
+  way to host a *server*; the client always runs natively because it needs
+  32-bit graphics and input, not a container.
+- **Server base files are free.** App 90 (HLDS) downloads anonymously through
+  SteamCMD; no Steam account, no ownership, no login. That is what the image
+  build does and what a self-hosted server install will do.
+- **Client files are not free.** CS 1.6 is the paid App 10. CSRETRO never logs
+  into Steam and never asks for credentials. The installer discovers the local
+  Steam libraries (`steamapps/libraryfolders.vdf`, `appmanifest_10.acf`), verifies
+  the stock files and copies them into the separate CSRETRO directory; a manual
+  `--source <dir>` works too. The vendored code for this is
+  `client/installer/import_game.py`.
+- **Manual copy stays possible.** `scripts/install.sh` (G09) is a convenience
+  around copy, hashes and backups; a user who already has a valid game folder can
+  point CSRETRO at it.
+- **Open:** whether the client still needs a running Steam client for auth
+  tickets after G08 replaces the protocol. The vendored launcher starts through
+  the Steam runtime today.
+
+## Server performance backlog (after G06b)
+
+Optimisation work on the AMXX module and plugins. Order is deliberate: measure
+first, then change one thing at a time and re-measure on the test server.
+
+1. **Measure first.** Baseline server FPS (`stats`), CPU (`docker stats`,
+   `pidstat`), per-plugin cost (AMXX profiler) and the hot forwards/hookchains
+   before touching code.
+2. **Prefer ReAPI hookchains over Fakemeta.** `RegisterHookChain(RG_*)` is
+   cheaper and more targeted than `register_forward(FM_*)`; keep Fakemeta only
+   where ReAPI has no equivalent.
+3. **Move hot paths into a native Metamod plugin.** C++ for per-frame or
+   per-player work, AMXX for gameplay glue and the public native surface.
+4. **Avoid or batch per-frame hooks.** Throttle to every N frames where
+   semantics allow, aggregate work, and keep string formatting out of hot paths.
+
+These need a gate entry in `docs/plan/csretro-plan.md` (working name G06c) before
+implementation; the plan is the only source for the gate list.
+
 ## Open / known broken
 
 - **A2S under Default Public:** open decision for G07. Either adapt
@@ -86,7 +128,9 @@ all e2e checks passed
 ## Next task
 
 - **Gate:** G06b – upstream radar (decided after G06; add it to the plan's gate
-  list before starting), then G07.
+  list before starting), then G07 – Default Public runtime.
+- **After G07:** schedule the server performance backlog above (measurement
+  first, then hookchain/native/per-frame work). It needs a plan gate entry.
 - **G06b acceptance:**
   - Report upstream changes since the vendored pins for NextClient,
     NextClientServerApi, ncl-hl1-source-sdk and vcpkg.

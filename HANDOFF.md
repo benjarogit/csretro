@@ -8,9 +8,9 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-08
 - **Gate:** G03 – toolchain on CachyOS, **done**
 - **Branch:** `main`
-- **Commit:** `git log -1`
+- **Commit:** `b1ee521` (G03 code), handoff commit follows
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** recorded after the G03 push
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42481361534 – success
 
 ## Verified (with evidence)
 

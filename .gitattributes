@@ -53,3 +53,11 @@ VERSION text eol=lf
 
 # The upstream bot databases contain CRCRLF line endings; leave them alone.
 Bot*.db -text
+
+# Vendored trees carry their own attribute policy. Do not reinterpret their
+# binaries through the root LFS rules: the deeper .gitattributes of the vendored
+# tree still wins for files it declares (for example assets/**/*.tga). Without
+# this rule, prebuilt .a/.lib files that upstream tracks directly would be
+# rewritten into LFS pointers and show up as modified on every checkout.
+/client/**     -filter -diff -merge
+/server/api/** -filter -diff -merge

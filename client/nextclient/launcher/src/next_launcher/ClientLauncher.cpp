@@ -1,0 +1,780 @@
+#include "ClientLauncher.h"
+
+#include <clocale>
+#include <cstdio>
+#include <filesystem>
+#include <format>
+#include <iostream>
+#include <string>
+#include <thread>
+
+#ifndef _WIN32
+#include <cstdlib>
+#endif
+
+#include <easylogging++.h>
+#include <magic_enum/magic_enum.hpp>
+
+#ifndef _WIN32
+    #include <fcntl.h>
+    #include <sys/file.h>
+    #include <unistd.h>
+#endif
+
+#ifdef SENTRY_ENABLE
+#include <sentry.h>
+#endif
+
+#ifdef UPDATER_ENABLE
+#include <updater_gui_app/updater_gui_app.h>
+#endif
+
+#include <engine_launcher_api.h>
+#include <nitroapi/NitroApiInterface.h>
+#include <nitro_utils/config_utils.h>
+#include <nitro_utils/string_utils.h>
+#include <ncl_perf/profiler.h>
+#include <utils/platform.h>
+#include <next_launcher/version.h>
+#include <next_launcher/video_settings.h>
+#include <steam_api_proxy/next_steam_api_proxy.h>
+
+#include "Analytics.h"
+#include "DefaultUserInfo.h"
+#include "RegistryUserStorage.h"
+#include "EngineCommons.h"
+#include "exception_handler.h"
+#ifdef _WIN32
+#include "taskbar_icon.h"
+#endif
+
+static const char* NITRO_API_LOG_TAG = "launcher";
+
+
+ClientLauncher::ClientLauncher(HINSTANCE module_instance, const char* cmd_line) :
+    module_instance_(module_instance)
+{
+    ProvisionDefaultConfigs();
+
+    next_client_version_ = {
+        NEXT_CLIENT_BUILD_VERSION_MAJOR,
+        NEXT_CLIENT_BUILD_VERSION_MINOR,
+        NEXT_CLIENT_BUILD_VERSION_PATCH,
+        NEXT_CLIENT_BUILD_VERSION_PRERELEASE };
+
+    user_storage_ = std::make_shared<RegistryUserStorage>(kNextClientRegistry);
+    user_info_ = std::make_shared<DefaultUserInfo>(user_storage_);
+    user_info_client_ = std::make_shared<next_launcher::UserInfoClient>(user_info_.get());
+    backend_address_resolver_ = std::make_shared<BackendAddressResolver>(user_info_client_);
+    analytics_ = std::make_shared<Analytics>(user_info_client_, backend_address_resolver_);
+    config_provider_ = std::make_shared<nitro_utils::FileConfigProvider>("user_game_config.ini");
+
+    hl_registry_ = std::make_shared<CRegistry>(kHlRegistry);
+    hl_registry_->Init();
+
+#ifdef _WIN32
+    is_relaunch_ = GetEnvironmentVariableA(kRelaunchEnvVar, nullptr, 0) > 0;
+#else
+    is_relaunch_ = getenv(kRelaunchEnvVar) != nullptr;
+#endif
+
+    if (is_relaunch_)
+    {
+        LOG(INFO) << "Relaunch after restart";
+    }
+
+    InitializeCmdLine(cmd_line);
+
+#ifdef _WIN32
+    global_win_mutex_ = CreateMutexA(nullptr, FALSE, "ValveHalfLifeLauncherMutex");
+#else
+    // No named mutex outside Windows - a lock file in /tmp plus flock() does the same
+    // job (single instance across the whole machine, released automatically on close).
+    global_win_mutex_fd_ = open("/tmp/ValveHalfLifeLauncherMutex.lock", O_CREAT | O_RDWR, 0666);
+    global_lock_acquired_ = global_win_mutex_fd_ >= 0 && flock(global_win_mutex_fd_, LOCK_EX | LOCK_NB) == 0;
+#endif
+    g_SaveFullDumps = cmd_line_->CheckParm("-fulldump");
+}
+
+ClientLauncher::~ClientLauncher()
+{
+#ifdef _WIN32
+    ReleaseMutex(global_win_mutex_);
+    CloseHandle(global_win_mutex_);
+#else
+    if (global_win_mutex_fd_ >= 0)
+        close(global_win_mutex_fd_);
+#endif
+}
+
+void ClientLauncher::Run()
+{
+    LOG(INFO) << "Branch: " << user_info_client_->GetUpdateBranch();
+
+    if (config_provider_->get_value_int("create_console_window", 0))
+        CreateConsoleWindowAndRedirectOutput();
+
+    InitializeSentry();
+    InitializeAnalytics();
+    FixScreenResolution();
+
+    analytics_->SendAnalyticsEvent("startup_init");
+
+    if (!GlobalMutexCheck())
+    {
+#ifdef _WIN32
+        MessageBoxA(
+            NULL,
+            "The game could not be started because it is already running.\n"
+            "If it is not, then end the process in the task manager.",
+            kErrorTitle,
+            MB_OK | MB_ICONERROR | MB_DEFAULT_DESKTOP_ONLY);
+#else
+        fprintf(stderr, "%s: The game could not be started because it is already running.\n", kErrorTitle);
+#endif
+
+        UninitializeAnalytics();
+        UninitializeSentry();
+        return;
+    }
+
+    analytics_->SendAnalyticsEvent("startup_init_post_mutex");
+
+    UpdaterDoneStatus updater_done = RunStartupUpdater();
+
+    if (updater_done == UpdaterDoneStatus::RunGame)
+    {
+        EngineSessionResult run_result = RunEngine();
+
+        if (run_result == EngineSessionResult::Restart)
+        {
+            next_process_ = BuildRestartProcess();
+        }
+    }
+
+    UninitializeAnalytics();
+    UninitializeSentry();
+
+    if (updater_done == UpdaterDoneStatus::RunNewGame)
+    {
+        next_process_ = BuildNewGameProcess();
+    }
+
+    if (next_process_)
+    {
+#ifdef _WIN32
+        SetEnvironmentVariableA(kRelaunchEnvVar, "1");
+#else
+        setenv(kRelaunchEnvVar, "1", 1);
+#endif
+    }
+}
+
+UpdaterDoneStatus ClientLauncher::RunStartupUpdater()
+{
+#ifdef UPDATER_ENABLE
+    UpdaterFlags updater_flags{};
+    updater_flags |= cmd_line_->CheckParm("-noupdate") ? UpdaterFlags::None : UpdaterFlags::Updater;
+
+    auto [updater_done, available_branches] = RunUpdater(updater_flags);
+    available_branches_ = available_branches;
+
+    return updater_done;
+#else
+    return UpdaterDoneStatus::RunGame;
+#endif
+}
+
+ClientLauncher::NextProcess ClientLauncher::BuildRestartProcess()
+{
+    std::string application = GetCurrentProcessPath().string();
+    std::string command_line = cmd_line_->GetCmdLine();
+
+    if (!cmd_line_->CheckParm("-noupdate"))
+    {
+        command_line += " -noupdate";
+    }
+
+    return { application, command_line };
+}
+
+ClientLauncher::NextProcess ClientLauncher::BuildNewGameProcess()
+{
+    std::string application = GetCurrentProcessPath()
+        .filename()
+        .replace_extension("")
+        .string() + "_new.exe";
+
+    std::string command_line = cmd_line_->GetCmdLine();
+
+    if (!cmd_line_->CheckParm("-noupdate"))
+    {
+        command_line += " -noupdate";
+    }
+
+    return { application, command_line };
+}
+
+ClientLauncher::EngineSessionResult ClientLauncher::RunEngine()
+{
+    analytics_->SendAnalyticsEvent("startup_run_engine");
+
+    if (!is_relaunch_)
+    {
+        PrepareEngineCommandLine();
+    }
+
+    CheckVideoModeCrash();
+
+    char post_restart_cmd_line[4096] = { '\0' };
+
+    std::vector<std::shared_ptr<nitroapi::Unsubscriber>> unsubscribers;
+
+    auto [nitro_api, nitro_api_module] = LoadModule<nitroapi::NitroApiInterface>("nitro_api2.dll", NITROAPI_INTERFACE_VERSION);
+    if (nitro_api == nullptr)
+        return EngineSessionResult::Exit;
+
+    auto [filesystem, filesystem_module] = LoadModule<IFileSystem>("FileSystem_Proxy.dll", FILESYSTEM_INTERFACE_VERSION);
+    if (filesystem == nullptr)
+        return EngineSessionResult::Exit;
+
+    auto [engine_mini, engine_mini_module] = LoadModule<EngineMiniInterface>("next_engine_mini.dll", ENGINE_MINI_INTERFACE_VERSION);
+    if (engine_mini == nullptr)
+        return EngineSessionResult::Exit;
+
+    auto [client_mini, client_mini_module] = LoadModule<ClientMiniInterface>("cstrike/cl_dlls/client_mini.dll", CLIENT_MINI_INTERFACE_VERSION);
+    if (client_mini == nullptr)
+        return EngineSessionResult::Exit;
+
+    auto [gameui_next, gameui_next_module] = LoadModule<IGameUINext>(kGameUiDll, GAMEUI_NEXT_INTERFACE_VERSION);
+    if (gameui_next == nullptr)
+        return EngineSessionResult::Exit;
+
+    CSysModule* steam_proxy_module = Sys_LoadModule("steam_api.dll");
+    if (steam_proxy_module == nullptr)
+    {
+        std::string error = "Module steam_api.dll not found";
+
+        analytics_->SendCrashMonitoringEvent("LoadModule Error", error.c_str(), true);
+#ifdef _WIN32
+        MessageBoxA(NULL, error.c_str(), kErrorTitle, MB_OK | MB_ICONERROR | MB_DEFAULT_DESKTOP_ONLY);
+#else
+        fprintf(stderr, "%s: %s\n", kErrorTitle, error.c_str());
+#endif
+        return EngineSessionResult::Exit;
+    }
+
+    auto steam_proxy_set_seh = (NextSteamProxy_SetSEHFunc)GetProcAddress((HMODULE)steam_proxy_module, "NextSteamProxy_SetSEH");
+    if (steam_proxy_set_seh == nullptr)
+    {
+        std::string error = "NextSteamProxy_SetSEH not found in steam_api.dll.\n"
+                            "Make sure you use the steam_api.dll from NextClient and not the original steam_api.dll";
+
+        analytics_->SendCrashMonitoringEvent("LoadModule Error", error.c_str(), true);
+#ifdef _WIN32
+        MessageBoxA(NULL, error.c_str(), kErrorTitle, MB_OK | MB_ICONERROR | MB_DEFAULT_DESKTOP_ONLY);
+#else
+        fprintf(stderr, "%s: %s\n", kErrorTitle, error.c_str());
+#endif
+        return EngineSessionResult::Exit;
+    }
+    steam_proxy_set_seh(ExceptionHandler);
+
+    filesystem->Mount();
+    filesystem->AddSearchPath("", "ROOT");
+
+    nitro_api->WriteLog(NITRO_API_LOG_TAG, sentry_init_log_.c_str());
+    nitro_api->SetSEHCallback(ExceptionHandler);
+    ncl_perf::Profiling_Start();
+
+    CCommandLine engine_command_line;
+    video_settings::PrepareEngineCommandLine(
+        engine_command_line,
+        *cmd_line_,
+        config_provider_->get_value_int(video_settings::kMsaaSamplesKey, video_settings::kDefaultMsaaSamples)
+    );
+
+    nitro_api->Initialize(&engine_command_line, filesystem, hl_registry_.get());
+
+    unsubscribers.emplace_back(nitro_api->GetEngineData()->Sys_Error |= [this](const char* error, const auto& next) {
+        Sys_ErrorHandler(error);
+        next->Invoke(error);
+    });
+
+    unsubscribers.emplace_back(nitro_api->GetClientData()->HUD_Init += [this] {
+        HUD_InitHandler();
+    });
+
+#ifdef _WIN32
+    unsubscribers.emplace_back(
+        nitro_api->GetEngineData()->Sys_InitGame += [](char* lpOrgCmdLine, char* pBaseDir, void* pwnd, int bIsDedicated, bool ret) {
+            if (ret)
+            {
+                HWND hwnd = FindCurrentProcessSDLWindow();
+                if (hwnd)
+                    SetTaskbarIcon(hwnd);
+            }
+        }
+    );
+#else
+    // The Windows engine finds cl_dlls/GameUI.dll through the filesystem, so the
+    // mod's copy wins. hw.so hardcodes Valve's one instead - point it at ours.
+    unsubscribers.emplace_back(
+        nitro_api->GetEngineData()->Sys_LoadModule |= [](const char* module_name, const auto& next) {
+            if (std::string_view(module_name) == "valve/cl_dlls/gameui.so")
+                return next->Invoke(kGameUiDll);
+
+            return next->Invoke(module_name);
+        }
+    );
+
+    // steamclient.so puts LC_ALL=C into the environment before Sys_InitGame, so everything that
+    // later calls setlocale(..., "") ends up in C, and Sys_InitGame then shows a blocking warning
+    // unless the locale is exactly en_US.UTF-8. Put back what hl_linux sets: it keeps UTF-8
+    // character classes for non-ASCII text and parses numbers like C.
+    unsubscribers.emplace_back(
+        nitro_api->GetEngineData()->Sys_InitGame |= [](char* lpOrgCmdLine, char* pBaseDir, void* pwnd, int bIsDedicated, const auto& next) {
+            setenv("LC_ALL", "en_US.UTF-8", 1);
+            setlocale(LC_ALL, "en_US.UTF-8");
+            return next->Invoke(lpOrgCmdLine, pBaseDir, pwnd, bIsDedicated);
+        }
+    );
+#endif
+
+    auto [engine, engine_module] = LoadModule<IEngineAPI>(kEngineDll, VENGINE_LAUNCHER_API_VERSION);
+    if (engine == nullptr)
+    {
+        ncl_perf::Profiling_Stop();
+        return EngineSessionResult::Exit;
+    }
+
+    std::string versions = CreateVersionsString(nitro_api, engine_mini, client_mini, gameui_next);
+    nitro_api->WriteLog(NITRO_API_LOG_TAG, versions.c_str());
+
+    client_mini->Init(nitro_api);
+    engine_mini->Init(nitro_api, next_client_version_, analytics_.get());
+
+    EngineCommons::Init(nitro_api, user_info_client_, versions, available_branches_);
+
+    LOG(INFO) << "Engine command line: '" << engine_command_line.GetCmdLine() << "'";
+
+    LOG(INFO) << "IEngineAPI::Run";
+    analytics_->AddBreadcrumb("Info", "IEngineAPI::Run");
+
+#ifdef _WIN32
+    std::string base_dir;
+#else
+    // Unlike hw.dll, hw.so doesn't work out the game directory by itself; Valve's
+    // own hl_linux passes it in here
+    std::string base_dir = GetCurrentProcessDirectoryAbsoulute().string();
+#endif
+
+    EngineRunResult engine_run_result = engine->Run(
+        module_instance_,
+        base_dir.c_str(),
+        engine_command_line.GetCmdLine(),
+        post_restart_cmd_line,
+        Sys_GetFactoryThis(),
+        Sys_GetFactory(filesystem_module)
+    );
+
+    EngineCommons::Reset();
+
+    LOG(INFO) << "IEngineAPI::Run done";
+    analytics_->AddBreadcrumb("Info", std::format("IEngineAPI::Run done, result: {}", (int)engine_run_result).c_str());
+
+    client_mini->Uninitialize();
+
+    engine_mini->Uninitialize();
+
+
+    filesystem->Unmount();
+
+    for (auto& unsub : unsubscribers)
+        unsub->Unsubscribe();
+
+    nitro_api->UnInitialize();
+    ncl_perf::Profiling_Stop();
+
+    Sys_UnloadModule(client_mini_module);
+    Sys_UnloadModule(engine_mini_module);
+    Sys_UnloadModule(engine_module);
+    Sys_UnloadModule(gameui_next_module);
+    Sys_UnloadModule(filesystem_module);
+    Sys_UnloadModule(nitro_api_module);
+
+    EngineSessionResult engine_session_result{};
+
+    switch (engine_run_result)
+    {
+        case ENGRUN_QUITTING:
+            engine_session_result = EngineSessionResult::Exit;
+            break;
+
+        case ENGRUN_UNSUPPORTED_VIDEOMODE:
+            engine_session_result = OnVideoModeFailed() ? EngineSessionResult::Exit : EngineSessionResult::Restart;
+            break;
+
+        default:
+            engine_session_result = EngineSessionResult::Restart;
+            break;
+    }
+
+    config_provider_->ReloadFromFile();
+
+    ModifyCmdLineAfterRestart(post_restart_cmd_line);
+
+    return engine_session_result;
+}
+
+void ClientLauncher::PrepareEngineCommandLine()
+{
+    if (!cmd_line_->CheckParm("-game"))
+        cmd_line_->AppendParm("-game", "cstrike");
+
+    // disable glBlitFramebuffer feature, because this makes blackscreen on some Nvidia GPU when enables MSSA technology
+    if (!cmd_line_->CheckParm("-nodirectblit") && !cmd_line_->CheckParm("-directblit"))
+        cmd_line_->AppendParm("-nodirectblit", nullptr);
+
+    if (!cmd_line_->CheckParm("-num_edicts"))
+        cmd_line_->AppendParm("-num_edicts", "4096");
+}
+
+#ifdef UPDATER_ENABLE
+UpdaterResult ClientLauncher::RunUpdater(UpdaterFlags updater_flags)
+{
+    LOG(INFO) << "Start the Updater GUI App";
+    analytics_->SendAnalyticsEvent("startup_run_updater");
+
+    UpdaterResult result = RunUpdaterGuiApp(
+        user_info_client_,
+        user_storage_,
+        analytics_,
+        updater_flags,
+        config_provider_->get_value_string("language", "english"),
+        [this](NextUpdaterEvent event) {
+            analytics_->SendAnalyticsLog(AnalyticsLogType::Error, std::format("updater error, state: {}, error: {}", magic_enum::enum_name(event.state), event.error_description).c_str());
+        },
+        backend_address_resolver_);
+
+    LOG(INFO) << "Updater GUI App result: " << magic_enum::enum_name(result.done_status);
+
+    return result;
+}
+#endif
+
+void ClientLauncher::CreateConsoleWindowAndRedirectOutput()
+{
+#ifdef _WIN32
+    AllocConsole();
+
+    CPINFOEXA cp_info;
+    if (GetCPInfoExA(CP_ACP, 0, &cp_info))
+        SetConsoleOutputCP(cp_info.CodePage);
+
+    FILE* dummy_file;
+    freopen_s(&dummy_file, "CONOUT$", "w", stdout);
+    freopen_s(&dummy_file, "CONOUT$", "w", stderr);
+#endif
+    // No console to allocate outside Windows - a Linux launch already has stdout/
+    // stderr attached to whatever terminal (or none) started it.
+}
+
+bool ClientLauncher::OnVideoModeFailed()
+{
+    hl_registry_->WriteInt("ScreenBPP", 32);
+    hl_registry_->WriteInt("ScreenWidth", kDefaultWidth);
+    hl_registry_->WriteInt("ScreenHeight", kDefaultHeight);
+    hl_registry_->WriteString("EngineDLL", "hw.dll");
+
+#ifdef _WIN32
+    return MessageBoxA(
+        NULL,
+        "The specified rendering mode is not supported.\n"
+        "Restart the game?",
+        kErrorTitle,
+        MB_OKCANCEL | MB_ICONERROR | MB_ICONQUESTION | MB_DEFAULT_DESKTOP_ONLY) == IDOK;
+#else
+    // No dialog to ask outside Windows (gui_app_core isn't ported) - default to
+    // restarting, since silently giving up would leave the user stuck.
+    fprintf(stderr, "%s: The specified rendering mode is not supported. Restarting with reset video settings.\n", kErrorTitle);
+    return true;
+#endif
+}
+
+void ClientLauncher::FixScreenResolution()
+{
+    int w = hl_registry_->ReadInt("ScreenWidth", kDefaultWidth);
+    int h = hl_registry_->ReadInt("ScreenHeight", kDefaultHeight);
+
+    if (w < kMinWidth || h < kMinHeight)
+    {
+        hl_registry_->WriteInt("ScreenWidth", kDefaultWidth);
+        hl_registry_->WriteInt("ScreenHeight", kDefaultHeight);
+    }
+}
+
+bool ClientLauncher::GlobalMutexCheck()
+{
+#ifdef _WIN32
+    DWORD result = WaitForSingleObject(global_win_mutex_, 0);
+    if (result != WAIT_OBJECT_0 &&
+        result != WAIT_ABANDONED &&
+        !cmd_line_->CheckParm("-hijack"))
+    {
+        return false;
+    }
+#else
+    if (!global_lock_acquired_ && !cmd_line_->CheckParm("-hijack"))
+    {
+        return false;
+    }
+#endif
+
+    return true;
+}
+
+#ifdef GAMEANALYTICS_ENABLE
+
+void ClientLauncher::InitializeAnalytics()
+{
+    std::string client_uid = user_info_client_->GetClientUid();
+
+    gameanalytics::GameAnalytics::setEnabledErrorReporting(false);
+    gameanalytics::GameAnalytics::disableDeviceInfo();
+    gameanalytics::GameAnalytics::configureUserId(client_uid.c_str());
+    gameanalytics::GameAnalytics::configureBuild(NEXT_CLIENT_BUILD_VERSION);
+    gameanalytics::GameAnalytics::initialize(GAMEANALYTICS_GAME_KEY, GAMEANALYTICS_SECRET_KEY);
+
+    analytics_->SendBranchEvent();
+    analytics_->SendPrimaryBackendEvent();
+    analytics_->SendActualBackendEvent();
+}
+
+void ClientLauncher::UninitializeAnalytics()
+{
+    gameanalytics::GameAnalytics::onQuit();
+}
+
+#else
+
+void ClientLauncher::InitializeAnalytics() { }
+void ClientLauncher::UninitializeAnalytics() { }
+
+#endif
+
+#ifdef SENTRY_ENABLE
+
+void ClientLauncher::InitializeSentry()
+{
+    CHAR exe_file_path[MAX_PATH];
+    GetModuleFileNameA(nullptr, exe_file_path, MAX_PATH);
+
+    std::string client_uid = user_info_client_->GetClientUid();
+
+    sentry_options_t *options = sentry_options_new();
+    sentry_options_set_dsn(options, SENTRY_UPLOAD_URL);
+    sentry_options_set_handler_path(options, "crashpad_handler.exe");
+    sentry_options_set_database_path(options, "crashes");
+    sentry_options_set_release(options, SENTRY_PROJECT_NAME "@" NEXT_CLIENT_BUILD_VERSION);
+    sentry_options_set_environment(options, SENTRY_ENV);
+    sentry_options_set_max_breadcrumbs(options, 100);
+
+    sentry_options_add_attachment(options, "nitro_api.log");
+    sentry_options_add_attachment(options, "setting_guard.ini");
+    sentry_options_add_attachment(options, "user_game_config.ini");
+    sentry_options_add_attachment(options, "launcher.log");
+    sentry_options_add_attachment(options, "platform\\config\\backend.json");
+
+    int result = sentry_init(options);
+
+    sentry_value_t user = sentry_value_new_object();
+    sentry_value_set_by_key(user, "id", sentry_value_new_string(client_uid.c_str()));
+    sentry_value_set_by_key(user, "ip_address", sentry_value_new_string("{{auto}}"));
+    sentry_value_set_by_key(user, "Game Dir", sentry_value_new_string(exe_file_path));
+    sentry_set_user(user);
+
+    if (result == 0)
+        sentry_init_log_ = "Sentry started";
+    else
+        sentry_init_log_ = std::format("Sentry error: {}", GetWinErrorString(GetLastError()));
+
+}
+
+void ClientLauncher::UninitializeSentry()
+{
+    sentry_close();
+}
+
+#else
+
+void ClientLauncher::InitializeSentry() { }
+void ClientLauncher::UninitializeSentry() { }
+
+#endif
+
+void ClientLauncher::HUD_InitHandler()
+{
+    analytics_->SendAnalyticsEvent("startup_hud_init_post");
+}
+
+void ClientLauncher::InitializeCmdLine(const char* cmd_line)
+{
+    cmd_line_ = std::make_shared<CCommandLine>();
+
+    if (is_relaunch_)
+    {
+        cmd_line_->CreateCmdLine(cmd_line);
+        return;
+    }
+
+    std::string launch_parameters = config_provider_->get_value_string("launch_parameters", "");
+    cmd_line_->CreateCmdLine(std::format("{} {}", cmd_line, launch_parameters).c_str());
+
+    if (config_provider_->get_value_int("stretch_aspect", 0))
+    {
+        cmd_line_->AppendParm("-stretchaspect", nullptr);
+    }
+}
+
+void ClientLauncher::ModifyCmdLineAfterRestart(const char* cmd_line)
+{
+    static const char* kRemoveParams[] = {
+        "-sw",
+        "-startwindowed",
+        "-windowed",
+        "-window",
+        "-full",
+        "-fullscreen",
+        "-soft",
+        "-software",
+        "-gl",
+        "-w",
+        "-width",
+        "-h",
+        "-height",
+        "+connect"
+    };
+
+    for (const auto& param : kRemoveParams)
+    {
+        cmd_line_->RemoveParm(param);
+    }
+
+    if (strstr(cmd_line, "-game"))
+    {
+        cmd_line_->RemoveParm("-game");
+    }
+
+    if (strstr(cmd_line, "+load"))
+    {
+        cmd_line_->RemoveParm("+load");
+    }
+
+    if (config_provider_->get_value_int("stretch_aspect", 0))
+    {
+        cmd_line_->AppendParm("-stretchaspect", nullptr);
+    }
+    else
+    {
+        cmd_line_->RemoveParm("-stretchaspect");
+    }
+
+    cmd_line_->SetParm("-novid", nullptr);
+
+    cmd_line_->AppendParm(cmd_line, nullptr);
+}
+
+void ClientLauncher::CheckVideoModeCrash()
+{
+    if (hl_registry_->ReadInt("CrashInitializingVideoMode", 0) == 0)
+    {
+        return;
+    }
+
+    hl_registry_->WriteInt("CrashInitializingVideoMode", 0);
+
+#ifdef _WIN32
+    if (MessageBoxA(
+        NULL,
+        "It looks like a previous attempt to run the game failed due to a rendering subsystem error.\n"
+        "Reset the game resolution settings and run the game again?",
+        kErrorTitle,
+        MB_OKCANCEL | MB_ICONERROR | MB_ICONQUESTION | MB_DEFAULT_DESKTOP_ONLY) != IDOK)
+    {
+        return;
+    }
+#else
+    // No dialog to ask outside Windows - default to resetting, same reasoning as
+    // OnVideoModeFailed above.
+    fprintf(stderr, "%s: Previous run crashed initializing video mode. Resetting resolution settings.\n", kErrorTitle);
+#endif
+
+    hl_registry_->WriteInt("ScreenBPP", 32);
+    hl_registry_->WriteInt("ScreenWidth", kDefaultWidth);
+    hl_registry_->WriteInt("ScreenHeight", kDefaultHeight);
+}
+
+void ClientLauncher::Sys_ErrorHandler(const char* error)
+{
+    analytics_->SendCrashMonitoringEvent("Sys_Error", error, true);
+
+    // Sys_Error exits from inside IEngineAPI::Run, so the teardown after it never happens.
+    EngineCommons::Reset();
+}
+
+std::string ClientLauncher::CreateVersionsString(nitroapi::NitroApiInterface* nitro_api,
+                                                 EngineMiniInterface* engine_mini,
+                                                 ClientMiniInterface* client_mini,
+                                                 IGameUINext* gameui_next)
+{
+    char nitroapi_version[64]; nitro_api->GetVersion(nitroapi_version, sizeof(nitroapi_version));
+    char engine_mini_version[64]; engine_mini->GetVersion(engine_mini_version, sizeof(engine_mini_version));
+    char client_mini_version[64]; client_mini->GetVersion(client_mini_version, sizeof(client_mini_version));
+    char gameui_version[64]; gameui_next->GetVersion(nullptr, nullptr, nullptr, gameui_version, sizeof(gameui_version));
+
+    char versions[512];
+    V_snprintf(versions,
+               sizeof(versions),
+               "nitro_api: %s\nLauncher: %s\nnext_engine_mini: %s\nclient_mini: %s\nGameUI: %s\n",
+               nitroapi_version, LAUNCHER_VERSION, engine_mini_version, client_mini_version, gameui_version);
+
+    return versions;
+}
+
+void ClientLauncher::ProvisionDefaultConfigs()
+{
+    namespace fs = std::filesystem;
+
+    for (const char* target : kDefaultConfigs)
+    {
+        fs::path target_path(target);
+        fs::path default_path = fs::path(kDefaultConfigsDir) / target_path.filename();
+
+        std::error_code ec;
+        if (fs::exists(target_path, ec))
+        {
+            continue;
+        }
+
+        if (!fs::exists(default_path, ec))
+        {
+            LOG(WARNING) << "Default config not found: " << default_path.string();
+            continue;
+        }
+
+        if (fs::path parent = target_path.parent_path(); !parent.empty())
+        {
+            fs::create_directories(parent, ec);
+        }
+
+        if (fs::copy_file(default_path, target_path, ec))
+        {
+            LOG(INFO) << "Provisioned config from default: " << target;
+        }
+        else
+        {
+            LOG(WARNING) << "Failed to provision config '" << target << "': " << ec.message();
+        }
+    }
+}

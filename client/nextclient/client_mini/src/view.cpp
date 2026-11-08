@@ -1,0 +1,625 @@
+#include <cmath>
+#include <cstring>
+
+#include "main.h"
+
+#include <ncl_math/vec3.h>
+#include <data_types/MessageReader.h>
+#include <cstdint>
+
+#include <goldsrc/client_api.h>
+#include <goldsrc/cstrike/spectator.h>
+#include <goldsrc/cvar.h>
+#include <goldsrc/entity.h>
+#include <goldsrc/pmove.h>
+#include <goldsrc/types.h>
+#include <goldsrc/view.h>
+
+#include <cvars/cvar_defaults.h>
+#include <ncl_math/scalar.h>
+#include <view/view_bob.h>
+#include <view/view_lag.h>
+
+#include "viewmodel_overrides.h"
+#include "fov.h"
+#include "camera.h"
+
+static void V_ResetViewmodelOverrides();
+static void V_SetViewmodelOverrides(goldsrc::cl_entity_t* view_model);
+static int V_ViewModelFx_MSG(const char *pszName, int iSize, void *pbuf);
+
+static viewmodel_overrides_t viewmodel_overrides;
+
+vec3_t g_MainViewOrigin;
+vec3_t g_MainViewAngles;
+
+static goldsrc::cvar_t* viewmodel_disable_shift;
+
+static goldsrc::cvar_t* viewmodel_offset_x;
+static goldsrc::cvar_t* viewmodel_offset_y;
+static goldsrc::cvar_t* viewmodel_offset_z;
+
+static goldsrc::cvar_t* cl_bobstyle;
+
+static goldsrc::cvar_t* cl_bobcycle;
+static goldsrc::cvar_t* cl_bobup;
+static goldsrc::cvar_t* cl_bob;
+
+static goldsrc::cvar_t* cl_bobamt_vert;
+static goldsrc::cvar_t* cl_bobamt_lat;
+static goldsrc::cvar_t* cl_bob_lower_amt;
+static goldsrc::cvar_t* cl_bob_camera;
+
+static goldsrc::cvar_t* cl_rollangle;
+static goldsrc::cvar_t* cl_rollspeed;
+
+static goldsrc::cvar_t* viewmodel_lag_style;
+static goldsrc::cvar_t* viewmodel_lag_scale;
+static goldsrc::cvar_t* viewmodel_lag_speed;
+
+static goldsrc::cvar_t* spec_pip;
+
+static goldsrc::cvar_t* RegisterViewCvar(const cvars::CvarDefault& cvar)
+{
+    return gEngfuncs.pfnRegisterVariable(cvar.name, cvar.value, goldsrc::FCVAR_ARCHIVE);
+}
+
+void ViewInit()
+{
+    viewmodel_disable_shift = RegisterViewCvar(cvars::kViewmodelDisableShift);
+
+    viewmodel_offset_x = RegisterViewCvar(cvars::kViewmodelOffsetX);
+    viewmodel_offset_y = RegisterViewCvar(cvars::kViewmodelOffsetY);
+    viewmodel_offset_z = RegisterViewCvar(cvars::kViewmodelOffsetZ);
+
+    cl_bobstyle = RegisterViewCvar(cvars::kBobStyle);
+
+    cl_bobcycle = gEngfuncs.pfnGetCvarPointer(cvars::kBobCycle.name);
+    cl_bobup = gEngfuncs.pfnGetCvarPointer(cvars::kBobUp.name);
+    cl_bob = gEngfuncs.pfnGetCvarPointer(cvars::kBob.name);
+
+    cl_bobcycle->flags |= goldsrc::FCVAR_ARCHIVE;
+    cl_bobup->flags |= goldsrc::FCVAR_ARCHIVE;
+
+    cl_bobamt_vert = RegisterViewCvar(cvars::kBobAmtVert);
+    cl_bobamt_lat = RegisterViewCvar(cvars::kBobAmtLat);
+    cl_bob_lower_amt = RegisterViewCvar(cvars::kBobLowerAmt);
+    cl_bob_camera = RegisterViewCvar(cvars::kBobCamera);
+
+    cl_rollangle = RegisterViewCvar(cvars::kRollAngle);
+    cl_rollspeed = RegisterViewCvar(cvars::kRollSpeed);
+
+    viewmodel_lag_style = RegisterViewCvar(cvars::kViewmodelLagStyle);
+    viewmodel_lag_scale = RegisterViewCvar(cvars::kViewmodelLagScale);
+    viewmodel_lag_speed = RegisterViewCvar(cvars::kViewmodelLagSpeed);
+
+    spec_pip = gEngfuncs.pfnGetCvarPointer("spec_pip");
+
+    gEngfuncs.pfnHookUserMsg("ViewModelFx", V_ViewModelFx_MSG);
+}
+
+void ViewVidInit()
+{
+    V_ResetViewmodelOverrides();
+}
+
+static view_bob::ClassicBobState g_ClassicBobState;
+static view_bob::ModernBobState g_ModernBobState;
+
+static bool IsVec3Finite(const float* v)
+{
+	return std::isfinite(v[0]) && std::isfinite(v[1]) && std::isfinite(v[2]);
+}
+
+static view_bob::BobParams GetBobParams()
+{
+    view_bob::BobParams params;
+    params.style = static_cast<int>(cl_bobstyle->value);
+    params.bob = cl_bob->value;
+    params.bob_cycle = cl_bobcycle->value;
+    params.bob_up = cl_bobup->value;
+    params.amt_vert = cl_bobamt_vert->value;
+    params.amt_lat = cl_bobamt_lat->value;
+    params.lower_amt = cl_bob_lower_amt->value;
+    params.camera_bob = cl_bob_camera->value != 0;
+
+    return params;
+}
+
+static void V_AddLag_HL2(goldsrc::ref_params_t* pparams, vec3_t origin, vec3_t front)
+{
+	vec3_t delta_front;
+	static vec3_t last_front;
+
+	ncl_math::VectorSubtract(front, last_front, delta_front);
+
+	ncl_math::VectorMA(delta_front, viewmodel_lag_speed->value * pparams->frametime, last_front);
+	ncl_math::VectorMA_2(delta_front, -1 * viewmodel_lag_scale->value, origin);
+}
+
+// quite an inefficent way to do css style lag but oh well
+typedef struct
+{
+	bool valid;
+	vec3_t value;
+} lag_angles_t;
+
+#define STEP_MILLIS 10
+#define ANGLE_BACKUP 128
+
+#define TO_STEP(x) ((int)((x) * STEP_MILLIS))
+#define FROM_STEP(x) ((float)(x) * (1.0f / STEP_MILLIS))
+
+static lag_angles_t lag_angles[ANGLE_BACKUP];
+static int last_step;
+
+static void AddLagAngles(float time, vec3_t angles)
+{
+	int step = TO_STEP(time);
+
+	if (step < last_step)
+	{
+		// client restart
+		memset(lag_angles, 0, sizeof(lag_angles));
+	}
+	else if (step == last_step)
+	{
+		// too soon
+		return;
+	}
+
+	last_step = step;
+
+	ncl_math::VectorCopy(angles, lag_angles[step % ANGLE_BACKUP].value);
+	lag_angles[step % ANGLE_BACKUP].valid = true;
+}
+
+static bool GetLagAngles(float time, vec3_t dest)
+{
+	int step = TO_STEP(time);
+
+	lag_angles_t *angles = &lag_angles[step % ANGLE_BACKUP];
+	if (!angles->valid)
+		return false;
+
+	float step_time = FROM_STEP(TO_STEP(time));
+	if (step_time < time)
+	{
+		lag_angles_t *next_angles = &lag_angles[(step + 1) % ANGLE_BACKUP];
+		if (!next_angles->valid)
+		{
+			// can't lerp to these
+			ncl_math::VectorCopy(angles->value, dest);
+		}
+		else
+		{
+			float next_time = FROM_STEP(step + 1);
+			float frac = ncl_math::Remap(time, step_time, next_time, 0, 1);
+			ncl_math::AngleLerp(angles->value, next_angles->value, frac, dest);
+		}
+	}
+	else
+	{
+		// if round_time > time, the difference is
+		// probably so small that it can't be noticed
+		ncl_math::VectorCopy(angles->value, dest);
+	}
+
+	return true;
+}
+
+static void V_AddLag_CSS(goldsrc::ref_params_t* pparams, vec3_t origin, vec3_t angles, vec3_t front, vec3_t side, vec3_t up)
+{
+	AddLagAngles(pparams->time, angles);
+
+	vec3_t prev_angles;
+	if (!GetLagAngles(pparams->time - view_lag::kCssDelay, prev_angles))
+		return;
+
+	vec3_t delta_angles;
+	ncl_math::VectorSubtract(prev_angles, angles, delta_angles);
+	ncl_math::VectorNegate(delta_angles);
+
+	vec3_t delta_front;
+	ncl_math::AngleVectors(delta_angles, delta_front, nullptr, nullptr);
+
+	ncl_math::VectorMA_2(front, (1 - delta_front[0]) * viewmodel_lag_scale->value, origin);
+	ncl_math::VectorMA_2(side, (delta_front[1]) * viewmodel_lag_scale->value, origin);
+	ncl_math::VectorMA_2(up, (-delta_front[2]) * viewmodel_lag_scale->value, origin);
+}
+
+static void V_OffsetViewmodel(goldsrc::cl_entity_t* vm, vec3_t front, vec3_t side, vec3_t up)
+{
+    vec3_t extra_origin;
+    ncl_math::VectorClear(extra_origin);
+
+    float x = viewmodel_offset_x->value + extra_origin[0];
+    float y = viewmodel_offset_y->value + extra_origin[1];
+    float z = -(viewmodel_offset_z->value + extra_origin[2]);
+
+    if (g_GameHud->cl_righthand->value == 0)
+        x = -x;
+
+    ncl_math::VectorMA_2(side, x, vm->origin);
+    ncl_math::VectorMA_2(front, y, vm->origin);
+    ncl_math::VectorMA_2(up, z, vm->origin);
+}
+
+static void CalcCustomRefdef(goldsrc::ref_params_t* pparams)
+{
+    goldsrc::cl_entity_t* vm;
+    vec3_t front, side, up;
+
+    vm = gEngfuncs.GetViewModel();
+    ncl_math::AngleVectors(vm->angles, front, side, up);
+
+    /* fix the slight difference between view and vm origin */
+    vm->origin[0] += 1.0f / 32;
+    vm->origin[1] += 1.0f / 32;
+    vm->origin[2] += 1.0f / 32;
+
+    V_OffsetViewmodel(vm, front, side, up);
+
+    if ((int)viewmodel_disable_shift->value == 1)
+    {
+        // remove shift from origin
+        vm->origin[2] += 1;
+
+        // offset the viewmodel
+        ncl_math::VectorMA_2(up, 1, vm->origin);
+    }
+
+    view_bob::BobParams bob_params = GetBobParams();
+    view_bob::BobOffsets offsets;
+    float classic_bob = 0.0f;
+
+    if (bob_params.style == view_bob::kStyleModern)
+    {
+        offsets = view_bob::PlaceModernBob(view_bob::StepModernBob(
+            g_ModernBobState, bob_params, pparams->time, ncl_math::Vector2DLength(pparams->simvel), pparams->onground != 0));
+    }
+    else
+    {
+        classic_bob = view_bob::StepClassicBob(
+            g_ClassicBobState, bob_params, pparams->frametime, ncl_math::Vector2DLength(pparams->simvel));
+
+        offsets = view_bob::PlaceClassicBob(classic_bob, bob_params.style);
+    }
+
+    ncl_math::VectorMA_2(front, offsets.forward, vm->origin);
+    vm->origin[2] += offsets.up;
+    ncl_math::VectorMA_2(side, offsets.side, vm->origin);
+
+    vm->curstate.angles[0] -= offsets.pitch;
+    vm->curstate.angles[1] -= offsets.yaw;
+    vm->curstate.angles[2] -= offsets.roll;
+
+    if (bob_params.style != view_bob::kStyleModern && bob_params.camera_bob)
+    {
+        pparams->vieworg[2] += classic_bob;
+        vm->origin[2] += classic_bob;
+    }
+
+    switch ((int)viewmodel_lag_style->value)
+    {
+    case 1:
+        V_AddLag_HL2(pparams, vm->origin, front);
+        break;
+
+    case 2:
+        V_AddLag_CSS(pparams, vm->origin, vm->angles, front, side, up);
+        break;
+    }
+
+    V_SetViewmodelOverrides(vm);
+
+    /* mikkotodo move? */
+    CameraApplyMovement(pparams);
+}
+
+static void V_GetInEyePos(int target, goldsrc::vec_t* origin, goldsrc::vec_t* angles)
+{
+    if (!target)
+    {
+        /* just hope this doesn't happen? */
+        return;
+    }
+
+    goldsrc::cl_entity_t* ent = gEngfuncs.GetEntityByIndex(target);
+    if (!ent)
+        return;
+
+    ncl_math::VectorCopy(ent->origin, origin);
+    ncl_math::VectorCopy(ent->angles, angles);
+
+    angles[0] *= -3;
+
+    if (!ent->curstate.solid)
+    {
+        angles[2] = 80;
+        origin[2] -= 8;
+    }
+    else if (ent->curstate.usehull == 1)
+        origin[2] += 12;
+    else
+        origin[2] += 28;
+}
+
+static void CalcSpectatorRefdef(goldsrc::ref_params_t* pparams, int nextView)
+{
+    static vec3_t velocity;
+
+    goldsrc::cl_entity_t* ent = gEngfuncs.GetEntityByIndex(g_iUser2);
+
+    if ((g_iUser1 == goldsrc::cstrike::INSET_MAP_CHASE || spec_pip->value == goldsrc::cstrike::INSET_IN_EYE) && ent)
+    {
+        float timeDiff = ent->curstate.msg_time - ent->prevstate.msg_time;
+        if (timeDiff > 0)
+        {
+            vec3_t distance;
+            ncl_math::VectorSubtract(ent->prevstate.origin, ent->curstate.origin, distance);
+            ncl_math::VectorScale(distance, 1.0f / timeDiff, distance);
+
+            velocity[0] = velocity[0] * 0.9f + distance[0] * 0.1f;
+            velocity[1] = velocity[1] * 0.9f + distance[1] * 0.1f;
+            velocity[2] = velocity[2] * 0.9f + distance[2] * 0.1f;
+            ncl_math::VectorCopy(velocity, pparams->simvel);
+        }
+
+        if (gEngfuncs.IsSpectateOnly() || spec_pip->value == goldsrc::cstrike::INSET_IN_EYE)
+        {
+            V_GetInEyePos(g_iUser2, pparams->simorg, pparams->cl_viewangles);
+        }
+        else
+        {
+            ncl_math::VectorCopy(ent->angles, pparams->cl_viewangles);
+            pparams->cl_viewangles[0] *= -3;
+        }
+    }
+
+    if (nextView == 0)
+    {
+        if (g_iUser1 == goldsrc::cstrike::INSET_MAP_CHASE)
+            CalcCustomRefdef(pparams);
+    }
+    else if (spec_pip->value == goldsrc::cstrike::INSET_IN_EYE)
+    {
+        CalcCustomRefdef(pparams);
+    }
+}
+
+void ViewCalcRefdef(goldsrc::ref_params_t* pparams, V_CalcRefdefNext next)
+{
+    float old_rollangle, old_rollspeed;
+
+    /* temporarily override view roll settings with client dictated ones */
+    old_rollangle = pparams->movevars->rollangle;
+    old_rollspeed = pparams->movevars->rollspeed;
+    pparams->movevars->rollangle = cl_rollangle->value;
+    pparams->movevars->rollspeed = cl_rollspeed->value;
+
+    /* save this off so we can properly handle pip (gets modified by original CalcRefdef) */
+    int nextView = pparams->nextView;
+
+    /* we calculate the bob ourselves so zero out the cvar */
+    {
+        float bob;
+
+        bob = cl_bob->value;
+        cl_bob->value = 0;
+        next->Invoke(pparams);
+        cl_bob->value = bob;
+    }
+
+    /* view roll has been applied, restore the settings */
+    pparams->movevars->rollangle = old_rollangle;
+    pparams->movevars->rollspeed = old_rollspeed;
+
+    if (!pparams->intermission)
+    {
+        if (pparams->spectator || g_iUser1)
+            CalcSpectatorRefdef(pparams, nextView);
+        else if (!pparams->paused)
+            CalcCustomRefdef(pparams);
+    }
+
+    FovThink();
+
+    // every engine consumer reads this refdef (traces, sound spatialization, PVS), and a NaN
+    // coordinate makes SV_RecursiveHullCheck spin forever
+    if (!IsVec3Finite(pparams->vieworg))
+        ncl_math::VectorCopy(pparams->simorg, pparams->vieworg);
+
+    if (!IsVec3Finite(pparams->viewangles))
+        ncl_math::VectorCopy(pparams->cl_viewangles, pparams->viewangles);
+
+    /* the radar follows the main view; the extra spectator PiP passes (nextView != 0)
+       run after it and must not overwrite the captured camera */
+    if (nextView == 0)
+    {
+        ncl_math::VectorCopy(pparams->vieworg, g_MainViewOrigin);
+        ncl_math::VectorCopy(pparams->viewangles, g_MainViewAngles);
+    }
+}
+
+static void V_SetViewmodelOverrides(goldsrc::cl_entity_t* view_model)
+{
+    if (viewmodel_overrides.rendermode_override)
+        view_model->curstate.rendermode = viewmodel_overrides.rendermode;
+
+    if (viewmodel_overrides.renderamt_override)
+        view_model->curstate.renderamt = viewmodel_overrides.renderamt;
+
+    if (viewmodel_overrides.color_override)
+        view_model->curstate.rendercolor = viewmodel_overrides.color;
+
+    if (viewmodel_overrides.renderfx_override)
+        view_model->curstate.renderfx = viewmodel_overrides.renderfx;
+
+    if (viewmodel_overrides.skin_override)
+        view_model->curstate.skin = viewmodel_overrides.skin;
+
+    if (viewmodel_overrides.body_override)
+        view_model->curstate.body = viewmodel_overrides.body;
+}
+
+static int V_ViewModelFx_MSG(const char *pszName, int iSize, void *pbuf)
+{
+    enum class SET_MODE { NONE, SET, RESET };
+
+    // 8 bit  6 bit: what is set, 1 bit contains reset byte, 1 bit reserved  (from lower to higher)
+    // 8 bit  6 bit: what is reset, 2 bit reserved (from lower to higher)
+    // 8 bit  3 bit: rendermode, 5 bit: renderfx (from lower to higher)
+    // 8 bit  renderamt
+    // 24 bit rendercolor
+    // 8 bit  skin
+    // 32 bit body
+
+    MessageReader reader(pbuf, iSize);
+
+    int what = reader.ReadByte();
+    if (what == -1)
+    {
+        V_ResetViewmodelOverrides();
+        return 1;
+    }
+
+    SET_MODE mode_mode  = what & (1 << 0) ? SET_MODE::SET : SET_MODE::NONE;
+    SET_MODE mode_fx    = what & (1 << 1) ? SET_MODE::SET : SET_MODE::NONE;
+    SET_MODE mode_amt   = what & (1 << 2) ? SET_MODE::SET : SET_MODE::NONE;
+    SET_MODE mode_color = what & (1 << 3) ? SET_MODE::SET : SET_MODE::NONE;
+    SET_MODE mode_skin  = what & (1 << 4) ? SET_MODE::SET : SET_MODE::NONE;
+    SET_MODE mode_body  = what & (1 << 5) ? SET_MODE::SET : SET_MODE::NONE;
+
+    if (what & (1 << 6))
+    {
+        int what_reset = reader.ReadByte();
+        if (what_reset == -1)
+        {
+            V_ResetViewmodelOverrides();
+            return 1;
+        }
+
+        mode_mode  = what_reset & (1 << 0) ? SET_MODE::RESET : mode_mode;
+        mode_fx    = what_reset & (1 << 1) ? SET_MODE::RESET : mode_fx;
+        mode_amt   = what_reset & (1 << 2) ? SET_MODE::RESET : mode_amt;
+        mode_color = what_reset & (1 << 3) ? SET_MODE::RESET : mode_color;
+        mode_skin  = what_reset & (1 << 4) ? SET_MODE::RESET : mode_skin;
+        mode_body  = what_reset & (1 << 5) ? SET_MODE::RESET : mode_body;
+    }
+
+    if (mode_mode == SET_MODE::SET || mode_fx == SET_MODE::SET)
+    {
+        int mode_and_fx = reader.ReadByte();
+        if (mode_and_fx == -1)
+        {
+            V_ResetViewmodelOverrides();
+            return 1;
+        }
+
+        if (mode_mode == SET_MODE::SET)
+        {
+            int rendermode = mode_and_fx & 0b111;
+            rendermode = std::clamp(rendermode, 0, (int)goldsrc::kRenderTransAdd);
+
+            viewmodel_overrides.rendermode = rendermode;
+            viewmodel_overrides.rendermode_override = true;
+        }
+
+        if (mode_fx == SET_MODE::SET)
+        {
+            int renderfx = (mode_and_fx >> 3) & 0b11111;
+            renderfx = std::clamp(renderfx, 0, (int)goldsrc::kRenderFxLightMultiplier);
+
+            viewmodel_overrides.renderfx = renderfx;
+            viewmodel_overrides.renderfx_override = true;
+        }
+    }
+    else
+    {
+        if (mode_mode == SET_MODE::RESET)
+            viewmodel_overrides.rendermode_override = false;
+
+        if (mode_fx == SET_MODE::RESET)
+            viewmodel_overrides.renderfx_override = false;
+    }
+
+    if (mode_amt == SET_MODE::SET)
+    {
+        int renderamt = reader.ReadByte();
+        if (renderamt == -1)
+        {
+            V_ResetViewmodelOverrides();
+            return 1;
+        }
+
+        viewmodel_overrides.renderamt = renderamt;
+        viewmodel_overrides.renderamt_override = true;
+    }
+    else if (mode_amt == SET_MODE::RESET)
+    {
+        viewmodel_overrides.renderamt_override = false;
+    }
+
+    if (mode_color == SET_MODE::SET)
+    {
+        int color[3];
+        color[0] = reader.ReadByte();
+        color[1] = reader.ReadByte();
+        color[2] = reader.ReadByte();
+
+        if (color[0] == -1 || color[1] == -1 || color[2] == -1)
+        {
+            V_ResetViewmodelOverrides();
+            return 1;
+        }
+
+        viewmodel_overrides.color = goldsrc::color24{(uint8_t)color[0], (uint8_t)color[1], (uint8_t)color[2]};
+        viewmodel_overrides.color_override = true;
+    }
+    else if (mode_color == SET_MODE::RESET)
+    {
+        viewmodel_overrides.color_override = false;
+    }
+
+    if (mode_skin == SET_MODE::SET)
+    {
+        int skin = reader.ReadByte();
+        if (skin == -1)
+        {
+            V_ResetViewmodelOverrides();
+            return 1;
+        }
+
+        viewmodel_overrides.skin = skin;
+        viewmodel_overrides.skin_override = true;
+    }
+    else if (mode_skin == SET_MODE::RESET)
+    {
+        viewmodel_overrides.skin_override = false;
+    }
+
+    if (mode_body == SET_MODE::SET)
+    {
+        int body = reader.ReadLong();
+        if (body == -1)
+        {
+            V_ResetViewmodelOverrides();
+            return 1;
+        }
+
+        viewmodel_overrides.body = body;
+        viewmodel_overrides.body_override = true;
+    }
+    else if (mode_body == SET_MODE::RESET)
+    {
+        viewmodel_overrides.body_override = false;
+    }
+
+    return 1;
+}
+
+static void V_ResetViewmodelOverrides()
+{
+    std::memset(&viewmodel_overrides, 0, sizeof(viewmodel_overrides));
+}

@@ -1,0 +1,33 @@
+#include "engine.h"
+
+#include <ncl_perf/profiler.h>
+#include <goldsrc/engine/model.h>
+#include <goldsrc/format/sprite.h>
+
+#include "console/console.h"
+#include "graphics/gl_local.h"
+
+goldsrc::mspriteframe_t* R_GetSpriteFrame(goldsrc::msprite_t* pSprite, int frame)
+{
+    NCL_PROFILE_SCOPE();
+
+    if (!pSprite)
+    {
+        Con_Printf("Sprite:  no pSprite!!!\n");
+        return nullptr;
+    }
+
+    if (!pSprite->numframes)
+    {
+        Con_Printf("Sprite:  pSprite has no frames!!!\n");
+        return nullptr;
+    }
+
+    if (frame >= pSprite->numframes || frame < 0)
+        Con_DPrintf(ConLogType::Info, "Sprite: no such frame %d\n", frame);
+
+    if (pSprite->frames[frame].type == goldsrc::SPR_SINGLE)
+        return pSprite->frames[frame].frameptr;
+
+    return nullptr;
+}

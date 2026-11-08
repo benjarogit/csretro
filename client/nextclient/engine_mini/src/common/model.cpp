@@ -1,0 +1,617 @@
+#include "engine.h"
+
+#include <ncl_perf/profiler.h>
+
+#include <goldsrc/client_api.h>
+#include <goldsrc/engine/model.h>
+#include <goldsrc/format/bsp.h>
+#include <goldsrc/format/sprite.h>
+#include <goldsrc/format/studio.h>
+#include <goldsrc/server_api.h>
+#include <goldsrc/types.h>
+#include <ncl_studio/studio_validate.h>
+
+#include "console/console.h"
+#include "graphics/gl_local.h"
+#include "graphics/detailtexture.h"
+#include "graphics/preview/preview_model.h"
+#include "graphics/render/StudioDraw.h"
+#include "graphics/render/StudioIntercept.h"
+#include "graphics/render/model/studio_model_cache.h"
+#include "common/model.h"
+#include "common/sys_dll.h"
+#include "common/zone.h"
+#include "l_studio.h"
+
+char loadname[32];
+goldsrc::model_t mod_known[goldsrc::MAX_KNOWN_MODELS];
+int mod_numknown;
+goldsrc::mod_known_info_t mod_known_info[goldsrc::MAX_KNOWN_MODELS];
+
+goldsrc::qboolean gSpriteMipMap;
+int gSpriteTextureFormat;
+uint8_t* pspritepal;
+
+void Mod_LoadAliasModel(goldsrc::model_t* mod, void* buffer)
+{
+    NCL_PROFILE_SCOPE();
+
+    eng()->Mod_LoadAliasModel.InvokeChained(mod, buffer);
+}
+
+void Mod_LoadBrushModel(goldsrc::model_t* mod, void* buffer)
+{
+    NCL_PROFILE_SCOPE();
+
+    eng()->Mod_LoadBrushModel.InvokeChained(mod, buffer);
+}
+
+void* Mod_Extradata(goldsrc::model_t* mod)
+{
+    NCL_PROFILE_SCOPE();
+
+    if (!mod)
+        return nullptr;
+
+    void *r = Cache_Check(&mod->cache);
+    if (r)
+        return r;
+
+    if (mod->type == goldsrc::mod_brush)
+        Sys_Error("%s: called with mod_brush!\n", __func__);
+
+    Mod_LoadModel(mod, true, false);
+
+    if (mod->cache.data == nullptr)
+        Sys_Error("%s: caching failed", __func__);
+
+    return mod->cache.data;
+}
+
+void Mod_FillInCRCInfo(goldsrc::qboolean trackCRC, int model_number)
+{
+    NCL_PROFILE_SCOPE();
+
+    goldsrc::mod_known_info_t* p;
+
+    p = &mod_known_info[model_number];
+    p->shouldCRC = trackCRC;
+    p->firstCRCDone = 0;
+    p->initialCRC = 0;
+}
+
+goldsrc::model_t* Mod_FindName(goldsrc::qboolean trackCRC, const char* name)
+{
+    NCL_PROFILE_SCOPE();
+
+    goldsrc::model_t* avail;
+    int i;
+    goldsrc::model_t* mod;
+
+    avail = NULL;
+    if (!name[0])
+        Sys_Error("Mod_ForName: NULL name");
+
+    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
+    {
+        if (!Q_stricmp(mod->name, name))
+            break;
+
+        if (mod->needload == NL_UNREFERENCED)
+        {
+            if (!avail || mod->type != goldsrc::mod_alias && mod->type != goldsrc::mod_studio)
+                avail = mod;
+        }
+    }
+
+    if (i == mod_numknown)
+    {
+        if (mod_numknown < goldsrc::MAX_KNOWN_MODELS)
+        {
+            Mod_FillInCRCInfo(trackCRC, mod_numknown);
+            ++mod_numknown;
+        }
+        else
+        {
+            if (!avail)
+                Sys_Error("mod_numknown >= MAX_KNOWN_MODELS");
+
+            render::Studio_Flush(render::StudioFlushReason::Resource);
+            render::Studio_ForgetModel(avail);
+            render::Models_ForgetModel(avail->name);
+            mod = avail;
+            Mod_FillInCRCInfo(trackCRC, avail - mod_known);
+        }
+
+        if (mod->type == goldsrc::mod_studio || mod->type == goldsrc::mod_alias)
+        {
+            if (Cache_Check(&mod->cache))
+                Cache_Free(&mod->cache);
+        }
+
+        Q_memset(mod, 0, sizeof(goldsrc::model_t));
+        
+        Q_strncpy(mod->name, name, goldsrc::MAX_MODEL_NAME);
+        mod->needload = NL_NEEDS_LOADED;
+    }
+
+    return mod;
+}
+
+goldsrc::qboolean Mod_ValidateCRC(const char* name, goldsrc::CRC32_t crc)
+{
+    NCL_PROFILE_SCOPE();
+
+    goldsrc::model_t* mod;
+    goldsrc::mod_known_info_t* p;
+
+    mod = Mod_FindName(TRUE, name);
+    p = &mod_known_info[mod - mod_known];
+
+    if (p->firstCRCDone)
+    {
+        if (p->initialCRC != crc)
+            return FALSE;
+    }
+    return TRUE;
+}
+
+void Mod_NeedCRC(const char* name, goldsrc::qboolean needCRC)
+{
+    NCL_PROFILE_SCOPE();
+
+    goldsrc::model_t* mod;
+    goldsrc::mod_known_info_t* p;
+
+    mod = Mod_FindName(FALSE, name);
+    p = &mod_known_info[mod - mod_known];
+
+    p->shouldCRC = needCRC;
+}
+
+void* Mod_LoadSpriteFrame(void* pin, goldsrc::mspriteframe_t** ppframe, int framenum)
+{
+	NCL_PROFILE_SCOPE();
+
+	goldsrc::dspriteframe_t* pinframe = (goldsrc::dspriteframe_t*)pin;
+	int origin[2] = {LittleLong(pinframe->origin[0]), LittleLong(pinframe->origin[1])};
+	int width = LittleLong(pinframe->width);
+	int height = LittleLong(pinframe->height);
+	int size = width * height;
+
+	goldsrc::mspriteframe_t* pspriteframe = (goldsrc::mspriteframe_t*)Hunk_AllocName(sizeof(goldsrc::mspriteframe_t), loadname);
+	Q_memset(pspriteframe, 0, sizeof(goldsrc::mspriteframe_t));
+	*ppframe = pspriteframe;
+	pspriteframe->width = width;
+	pspriteframe->height = height;
+	pspriteframe->up = (float) origin[1];
+	pspriteframe->down = (float) (origin[1] - height);
+	pspriteframe->left = (float) origin[0];
+	pspriteframe->right = (float) (width + origin[0]);
+
+	//
+	// load texture
+	//
+	int iType = 3;
+	if (gSpriteTextureFormat == 0 || gSpriteTextureFormat == 1)
+		iType = 0;
+	else if (gSpriteTextureFormat == 3)
+		iType = 1;
+
+	char texture_id[256];
+	V_snprintf(texture_id, sizeof(texture_id), "%s_%i", (*loadmodel)->name, framenum);
+
+	uint8_t palette[256 * 3];
+	Q_memcpy(palette, pspritepal, sizeof(palette));
+
+	if (gSpriteMipMap)
+		pspriteframe->gl_texturenum = GL_LoadTexture(
+            texture_id, GLT_SPRITE, width, height, (uint8_t*)pin + sizeof(goldsrc::dspriteframe_t), gSpriteMipMap, iType, palette);
+	else
+		pspriteframe->gl_texturenum =
+            GL_LoadTexture(texture_id, GLT_HUDSPRITE, width, height, (uint8_t*)pin + sizeof(goldsrc::dspriteframe_t), 0, iType, palette);
+
+	return (uint8_t*)pinframe + sizeof(goldsrc::dspriteframe_t) + size;
+}
+
+void* Mod_LoadSpriteGroup(void* pin, goldsrc::mspriteframe_t** ppframe, int framenum)
+{
+    NCL_PROFILE_SCOPE();
+
+	goldsrc::dspritegroup_t* pingroup = (goldsrc::dspritegroup_t*)pin;
+	int numframes = LittleLong(pingroup->numframes);
+
+	goldsrc::mspritegroup_t* pspritegroup = (goldsrc::mspritegroup_t*)Hunk_AllocName(
+        sizeof(goldsrc::mspritegroup_t) + (numframes - 1) * sizeof(pspritegroup->frames[0]), loadname);
+	pspritegroup->numframes = numframes;
+	*ppframe = (goldsrc::mspriteframe_t*)pspritegroup;
+
+	goldsrc::dspriteinterval_t* pin_intervals = (goldsrc::dspriteinterval_t*)(pingroup + 1);
+
+	float* poutintervals = (float*) Hunk_AllocName(numframes * sizeof(float), loadname);
+	pspritegroup->intervals = poutintervals;
+
+	for (int i = 0; i < numframes; i++)
+	{
+		*poutintervals = LittleFloat(&pin_intervals->interval, &pin_intervals->interval);
+		if (*poutintervals <= 0.0f)
+			Sys_Error("%s: interval<=0", __func__);
+
+		poutintervals++;
+		pin_intervals++;
+	}
+
+	void* ptemp = pin_intervals;
+	for (int i = 0; i < numframes; i++)
+	{
+		ptemp = Mod_LoadSpriteFrame(ptemp, &pspritegroup->frames[i], i + framenum * 100);
+	}
+
+	return ptemp;
+}
+
+void Mod_LoadSpriteModel(goldsrc::model_t* mod, void* buffer)
+{
+	NCL_PROFILE_SCOPE();
+
+	goldsrc::dsprite_t* pin = (goldsrc::dsprite_t*)buffer;
+
+	int version = LittleLong(pin->version);
+	if (version != goldsrc::SPRITE_VERSION)
+		Sys_Error("%s: %s has wrong version number (%i should be %i)", __func__, mod->name, version, goldsrc::SPRITE_VERSION);
+
+	int numframes = LittleLong(pin->numframes);
+	int palcolorsnum = *(uint16_t*) &pin[1];
+	int palsize = 3 * palcolorsnum + 2;
+	int size = sizeof(goldsrc::msprite_t) + (numframes - 1) * sizeof(goldsrc::msprite_t::frames) + palsize;
+
+	gSpriteTextureFormat = LittleLong(pin->texFormat);
+
+	goldsrc::msprite_t* psprite = (goldsrc::msprite_t*)Hunk_AllocName(size, loadname);
+	psprite->type = LittleLong(pin->type);
+	psprite->texFormat = (short) gSpriteTextureFormat;
+	psprite->maxwidth = LittleLong(pin->width);
+	psprite->maxheight = LittleLong(pin->height);
+	psprite->beamlength = LittleFloat(&pin->beamlength, &pin->beamlength);
+	psprite->numframes = numframes;
+
+	mod->type = goldsrc::mod_sprite;
+	mod->numframes = numframes;
+	mod->synctype = (goldsrc::synctype_t)LittleLong(pin->synctype);
+	mod->flags = 0;
+	mod->mins[0] = mod->mins[1] = float(-psprite->maxwidth / 2);
+	mod->maxs[0] = mod->maxs[1] = float(psprite->maxwidth / 2);
+	mod->mins[2] = float(-psprite->maxheight / 2);
+	mod->maxs[2] = float(psprite->maxheight / 2);
+	mod->cache.data = psprite;
+
+	psprite->paloffset = 8 * numframes + 30;
+	pspritepal = (unsigned char*) &psprite->frames[numframes];
+	Q_memcpy(&psprite->frames[numframes], (char*) (pin + 1) + 2, palsize);
+
+	//
+	// load the frames
+	//
+	if (numframes < 1)
+		Sys_Error("%s: Invalid # of frames: %d\n", __func__, numframes);
+
+	goldsrc::dspriteframetype_t* pframetype = (goldsrc::dspriteframetype_t*)((char*)(pin + 1) + 2 + 3 * palcolorsnum);
+
+	for (int i = 0; i < numframes; i++)
+	{
+		goldsrc::spriteframetype_t frametype = (goldsrc::spriteframetype_t)LittleLong(pframetype->type);
+		psprite->frames[i].type = frametype;
+
+		if (frametype == goldsrc::SPR_SINGLE)
+			pframetype = (goldsrc::dspriteframetype_t*)Mod_LoadSpriteFrame(pframetype + 1, &psprite->frames[i].frameptr, i);
+		else
+			pframetype = (goldsrc::dspriteframetype_t*)Mod_LoadSpriteGroup(pframetype + 1, &psprite->frames[i].frameptr, i);
+	}
+}
+
+void Mod_LoadStudioModel(goldsrc::model_t* mod, void* buffer, int file_length)
+{
+    NCL_PROFILE_SCOPE();
+
+    goldsrc::studiohdr_t* phdr = reinterpret_cast<goldsrc::studiohdr_t*>(buffer);
+
+    // The file length is the only bound in the process that is not itself taken from the
+    // file, and every reader downstream works from the truncated cache block without any
+    // way to tell how far it goes. A model that does not hold together is turned into the
+    // same empty stub an unsupported version already produces, so the failure is one the
+    // rest of the engine already knows how to carry.
+    ncl_utils::Result<> valid = ncl_studio::ValidateStudioFile(buffer, (size_t)file_length);
+
+    if (valid.has_error())
+    {
+        Con_Printf("Mod_LoadStudioModel: %s: %s\n", mod->name, valid.error_str().c_str());
+    }
+
+    // Built beside the load buffer rather than over it: the buffer is exactly the file's own
+    // length, and a file shorter than a header is one of the things the validation refuses,
+    // so writing a whole header back into it is a heap overflow on the very input that
+    // failed. Nothing downstream reads the buffer once this points elsewhere.
+    goldsrc::studiohdr_t stub;
+
+    if (valid.has_error() || LittleLong(phdr->version) != STUDIO_VERSION)
+    {
+        Q_memset(&stub, 0, sizeof(stub));
+        Q_strcpy(stub.name, "bogus");
+        stub.length = static_cast<int>(sizeof(goldsrc::studiohdr_t));
+        stub.texturedataindex = static_cast<int>(sizeof(goldsrc::studiohdr_t));
+
+        phdr = &stub;
+        buffer = &stub;
+    }
+
+    mod->type = goldsrc::mod_studio;
+    mod->flags = phdr->flags;
+
+    int length = phdr->textureindex ? phdr->texturedataindex : phdr->length;
+
+    render::Studio_Flush(render::StudioFlushReason::Resource);
+    render::Studio_ForgetModel(mod);
+    render::Models_ForgetModel(mod->name);
+
+    Cache_Alloc(&mod->cache, length, mod->name);
+    uint8_t* pout = (uint8_t*) mod->cache.data;
+    if (pout)
+    {
+        Q_memcpy(pout, buffer, length);
+
+        if (phdr->textureindex)
+        {
+            goldsrc::mstudiotexture_t* ptexture = (goldsrc::mstudiotexture_t*)(pout + phdr->textureindex);
+
+            for (int i = 0; i < phdr->numtextures; i++, ptexture++)
+            {
+                uint8_t* ppal = (uint8_t*)buffer + ptexture->index + ptexture->height * ptexture->width;
+
+                char texture_id[256];
+                V_snprintf(texture_id, sizeof(texture_id), "%s%s", mod->name, ptexture->name);
+
+               ptexture->index = GL_LoadTexture(texture_id,
+                   GLT_STUDIO,
+                   ptexture->width,
+                   ptexture->height,
+                   (uint8_t*)buffer + ptexture->index,
+                   (ptexture->flags & goldsrc::STUDIO_NF_NOMIPS) != 0,
+                   (ptexture->flags & goldsrc::STUDIO_NF_MASKED) != 0,
+                   ppal);
+            }
+        }
+    }
+}
+
+goldsrc::model_t* Mod_LoadModel(goldsrc::model_t* mod, goldsrc::qboolean crash, goldsrc::qboolean trackCRC)
+{
+    NCL_PROFILE_SCOPE();
+
+    unsigned char* buf;
+    char tmpName[MAX_PATH];
+    int length;
+    goldsrc::CRC32_t currentCRC;
+
+    if (mod->type == goldsrc::mod_alias || mod->type == goldsrc::mod_studio)
+    {
+        if (Cache_Check(&mod->cache))
+        {
+            mod->needload = NL_PRESENT;
+            return mod;
+        }
+    }
+    else
+    {
+        if (mod->needload == NL_PRESENT || mod->needload == NL_CLIENT)
+            return mod;
+    }
+
+    if (COM_CheckParm("-steam") && mod->name[0] == '/')
+    {
+        char* p = mod->name;
+        while (*(++p) == '/');
+
+        Q_strncpy(tmpName, p, sizeof(tmpName));
+        Q_strncpy(mod->name, tmpName, sizeof(mod->name));
+    }
+
+    // load the file
+    buf = COM_LoadFileForMe(mod->name, &length);
+    if (!buf)
+    {
+        if (crash)
+            Sys_Error("%s: %s not found", __func__, mod->name);
+
+        return nullptr;
+    }
+
+    if (trackCRC)
+    {
+        goldsrc::mod_known_info_t* p = &mod_known_info[mod - mod_known];
+        if (p->shouldCRC)
+        {
+            g_engfuncs.pfnCRC32_Init(&currentCRC);
+            g_engfuncs.pfnCRC32_ProcessBuffer(&currentCRC, buf, length);
+            currentCRC = g_engfuncs.pfnCRC32_Final(currentCRC);
+            if (p->firstCRCDone)
+            {
+                if (currentCRC != p->initialCRC)
+                {
+                    p->initialCRC = currentCRC;
+                    Con_DPrintf(ConLogType::Info, "%s: %s model changed on disk, reloading...\n", __func__, mod->name);
+                }
+            }
+            else
+            {
+                p->firstCRCDone = 1;
+                p->initialCRC = currentCRC;
+            }
+        }
+    }
+
+    COM_FileBase(mod->name, loadname);
+    *loadmodel = mod;
+
+    mod->needload = NL_PRESENT;
+
+    switch (LittleLong(*(uint32*) buf))
+    {
+        case goldsrc::IDPOLYHEADER:
+            // old-format of the model from the quake1
+            Mod_LoadAliasModel(mod, buf);
+            break;
+        case goldsrc::IDSPRITEHEADER:
+            Mod_LoadSpriteModel(mod, buf);
+            break;
+        case IDSTUDIOHEADER:
+            Mod_LoadStudioModel(mod, buf, length);
+            break;
+        case goldsrc::Q1BSP_VERSION:
+        case goldsrc::HLBSP_VERSION:
+            DT_LoadDetailMapFile(loadname);
+            Mod_LoadBrushModel(mod, buf);
+        break;
+
+        default:
+            Mem_Free(buf);
+            if (crash)
+                Sys_Error("%s: %s has unknown format\n", __func__, mod->name);
+            else
+                Con_Printf("%s: %s has unknown format\n", __func__, mod->name);
+        return nullptr;
+    }
+
+    if (g_modfuncs.m_pfnModelLoad)
+        g_modfuncs.m_pfnModelLoad(mod, buf);
+
+    Mem_Free(buf);
+    return mod;
+}
+
+goldsrc::model_t* Mod_ForName(const char* name, goldsrc::qboolean crash, goldsrc::qboolean trackCRC)
+{
+    NCL_PROFILE_SCOPE();
+
+    goldsrc::model_t* mod;
+
+    mod = Mod_FindName(trackCRC, name);
+    if (!mod)
+        return NULL;
+
+    return Mod_LoadModel(mod, crash, trackCRC);
+}
+
+void Mod_Print()
+{
+    NCL_PROFILE_SCOPE();
+
+    int i;
+    goldsrc::model_t* mod;
+
+    Con_Printf("Cached models:\n");
+
+    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
+    {
+        Con_Printf("%8p : %s", mod->cache.data, mod->name);
+        if (mod->needload & NL_UNREFERENCED)
+            Con_Printf(" (!R)");
+        if (mod->needload & NL_NEEDS_LOADED)
+            Con_Printf(" (!P)");
+        Con_Printf("\n");
+    }
+}
+
+void Mod_UnloadSpriteTextures(goldsrc::model_t* pModel)
+{
+    NCL_PROFILE_SCOPE();
+
+    if (!pModel)
+        return;
+
+    if (pModel->type != goldsrc::mod_sprite)
+        return;
+
+    pModel->needload = NL_NEEDS_LOADED;
+
+    goldsrc::msprite_t* spr = (goldsrc::msprite_t*)pModel->cache.data;
+    if (spr)
+    {
+        char name[256];
+        for (int i = 0; i < spr->numframes; i++)
+        {
+            V_snprintf(name, sizeof(name), "%s_%i", pModel->name, i);
+            eng()->GL_UnloadTexture(name);
+        }
+    }
+}
+
+void Mod_UnloadFiltered(const std::function<bool(goldsrc::model_t*)>& filter)
+{
+    NCL_PROFILE_SCOPE();
+
+    goldsrc::model_t* mod;
+    goldsrc::mod_known_info_t* p;
+
+    for (int i = 0; i < mod_numknown; i++)
+    {
+        mod = &mod_known[i];
+
+        if (!filter(mod))
+            continue;
+
+        render::Studio_DiscardPending();
+        render::Studio_ForgetModel(mod);
+        render::Models_ForgetModel(mod->name);
+
+        Con_DPrintf(ConLogType::Info, "%s: unloading \"%s\"\n", __func__, mod->name);
+
+        if (mod->type == goldsrc::mod_studio || mod->type == goldsrc::mod_alias)
+        {
+            if (Cache_Check(&mod->cache))
+                Cache_Free(&mod->cache);
+        }
+
+        Q_memset(mod, 0, sizeof(goldsrc::model_t));
+        mod->needload = NL_UNREFERENCED;
+
+        p = &mod_known_info[i];
+        Q_memset(p, 0, sizeof(goldsrc::mod_known_info_t));
+    }
+}
+
+void Mod_ClearAll()
+{
+    NCL_PROFILE_SCOPE();
+
+    render::Studio_ForgetModel();
+    render::Models_ForgetSessionMetadata();
+    PreviewModel_ResetModels();
+
+    goldsrc::model_t* mod;
+
+    for (int i = 0; i < mod_numknown; i++)
+    {
+        mod = &mod_known[i];
+
+        if (mod->type != goldsrc::mod_alias && mod->needload != NL_CLIENT)
+        {
+            mod->needload = NL_UNREFERENCED;
+
+            if (mod->type == goldsrc::mod_sprite)
+                mod->cache.data = nullptr;
+        }
+    }
+}
+
+void Mod_ResetState()
+{
+    NCL_PROFILE_SCOPE();
+
+    render::Studio_ForgetModel();
+    render::Models_ForgetSessionMetadata();
+    PreviewModel_ResetModels();
+
+    Q_memset(mod_known, 0, sizeof(mod_known));
+    Q_memset(mod_known_info, 0, sizeof(mod_known_info));
+    mod_numknown = 0;
+}

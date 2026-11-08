@@ -1,0 +1,305 @@
+#include <resource/ResourceDescriptor.h>
+#include <common/com_strings.h>
+#include <common/filesystem.h>
+
+#include <next_engine_mini/cl_private_resources.h>
+#include <nitro_utils/string_utils.h>
+#include <cstdint>
+
+#include <goldsrc/engine/client_state.h>
+#include <goldsrc/engine/model.h>
+#include <goldsrc/engine/net.h>
+#include <goldsrc/engine/resource.h>
+#include <goldsrc/types.h>
+
+#include "../engine.h"
+#include "../console/console.h"
+#include "../common/net_buffer.h"
+#include "../common/net_chan.h"
+#include "../common/zone.h"
+#include "../common/model.h"
+#include "../client/spriteapi.h"
+#include "../client/cl_sound.h"
+#include "download.h"
+#include "cl_private_resources.h"
+
+namespace
+{
+    constexpr std::string_view kSoundPath = DEFAULT_SOUNDPATH;
+    constexpr std::string_view kMaterialsPath = "materials/";
+}
+
+static goldsrc::resourcetype_t GetResourceTypeByPath(const std::string& filepath)
+{
+    std::filesystem::path path = filepath;
+    if (!path.has_extension() || !path.has_filename())
+    {
+        return goldsrc::rt_max;
+    }
+
+    goldsrc::resourcetype_t resource_type = goldsrc::rt_max;
+
+    std::string path_lower = nitro_utils::to_lower_copy(path.string());
+
+    if (path_lower.starts_with("sprites/") &&
+        (path_lower.ends_with(".spr") || path_lower.ends_with(".txt")))
+    {
+        resource_type = goldsrc::t_generic;
+    }
+    else if (path_lower.starts_with(kSoundPath) &&
+        (path_lower.ends_with(".wav") || path_lower.ends_with(".mp3")))
+    {
+        resource_type = goldsrc::t_sound;
+    }
+    // .mat is a material preset, .png and .tga are the only images a material may name.
+    else if (path_lower.starts_with(kMaterialsPath) &&
+        (path_lower.ends_with(".mat") || path_lower.ends_with(".png") || path_lower.ends_with(".tga")))
+    {
+        resource_type = goldsrc::t_generic;
+    }
+
+    return resource_type;
+}
+
+static goldsrc::resourcetype_t ValidateClientResourceAndGetType(const ResourceDescriptor& resource_descriptor)
+{
+    goldsrc::resourcetype_t download_type = GetResourceTypeByPath(resource_descriptor.get_download_path());
+
+    if (download_type != GetResourceTypeByPath(resource_descriptor.get_filename()))
+    {
+        return goldsrc::rt_max;
+    }
+
+    return download_type;
+}
+
+static void AddPrivateResource(bool client_only,
+                               const std::string& filename,
+                               const std::string& download_path,
+                               goldsrc::CRC32_t server_crc,
+                               int size)
+{
+    client_stateex.privateResources.try_emplace(filename, ResourceDescriptor { filename, download_path, server_crc, size, client_only });
+    client_stateex.privateResourcesReverseCache[download_path].emplace(filename);
+}
+
+std::string PrivateRes_GetPrivateFolder()
+{
+    std::string server_folder = cls->servername;
+
+    nitro_utils::trim(server_folder);
+    nitro_utils::to_lower(server_folder);
+
+    if (!server_folder.contains(':'))
+        server_folder.append(":27015");
+
+    nitro_utils::replace_all(server_folder, ".", "_");
+    nitro_utils::replace_all(server_folder, ":", "_");
+
+    return server_folder;
+}
+
+void PrivateRes_ListRequest()
+{
+    const char* filename = client_stateex.privateResListDownloadPath.c_str();
+
+    if (cls->passive || cls->demoplayback)
+        return;
+
+    if (!IsSafeFileToDownload(filename))
+    {
+        Con_Printf("Invalid file type...skipping download of %s\n", filename);
+        return;
+    }
+
+    CL_HTTPStop_f();
+
+    uint8_t data[65536];
+    goldsrc::sizebuf_t msg;
+
+    MSG_Init(&msg, "Private ResList", data, sizeof(data));
+
+    if (cls->state == goldsrc::ca_disconnected || cls->state == goldsrc::ca_active)
+    {
+        Con_DPrintf(ConLogType::Info, "Invalid state for PrivateRes_ListRequest: %d. skipping download of %s\n", cls->state, filename);
+        return;
+    }
+
+    MSG_WriteByte(&msg, goldsrc::clc_stringcmd);
+    MSG_WriteString(&msg, va("dlfile \"%s\"", filename));
+
+    Netchan_CreateFragments(false, &cls->netchan, &msg);
+    Netchan_FragSend(&cls->netchan);
+}
+
+void PrivateRes_ParseList(const char* data, int len)
+{
+    std::stringstream data_stream(data);
+    std::string line;
+    std::array<std::string_view, 5> tokens;
+
+    int line_num = 1;
+    while (std::getline(data_stream, line))
+    {
+        nitro_utils::trim(line);
+
+        if (line.empty())
+            continue;
+
+        if (nitro_utils::split(line, ":", tokens) != 5)
+        {
+            Con_DPrintf(ConLogType::Info, "PrivateRes_ParseList: can't tokenize line %d, skipping...\n", line_num);
+            continue;
+        }
+
+        bool must_be_replaced = tokens[0][0] == '1';
+        std::string filepath(tokens[1]);
+        std::string ncl_filepath(tokens[2]);
+
+        unsigned int uiCrc32;
+        try { uiCrc32 = std::stoul(std::string(tokens[3]), nullptr, 16); }
+        catch (const std::invalid_argument&) {
+            Con_DPrintf(ConLogType::Info, "PrivateRes_ParseList: can't parse crc32 at line %d: can't perform conversion, skipping...\n", line_num);
+            continue;
+        }
+        catch (const std::out_of_range&) {
+            Con_DPrintf(ConLogType::Info, "PrivateRes_ParseList: can't parse crc32 at line %d: result is out of range, skipping...\n", line_num);
+            continue;
+        }
+
+        int iSize;
+        try { iSize = std::stoi(std::string(tokens[4])); }
+        catch (const std::invalid_argument&) {
+            Con_DPrintf(ConLogType::Info, "PrivateRes_ParseList: can't parse size at line %d: can't perform conversion, skipping...\n", line_num);
+            continue;
+        }
+        catch (const std::out_of_range&) {
+            Con_DPrintf(ConLogType::Info, "PrivateRes_ParseList: can't parse size at line %d: result is out of range, skipping...\n", line_num);
+            continue;
+        }
+
+        AddPrivateResource(!must_be_replaced, filepath, ncl_filepath, uiCrc32, iSize);
+
+        line_num++;
+
+        if (data_stream.tellg() >= len)
+            break;
+    }
+
+    if (client_stateex.privateResources.empty())
+        Con_DPrintf(ConLogType::Info, "PrivateRes_ParseList: empty as a result\n", line_num);
+}
+
+void PrivateRes_ParseDownloadPath(const std::string& cmd)
+{
+    if (cls->demoplayback)
+        return;
+
+    if (!cmd.starts_with(kPrivateResourceMsgMarker))
+        return;
+
+    std::string download_path = cmd.substr(sizeof(kPrivateResourceMsgMarker));
+    if (!IsSafeFileToDownload(download_path))
+    {
+        Con_DPrintf(ConLogType::Info, "%s: invalid file path\n", __func__);
+        return;
+    }
+
+    PrivateRes_Clear();
+
+    client_stateex.privateResListDownloadPath = download_path;
+    Con_DPrintf(ConLogType::Info, "%s: received: %s\n", __func__, client_stateex.privateResListDownloadPath.c_str());
+
+    if (!client_stateex.privateResListDownloadPath.empty())
+    {
+        client_stateex.privateResListState = PrivateResListState::PrepareToDownloadResList;
+        Con_DPrintf(ConLogType::Info, "%s: privateResListState = PrepareToDownloadResList\n", __func__);
+    }
+    else
+    {
+        Con_DPrintf(ConLogType::Info, "%s: path is empty\n", __func__);
+    }
+}
+
+void PrivateRes_AddClientOnlyResources(goldsrc::resource_t* list)
+{
+    for (const auto& [filepath, res_descriptor] : client_stateex.privateResources)
+    {
+        if (!res_descriptor.is_client_only())
+            continue;
+
+        goldsrc::resourcetype_t resource_type = ValidateClientResourceAndGetType(res_descriptor);
+
+        if (resource_type == goldsrc::rt_max)
+        {
+            Con_DPrintf(ConLogType::Info, "Can't add private resource to resource list '%s' for security reason\n", res_descriptor.get_filename().c_str());
+            continue;
+        }
+
+        // resource list keeps goldsrc::t_sound paths relative to DEFAULT_SOUNDPATH, while a private resource is keyed by the full client path
+        const char* resource_name = filepath.c_str();
+        if (resource_type == goldsrc::t_sound)
+        {
+            resource_name += kSoundPath.size();
+        }
+
+        auto* res = (goldsrc::resource_t*)Mem_ZeroMalloc(sizeof(goldsrc::resource_t));
+        V_strcpy_safe(res->szFileName, resource_name);
+        res->type = resource_type;
+        res->nDownloadSize = res_descriptor.get_download_size();
+
+        CL_AddToResourceList(res, list);
+    }
+}
+
+void PrivateRes_UnloadResources()
+{
+    if (client_stateex.privateResources.empty())
+        return;
+
+    Mod_UnloadFiltered([](goldsrc::model_t* model) {
+        return client_stateex.privateResources.contains(model->name);
+    });
+
+    std::unordered_set<std::string> sounds;
+    for (const auto& [path, res] : client_stateex.privateResources)
+    {
+        if (nitro_utils::start_with(path, DEFAULT_SOUNDPATH, nitro_utils::CompareOptions::RegisterIndependent))
+        {
+            sounds.emplace(path);
+        }
+    }
+
+    S_UnloadSounds(sounds);
+}
+
+void PrivateRes_PrepareToPrecache()
+{
+    PrivateRes_UnloadResources();
+
+    for (const auto& [file, res]: client_stateex.privateResources)
+    {
+        if (FS_FileExists(res.get_filename().c_str()) && !res.is_allow_override_resource())
+        {
+            continue;
+        }
+
+        std::string path = std::format("{}/{}", PrivateRes_GetPrivateFolder(), res.get_filename());
+        std::string alias = res.get_filename();
+
+        g_pFileSystemNext->SetPathAlias(path.c_str(), alias.c_str());
+    }
+}
+
+void PrivateRes_Clear()
+{
+    for (const auto& [file, res]: client_stateex.privateResources)
+        g_pFileSystemNext->RemovePathAlias(file.c_str());
+
+    PrivateRes_UnloadResources();
+
+    client_stateex.privateResources.clear();
+    client_stateex.privateResourcesReverseCache.clear();
+    client_stateex.privateResListDownloadPath.clear();
+    client_stateex.privateResListState = PrivateResListState::NotActive;
+}

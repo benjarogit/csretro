@@ -1,0 +1,44 @@
+#pragma once
+
+#include "vgui_controls/PropertyDialog.h"
+#include "vgui_controls/KeyRepeat.h"
+#include "utldict.h"
+
+namespace render
+{
+    class ShaderRendererInterface;
+} // namespace render
+
+class COptionsDialog : public vgui2::PropertyDialog
+{
+    DECLARE_CLASS_SIMPLE(COptionsDialog, vgui2::PropertyDialog);
+
+    CUtlDict<vgui2::PropertyPage*> m_tabNames;
+
+public:
+    COptionsDialog(vgui2::Panel* parent, render::ShaderRendererInterface* renderer);
+    ~COptionsDialog(void);
+
+    void OnKeyCodeTyped(vgui2::KeyCode code) override;
+    void OpenTab(const char* tabName);
+    void OpenCrosshairSettings();
+
+public:
+    void Activate(void);
+
+public:
+    void OnClose(void);
+
+public:
+    MESSAGE_FUNC(OnGameUIHidden, "GameUIHidden");
+
+private:
+    class COptionsSubMultiplayer *m_pOptionsSubMultiplayer;
+    class COptionsSubGame *m_pOptionsSubGame;
+    class COptionsSubKeyboard *m_pOptionsSubKeyboard;
+    class COptionsSubMouse *m_pOptionsSubMouse;
+    class COptionsSubAudio *m_pOptionsSubAudio;
+    class COptionsSubVideo *m_pOptionsSubVideo;
+    class COptionsSubVoice *m_pOptionsSubVoice;
+    class OptionsSubMiscellaneous *m_pOptionsSubMiscellaneous;
+};

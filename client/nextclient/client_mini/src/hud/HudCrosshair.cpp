@@ -1,0 +1,424 @@
+#include "HudCrosshair.h"
+
+#include "main.h"
+
+#include <goldsrc/client_api.h>
+#include <goldsrc/cstrike/hud_elements.h>
+#include <goldsrc/cstrike/weapons.h>
+#include <goldsrc/cvar.h>
+#include <goldsrc/entity.h>
+#include <mathlib/vector.h>
+#include <strtools.h>
+#include "shared_util.h"
+
+
+#include <crosshair/crosshair.h>
+#include <cvars/cvar_defaults.h>
+
+HudCrosshair::HudCrosshair(nitroapi::NitroApiInterface *nitro_api) :
+    nitroapi::NitroApiHelper(nitro_api),
+    screeninfo_{sizeof(goldsrc::SCREENINFO)}
+{
+    unsubscribers_.emplace_back(cl()->CHudAmmo__DrawCrosshair |=
+                                [this](goldsrc::cstrike::CHudAmmo* const ptr, float time, int weaponid, const auto& next) {
+        DrawCrosshair(time, weaponid);
+        return 1;
+    });
+}
+
+HudCrosshair::~HudCrosshair()
+{
+    for (auto& unsubscriber : unsubscribers_)
+    {
+        unsubscriber->Unsubscribe();
+    }
+}
+
+void HudCrosshair::Init()
+{
+    cl_crosshair_type_ = cl_enginefunc()->pfnRegisterVariable(cvars::kCrosshairType.name, cvars::kCrosshairType.value, goldsrc::FCVAR_ARCHIVE);
+    cl_crosshair_color_ = cl_enginefunc()->pfnGetCvarPointer("cl_crosshair_color");
+    cl_crosshair_size_ = cl_enginefunc()->pfnGetCvarPointer("cl_crosshair_size");
+    cl_crosshair_translucent_ = cl_enginefunc()->pfnGetCvarPointer("cl_crosshair_translucent");
+    cl_dynamiccrosshair_ = cl_enginefunc()->pfnGetCvarPointer("cl_dynamiccrosshair");
+}
+
+void HudCrosshair::VidInit()
+{
+    cl_enginefunc()->pfnGetScreenInfo(&screeninfo_);
+
+    m_iAmmoLastCheck = 0;
+    m_flCrosshairDistance = 0;
+    m_iCrosshairScaleBase = 0;
+    m_szLastCrosshairColor[0] = '\0';
+    m_szLastCrosshairSize[0] = '\0';
+}
+
+int HudCrosshair::get_center_x() const
+{
+    return screeninfo_.iWidth / 2;
+}
+
+void HudCrosshair::DrawCrosshair(float flTime, int weaponid)
+{
+    int iDistance;
+    int iDeltaDistance;
+    float flCurTime = cl_enginefunc()->GetClientTime();
+
+    switch (weaponid)
+    {
+        case goldsrc::cstrike::WEAPON_P228:
+        case goldsrc::cstrike::WEAPON_HEGRENADE:
+        case goldsrc::cstrike::WEAPON_SMOKEGRENADE:
+        case goldsrc::cstrike::WEAPON_FIVESEVEN:
+        case goldsrc::cstrike::WEAPON_USP:
+        case goldsrc::cstrike::WEAPON_GLOCK18:
+        case goldsrc::cstrike::WEAPON_AWP:
+        case goldsrc::cstrike::WEAPON_FLASHBANG:
+        case goldsrc::cstrike::WEAPON_DEAGLE:
+        {
+            iDistance = 8;
+            iDeltaDistance = 3;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_MP5N:
+        {
+            iDistance = 6;
+            iDeltaDistance = 2;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_M3:
+        {
+            iDistance = 8;
+            iDeltaDistance = 6;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_G3SG1:
+        {
+            iDistance = 6;
+            iDeltaDistance = 4;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_AK47:
+        {
+            iDistance = crosshair::kRifleGap;
+            iDeltaDistance = 4;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_TMP:
+        case goldsrc::cstrike::WEAPON_KNIFE:
+        case goldsrc::cstrike::WEAPON_P90:
+        {
+            iDistance = 7;
+            iDeltaDistance = 3;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_XM1014:
+        {
+            iDistance = 9;
+            iDeltaDistance = 4;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_MAC10:
+        {
+            iDistance = 9;
+            iDeltaDistance = 3;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_AUG:
+        {
+            iDistance = 3;
+            iDeltaDistance = 3;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_C4:
+        case goldsrc::cstrike::WEAPON_UMP45:
+        case goldsrc::cstrike::WEAPON_M249:
+        {
+            iDistance = 6;
+            iDeltaDistance = 4;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_SCOUT:
+        case goldsrc::cstrike::WEAPON_SG550:
+        case goldsrc::cstrike::WEAPON_SG552:
+        {
+            iDistance = 5;
+            iDeltaDistance = 3;
+            break;
+        }
+        default:
+        {
+            iDistance = 4;
+            iDeltaDistance = 3;
+            break;
+        }
+    }
+
+    int accuracy_flags = GetWeaponAccuracyFlags(weaponid);
+    if (accuracy_flags && cl_dynamiccrosshair_ && cl_dynamiccrosshair_->value != 0.0 && !(*cl()->gHUD->m_iHideHUDDisplay & 1))
+    {
+        if (g_LastPlayerState.client.flags & goldsrc::FL_ONGROUND || !(accuracy_flags & 1))
+        {
+            if (g_LastPlayerState.client.flags & goldsrc::FL_DUCKING && accuracy_flags & 4)
+            {
+                iDistance *= 0.5f;
+            }
+            else
+            {
+                float flLimitSpeed;
+
+                switch (weaponid)
+                {
+                    case goldsrc::cstrike::WEAPON_AUG:
+                    case goldsrc::cstrike::WEAPON_M4A1:
+                    case goldsrc::cstrike::WEAPON_FAMAS:
+                    case goldsrc::cstrike::WEAPON_SG550:
+                    case goldsrc::cstrike::WEAPON_GALIL:
+                    case goldsrc::cstrike::WEAPON_AK47:
+                    case goldsrc::cstrike::WEAPON_M249:
+                    case goldsrc::cstrike::WEAPON_SG552:
+                    {
+                        flLimitSpeed = crosshair::kRifleRunSpeed;
+                        break;
+                    }
+                    case goldsrc::cstrike::WEAPON_P90:
+                    {
+                        flLimitSpeed = 170;
+                        break;
+                    }
+                    default:
+                    {
+                        flLimitSpeed = 0;
+                        break;
+                    }
+                }
+                if (Vector(g_LastPlayerState.client.velocity).Length() > flLimitSpeed && (accuracy_flags & 2))
+                    iDistance *= crosshair::kRunSpread;
+            }
+        }
+        else
+        {
+            iDistance *= 2;
+        }
+        if ( accuracy_flags & 8 )
+        {
+            iDistance *= 1.4f;
+        }
+        if ( accuracy_flags & 16 )
+        {
+            iDistance *= 1.4f;
+        }
+    }
+
+    if (*cl()->g_iShotsFired > m_iAmmoLastCheck)
+    {
+        m_flCrosshairDistance += (float)iDeltaDistance;
+
+        if (m_flCrosshairDistance > 15.0)
+            m_flCrosshairDistance = 15.0;
+    }
+    else
+    {
+        m_flCrosshairDistance = crosshair::Decay(m_flCrosshairDistance, (float)*eng()->host_frametime);
+    }
+
+    if (*cl()->g_iShotsFired > 600)
+        *cl()->g_iShotsFired = 1;
+
+    m_iAmmoLastCheck = *cl()->g_iShotsFired;
+
+    if ((float)iDistance > m_flCrosshairDistance)
+        m_flCrosshairDistance = (float)iDistance;
+
+    int iBarSize = crosshair::BarSize(m_flCrosshairDistance, iDistance);
+
+    CalculateCrosshairColor();
+    CalculateCrosshairDrawMode();
+    CalculateCrosshairSize();
+
+    float flCrosshairDistance = m_flCrosshairDistance;
+    if (screeninfo_.iWidth != m_iCrosshairScaleBase)
+    {
+        flCrosshairDistance = crosshair::ScaledDistance(m_flCrosshairDistance, screeninfo_.iWidth, m_iCrosshairScaleBase);
+        iBarSize = crosshair::ScaledBarSize(iBarSize, screeninfo_.iWidth, m_iCrosshairScaleBase);
+    }
+
+    if (cl()->gHUD->m_NightVision->m_fOn)
+        DrawCrosshairEx(iBarSize, flCrosshairDistance, false, {250, 50, 50, 255});
+    else
+        DrawCrosshairEx(iBarSize, flCrosshairDistance, m_bAdditive, m_color.WithAlpha(255));
+}
+
+int HudCrosshair::GetWeaponAccuracyFlags(int iWeaponID)
+{
+    goldsrc::weapon_data_t* weapondata = &g_LastPlayerState.weapondata[g_LastPlayerState.client.m_iId];
+
+    int flags;
+
+    switch (iWeaponID)
+    {
+        case goldsrc::cstrike::WEAPON_USP:
+        {
+            flags = (weapondata->m_iWeaponState & goldsrc::cstrike::WPNSTATE_USP_SILENCED) < 1 ? 7 : 15;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_GLOCK18:
+        {
+            flags = (weapondata->m_iWeaponState & goldsrc::cstrike::WPNSTATE_GLOCK18_BURST_MODE) < 1 ? 7 : 23;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_M4A1:
+        {
+            flags = (weapondata->m_iWeaponState & goldsrc::cstrike::WPNSTATE_M4A1_SILENCED) < 1 ? 3 : 11;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_FAMAS:
+        {
+            flags = (weapondata->m_iWeaponState & goldsrc::cstrike::WPNSTATE_FAMAS_BURST_MODE) < 1 ? 3 : 19;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_MAC10:
+        case goldsrc::cstrike::WEAPON_UMP45:
+        case goldsrc::cstrike::WEAPON_MP5N:
+        case goldsrc::cstrike::WEAPON_TMP:
+        {
+            flags = 1;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_AUG:
+        case goldsrc::cstrike::WEAPON_GALIL:
+        case goldsrc::cstrike::WEAPON_M249:
+        case goldsrc::cstrike::WEAPON_SG552:
+        case goldsrc::cstrike::WEAPON_AK47:
+        case goldsrc::cstrike::WEAPON_P90:
+        {
+            flags = 3;
+            break;
+        }
+        case goldsrc::cstrike::WEAPON_P228:
+        case goldsrc::cstrike::WEAPON_FIVESEVEN:
+        case goldsrc::cstrike::WEAPON_DEAGLE:
+        {
+            flags = 7;
+            break;
+        }
+        default:
+        {
+            flags = 0;
+            break;
+        }
+    }
+
+    return flags;
+}
+
+void HudCrosshair::CalculateCrosshairSize()
+{
+    char* value = cl_crosshair_size_->string;
+
+    if (!value || V_strcmp(value, m_szLastCrosshairSize) == 0)
+        return;
+
+    m_iCrosshairScaleBase = crosshair::ScaleBase(crosshair::SizeIndex(value), screeninfo_.iWidth);
+
+    V_strcpy_safe(m_szLastCrosshairSize, value);
+}
+
+void HudCrosshair::CalculateCrosshairColor()
+{
+    char *value = cl_crosshair_color_->string;
+
+    if (!value || V_strcmp(value, m_szLastCrosshairColor) == 0)
+        return;
+
+    int cvarR, cvarG, cvarB;
+    char *token;
+    char *data = value;
+
+    data = SharedParse(data);
+    token = SharedGetToken();
+
+    if (token)
+    {
+        cvarR = atoi(token);
+
+        data = SharedParse(data);
+        token = SharedGetToken();
+
+        if (token)
+        {
+            cvarG = atoi(token);
+
+            data = SharedParse(data);
+            token = SharedGetToken();
+
+            if (token)
+            {
+                cvarB = atoi(token);
+
+                if (m_cvarR != cvarR || m_cvarG != cvarG || m_cvarB != cvarB)
+                {
+                    m_color = {std::clamp(cvarR, 0, 255), std::clamp(cvarG, 0, 255), std::clamp(cvarB, 0, 255), 255};
+                    m_cvarR = cvarR;
+                    m_cvarG = cvarG;
+                    m_cvarB = cvarB;
+                }
+
+                V_strcpy_safe(m_szLastCrosshairColor, value);
+            }
+        }
+    }
+}
+
+void HudCrosshair::CalculateCrosshairDrawMode()
+{
+    float value = cl_crosshair_translucent_->value;
+
+    if (value == 0)
+        m_bAdditive = false;
+    else if (value == 1)
+        m_bAdditive = true;
+}
+
+void HudCrosshair::DrawCrosshairEx(int iBarSize, float flCrosshairDistance, bool bAdditive, ncl_math::Color color)
+{
+    int type = std::clamp((int)cl_crosshair_type_->value, 0, crosshair::kTypeCount - 1);
+
+    const int r = color.r, g = color.g, b = color.b, a = color.a;
+
+    void (*pfnFillRGBA)(int x, int y, int w, int h, int r, int g, int b, int a) = bAdditive ? cl_enginefunc()->pfnFillRGBA : cl_enginefunc()->pfnFillRGBABlend;
+
+    if (type == crosshair::kTypeCircle)
+    {
+        float radius = (iBarSize / 2) + flCrosshairDistance;
+        int count = (int)((cos(M_PI / 4) * radius) + 0.5);
+
+        for (int i = 0; i < count; i++)
+        {
+            int size = sqrt((radius * radius) - (float)(i * i));
+
+            pfnFillRGBA(get_center_x() + i, (screeninfo_.iHeight / 2) + size, 1, 1, r, g, b, a);
+            pfnFillRGBA(get_center_x() + i, (screeninfo_.iHeight / 2) - size, 1, 1, r, g, b, a);
+            pfnFillRGBA(get_center_x() - i, (screeninfo_.iHeight / 2) + size, 1, 1, r, g, b, a);
+            pfnFillRGBA(get_center_x() - i, (screeninfo_.iHeight / 2) - size, 1, 1, r, g, b, a);
+            pfnFillRGBA(get_center_x() + size, (screeninfo_.iHeight / 2) + i, 1, 1, r, g, b, a);
+            pfnFillRGBA(get_center_x() + size, (screeninfo_.iHeight / 2) - i, 1, 1, r, g, b, a);
+            pfnFillRGBA(get_center_x() - size, (screeninfo_.iHeight / 2) + i, 1, 1, r, g, b, a);
+            pfnFillRGBA(get_center_x() - size, (screeninfo_.iHeight / 2) - i, 1, 1, r, g, b, a);
+        }
+    }
+    else if (type == crosshair::kTypeCross || type == crosshair::kTypeT)
+    {
+        pfnFillRGBA(get_center_x() + (int)flCrosshairDistance, screeninfo_.iHeight / 2, iBarSize, 1, r, g, b, a);
+        pfnFillRGBA(get_center_x() - (int)flCrosshairDistance - iBarSize + 1, screeninfo_.iHeight / 2, iBarSize, 1, r, g, b, a);
+        pfnFillRGBA(get_center_x(), (screeninfo_.iHeight / 2) + (int)flCrosshairDistance, 1, iBarSize, r, g, b, a);
+        if (type != crosshair::kTypeT)
+            pfnFillRGBA(get_center_x(), (screeninfo_.iHeight / 2) - (int)flCrosshairDistance - iBarSize + 1, 1, iBarSize, r, g, b, a);
+
+    }
+    else if (type == crosshair::kTypeDot)
+    {
+        pfnFillRGBA(get_center_x() - 1, (screeninfo_.iHeight / 2) - 1, 3, 3, r, g, b, a);
+    }
+}

@@ -1,0 +1,92 @@
+#pragma once
+
+#include <filesystem>
+#include <functional>
+
+#include <easylogging++.h>
+#include <cpr/cpr.h>
+#include <taskcoro/TaskCoro.h>
+#include <utils/bitmask.h>
+#include <updater_gui_app/NextUpdater/NextUpdaterEvent.h>
+#include <updater_gui_app/json_data/UpdateEntry.h>
+#include <ncl_utils/safe_result.h>
+
+#include "NextUpdaterHttpService.h"
+#include "http_download/HttpFileResult.h"
+#include "FileOpener.h"
+#include "UpdaterFileInfo.h"
+#include "UpdateError.h"
+
+enum class NextUpdaterResult
+{
+    Updated,
+    UpdatedIncludingLauncher,
+    CanceledByUser,
+    NothingToUpdate,
+    ConnectionError,
+    Error
+};
+
+class NextUpdater
+{
+    enum class RestoreFromBackupBehaviour
+    {
+        None,
+        ClearBackupFolderEvenIfRestoreFail
+    };
+
+    enum class RestoreFromBackupResult
+    {
+        Ok,
+        ClearBackupFolderError,
+    };
+
+    std::filesystem::path install_path_;
+    std::filesystem::path backup_path_;
+    std::shared_ptr<HttpServiceInterface> http_service_;
+    std::function<void(NextUpdaterEvent)> updater_event_callback_;
+
+    std::atomic<NextUpdaterState> state_ = NextUpdaterState::Idle;
+    float state_progress_ = 0;
+
+    std::shared_ptr<taskcoro::CancellationToken> ct_;
+
+public:
+    explicit NextUpdater(std::filesystem::path install_path,
+                         std::filesystem::path backup_path,
+                         std::shared_ptr<HttpServiceInterface> http_service,
+                         std::function<void(NextUpdaterEvent)> updater_event_callback);
+    concurrencpp::result<NextUpdaterResult> Start();
+    void Cancel();
+
+    [[nodiscard]] bool is_canceled() const { return ct_->IsCanceled(); }
+    [[nodiscard]] NextUpdaterState get_state() const { return state_; }
+
+private:
+    bool SetCanceledStateIfNeeded();
+    void SetStateAndRaiseEvent(NextUpdaterState state);
+    void SetErrorAndRaiseEvent(std::string error);
+    void SetStateProgressAndRaiseEvent(float progress);
+
+    RestoreFromBackupResult RestoreFromBackup(RestoreFromBackupBehaviour behaviour = RestoreFromBackupBehaviour::None);
+
+    concurrencpp::result<ncl_utils::ResultT<UpdateEntry, UpdateError>> SendUpdateFilesRequest();
+    concurrencpp::result<ncl_utils::ResultT<std::string, UpdateError>> SelectBaseUrl(const UpdateEntry& update_entry);
+    std::vector<UpdaterFileInfo> CreateUpdaterFileInfos(const std::vector<FileEntry>& remote_files);
+    // key is remote file name
+    static ncl_utils::ResultT<std::unordered_map<std::string, UpdaterFileInfo>, UpdateError> GetFilesToUpdate(const std::vector<UpdaterFileInfo>& files);
+    static ncl_utils::ResultT<std::vector<HttpFileResult>, UpdateError> DownloadFilesToUpdate(auto files, const std::string& hostname, std::function<bool(cpr::cpr_off_t total, cpr::cpr_off_t downloaded, cpr::cpr_off_t speed)> progress);
+
+    static ncl_utils::Result<> InstallFiles(FileOpener& file_opener, const std::vector<HttpFileResult>& downloaded_files, const std::unordered_map<std::string, UpdaterFileInfo>& updating_file_info);
+
+    // backup functions
+    ncl_utils::Result<> ClearBackupFolder();
+    ncl_utils::Result<UpdateError> BackupFiles(auto files);
+    ncl_utils::ResultT<int> RestoreFilesFromBackup(auto files);
+    ncl_utils::ResultT<int> RestoreFilesFromBackup();
+
+    // utils
+    static std::string GetStreamMd5(std::fstream& stream);
+    static std::string GetDataMd5(const std::string& data);
+    static std::string ValidateTestFileResponse(const cpr::Response& response, const FileEntry& test_file);
+};

@@ -1,0 +1,782 @@
+#include "GameUi.h"
+
+#include <filesystem>
+#include <format>
+
+#include <sys/types.h>
+#ifdef _WIN32
+#include <direct.h>
+#include <Windows.h>
+#include <shellapi.h>
+#undef SendMessage
+#else
+#include <sys/stat.h>
+#endif
+#include <tier1/tier1.h>
+#include <next_engine_mini/ShaderRendererInterface.h>
+#include <tier2/tier2.h>
+#include <IEngineVGui.h>
+#include <IBaseUI.h>
+#include <IBaseSystem.h>
+#include <FileSystem.h>
+#include <vgui/ILocalize.h>
+#include <vgui/IPanel.h>
+#include <vgui/ISchemeNext.h>
+#include <vgui/ISurfaceNext.h>
+#include <vgui/IVGui.h>
+#include <vgui/ISystem.h>
+#include <vgui_controls/AnimationController.h>
+#include <utils/TaskRun.h>
+#include <utils/TaskRunImpl.h>
+#include <goldsrc/client_api.h>
+
+#include "vgui_controls/Controls.h"
+#include "vgui_controls/MessageBox.h"
+#include "IServerBrowserEx.h"
+#include "BasePanel.h"
+#include "ModInfo.h"
+#include "GameConsole.h"
+#include "LoadingDialog.h"
+#include "DemoPlayerDialog.h"
+#include "Controls/ImageFilePanel.h"
+#include "GameUi/MaterialEditor/MaterialEditDialog.h"
+#include "OptionsDialog/HudRadarDialog.h"
+#include "OptionsSubMiscellaneous.h"
+#include "SettingsShare.h"
+#include "IClientVGUI.h"
+
+#ifdef _WIN32
+#include "Browser/AcceptedDomains.h"
+#include "Browser/ExtensionCommon.h"
+#include "Browser/ExtensionMatchmaking.h"
+#include "Browser/ExtensionMatchmakingListings.h"
+#include "Browser/ExtensionGameUiApi.h"
+#endif
+
+namespace fs = std::filesystem;
+
+static IServerBrowserEx *g_pServerBrowser = nullptr;
+static IBaseSystem* g_pBaseSystem = nullptr;
+static IGameClientExports* g_pGameClientExports = nullptr;
+static EngineMiniInterface* g_pEngineMini = nullptr;
+static ScenePreviewInterface* g_pScenePreview;
+static vgui2::DHANDLE<CDemoPlayerDialog> g_hDemoPlayerDialog;
+static vgui2::DHANDLE<CHudRadarDialog> g_hHudRadarDialog;
+vgui2::DHANDLE<CLoadingDialog> g_hLoadingDialog;
+
+void CGameUI::OpenHudRadarDialog()
+{
+    if (!g_hHudRadarDialog.Get())
+    {
+        g_hHudRadarDialog = new CHudRadarDialog(BasePanel());
+    }
+
+    // In a level the dialog floats over the running game; from the menu it stays a
+    // normal GameUI dialog.
+    bool over_game = BeginPanelOverGame(g_hHudRadarDialog.Get());
+    if (!over_game)
+    {
+        g_hHudRadarDialog->SetParent(BasePanel()->GetVPanel());
+    }
+
+    g_hHudRadarDialog->Activate();
+
+    if (over_game)
+    {
+        g_hHudRadarDialog->SetVisible(true);
+        g_hHudRadarDialog->MoveToFront();
+        g_hHudRadarDialog->RequestFocus();
+    }
+}
+
+void CGameUI::OpenMaterialEditDialog()
+{
+    if (m_ShuttingDown)
+    {
+        return;
+    }
+
+    if (IsInLevel() || m_bLoadlingLevel || m_MaterialEditor == nullptr || g_pScenePreview == nullptr ||
+        !g_pScenePreview->is_authoring_available())
+    {
+        engine->pfnConsolePrint("r_mat_panel: open the material editor from the disconnected main menu\n");
+        return;
+    }
+
+    if (!m_hMaterialEditDialog.Get())
+    {
+        m_ImageFileCache = ImageFile_CreateCache(*m_FileSystem, *m_Surface);
+        m_hMaterialEditDialog =
+            new material_editor::CMaterialEditDialog(BasePanel(), *this, *m_MaterialEditor, *g_pScenePreview, *m_FileSystem, *m_Surface, m_ImageFileCache);
+    }
+
+    m_hMaterialEditDialog->Activate();
+    m_hMaterialEditDialog->SetVisible(true);
+    m_hMaterialEditDialog->MoveToFront();
+    m_hMaterialEditDialog->RequestFocus();
+}
+
+void CGameUI::CloseMaterialEditDialog()
+{
+    material_editor::CMaterialEditDialog* dialog = m_hMaterialEditDialog.Get();
+
+    if (dialog == nullptr)
+    {
+        return;
+    }
+
+    m_hMaterialEditDialog = nullptr;
+    dialog->ForceClose();
+    m_ImageFileCache.reset();
+}
+
+void CGameUI::OnMaterialEditDialogClosed(material_editor::CMaterialEditDialog* dialog)
+{
+    if (m_hMaterialEditDialog.Get() == dialog)
+    {
+        m_hMaterialEditDialog = nullptr;
+        m_ImageFileCache.reset();
+    }
+}
+
+void CGameUI::RequestMaterialStateDump()
+{
+    engine->pfnClientCmd("r_mat_scene_state\nr_mat_state\n");
+}
+
+void CGameUI::PrintMaterialReport(const char* report)
+{
+    engine->pfnConsolePrint(report);
+}
+
+void CGameUI::DumpMaterialImages()
+{
+    ImageFilePanel_Report(m_ImageFileCache.get(), *engine);
+}
+
+void CGameUI::DumpMaterialSceneState()
+{
+    if (m_hMaterialEditDialog.Get() != nullptr)
+    {
+        m_hMaterialEditDialog->DumpState();
+    }
+    else
+    {
+        engine->pfnConsolePrint("material scene: editor closed\n");
+    }
+
+    engine->pfnClientCmd("r_preview_state\n");
+}
+
+bool CGameUI::is_material_editor_open() const
+{
+    return m_hMaterialEditDialog.Get() != nullptr;
+}
+
+void CGameUI::CloseHudRadarDialog()
+{
+    CHudRadarDialog* dialog = g_hHudRadarDialog.Get();
+    if (!dialog)
+    {
+        return;
+    }
+
+    g_hHudRadarDialog = nullptr;
+    // Loading and disconnect must release the root-parented dialog without waiting for its fade.
+    dialog->DisableFadeEffect();
+    dialog->OnCommand("Close");
+}
+
+static CGameUI g_GameUI;
+#ifdef _WIN32
+static HWND g_MainWindow = nullptr;
+static WNDPROC g_MainWindowProc = nullptr;
+#endif
+
+goldsrc::cl_enginefunc_t* engine = nullptr;
+
+CGameUI &GameUI() { return g_GameUI; }
+IBaseSystem* SystemWrapper() { return g_pBaseSystem; }
+IGameClientExports* GameClientExports() { return g_pGameClientExports; }
+EngineMiniInterface* EngineMini() { return g_pEngineMini; }
+ScenePreviewInterface* ScenePreview() { return g_pScenePreview; }
+
+namespace vgui2
+{
+    static HScheme g_DefaultScheme = -1;
+
+    HScheme VGui_GetDefaultScheme()
+    {
+        if (g_DefaultScheme != -1)
+            return g_DefaultScheme;
+
+        auto miscellaneous_settings = KeyValues::AutoDelete(OptionsSubMiscellaneous::GetSettings());
+
+        const char* scheme_file = miscellaneous_settings->GetString(OptionsSubMiscellaneous::kSchemeKey, OptionsSubMiscellaneous::kDefaultScheme);
+        std::string scheme_path = std::format("{}/{}", OptionsSubMiscellaneous::kSchemesPath, scheme_file);
+
+        if (g_pFullFileSystem->FileExists(scheme_path.c_str()))
+            g_DefaultScheme = scheme()->LoadSchemeFromFilePath(scheme_path.c_str(), "GAMECONFIG", nullptr);
+        else
+            g_DefaultScheme = 0;
+
+        return g_DefaultScheme;
+    }
+}
+
+#ifdef _WIN32
+// Only ever invoked by the Windows message pump, so this whole function is
+// meaningless until GoldSrc's Linux windowing exists (SDL2 has its own,
+// differently-shaped drag-and-drop event, not a WndProc callback).
+LRESULT CALLBACK WindowGlobalProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    switch (uMsg)
+    {
+        case WM_DROPFILES:
+        {
+            bool bIsDemoFound = false;
+            HDROP hdrop = (HDROP)wParam;
+            UINT fileCount = DragQueryFileW(hdrop, 0xFFFFFFFF, NULL, 0);
+            for (UINT i = 0; i < fileCount; ++i)
+            {
+                wchar_t wszFilePath[512];
+                DragQueryFileW(hdrop, i, wszFilePath, sizeof(wszFilePath) / sizeof(wchar_t));
+
+                auto uiLength = V_wcslen(wszFilePath);
+                if (uiLength > 4 && _wcsicmp(&wszFilePath[uiLength - 4], L".dem") == 0)
+                {
+                    g_pFullFileSystem->AddSearchPathNoWrite(fs::path(wszFilePath).parent_path().string().c_str(), "GAME");
+                    g_GameUI.ActivateDemoUI();
+                    g_hDemoPlayerDialog->DemoSelected(fs::path(wszFilePath).filename().string().c_str());
+                    bIsDemoFound = true;
+                    break;
+                }
+            }
+            DragFinish(hdrop);
+            if (bIsDemoFound)
+                return 0;
+        }
+    }
+    return CallWindowProc(g_MainWindowProc, hwnd, uMsg, wParam, lParam);
+}
+#endif
+
+EXPOSE_SINGLE_INTERFACE_GLOBALVAR(CGameUI, IGameUI, GAMEUI_INTERFACE_VERSION_GS, g_GameUI);
+
+CGameUI::CGameUI()
+{
+    m_szPreviousStatusText[0] = 0;
+    m_bLoadlingLevel = false;
+    task_run_impl_ = std::make_shared<TaskCoroImpl>();
+    TaskCoro::Initialize(task_run_impl_);
+}
+
+CGameUI::~CGameUI()
+{
+}
+
+void CGameUI::Initialize(CreateInterfaceFn *factories, int count)
+{
+#ifdef _WIN32
+    g_MainWindow = GetActiveWindow();
+#endif
+
+    ConnectTier1Libraries(factories, count);
+    ConnectTier2Libraries(factories, count);
+
+    if (!vgui2::VGui_InitInterfacesList("GameUI", factories, count))
+        return;
+
+#ifdef _WIN32
+    g_MainWindowProc = (WNDPROC)SetWindowLongPtr(g_MainWindow, GWLP_WNDPROC, (LONG_PTR)WindowGlobalProcedure);
+#endif
+
+    for (int i = 0; i < count; ++i)
+    {
+        if (!g_pGameClientExports)
+            g_pGameClientExports = (IGameClientExports*) factories[i](GAMECLIENTEXPORTS_INTERFACE_VERSION, NULL);
+    }
+
+    g_pServerBrowser = (IServerBrowserEx*)CreateInterface(SERVERBROWSEREX_INTERFACE_VERSION, NULL);
+    g_pEngineMini = reinterpret_cast<EngineMiniInterface*>(Sys_GetFactory("next_engine_mini.dll")(ENGINE_MINI_INTERFACE_VERSION, NULL));
+    g_pScenePreview = reinterpret_cast<ScenePreviewInterface*>(Sys_GetFactory("next_engine_mini.dll")(SCENE_PREVIEW_INTERFACE_VERSION, NULL));
+    m_ShaderRenderer =
+        reinterpret_cast<render::ShaderRendererInterface*>(Sys_GetFactory("next_engine_mini.dll")(SHADER_RENDERER_INTERFACE_VERSION, nullptr));
+
+    m_MaterialEditor = g_pEngineMini != nullptr ? g_pEngineMini->GetMaterialEdit() : nullptr;
+    m_FileSystem = g_pFullFileSystem;
+    m_Surface = vgui2::surface();
+
+    g_pVGuiLocalize->AddFile(g_pFullFileSystem, "resource/gameui_%language%.txt");
+    g_pVGuiLocalize->AddFile(g_pFullFileSystem, "resource/valve_%language%.txt");
+    g_pVGuiLocalize->AddFile(g_pFullFileSystem, "resource/vgui_%language%.txt");
+    g_pVGuiLocalize->AddFile(g_pFullFileSystem, "resource/nextclient_%language%.txt");
+
+    if (FindPlatformDirectory(m_szPlatformDir, ARRAYSIZE(m_szPlatformDir)))
+    {
+        char szConfigDir[512];
+
+        strcpy(szConfigDir, m_szPlatformDir);
+
+        auto uiLength = strlen(szConfigDir);
+
+        szConfigDir[uiLength++] = CORRECT_PATH_SEPARATOR;
+
+        strcpy(&szConfigDir[uiLength], "config");
+        szConfigDir[uiLength + strlen("config")] = '\0';
+
+        g_pFullFileSystem->AddSearchPath(szConfigDir, "PLATFORMCONFIG");
+
+#ifdef _WIN32
+        _mkdir(szConfigDir);
+#else
+        mkdir(szConfigDir, 0755);
+#endif
+
+        vgui2::ivgui()->DPrintf("Platform config directory: %s\n", szConfigDir);
+
+        vgui2::system()->SetUserConfigFile("InGameDialogConfig.vdf", "PLATFORMCONFIG");
+
+        g_pVGuiLocalize->AddFile(g_pFullFileSystem, "resource/platform_%language%.txt");
+        g_pVGuiLocalize->AddFile(g_pFullFileSystem, "resource/vgui_%language%.txt");
+    }
+
+    auto base_panel = new CBasePanel(*this, g_pScenePreview, m_ShaderRenderer);
+    base_panel->SetBounds(0, 0, 400, 300);
+    base_panel->SetPaintBorderEnabled(false);
+    base_panel->SetPaintBackgroundEnabled(true);
+    base_panel->SetPaintEnabled(false);
+    base_panel->SetVisible(true);
+    base_panel->SetMouseInputEnabled(false);
+    base_panel->SetKeyBoardInputEnabled(false);
+
+    base_panel->SetParent(g_pEngineVGui->GetPanel(PANEL_GAMEUIDLL));
+
+    if (g_pServerBrowser)
+        g_pServerBrowser->Initialize(factories, count);
+
+    if (g_pServerBrowser)
+        g_pServerBrowser->SetParent(base_panel->GetVPanel());
+
+    vgui2::surface()->SetAllowHTMLJavaScript(true);
+}
+
+void CGameUI::Start(goldsrc::cl_enginefunc_t* engineFuncs, int interfaceVersion, void* system)
+{
+    engine = engineFuncs;
+    BasePanel()->CreateDeveloperTools(*engineFuncs, *g_pVGuiLocalize);
+    g_pBaseSystem = (IBaseSystem*)system;
+
+    settings_share::RegisterCommands();
+
+    ModInfo().LoadCurrentGameInfo();
+
+    if (g_pServerBrowser)
+    {
+        g_pServerBrowser->ActiveGameName(ModInfo().GetGameDescription(), engine->pfnGetGameDirectory());
+        g_pServerBrowser->Reactivate();
+    }
+
+    // Engine command registration must finish before host initialization.
+    engine->pfnAddCommand("r_mat_panel", []() { GameUI().OpenMaterialEditDialog(); });
+    engine->pfnAddCommand("r_mat_scene_state", []() { GameUI().DumpMaterialSceneState(); });
+    engine->pfnAddCommand("r_mat_images", []() { GameUI().DumpMaterialImages(); });
+
+#ifdef _WIN32
+    RegisterCommonJsApi(engineFuncs);
+    RegisterMatchmakingJsApi();
+    RegisterMatchmakingListingsJsApi();
+    LoadAcceptedDomainsForJsApiFromDisk("platform/accepted_domains.txt");
+
+    browserExtensionGameUiApi = new ContainerExtensionGameUiApi();
+#endif
+}
+
+void CGameUI::Shutdown(void)
+{
+    m_ShuttingDown = true;
+    CloseMaterialEditDialog();
+    m_ImageFileCache.reset();
+    vgui2::system()->SaveUserConfigFile();
+
+    if (g_pServerBrowser)
+    {
+        g_pServerBrowser->Deactivate();
+        g_pServerBrowser->Shutdown();
+    }
+
+    // Delayed authoring children must release textures before their providers disconnect.
+    vgui2::ivgui()->RunFrame();
+
+    task_run_impl_->OnShutdown();
+    TaskCoro::UnInitialize();
+
+    ModInfo().FreeModInfo();
+
+    DisconnectTier1Libraries();
+    DisconnectTier2Libraries();
+
+#ifdef _WIN32
+    delete browserExtensionGameUiApi;
+#endif
+}
+
+int CGameUI::ActivateGameUI(void)
+{
+    // While a panel floats over the running game (e.g. the radar-settings frame), Esc
+    // must close only that panel. The engine routes Esc here via
+    // VGuiWrap2_GameUIKeyPressed because the GameUI panel stays hidden (so the HUD keeps
+    // drawing, i.e. HasExclusiveInput is false); without this guard it would open the
+    // main menu on top. The panel ends the over-game state on close, so the next Esc
+    // opens the menu normally.
+    if (IsInLevel() && m_hPanelOverGame.Get())
+    {
+        return 1;
+    }
+
+    if (!m_bLoadlingLevel && g_hLoadingDialog.Get() && IsInLevel())
+    {
+        g_hLoadingDialog->Close();
+        g_hLoadingDialog = NULL;
+    }
+
+#ifdef _WIN32
+    if(!IsGameUIActive())
+        browserExtensionGameUiApi->OnActivateGameUI();
+#endif
+
+    BasePanel()->OnGameUIActivated();
+    BasePanel()->SetVisible(true);
+
+    if (!m_bLoadlingLevel)
+        OpenServerBrowserIfNeeded();
+
+    engine->pfnClientCmd("setpause");
+        
+    m_bFirstActivatePassed = true;
+    return 1;
+}
+
+int CGameUI::ActivateDemoUI(void)
+{
+	if (!g_hDemoPlayerDialog.Get())
+	{
+        g_hDemoPlayerDialog = new CDemoPlayerDialog(BasePanel());
+	}
+
+    g_hDemoPlayerDialog->Activate();
+
+    return 1;
+}
+
+int CGameUI::HasExclusiveInput(void)
+{
+    return IsGameUIActive();
+}
+
+void CGameUI::RunFrame(void)
+{
+    if (is_material_editor_open() && (m_bLoadlingLevel || g_pScenePreview == nullptr || !g_pScenePreview->is_authoring_available()))
+    {
+        CloseMaterialEditDialog();
+    }
+
+    int wide, tall;
+    vgui2::surface()->GetScreenSize(wide, tall);
+    BasePanel()->SetSize(wide, tall);
+
+    // Dialogs over the game still animate while the main menu is hidden.
+    vgui2::GetAnimationController()->UpdateAnimations(engine->GetAbsoluteTime());
+
+    if (BasePanel()->IsVisible())
+        BasePanel()->RunFrame();
+
+#ifdef _WIN32
+    browserExtensionGameUiApi->RunFrame();
+#endif
+    task_run_impl_->OnUpdate();
+}
+
+void CGameUI::ConnectToServer(const char *game, int IP, int port)
+{
+    if (g_pServerBrowser)
+        g_pServerBrowser->ConnectToGame(IP, port);
+
+    if (m_bNeedApplyMultiplayerGameSettings)
+    {
+        m_bNeedApplyMultiplayerGameSettings = false;
+        engine->pfnClientCmd("echo Applying multiplayer game settings from New Game\n");
+        BasePanel()->ApplyMultiplayerGameSettings();
+    }
+
+    engine->pfnClientCmd("mp3 stop\n");
+
+    g_pBaseUI->HideGameUI();
+}
+
+void CGameUI::DisconnectFromServer(void)
+{
+    CloseMaterialEditDialog();
+    CloseHudRadarDialog();
+    ClosePanelOverGame();
+
+    if (g_pServerBrowser)
+        g_pServerBrowser->DisconnectFromGame();
+
+    g_pBaseUI->ActivateGameUI();
+}
+
+void CGameUI::HideGameUI()
+{
+    if (!IsInLevel())
+        return;
+
+    engine->pfnClientCmd("unpause");
+    engine->pfnClientCmd("hideconsole");
+
+    if (!IsGameUIActive())
+        return;
+
+    BasePanel()->SetVisible(false);
+
+    if (GameConsole().IsConsoleVisible())
+        GameConsole().Hide();
+
+    if (!m_bLoadlingLevel && g_hLoadingDialog.Get())
+    {
+        g_hLoadingDialog->Close();
+        g_hLoadingDialog = NULL;
+    }
+
+#ifdef _WIN32
+    browserExtensionGameUiApi->OnHideGameUI();
+#endif
+}
+
+bool CGameUI::BeginPanelOverGame(vgui2::Panel* panel)
+{
+    if (!IsInLevel())
+    {
+        return false;
+    }
+
+    // Reparent to the client VGUI panel (which the engine paints while the GameUI menu
+    // is hidden) and hide the GameUI so the engine resumes drawing the HUD/radar;
+    // enable the mouse cursor for the panel.
+    panel->SetParent(g_pEngineVGui->GetPanel(PANEL_ROOT));
+    g_pBaseUI->HideGameUI();
+    engine->pfnSetMouseEnable(1);
+    m_hPanelOverGame = panel;
+    return true;
+}
+
+void CGameUI::ClosePanelOverGame()
+{
+    vgui2::Panel* panel = m_hPanelOverGame.Get();
+
+    if (panel == nullptr)
+    {
+        return;
+    }
+
+    // Sent rather than posted: the callers go on to activate the menu, and a close that has
+    // not happened yet still holds the handle that suppresses it. The panel clears the
+    // handle from EndPanelOverGame in its own OnClose.
+    vgui2::ipanel()->SendMessage(panel->GetVPanel(), new KeyValues("Close"), NULL);
+
+    m_hPanelOverGame = nullptr;
+}
+
+void CGameUI::EndPanelOverGame()
+{
+    if (!m_hPanelOverGame.Get())
+    {
+        return;
+    }
+    m_hPanelOverGame = nullptr;
+
+    engine->pfnSetMouseEnable(0);
+    // Engine-side game-ui hide: releases mouse/input the way the second Esc does, which
+    // is what makes the client redraw its spectator UI. Our CGameUI::HideGameUI early-
+    // returns here (menu is not active), so this engine call is the part that matters.
+    g_pBaseUI->HideGameUI();
+}
+
+bool CGameUI::IsGameUIActive(void)
+{
+    return BasePanel()->IsVisible();
+}
+
+void CGameUI::LoadingStarted(const char *resourceType, const char *resourceName)
+{
+    CloseMaterialEditDialog();
+    CloseHudRadarDialog();
+    ClosePanelOverGame();
+    m_bLoadlingLevel = true;
+
+    GameConsole().Hide();
+    BasePanel()->OnLevelLoadingStarted(resourceName);
+}
+
+void CGameUI::LoadingFinished(const char *resourceType, const char *resourceName)
+{
+    m_bLoadlingLevel = false;
+
+    BasePanel()->OnLevelLoadingFinished();
+    g_pBaseUI->HideGameUI();
+}
+
+void CGameUI::StartProgressBar(const char *progressType, int progressSteps)
+{
+    if (!g_hLoadingDialog.Get())
+        g_hLoadingDialog = new CLoadingDialog(BasePanel());
+
+    m_szPreviousStatusText[0] = 0;
+    g_hLoadingDialog->SetProgressRange(0, progressSteps);
+    g_hLoadingDialog->SetProgressPoint(0.0f);
+    g_hLoadingDialog->Open();
+}
+
+int CGameUI::ContinueProgressBar(int progressPoint, float progressFraction)
+{
+    if (!g_hLoadingDialog.Get())
+        return 0;
+
+    g_hLoadingDialog->Activate();
+    return g_hLoadingDialog->SetProgressPoint(progressPoint);
+}
+
+void CGameUI::StopProgressBar(bool bError, const char *failureReason, const char *extendedReason)
+{
+    if (!g_hLoadingDialog.Get() && bError)
+        g_hLoadingDialog = new CLoadingDialog(BasePanel());
+
+    if (!g_hLoadingDialog.Get())
+        return;
+
+    if (bError)
+    {
+        g_hLoadingDialog->DisplayGenericError(failureReason, extendedReason);
+    }
+    else
+    {
+        g_hLoadingDialog->Close();
+        g_hLoadingDialog = NULL;
+    }
+}
+
+int CGameUI::SetProgressBarStatusText(const char *statusText)
+{
+    if (!g_hLoadingDialog.Get())
+        return false;
+
+    if (!statusText)
+        return false;
+
+    if (!stricmp(statusText, m_szPreviousStatusText))
+        return false;
+
+    g_hLoadingDialog->SetStatusText(statusText);
+    Q_strncpy(m_szPreviousStatusText, statusText, sizeof(m_szPreviousStatusText));
+    return true;
+}
+
+void CGameUI::SetSecondaryProgressBar(float progress)
+{
+    if (!g_hLoadingDialog.Get())
+        return;
+
+    g_hLoadingDialog->SetSecondaryProgress(progress);
+}
+
+void CGameUI::SetSecondaryProgressBarText(const char *statusText)
+{
+    if (!g_hLoadingDialog.Get())
+        return;
+
+    g_hLoadingDialog->SetSecondaryProgressText(statusText);
+}
+
+void CGameUI::ValidateCDKey(bool force, bool inConnect)
+{
+
+}
+
+bool CGameUI::IsServerBrowserValid(void)
+{
+    return g_pServerBrowser != NULL;
+}
+
+void CGameUI::ActivateServerBrowser(void)
+{
+    if (g_pServerBrowser)
+    {
+        if (!m_bServBrowserFirstActivatePassed)
+        {
+            m_bServBrowserFirstActivatePassed = true;
+
+            auto misc_settings = KeyValues::AutoDelete(OptionsSubMiscellaneous::GetSettings());
+
+            int tab = misc_settings->GetInt(OptionsSubMiscellaneous::kServerBrowserInitialTabKey, (int)ServerBrowserTab::Internet);
+            tab = std::clamp(tab, (int)ServerBrowserTab::Internet, (int)ServerBrowserTab::LAN);
+
+            g_pServerBrowser->Activate((ServerBrowserTab)tab);
+        }
+        else
+        {
+            g_pServerBrowser->Activate();
+        }
+    }
+}
+
+bool CGameUI::IsInLevel(void)
+{
+    const char *levelName = engine->pfnGetLevelName();
+
+    if (levelName[0] != '\0')
+        return true;
+
+    return false;
+}
+
+bool CGameUI::IsInMultiplayer(void)
+{
+    return (IsInLevel() && engine->GetMaxClients() > 1);
+}
+
+void CGameUI::OpenServerBrowserIfNeeded()
+{
+    if (m_bFirstActivatePassed)
+        return;
+
+    if (!g_pServerBrowser)
+        return;
+
+    auto misc_settings = KeyValues::AutoDelete(OptionsSubMiscellaneous::GetSettings());
+    if (!misc_settings->GetBool(OptionsSubMiscellaneous::kDisableAutoOpenServerBrowserKey))
+    {
+        int tab = misc_settings->GetInt(OptionsSubMiscellaneous::kServerBrowserInitialTabKey, (int)ServerBrowserTab::Internet);
+        tab = std::clamp(tab, (int)ServerBrowserTab::Internet, (int)ServerBrowserTab::LAN);
+
+        g_pServerBrowser->Activate((ServerBrowserTab)tab);
+    }
+}
+
+bool CGameUI::FindPlatformDirectory(char* platformDir, int bufferSize)
+{
+    strncpy(platformDir, "platform", bufferSize);
+    return true;
+}
+
+void CGameUI::NeedApplyMultiplayerGameSettings()
+{
+    m_bNeedApplyMultiplayerGameSettings = true;
+}
+
+void CGameUI::OnDisconnectFromServer(int eSteamLoginFailure, const char *username)
+{
+    m_bNeedApplyMultiplayerGameSettings = false;
+    CloseMaterialEditDialog();
+    CloseHudRadarDialog();
+    ClosePanelOverGame();
+}

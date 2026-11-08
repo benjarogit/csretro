@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# CSRETRO pre-push gate.
+#
+# Runs the same verification as CI before anything leaves the machine. This is
+# the local enforcement that GitHub branch protection cannot provide on a
+# private free-plan repository.
+#
+# Installed by scripts/bootstrap.sh via:
+#   git config core.hooksPath .githooks
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+if [[ "${CSRETRO_SKIP_HOOKS:-0}" == "1" ]]; then
+    printf 'pre-push: skipped via CSRETRO_SKIP_HOOKS=1\n' >&2
+    exit 0
+fi
+
+printf 'pre-push: verifying repository\n' >&2
+exec "$ROOT/scripts/verify.sh"

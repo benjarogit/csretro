@@ -60,9 +60,13 @@ Rules:
 5. Update documentation in the same commit as the behaviour.
 6. Run `scripts/verify.sh`.
 7. Commit with a conventional commit message.
-8. Push, wait for CI, fix red CI before anything else.
-9. Update `HANDOFF.md` with state, evidence and the next task.
-10. Clean temporary files, logs and caches before closing the gate.
+8. Push. The tracked `pre-push` hook runs `scripts/verify.sh` again and blocks the
+   push on failure. Never bypass it with `--no-verify` unless the maintainer
+   explicitly asks; if it is bypassed, CI must still be green before the task
+   continues.
+9. Wait for CI, fix red CI before anything else.
+10. Update `HANDOFF.md` with state, evidence and the next task.
+11. Clean temporary files, logs and caches before closing the gate.
 
 Never leave the repository in a state where `main` is red or undocumented.
 

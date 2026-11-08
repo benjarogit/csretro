@@ -96,7 +96,11 @@ first, then change one thing at a time and re-measure on the test server.
    before touching code.
 2. **Prefer ReAPI hookchains over Fakemeta.** `RegisterHookChain(RG_*)` is
    cheaper and more targeted than `register_forward(FM_*)`; keep Fakemeta only
-   where ReAPI has no equivalent.
+   where ReAPI has no equivalent. This applies to code and plugins we control.
+   The Fakemeta *module* stays shipped: third-party plugins declare
+   `#include <fakemeta>` and refuse to load without it, and AMXX only loads a
+   module when a plugin needs its natives. Per event, exactly one source owns
+   the hook (Fakemeta or ReAPI), otherwise both run.
 3. **Move hot paths into a native Metamod plugin.** C++ for per-frame or
    per-player work, AMXX for gameplay glue and the public native surface.
 4. **Avoid or batch per-frame hooks.** Throttle to every N frames where

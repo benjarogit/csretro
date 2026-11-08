@@ -22,7 +22,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true
+          # The verification job reads pointers and gitlinks only. Pulling 130 MB
+          # of LFS assets and the vcpkg submodule would add minutes for no gain.
+          # Build jobs fetch what they need in G04.
+          lfs: false
+          submodules: false
 
       - name: Set up Python
         uses: actions/setup-python@v5

@@ -72,6 +72,14 @@ FORBIDDEN_TRACKED_SUFFIXES = (
     ".swp",
 )
 
+# Three files under the vendored cpr test data are intentionally named *.key.
+# They are public test fixtures, not credentials. They are allowlisted by path
+# rather than disabling the scan for the whole vendored tree, so a real secret
+# added anywhere else is still caught.
+SECRET_ALLOWLIST = (
+    "client/dep/cpr/test/data/keys/",
+)
+
 SECRET_PATTERNS = [
     ("private key block", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----")),
     ("GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b")),
@@ -257,6 +265,8 @@ def is_placeholder(value: str) -> bool:
 
 def check_secrets(report: Report, files: list[str]) -> None:
     for rel in files:
+        if rel.startswith(SECRET_ALLOWLIST):
+            continue
         path = ROOT / rel
         if not path.is_file() or path.stat().st_size > 2_000_000:
             continue
@@ -285,6 +295,62 @@ def check_forbidden_paths(report: Report, files: list[str]) -> None:
             report.fail(f"generated or temporary file is tracked: {rel}")
 
 
+def check_pins(report: Report) -> None:
+    """Compare recorded pins with what is actually checked in.
+
+    Uses `git ls-tree HEAD`, so it works in CI without submodule checkout.
+    """
+    path = ROOT / "versions.lock.json"
+    if not path.is_file():
+        return
+    try:
+        data = json.loads(read_text(path))
+    except json.JSONDecodeError:
+        return
+
+    upstreams = data.get("upstreams", {})
+    if not isinstance(upstreams, dict):
+        return
+
+    for name, entry in upstreams.items():
+        if not isinstance(entry, dict) or not entry.get("vendored"):
+            continue
+        prefix = str(entry.get("prefix", "")).rstrip("/")
+        expected = entry.get("commit")
+        if not prefix:
+            report.fail(f"upstream {name}: vendored entry has no prefix")
+            continue
+
+        try:
+            result = subprocess.run(
+                ["git", "ls-tree", "HEAD", prefix],
+                cwd=ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except (OSError, subprocess.CalledProcessError):
+            report.fail(f"upstream {name}: cannot read git tree for {prefix}")
+            continue
+
+        line = result.stdout.strip()
+        if not line:
+            report.fail(f"upstream {name}: vendored path is missing: {prefix}")
+            continue
+
+        fields = line.split()
+        if entry.get("method") == "git-submodule":
+            if len(fields) < 3 or fields[0] != "160000":
+                report.fail(f"upstream {name}: {prefix} is not a gitlink")
+            elif expected and fields[2] != expected:
+                report.fail(
+                    f"upstream {name}: gitlink is {fields[2]}, lock records {expected}"
+                )
+        elif expected and entry.get("method") == "git-subtree":
+            # Subtree content is not a single object, so only presence is checked.
+            report.check(fields[0] == "040000", f"upstream {name}: {prefix} is not a tree")
+
+
 def check_changelog(report: Report) -> None:
     path = ROOT / "CHANGELOG.md"
     if not path.is_file():
@@ -300,6 +366,7 @@ def main() -> int:
     check_required_files(report)
     check_version(report)
     check_lockfile(report)
+    check_pins(report)
     check_docs_parity(report)
     check_links(report, files)
     check_secrets(report, files)

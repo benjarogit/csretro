@@ -24,7 +24,13 @@ fi
 
 note "==> shell scripts"
 if command -v shellcheck >/dev/null 2>&1; then
-    mapfile -t scripts < <(git ls-files '*.sh' 2>/dev/null || find scripts -name '*.sh' -type f)
+    # Only our own scripts. Vendored upstream scripts are not ours to restyle and
+    # would turn every verification run into noise.
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        mapfile -t scripts < <(git ls-files -- 'scripts/*.sh' 'tools/*.sh' '.githooks/*')
+    else
+        mapfile -t scripts < <(find scripts tools .githooks -type f 2>/dev/null)
+    fi
     if ((${#scripts[@]} > 0)); then
         if ! shellcheck --severity=warning "${scripts[@]}"; then
             fail_msg "shellcheck reported problems"
@@ -36,9 +42,12 @@ fi
 
 note "==> line endings"
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    if git ls-files --eol | grep -q 'i/crlf'; then
-        fail_msg "tracked files contain CRLF line endings"
-        git ls-files --eol | grep 'i/crlf' | head -20 >&2
+    # Files explicitly marked -text are binary by policy (for example the
+    # upstream bot databases with CRCRLF endings) and are not a violation.
+    crlf="$(git ls-files --eol | awk '$1 == "i/crlf" && $3 != "attr/-text" { print }')"
+    if [[ -n "$crlf" ]]; then
+        fail_msg "tracked text files contain CRLF line endings"
+        printf '%s\n' "$crlf" | head -20 >&2
     fi
 fi
 

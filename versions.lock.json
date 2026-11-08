@@ -13,7 +13,7 @@
       "describe": "2.6.0-preview.2",
       "prefix": "client/",
       "method": "git-subtree",
-      "vendored": false,
+      "vendored": true,
       "gate": "G02"
     },
     "nextclient_server_api": {
@@ -22,24 +22,24 @@
       "describe": "main after v1.6.0 (material API)",
       "prefix": "server/api/",
       "method": "git-subtree",
-      "vendored": false,
+      "vendored": true,
       "gate": "G02"
     },
     "ncl_hl1_source_sdk": {
       "repository": "https://github.com/CS-NextClient/ncl-hl1-source-sdk",
-      "commit": null,
+      "commit": "0e9be00fc52b66742a09c84c8f6169dc7c83ca8a",
       "describe": "fork of tmp64/hl1_source_sdk with Linux port",
       "prefix": "client/dep/ncl-hl1-source-sdk/",
       "method": "git-submodule",
-      "vendored": false,
+      "vendored": true,
       "gate": "G02"
     },
     "vcpkg": {
       "repository": "https://github.com/microsoft/vcpkg",
-      "commit": null,
+      "commit": "b5d1a94fb7f88fd835e360fd23a45a09ceedbf48",
       "prefix": "client/vcpkg/",
       "method": "git-submodule",
-      "vendored": false,
+      "vendored": true,
       "gate": "G02"
     }
   },

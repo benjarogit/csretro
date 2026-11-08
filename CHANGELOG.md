@@ -14,9 +14,26 @@ The authoritative version string is the `VERSION` file.
   `versions.lock.json`.
 - Repository verification: `scripts/verify.sh`, `scripts/clean.sh`,
   `tools/verify_repo.py`.
+- Local push gate: tracked `.githooks/pre-push`, installed by `bootstrap.sh`.
 - Bilingual documentation skeleton (`docs/de`, `docs/en`).
 - Authoritative project plan in `docs/plan/csretro-plan.md`.
 - CI workflow for structure, documentation, secrets and shell checks.
+- Vendored NextClient at `90b4bf7` with full history (`client/`).
+- Vendored NextClientServerApi at `1da463e` with full history (`server/api/`).
+- Pinned submodules `client/vcpkg` at `b5d1a94` and
+  `client/dep/ncl-hl1-source-sdk` at `0e9be00`.
+- `scripts/bootstrap.sh` for hooks, LFS and submodules.
+- `scripts/sync-upstream.sh` to report upstream changes since the pins.
+
+### Changed
+
+- Root `.gitattributes` no longer reinterprets vendored binaries through the LFS
+  rules; each vendored tree keeps its own attribute policy.
+
+### Fixed
+
+- LFS objects for the vendored client are imported, so a fresh clone resolves all
+  790 binary assets.
 
 ## [0.1.0-dev] - 2026-11-08
 

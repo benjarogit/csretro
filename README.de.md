@@ -6,18 +6,30 @@ CSRETRO ist ein vollständig vendorter CS-1.6-Client plus AMXX-Server-API. Ziel 
 **Default-Public-Branch** des Retail-Spiels. CSRETRO spricht ein eigenes Protokoll,
 hat eine eigene Identität und Infrastruktur und ist zweisprachig dokumentiert.
 
-> Status: frühe Entwicklung (`0.1.0-dev`). Gate G01 (Repository und Harness) läuft.
+> Status: frühe Entwicklung (`0.1.0-dev`). Die Gates G01 und G02 sind
+> abgeschlossen: Harness steht, beide Upstreams sind mit Historie vendort.
 > Noch ist nichts installierbar.
 
 ## Was das ist
 
 | Teil | Beschreibung |
 |---|---|
-| `client/` | Vendorter NextClient-Client, ab G02/G08 als CSRETRO gebrandet |
-| `server/api/` | Vendorte NextClientServerApi, AMXX-Modul für CSRETRO-Server |
+| `client/` | Vendorter NextClient-Client mit voller Historie, ab G08 als CSRETRO gebrandet |
+| `server/api/` | Vendorte NextClientServerApi mit voller Historie, AMXX-Modul |
 | `docs/` | Zweisprachige Dokumentation, einzige Quelle für das GitHub-Wiki |
 | `scripts/` | Einstiegspunkte für Build, Installation, Prüfung und Cleanup |
 | `tools/` | Repository-Prüfungen und Generatoren |
+
+## Erster Clone
+
+```bash
+git clone https://github.com/benjarogit/csretro.git
+cd csretro
+./scripts/bootstrap.sh
+```
+
+`bootstrap.sh` installiert den versionierten Push-Hook, initialisiert Git LFS,
+checkt die gepinnten Submodule aus und führt die Verifikation aus.
 
 ## Nicht-Ziele
 

@@ -6,47 +6,47 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-08
-- **Gate:** G01 – repository and harness, **done**
+- **Gate:** G02 – vendor import, **done**
 - **Branch:** `main`
-- **Commit:** `b50197c` (harness), follow-up commit for this handoff
+- **Commit:** `git log -1`
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42479518181 – success
+- **CI:** recorded after the G02 push
 
 ## Verified (with evidence)
 
 | Claim | Evidence |
 |---|---|
-| Repository exists with remote `origin` | `git remote -v` → `https://github.com/benjarogit/csretro.git` |
-| Harness rules are defined | `AGENTS.md`, 13 sections |
-| Plan is part of the repository | `docs/plan/csretro-plan.md`, 708 lines |
-| Documentation is bilingual | `docs/de/index.md`, `docs/en/index.md`, parity enforced by tool |
-| Repository checks pass locally | `scripts/verify.sh` → `OK: 50 checks passed on 20 tracked files` |
-| Repository checks pass in CI | run `42479518181`, job `repository verification`, success |
-| Upstream pins and game hashes are recorded | `versions.lock.json` |
-| Git LFS is active | `git lfs install --local` |
-| No maintainer-local paths in tracked files | `grep -rn '/mnt/\|/home/benny'` → no matches |
+| NextClient is vendored with history | subtree merge `3fea0c3`, pinned tree `90b4bf76ee4ff1ea3afb2c823feb2137bd65034e` |
+| NextClientServerApi is vendored with history | subtree merge `501d93b`, pinned tree `1da463e0548c3bdb69e441caf2a39caae31edffa` |
+| Upstream history is present | `git rev-list --count HEAD` → 512 commits |
+| Submodules are pinned and checked out | `git submodule status` → `0e9be00` and `b5d1a94`, both clean |
+| Lockfile matches the checked-in gitlinks | `tools/verify_repo.py`, check `check_pins` |
+| Binary assets are imported | `git lfs ls-files` → 790 files, 130 MB in `.git/lfs/objects` |
+| Repository checks pass | `scripts/verify.sh` → `OK: 52 checks passed on 3980 tracked files` |
+| Push gate is active | `git config core.hooksPath` → `.githooks` |
 
 ## Open / known broken
 
-- `client/` and `server/api/` do not exist yet. They are imported in G02.
-- No build, no tests, no installer yet.
+- No build, no tests, no installer yet. G03 and G04 follow.
 - License of the project is undecided. The repository stays private.
 - **Branch protection is not available**: GitHub rejects it for a private
-  repository on the free plan (`Upgrade to GitHub Pro or make this repository
-  public`). CI is required by convention until the repository is public or the
-  plan changes. Revisit at G10.
+  repository on the free plan. This is now mitigated by the tracked `pre-push`
+  hook, which runs the same verification as CI. CI remains the second check.
+- The vendored NextClient still contains upstream Sentry, GameAnalytics and
+  updater references. They are removed in G08, not before, so the baseline stays
+  comparable.
 
 ## Next task
 
-- **Gate:** G02 – vendor import
+- **Gate:** G03 – toolchain on CachyOS
 - **Acceptance:**
-  - `client/` contains NextClient at `90b4bf76ee4ff1ea3afb2c823feb2137bd65034e`
-    with history.
-  - `server/api/` contains NextClientServerApi at
-    `1da463e0548c3bdb69e441caf2a39caae31edffa` with history.
-  - Submodules `client/vcpkg` and `client/dep/ncl-hl1-source-sdk` are pinned.
-  - `versions.lock.json` has no `null` commits left.
-  - A fresh clone plus bootstrap reproduces the same hashes.
+  - `scripts/doctor.sh` checks OS, glibc, GCC, CMake, Ninja, Python, `uv`,
+    `git-lfs`, a `-m32` test compile, 32-bit GL/X11/Xext/Xcursor/Xi/Xrandr/Xss/
+    Xfixes/Xrender/SDL2, Mesa/llvmpipe, Steam runtime and free disk space.
+  - `scripts/bootstrap.sh` installs missing Arch packages and bootstraps vcpkg,
+    idempotently.
+  - `docs/de/build/prerequisites.md` and `docs/en/build/prerequisites.md` exist
+    and match the checks.
 
 ## Open decisions
 
@@ -76,16 +76,19 @@ copy outside the Steam library.
 ## Last commands and results
 
 ```text
-$ git init -b main && git remote add origin https://github.com/benjarogit/csretro.git
+$ git subtree add --prefix=client https://github.com/CS-NextClient/NextClient.git 90b4bf7
+Added dir 'client'
+
+$ git subtree add --prefix=server/api https://github.com/CS-NextClient/NextClientServerApi.git 1da463e
+Added dir 'server/api'
+
+$ git submodule status
+ 0e9be00fc52b66742a09c84c8f6169dc7c83ca8a client/dep/ncl-hl1-source-sdk (heads/main)
+ b5d1a94fb7f88fd835e360fd23a45a09ceedbf48 client/vcpkg (b5d1a94f)
+
 $ scripts/verify.sh
-OK: 50 checks passed on 20 tracked files
+OK: 52 checks passed on 3980 tracked files
 Verification passed
-
-$ git push -u origin main
- * [new branch]      main -> main
-
-$ gh run list --limit 1
-completed success chore(repo): bootstrap harness and documentation skeleton ci main push 42479518181 15s
 ```
 
 ## Gate log
@@ -93,4 +96,5 @@ completed success chore(repo): bootstrap harness and documentation skeleton ci m
 | Gate | State | Evidence |
 |---|---|---|
 | G01 | done | commit `b50197c`, CI run `42479518181` |
-| G02 | next | – |
+| G02 | done | subtree `3fea0c3`, `501d93b`, verify green |
+| G03 | next | – |

@@ -8,9 +8,9 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-08
 - **Gate:** G02 – vendor import, **done**
 - **Branch:** `main`
-- **Commit:** `git log -1`
+- **Commit:** `c4498dc` (G02 code), handoff commit follows
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** recorded after the G02 push
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42480564411 – success
 
 ## Verified (with evidence)
 
@@ -22,8 +22,10 @@ Project state for the next session. Personal context belongs in
 | Submodules are pinned and checked out | `git submodule status` → `0e9be00` and `b5d1a94`, both clean |
 | Lockfile matches the checked-in gitlinks | `tools/verify_repo.py`, check `check_pins` |
 | Binary assets are imported | `git lfs ls-files` → 790 files, 130 MB in `.git/lfs/objects` |
-| Repository checks pass | `scripts/verify.sh` → `OK: 52 checks passed on 3980 tracked files` |
+| Repository checks pass | `scripts/verify.sh` → `OK: 52 checks passed on 3983 tracked files` |
+| Fresh clone plus bootstrap works | clone of `c4498dc`, `./scripts/bootstrap.sh` → exit 0, both submodules at pinned commits |
 | Push gate is active | `git config core.hooksPath` → `.githooks` |
+| Push gate uploads LFS | `.githooks/pre-push` calls `git lfs pre-push`; upload of 783 objects, 44 MB |
 
 ## Open / known broken
 
@@ -35,6 +37,10 @@ Project state for the next session. Personal context belongs in
 - The vendored NextClient still contains upstream Sentry, GameAnalytics and
   updater references. They are removed in G08, not before, so the baseline stays
   comparable.
+- Upstream quirk: `client/dep/cpr/nuget/resources/cpr.png` is tracked as a plain
+  blob although the upstream `.gitattributes` declares `*.png` as LFS. Git LFS
+  prints one warning per checkout. It does not block anything; left untouched
+  because the vendored tree is not ours to rewrite.
 
 ## Next task
 

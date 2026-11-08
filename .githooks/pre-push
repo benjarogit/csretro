@@ -5,6 +5,10 @@
 # the local enforcement that GitHub branch protection cannot provide on a
 # private free-plan repository.
 #
+# It also forwards to Git LFS. Setting core.hooksPath replaces .git/hooks, so
+# without this call the LFS pre-push hook would never run and binary assets
+# would never be uploaded.
+#
 # Installed by scripts/bootstrap.sh via:
 #   git config core.hooksPath .githooks
 set -euo pipefail
@@ -18,4 +22,8 @@ if [[ "${CSRETRO_SKIP_HOOKS:-0}" == "1" ]]; then
 fi
 
 printf 'pre-push: verifying repository\n' >&2
-exec "$ROOT/scripts/verify.sh"
+"$ROOT/scripts/verify.sh"
+
+if command -v git-lfs >/dev/null 2>&1; then
+    git lfs pre-push "$@"
+fi

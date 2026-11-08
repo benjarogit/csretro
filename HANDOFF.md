@@ -8,9 +8,9 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-08
 - **Gate:** G05 – server API build, **done**
 - **Branch:** `main`
-- **Commit:** recorded after the G05 push
+- **Commit:** `9f3af81` (G05 code), handoff commit follows
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** recorded after the G05 push
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42483231438 – success
 
 ## Verified (with evidence)
 

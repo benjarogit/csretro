@@ -1,0 +1,708 @@
+# CSRETRO – Gesamtplan
+
+**Stand:** 8. November 2026
+**Rolle:** maßgebliche Quelle für Ziele, Entscheidungen und Gates
+**Fortschritt:** steht ausschließlich in [`HANDOFF.md`](../../HANDOFF.md), nicht hier
+**Repository:** `https://github.com/benjarogit/csretro` (privat)
+**Zielplattform:** Linux x86_64 Host, 32-bit Ziel (CachyOS / Arch als Referenz)
+
+---
+
+## 1. Ziel
+
+CSRETRO ist ein eigenständiger, vollständig vendorter Counter-Strike-1.6-Client plus
+AMXX-Server-API. Er läuft auf dem **Default-Public-Branch** von CS 1.6, spricht ein
+**eigenes Protokoll**, hat eine **eigene Identität**, eine **eigene Infrastruktur**
+und eine **zweisprachige Dokumentation**.
+
+Auf CSRETRO-Servern können ausschließlich CSRETRO-Clients spielen. Es gibt keine
+Abwärtskompatibilität zu NextClient.
+
+Arbeitsweise: ein Gate nach dem anderen, jedes Gate wird verifiziert, dokumentiert,
+committet und gepusht, bevor das nächste beginnt.
+
+---
+
+## 2. Entscheidungen
+
+| Nr. | Thema | Entscheidung |
+|---|---|---|
+| E01 | Upstream-Bindung | Vollständig vendoren, Historie mitnehmen, Cherry-Picks nur bei Bedarf. Keine Build-Abhängigkeit vom Upstream. |
+| E02 | Branch-Ziel | **Nur Default Public** (25th Anniversary, `PatchVersion=1.1.2.7`). Kein `steam_legacy`, kein 8684-Fallback. |
+| E03 | Client-Kompatibilität | Eigenes Protokoll, eigene Keys, keine NextClient-Kompatibilität. |
+| E04 | Server-Zugang | Nur verifizierte CSRETRO-Clients; Fremdclients werden nach Timeout gekickt. |
+| E05 | Namensschema | `csr_` für Cvars/Commands/Natives; `csretro_` für Dateien und Module. |
+| E06 | Server-Stack | ReHLDS + ReGameDLL_CS + AMXX 1.10 + ReAPI. |
+| E07 | Doku | Zweisprachig DE/EN. `docs/` ist Quelle, GitHub-Wiki wird gespiegelt. |
+| E08 | GameUI | NextClients native VGUI2 (`gameui.so`) bleibt. CEF/HTML bleibt Windows-only und unter Linux deaktiviert. Kein Velaron-UI. |
+| E09 | Referenzprojekte | FuryBaM/cs16-goldsrc-client und FWGS/cs16-client: nur Ideen und Verfahren, kein Code (GPL). Nicht vendoren. |
+| E10 | Server-Management | Eigenes `csretro-server` im Backlog, HLSW-Funktionsumfang als Vorbild. |
+| E11 | Telemetrie | Eigener Updater, eigenes Sentry, eigenes GameAnalytics, eigene Discord-App. |
+| E12 | Release | Privat. Lizenzfrage nur als Notiz im Handoff. |
+| E13 | Redundanz | Single Source of Truth (SSoT) für jede Information, CI-Gates gegen Duplikate. |
+
+---
+
+## 3. Verifizierte Fakten
+
+### 3.1 Upstream-Pins
+
+| Projekt | Commit | Stand |
+|---|---|---|
+| `CS-NextClient/NextClient` | `90b4bf76ee4ff1ea3afb2c823feb2137bd65034e` | 2.6.0-preview.2, 7. Nov 2026 |
+| `CS-NextClient/NextClientServerApi` | `1da463e0548c3bdb69e441caf2a39caae31edffa` | main, nach v1.6.0, Material-API |
+| `CS-NextClient/ncl-hl1-source-sdk` | wird in G02 gepinnt | Fork von `tmp64/hl1_source_sdk` |
+
+Der API-Tag `v1.6.0` (Juli 2026) kennt die Material-Synchronisation noch nicht.
+Deshalb wird `main` gepinnt.
+
+### 3.2 System
+
+| Komponente | Ist | Anforderung |
+|---|---|---|
+| OS | CachyOS (Arch, rolling) | Linux x86_64 |
+| glibc | 2.44 | ≥ 2.43 |
+| GCC | 16.2.1 | ≥ 15 |
+| CMake | 4.4.5 | ≥ 3.21 |
+| Ninja | 1.13.2 | vorhanden |
+| Python | 3.14.9 | ≥ 3.12 |
+| uv | 0.12.0 | optional |
+| Docker | 29.9.3 | für Testserver |
+| Multilib | `-m32` funktioniert | erforderlich |
+| 32-bit GL/X11/SDL2 | vorhanden | erforderlich |
+| Steam | läuft | erforderlich |
+
+### 3.3 CS-1.6-Installation
+
+Pfad: lokale Steam-Bibliothek des Maintainers (nicht Teil des Repositories)
+Branch: **Default Public** (`PatchVersion=1.1.2.7`, `hw.so` vom 8. Okt 2024)
+
+| Datei | Größe | SHA-256 |
+|---|---|---|
+| `hw.so` | 11.556.210 | `fca6628b5a4d76a945e11b9796f327004edc65420d9f9cc23f883143508edd78` |
+| `cstrike/cl_dlls/client.so` | 10.649.895 | `2e799ef31931c0f4372ff31ad30f0aab529b16461ed3b0928dfbd958183b2e5a` |
+| `engine_i486.so` | 3.650.123 | `31ff0e221742d46567de9b0c215471bb37238a603b7b11a70e2c2671c55da899` |
+
+### 3.4 Warum Public machbar ist
+
+NextClient erkennt den Build über die Dateigröße und akzeptiert nur 8684:
+
+```cpp
+if (engine_size == 1641376 || engine_size == 9330714)
+    build_version_ = BuildVersion{8684};
+else
+    LOG(INFO) << "Unsupported engine version";
+
+if (build_version_.build_number != 8684)
+    return nullptr;
+```
+
+Die Public-Binaries sind jedoch **unstripped**:
+
+| Datei | `.dynsym` | `.symtab` | Debug-Info |
+|---|---|---|---|
+| `hw.so` | 351 | 9.537 | `.debug_info`, `.debug_line` |
+| `client.so` | 93 | 7.641 | `.debug_info`, `.debug_line` |
+
+Erwartete Hooks gegen die statische Symboltabelle geprüft:
+
+- **Engine: 316 von 316** Hook-Namen auflösbar
+- **Client: 79 von 79** Hook-Namen auflösbar
+
+Upstream hat den passenden Mechanismus bereits: `SearchType::Symbol` liest die
+`.symtab` direkt aus der Datei (Kommentar im Code: „Valve's hw.so keeps unstripped").
+
+Der Linux-Provider besteht fast ausschließlich aus `ExportFunc` (316 Engine, 81 Client),
+dazu 9+2 `Symbol`, 7 `NotPresent`, 1 Offset (`EngineMsgBase 0x27D200`) und 1 `String`.
+Der Public-Port ist damit primär ein **Fallback von `ExportFunc` auf `Symbol`** plus
+Offset-Neuberechnung und ABI-Validierung.
+
+### 3.5 Lizenzen
+
+| Projekt | Lizenz | Konsequenz |
+|---|---|---|
+| NextClient | **keine LICENSE-Datei** | Standard-Urheberrecht. Privat unkritisch; öffentliche Binär-Releases brauchen Freigabe. |
+| NextClientServerApi | MIT | frei |
+| ncl-hl1-source-sdk | Valve Source SDK + `thirdpartylegalnotices.txt` | Weitergabe nur kostenlos, Lizenzdateien mitliefern |
+| FuryBaM/cs16-goldsrc-client | GPL-3.0 | nur Ideen/Verfahren |
+| FWGS/cs16-client | GPL-2.0-or-later + HL-Engine-Exception | nur Ideen/Verfahren |
+| portapps/hlsw-portable | MIT | Muster für portables Layout |
+
+---
+
+## 4. Repo-Struktur
+
+```
+csretro/
+├─ AGENTS.md                     # Harness: verbindliche Arbeitsregeln
+├─ HANDOFF.md                    # Übergabestatus, Beweise, nächster Task
+├─ CREDITS.md                    # alle übernommenen Projekte + Lizenzen
+├─ CHANGELOG.md
+├─ VERSION                       # CSRETRO-Version
+├─ versions.lock.json            # Upstream-SHAs, Tool-Matrix, Hashes
+├─ README.md / README.de.md
+├─ client/                       # vendorter NextClient (Historie)
+│  ├─ CMakeLists.txt
+│  ├─ CMakePresets.json
+│  ├─ dep/ncl-hl1-source-sdk/    # Submodul
+│  ├─ vcpkg/                     # Submodul
+│  ├─ nextclient/                # wird in G08 zu csretro/
+│  └─ assets/
+├─ server/
+│  ├─ api/                       # vendorte NextClientServerApi
+│  └─ pack/                      # AMXX-Config, Testplugins, Docker
+├─ docs/
+│  ├─ de/
+│  └─ en/
+├─ scripts/
+│  ├─ doctor.sh
+│  ├─ bootstrap.sh
+│  ├─ build-client.sh
+│  ├─ build-server.sh
+│  ├─ install.sh
+│  ├─ verify.sh
+│  ├─ test-all.sh
+│  ├─ clean.sh
+│  └─ sync-upstream.sh
+├─ tests/
+│  ├─ shell/
+│  ├─ python/
+│  └─ e2e/
+├─ tools/
+│  ├─ docs_drift.py
+│  ├─ proto_sync.py
+│  ├─ keygen.sh
+│  └─ release.py
+├─ patches/                      # Arch-/CMake-4-Patches mit Begründung
+└─ .github/workflows/
+   ├─ ci.yml
+   ├─ docs.yml
+   └─ release.yml
+```
+
+---
+
+## 5. Harness
+
+### 5.1 AGENTS.md – Pflichtinhalt
+
+1. Zweck und Nicht-Ziele (Linux-first, nur Public, keine NextClient-Kompatibilität)
+2. Arbeitszyklus: Task → umsetzen → Test → Doku → Verify → Commit → Push → CI → Handoff
+3. Definition of Done
+4. Branch-Modell und Commit-Convention
+5. Testpflichten je Änderungstyp
+6. Doku-Pflichten (DE+EN, Drift-Check)
+7. Cleanup-Regeln
+8. Sicherheitsregeln (VAC, Secrets, keine Steam-Dateien)
+9. SSoT-Matrix und Redundanzverbot
+10. Umgebung und Pfade
+11. Sprache: Code/Kommentare/Commits EN, Doku DE+EN
+
+### 5.2 Definition of Done
+
+Ein Gate ist fertig, wenn **alle** Punkte belegt sind:
+
+- Build grün, alle zugehörigen Tests grün
+- `scripts/verify.sh` grün
+- Doku DE+EN aktualisiert, Drift-Check grün
+- `HANDOFF.md` aktualisiert (Stand, Beweise, nächster Task)
+- Commit nach Convention, Push erfolgt
+- CI-Lauf grün, Link im Handoff
+- Keine Temp-, Log-, Cache- oder toten Dateien im Baum
+
+„Verifiziert" heißt: Log, Testausgabe, Hash-Manifest oder CI-Link. Keine Behauptung.
+
+### 5.3 Branch und Commits
+
+- Branch pro Gate: `gate/G04-client-build`
+- PR gegen `main`, Squash-Merge, CI Pflicht
+- Conventional Commits:
+
+```
+feat(client): add public build address provider
+fix(protocol): reject mismatched protocol version
+build(deps): bump vcpkg baseline
+ci(linux): add arch container job
+docs(wiki): add cvar reference
+test(server): cover handshake timeout
+chore(repo): remove legacy 8684 providers
+```
+
+Scopes: `client`, `server`, `api`, `protocol`, `docs`, `ci`, `scripts`, `deps`, `repo`.
+
+### 5.4 Single Source of Truth
+
+| Information | Quelle | Abgeleitet |
+|---|---|---|
+| Cvar-Defaults | Code (`cvar_defaults.h`, Registrierung) | Wiki-Tabellen (generiert) |
+| Commands/Natives | Code + `csretro_api.inc` | Wiki-Tabellen (generiert) |
+| Protokoll | ein gemeinsames `csr_proto.h` | Client und Server binden dasselbe Header ein |
+| Version | `VERSION` | CMake, Launcher, Doku |
+| Upstream-Pins | `versions.lock.json` | CI, Doku |
+| Credits | `CREDITS.md` | Wiki verlinkt, kopiert nicht |
+| Build-Flags | CMake-Presets | Skripte rufen nur Presets auf |
+| Doku DE/EN | `docs/de`, `docs/en` | Wiki wird generiert |
+
+**Redundanzverbot:**
+
+- Referenzprojekte werden nicht vendort (FuryBaM, cs16-client, HLSW).
+- Keine doppelten Cvar-Defaults in UI-Code.
+- Ein generischer Adress-Provider statt Kopien pro Build.
+- Upstream-Doku wird nicht übersetzt, sondern als Referenz belassen.
+- CI-Gates: `docs_drift.py`, `proto_sync.py`, Grep-Gate, Linkcheck.
+
+### 5.5 Cleanup
+
+- Ignoriert und nach jedem Gate entfernt: `build/`, `out/`, `install/`, `.cache/`, Logs, `.env`, `CMakeUserPresets.json`, `vcpkg_installed/`
+- `scripts/clean.sh` ist der einzige erlaubte Weg
+- Keine Secrets, keine Steam-Dateien im Repo
+
+---
+
+## 6. HANDOFF.md
+
+Template:
+
+```markdown
+# Handoff
+
+## Stand
+- Datum:
+- Branch/Commit:
+- CI:
+- Version:
+
+## Verifiziert (mit Beweis)
+- ...
+
+## Offen / bekannt fehlerhaft
+- ...
+
+## Nächster Task
+- Gate:
+- Abnahme:
+
+## Offene Entscheidungen
+- ...
+
+## Umgebung
+- Host, Toolchain, Pfade, Steam-Library
+
+## Letzte Befehle und Ergebnisse
+- ...
+```
+
+---
+
+## 7. Gate-Plan
+
+### P1 – Fundament
+
+#### G01 – Repo & Harness
+
+**Ziel:** Ein Repo, in dem jede Aufgabe nachweisbar abgeschlossen wird.
+
+**Aufgaben:**
+- `git init`, Remote `origin` → `benjarogit/csretro`
+- `.gitignore`, `.gitattributes` (LFS-Regeln vom Upstream), `.editorconfig`
+- `.clang-format`, `.clang-tidy` übernehmen
+- `AGENTS.md` mit allen Regeln aus Abschnitt 5
+- `HANDOFF.md`, `CHANGELOG.md`, `VERSION` (`0.1.0-dev`)
+- `versions.lock.json` mit Pins und Tool-Matrix
+- `README.md`, `README.de.md`, `CREDITS.md` (Gerüst)
+- `docs/de/`, `docs/en/` mit Index
+- `scripts/verify.sh`: Shellcheck, Secret-Scan, Doku-Check
+- `.github/workflows/ci.yml`: Lint, Secret-Scan, Markdown-Check
+
+**Abnahme:** CI grün, `verify.sh` grün, Push auf `main`, Branch Protection aktiv.
+
+#### G02 – Vendor-Import
+
+**Ziel:** Beide Upstreams mit Historie im Repo, reproduzierbar auscheckbar.
+
+**Aufgaben:**
+- `git subtree add --prefix=client` (NextClient, Commit `90b4bf7`)
+- `git subtree add --prefix=server/api` (ServerApi, Commit `1da463e`)
+- Submodule `client/vcpkg` und `client/dep/ncl-hl1-source-sdk` initialisieren
+- Git LFS konfigurieren und pullen
+- `scripts/sync-upstream.sh`: fetch, Diff-Report, Cherry-Pick-Hilfe
+- `versions.lock.json`: SHAs, Release-Checksums, SDK-Pin
+- `scripts/bootstrap.sh` (Repo-Anteil)
+
+**Abnahme:** Frischer Clone + `bootstrap.sh` erzeugt identische Hashes; Upstream-Historie in `git log` sichtbar.
+
+**Risiko:** LFS-/Submodul-Fehler bei flachem Clone. Wird durch `bootstrap.sh`-Test abgedeckt.
+
+#### G03 – Toolchain CachyOS
+
+**Ziel:** Jede Maschine kann den Build reproduzieren.
+
+**Aufgaben:**
+- `scripts/doctor.sh`: OS, glibc ≥ 2.43, GCC ≥ 15, CMake ≥ 3.21, Ninja, Python ≥ 3.12, `uv`, `git-lfs`, `-m32`-Testcompile, 32-bit GL/X11/Xext/Xcursor/Xi/Xrandr/Xss/Xfixes/Xrender/SDL2, Mesa/llvmpipe, Steam-Runtime, ≥ 20 GB frei
+- `scripts/bootstrap.sh`: fehlende Arch-Pakete installieren, vcpkg bootstrappen
+- `docs/de/build/prerequisites.md`, `docs/en/build/prerequisites.md`
+
+**Abnahme:** `doctor.sh` grün auf leerer Shell; `bootstrap.sh` idempotent.
+
+**Risiko:** Arch-Multilib weicht von Ubuntu 26.04 ab. Paketliste wird in G03 empirisch festgezogen.
+
+---
+
+### P2 – Basis
+
+#### G04 – Client-Build (Linux, x86)
+
+**Ziel:** Der vendorte Client baut vollständig auf CachyOS.
+
+**Aufgaben:**
+- `cmake --preset linux` in `client/`
+- Reihenfolge: `client_mini` → `engine_mini` → `nitro_api` → `gameui` → `launcher` → `BUILD_ALL`
+- `vgui2` und `gameui.so` ausdrücklich mitbauen
+- Arch-/CMake-4-Patches nach `patches/` mit Begründung
+- `scripts/build-client.sh` mit `--config`, `--target`, `--install-dir`
+- Hash-Manifest, Buildzeit und Speicherbedarf dokumentieren
+
+**Abnahme:** `BUILD_ALL` grün; alle Artefakte 32-bit ELF; Manifest vollständig.
+
+**Risiko:** vcpkg-Triplet `x86-linux` auf Arch. Falls nicht reproduzierbar: Container-Build als Standard, Host-Build „best effort". Entscheidung im Handoff, nicht stillschweigend.
+
+#### G05 – Server-API-Build
+
+**Ziel:** Das AMXX-Modul baut und seine Tests laufen.
+
+**Aufgaben:**
+- CMake 3.16 → 3.21+, CMake-4-Kompatibilität
+- `nextclientapi_amxx` als i386-`.so`
+- CTest komplett
+- Pawn-Testplugin mit AMXX-Compiler kompilieren
+- `scripts/build-server.sh`
+
+**Abnahme:** alle CTest-Suiten grün; `.so` und Modul-Metadaten korrekt.
+
+#### G06 – Testserver
+
+**Ziel:** Ein reproduzierbarer Server für E2E-Tests.
+
+**Aufgaben:**
+- Docker-Compose: ReHLDS + ReGameDLL_CS + AMXX 1.10 + ReAPI + Modul + Testplugin
+- Healthcheck, Logs, definierter Start/Stop
+- HLDS-Basisdateien (App 90) per SteamCMD oder gepflegtes ReHLDS-Image
+- `tests/e2e/`-Grundgerüst
+
+**Abnahme:** Server startet reproduzierbar, Modul lädt, Testplugin meldet sich, automatisierter Check.
+
+**Risiko:** SteamCMD-Verfügbarkeit für App 90. Fallback: gepflegtes ReHLDS-Image.
+
+---
+
+### P3 – Public & Identität
+
+#### G07 – Public-Runtime
+
+**Ziel:** CSRETRO läuft auf dem Default-Public-Branch.
+
+| Schritt | Inhalt | Abbruch, wenn … |
+|---|---|---|
+| G07a | Build-Registry: Public-Build per SHA-256 von `hw.so`/`client.so` erkennen | Build nicht eindeutig identifizierbar |
+| G07b | Resolver dreistufig: `dynsym` → `symtab` → Pattern | Hooks nicht auflösbar |
+| G07c | `EngineMsgBase` und übrige Offset-/String-Einträge für Public neu bestimmen | Offset nicht reproduzierbar |
+| G07d | Erster Start: `hw.so` wird gepatcht, Konsole antwortet, kein Crash | Crash vor der Konsole |
+| G07e | ABI-Validierung gegen Public (DWARF vorhanden) | Layouts weichen strukturell ab |
+| G07f | Feature-Smoke: Radar, HUD, Viewmodel, Netzwerk, Handshake | Kernfeature nicht reparabel |
+
+**Abnahme:** Alle sechs Schritte belegt; `csr_version` (später) antwortet auf Public.
+
+**Wenn G07a–G07d scheitern:** Stopp, Neubewertung der Architektur. Kein Legacy-Fallback.
+Option wäre ein Hybrid aus `client.so`-Ersatz und Engine-Patches (FuryBaM-Ansatz).
+
+#### G08 – Rebrand & Protokoll v1
+
+**Ziel:** CSRETRO ist eine eigene Identität mit eigenem Protokoll.
+
+**Aufgaben:**
+- `ncl_` → `csr_`, `NextClient` → `CSRETRO`, Modul-/Dateinamen
+  (`csretro_client.dll`, `csretro_engine.dll`, `csretro_nitro_api.dll`, `csretro_gameui.so`, `csretro.sh`)
+- Protokoll: Header `nclm` → `csrm`, eigene Opcodes, Version `CSR-PROTO 1`
+- Eigene RSA-Keys + `pkeys`-Rotation (`tools/keygen.sh`)
+- Pflicht-Handshake mit Timeout-Kick für Fremdclients
+- 8684-Provider löschen (`EngineAddressProvider8684*`, `ClientAddressProvider8684*`)
+- Sentry/GameAnalytics/Updater-URLs/Discord-ID entfernen bzw. auf Platzhalter
+- CEF/Browser entfernen, falls Windows kein Ziel ist
+- Grep-Gate: kein `nextclient`, `ncl_`, `8684` außer Credits/Referenzen
+- `docs/` DE+EN aktualisieren
+
+**Abnahme:** Protokoll-Unit-Tests, Grep-Gate, Fremdclient wird nachweislich abgelehnt, Client und Server sprechen ausschließlich CSR-PROTO 1.
+
+#### G09 – Installation & E2E
+
+**Ziel:** CSRETRO läuft auf dem echten System.
+
+**Aufgaben:**
+- Separate Spielkopie außerhalb der Steam-Library
+- `scripts/install.sh`: kopieren, Rechte setzen, Hashes prüfen, Backup
+- Start über `csretro.sh`
+- `csr_version`, Connect zum Testserver, Handshake
+- Smoke: Radar, Killfeed, Viewmodel, Server-API
+- Manuelle Checkliste dokumentieren
+
+**Abnahme:** Lauf bestätigt, Logs + Screenshots, Handoff aktualisiert.
+
+**Sicherheit:** niemals im Steam-Ordner installieren, niemals auf VAC-Servern testen.
+
+---
+
+### P4 – Qualität & Doku
+
+#### G10 – Testmatrix & CI
+
+**Aufgaben:**
+- CI-Jobs: Client-Build, Server-Build, alle CTest, Python, Shell, E2E, Docs-Drift, Linkcheck, Secret-Scan
+- `scripts/test-all.sh` als lokales Abbild
+- Matrix dokumentieren (was läuft wo, was braucht Mesa/GPU)
+- Artefakt-Upload
+
+**Abnahme:** CI grün auf frischem Clone.
+
+#### G11 – Wiki & Credits
+
+**Aufgaben:**
+- Wiki DE+EN: Credits, Features, Installation, Build, Cvars, Commands, Server-API, Protokoll, Troubleshooting, FAQ, Architektur, Privacy
+- `tools/docs_drift.py`: Cvars/Commands/Natives aus Code extrahieren, Tabellen generieren, mit Doku vergleichen
+- `tools/proto_sync.py`: Client-/Server-Protokollheader vergleichen
+- GitHub-Wiki-Spiegel-Workflow
+- `CREDITS.md` vollständig, Wiki verlinkt
+
+**Abnahme:** Wiki vollständig, Drift-Check grün, Spiegel aktuell.
+
+---
+
+### P5 – Infrastruktur
+
+#### G12 – Telemetrie
+
+| Komponente | Bereitstellung | Umsetzung |
+|---|---|---|
+| Discord | App-ID + Icon im Developer Portal | `csr_discordrpc*`, Join-URL, Presence |
+| Sentry | Projekt + DSN | Opt-in-Crashreport, lokale Dumps |
+| GameAnalytics | Game-Key + Secret | Opt-in-Events, dokumentierte Event-Liste |
+| Secrets | GitHub Secrets | `.env.example`, niemals Keys im Repo |
+
+**Abnahme:** Telemetrie nur nach Opt-in, Privacy-Doku, Tests.
+
+#### G13 – Updater
+
+**Aufgaben:**
+- Manifest: Version, Dateien, SHA256, Signatur
+- Signatur Ed25519/minisign, Keygen + Verify
+- `csretro-update`: check → download → verify → apply → rollback
+- Hosting: GitHub Releases primär, Mirror optional
+- Integration in `csretro.sh` als `--update` (opt-in)
+
+**Abnahme:** Update 0.1.0 → 0.1.1 im Test, Rollback funktioniert, manipulierte Signatur wird abgelehnt.
+
+---
+
+### P6 – Release
+
+#### G14 – Release 0.1.0
+
+**Aufgaben:**
+- Tag `v0.1.0`
+- Artefakte, SHA256, Manifest, Release Notes
+- Provenance/Checksums
+- Handoff abschließen
+
+**Abnahme:** Release vorhanden, alle Prüfsummen verifiziert.
+
+---
+
+## 8. Teststrategie
+
+| Ebene | Werkzeug | Läuft |
+|---|---|---|
+| Client-Unit | CTest | lokal + CI |
+| Offscreen-GL | CTest + llvmpipe | lokal + CI |
+| Server-Unit | CTest + Fakes | lokal + CI |
+| Pawn-Plugin | AMXX-Compiler | lokal + CI |
+| Python-Tools | pytest via `uv` | lokal + CI |
+| Shell/Install | Shellcheck + Skript-Tests | lokal + CI |
+| E2E | Docker + Protokoll-Client | lokal + CI |
+| Doku | Drift + Linkcheck | lokal + CI |
+
+Regeln:
+
+- Das Spiel wird **nie** automatisch gestartet. Automatisiert wird bis zur Prozessgrenze.
+- Laufzeitbeobachtung macht der Mensch, das Ergebnis kommt in den Handoff.
+- Ein Test ohne reproduzierbaren Fehlerfall ist kein Test.
+
+---
+
+## 9. Rebrand & Protokoll
+
+### 9.1 Namensschema
+
+| Alt | Neu |
+|---|---|
+| `ncl_` (Cvar/Native/Command) | `csr_` |
+| `next_engine_mini.dll` | `csretro_engine.dll` |
+| `nitro_api2.dll` | `csretro_nitro_api.dll` |
+| `client_mini.dll` | `csretro_client.dll` |
+| `gameui.so` | `csretro_gameui.so` |
+| `nextclient.sh` | `csretro.sh` |
+| `next_version` | `csr_version` |
+| `next_client_api.inc` | `csretro_api.inc` |
+| `addons/amxmodx/data/nextclient_api/` | `addons/amxmodx/data/csretro/` |
+| `nclm`-Header | `csrm`-Header |
+
+### 9.2 Protokoll v1
+
+- Eigene Magic, eigene Version, eigene Opcodes
+- Client und Server binden dasselbe `csr_proto.h` ein
+- Pflicht-Handshake: ohne gültige Verifikation Kick nach Timeout
+- Eigene RSA-Key-Paare, Rotation über `pkeys/active.txt`
+- `proto_sync.py` verhindert Auseinanderlaufen
+
+### 9.3 Entfernen
+
+- 8684-Provider
+- Sentry, GameAnalytics (bis G12)
+- Upstream-Updater-URLs (bis G13)
+- Fremde Discord-App-ID
+- CEF/Browser, falls Windows kein Ziel ist
+
+---
+
+## 10. Public-Branch-Support
+
+**Build-Registry:** `builds/public-<sha256>.json` mit
+
+```json
+{
+  "name": "default-public-1.1.2.7",
+  "engine": { "file": "hw.so", "sha256": "fca6628b...", "size": 11556210 },
+  "client": { "file": "cstrike/cl_dlls/client.so", "sha256": "2e799ef3...", "size": 10649895 }
+}
+```
+
+**Resolver-Reihenfolge:**
+
+1. `dynsym` (schnell, exportiert)
+2. `symtab` (statisch, unstripped)
+3. Pattern-Scan (Fallback, wenn Valve künftig strippt)
+
+**Offsets:** `EngineMsgBase` (`0x27D200` im 8684-Provider) wird für Public neu
+bestimmt und im Build-Registry abgelegt, nicht im Code hartkodiert.
+
+**ABI:** `goldsrc_abi` wird gegen Public validiert. DWARF-Info ist vorhanden und
+erlaubt den Abgleich der Strukturgrößen.
+
+---
+
+## 11. Doku & Wiki
+
+**Struktur DE/EN:**
+
+```
+docs/
+├─ de/
+│  ├─ index.md
+│  ├─ credits.md
+│  ├─ features.md
+│  ├─ install/linux.md
+│  ├─ build/prerequisites.md
+│  ├─ build/client.md
+│  ├─ build/server.md
+│  ├─ reference/cvars.md        (generiert)
+│  ├─ reference/commands.md     (generiert)
+│  ├─ reference/natives.md      (generiert)
+│  ├─ server/api.md
+│  ├─ protocol.md
+│  ├─ troubleshooting.md
+│  ├─ faq.md
+│  ├─ architecture.md
+│  └─ privacy.md
+└─ en/ (gleiche Struktur)
+```
+
+**Regeln:**
+
+- `docs/` ist die einzige Quelle; GitHub-Wiki wird per CI gespiegelt.
+- Generierte Tabellen werden nicht von Hand gepflegt.
+- Upstream-Doku bleibt als technische Referenz im vendorten Baum, klar markiert.
+- Jede Doku-Änderung ist Teil der Definition of Done.
+
+---
+
+## 12. Credits
+
+`CREDITS.md` listet jedes Projekt mit Lizenz und Umfang:
+
+- **Next21 Team** – NextClient, NextClientServerApi
+- **Valve** – GoldSrc, HL1 SDK, Source SDK
+- **SamVanheer** – GoldSrc-Reverse-Engineering (hl1_source_sdk)
+- **tmp64** – hl1_source_sdk
+- **KotyaraKryt** – Linux-Port, Discord, Commands, FastDL
+- **mikkokko** – csldr
+- **Nordic Warrior**, **fl0werD**, **lozatto**, **SanyaSho**, **MoeMod**, **Felipe** (MetaAudio)
+- **FWGS / Velaron / a1batross / Vladislav4KZ / SNMetamorph** – cs16-client
+- **FuryBaM** – cs16-goldsrc-client
+- **portapps / crazy-max** – hlsw-portable
+- **jeefo / YaPB**, **ReGameDLL_CS**
+- alle vcpkg-Abhängigkeiten
+
+Auch bei reiner Ideen-Übernahme wird credited.
+
+---
+
+## 13. Risiken
+
+| Risiko | Wirkung | Gegenmaßnahme |
+|---|---|---|
+| Public-Binary wird künftig gestrippt | Resolver bricht | Dreistufiger Resolver + Build-Registry + Pattern-Fallback |
+| Public-ABI weicht strukturell ab | Features defekt | G07e mit DWARF-Abgleich, früher Abbruch |
+| Kein Legacy-Fallback | Kein Plan B bei G07-Scheitern | Bewusste Entscheidung; Neubewertung statt Hintertür |
+| Arch ≠ Ubuntu 26.04 | vcpkg/Build bricht | G04-Spike, Patches, notfalls Container |
+| HLDS/SteamCMD nicht verfügbar | Kein Testserver | Gepflegtes ReHLDS-Image |
+| NextClient ohne Lizenz | Keine öffentlichen Binär-Releases | Privat bleiben, Notiz im Handoff |
+| GPL-Referenzprojekte | Copyleft | Nur Ideen/Verfahren |
+| VAC | Bann | Separate Kopie, kein VAC-Server, kein Steam-Ordner |
+| Rebranding-Regression | Features brechen | Baseline-Tests vor/nach G08 |
+
+---
+
+## 14. Offene Punkte
+
+1. **Discord-App**, **Sentry-Projekt**, **GameAnalytics-Keys**, **Update-Signaturkey** und Hosting werden für G12/G13 benötigt.
+2. **Windows** ist kein Ziel. Entscheidung in G08: CEF/Browser-Code entfernen oder deaktiviert lassen.
+3. **Lizenz** von NextClient: privat unkritisch; öffentliche Releases brauchen Freigabe.
+4. **HLDS/SteamCMD**: Verfügbarkeit in G06 prüfen.
+5. **Arch/vcpkg**: Host- oder Container-Build als Standard, Entscheidung in G04.
+
+---
+
+## 15. Backlog (nach 0.1.0)
+
+- `csretro-server`: A2S-Query, RCON, Spieler/Bans, Logs, Map-Wechsel, portables Datenlayout (HLSW-Vorbild)
+- Buy Presets (cs16-client-Vorbild)
+- Erweitertes Crosshair `csr_crosshair_*`
+- HUD-Farbe, Sway-Defaults
+- Prediction-Übernahme (FuryBaM/cs16-client-Referenz)
+- Spectator-/Scope-Politur
+- Optional: Windows-Support
+
+---
+
+## 16. Erste Schritte für G01
+
+1. `git init` im Projektordner, Remote setzen
+2. `.gitignore`, `.gitattributes`, `.editorconfig` anlegen
+3. `AGENTS.md` mit Abschnitt 5 schreiben
+4. `HANDOFF.md`, `CHANGELOG.md`, `VERSION`, `versions.lock.json`
+5. `README.md`, `README.de.md`, `CREDITS.md` (Gerüst)
+6. `docs/de/index.md`, `docs/en/index.md`
+7. `scripts/verify.sh`, `scripts/clean.sh`
+8. `.github/workflows/ci.yml`
+9. Commit `chore(repo): bootstrap harness and documentation skeleton`
+10. Push, CI prüfen, Handoff aktualisieren
+
+**Abnahme G01:** CI grün, `verify.sh` grün, Push erfolgt, Handoff aktuell.

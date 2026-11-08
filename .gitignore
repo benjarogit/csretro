@@ -1,0 +1,57 @@
+# ---------------------------------------------------------------------------
+# CSRETRO - ignored paths
+#
+# Rule: anything that is maintainer-local, generated, or secret never enters
+# the repository. See AGENTS.md, section "Maintainer and project separation".
+# ---------------------------------------------------------------------------
+
+# Maintainer-local data: notes, local paths, Steam library, personal decisions
+/.local/
+*.local.md
+
+# Build output and tool state
+/build/
+/out/
+/install/
+/dist/
+/cmake-build-*/
+CMakeUserPresets.json
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+vcpkg_installed/
+_deps/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!docs/**/*.md
+
+# Logs, caches, temporary files
+*.log
+*.tmp
+/.cache/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+node_modules/
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vs/
+.vscode/
+*.swp
+*~
+
+# Local AI tooling state
+.claude/
+.codex/
+.cursor/
+.windsurf/

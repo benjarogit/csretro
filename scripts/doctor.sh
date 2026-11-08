@@ -230,6 +230,23 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     fi
 fi
 
+section "container (optional, needed for the test server)"
+if have docker; then
+    pass "docker" "$(version_cmd docker --version)"
+    if docker compose version >/dev/null 2>&1; then
+        pass "docker compose" "$(version_cmd docker compose version)"
+    else
+        warn "docker compose" "not available" "the test server needs Compose v2: tests/e2e/run.sh"
+    fi
+    if docker info >/dev/null 2>&1; then
+        pass "docker daemon" "reachable"
+    else
+        warn "docker daemon" "not reachable" "start the daemon or add your user to the docker group"
+    fi
+else
+    warn "docker" "not found" "only needed for tests/e2e/run.sh; the host builds work without it"
+fi
+
 section "disk"
 free_kb="$(df -Pk "$ROOT" 2>/dev/null | awk 'NR==2 { print $4 }')"
 if [[ -n "$free_kb" ]]; then

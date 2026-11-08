@@ -29,6 +29,7 @@ German and English trees cannot drift apart.
 | Build prerequisites | [G03](build/prerequisites.md) |
 | Building the client | [G04](build/client.md) |
 | Building the server API | [G05](build/server.md) |
+| Test server | [G06](server/testserver.md) |
 | Cvar reference (generated) | G11 |
 | Command reference (generated) | G11 |
 | Native reference (generated) | G11 |

@@ -29,6 +29,7 @@ damit die Struktur nicht zwischen Deutsch und Englisch auseinanderläuft.
 | Build-Voraussetzungen | [G03](build/prerequisites.md) |
 | Client bauen | [G04](build/client.md) |
 | Server-API bauen | [G05](build/server.md) |
+| Testserver | [G06](server/testserver.md) |
 | Cvar-Referenz (generiert) | G11 |
 | Command-Referenz (generiert) | G11 |
 | Native-Referenz (generiert) | G11 |

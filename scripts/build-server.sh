@@ -19,6 +19,7 @@ RECONFIGURE=0
 CLEAN=0
 RUN_TESTS=1
 MANIFEST=""
+STAGE=""
 
 usage() {
     cat <<'EOF'
@@ -31,6 +32,8 @@ usage: scripts/build-server.sh [options]
   --clean            remove server/api/build/linux before configuring
   --no-tests         skip configure and run of the CTest suite
   --manifest <file>  manifest path (default: server/api/build/linux/manifest-<config>.txt)
+  --stage <dir>      assemble a Docker build stage: runtime archives, the module
+                     and the compiled test plugin, plus a staging manifest
   -h, --help         show this help
 
 Environment:
@@ -47,6 +50,7 @@ while (($# > 0)); do
         --clean) CLEAN=1 ;;
         --no-tests) RUN_TESTS=0 ;;
         --manifest) MANIFEST="${2:?missing value}"; shift ;;
+        --stage) STAGE="${2:?missing value}"; shift ;;
         -h|--help) usage; exit 0 ;;
         *) printf 'unknown option: %s\n\n' "$1" >&2; usage >&2; exit 2 ;;
     esac
@@ -76,9 +80,12 @@ configure_args=(
     "-DCMAKE_BUILD_TYPE=$CONFIG"
 )
 
-if ((RUN_TESTS)); then
+if ((RUN_TESTS)) || [[ -n "$STAGE" ]]; then
     printf '==> fetching Pawn toolchain\n'
     eval "$("$ROOT/scripts/fetch-server-toolchain.sh")"
+fi
+
+if ((RUN_TESTS)); then
     configure_args+=(
         -DNEXTCLIENTAPI_BUILD_TESTS=ON
         "-DNEXTCLIENTAPI_PAWN_COMPILER=$AMXXPC"
@@ -172,3 +179,58 @@ awk -F'\t' '!/^#/ { printf "  %10d  %-7s %s\n", $1, $3, $4 }' "$manifest"
 printf '\nmodule: %s %s (%s)\n' "$module_name" "$module_version" "$module_tag"
 printf 'manifest: %s\n' "${manifest/#$SRC/$ROOT}"
 printf 'build time: %s s\n' "$((finished - started))"
+
+if [[ -n "$STAGE" ]]; then
+    printf '\n==> staging test server context in %s\n' "$STAGE"
+    rm -rf "$STAGE"
+    mkdir -p "$STAGE/archives" "$STAGE/module" "$STAGE/plugins" "$STAGE/assets"
+
+    runtime_env="$("$ROOT/scripts/fetch-server-runtime.sh" --stage "$STAGE/archives")"
+    steamcmd_image="$(sed -n 's/^RUNTIME_STEAMCMD_IMAGE=//p' <<<"$runtime_env")"
+    cp -f "$module" "$STAGE/module/"
+
+    # The test plugin precaches custom models, sounds and sprites; a missing
+    # asset aborts the map load with a fatal engine error.
+    cp -a "$ROOT/server/api/amxx_test/models" "$ROOT/server/api/amxx_test/sound" \
+        "$ROOT/server/api/amxx_test/sprites" "$ROOT/server/api/amxx_test/materials" "$STAGE/assets/"
+
+    printf '==> compiling test plugin\n'
+    plugin="$STAGE/plugins/test_nextclient_api.amxx"
+    pawn_source="$ROOT/server/api/amxx_test/addons/amxmodx/scripting/test_nextclient_api.sma"
+    api_include="$ROOT/server/api/addons/amxmodx/scripting/include"
+    if ! pawn_log="$("$AMXXPC" "$pawn_source" "-i$api_include" "-i$PAWN_INCLUDE_DIR" "-o$plugin" 2>&1)"; then
+        printf '%s\n' "$pawn_log" >&2
+        printf 'ERROR: test plugin compilation failed\n' >&2
+        exit 1
+    fi
+    if grep -q 'warning [0-9]*:' <<<"$pawn_log"; then
+        printf '%s\n' "$pawn_log" >&2
+        printf 'ERROR: test plugin compilation produced warnings\n' >&2
+        exit 1
+    fi
+    if [[ ! -f "$plugin" ]]; then
+        printf 'ERROR: test plugin not found at %s\n' "$plugin" >&2
+        exit 1
+    fi
+
+    staging_manifest="$STAGE/staging-manifest.txt"
+    {
+        printf '# CSRETRO test server staging manifest\n'
+        printf '# version: %s\n' "$version"
+        printf '# commit: %s\n' "$commit"
+        printf '# date: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        printf '# steamcmd_image: %s\n' "$steamcmd_image"
+        printf '# size_bytes\tsha256\tpath\n'
+        find "$STAGE" -type f ! -name 'staging-manifest.txt' -print0 |
+            sort -z |
+            while IFS= read -r -d '' file; do
+                printf '%s\t%s\t%s\n' \
+                    "$(stat -c '%s' "$file")" \
+                    "$(sha256sum "$file" | awk '{print $1}')" \
+                    "${file#"$STAGE"/}"
+            done
+    } >"$staging_manifest"
+
+    printf '\nstaging manifest: %s\n' "$staging_manifest"
+    awk -F'\t' '!/^#/ { printf "  %10d  %s\n", $1, $3 }' "$staging_manifest"
+fi

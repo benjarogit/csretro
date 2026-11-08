@@ -47,16 +47,41 @@ The authoritative version string is the `VERSION` file.
   tests, including the compiled Pawn test plugin.
 - `patches/` with the documented `rsa_keygen` portability fix for GCC 16 and
   the 32-bit OpenSSL archives.
+- `scripts/lib/fetch.sh`: shared download helper that reads pins from
+  `versions.lock.json`, verifies SHA-256 and reuses `.cache/downloads/`.
+- `scripts/fetch-server-runtime.sh`: stages ReHLDS `3.15.0.896`, ReGameDLL_CS
+  `5.30.0.814`, Metamod-R `1.3.0.149`, the AMXX cstrike package and ReAPI, and
+  reports the pinned SteamCMD image digest.
+- `scripts/build-server.sh --stage`: assembles the Docker build context with
+  runtime archives, module, compiled test plugin, test assets and a hash
+  manifest.
+- `server/pack/`: multi-stage image (SteamCMD/App 90, Steam ABI stub, runtime),
+  Docker Compose file, entrypoint, RCON healthcheck, Metamod and AMXX
+  configuration.
+- `server/pack/steamcompat/steamstub.cpp`: no-op `ISteamGameServer011`
+  implementation for ReHLDS, which was built against the pre-25th-anniversary
+  Steamworks ABI.
+- `tests/e2e/run.sh` and `tests/e2e/test_server.py`: reproducible test server
+  with log and RCON checks, clean `down --volumes` on every exit path.
+- Bilingual test server guide: `docs/de/server/testserver.md` and
+  `docs/en/server/testserver.md`.
+- `scripts/doctor.sh` reports Docker and Compose as optional prerequisites.
 
 ### Changed
 
 - Root `.gitattributes` no longer reinterprets vendored binaries through the LFS
   rules; each vendored tree keeps its own attribute policy.
+- `scripts/fetch-server-toolchain.sh` uses the shared `scripts/lib/fetch.sh`
+  download helper.
 
 ### Fixed
 
 - LFS objects for the vendored client are imported, so a fresh clone resolves all
   790 binary assets.
+- The test plugin's custom models, sounds, sprites and material preset are
+  staged into the image; a missing model aborted the map load.
+- The test server keeps `modules.ini` empty so AMXX detects modules itself
+  instead of loading each one twice through Metamod.
 
 ## [0.1.0-dev] - 2026-11-08
 

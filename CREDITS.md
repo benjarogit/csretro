@@ -24,6 +24,7 @@ These are imported with their history and keep their upstream licenses.
 |---|---|---|---|
 | [FuryBaM/cs16-goldsrc-client](https://github.com/FuryBaM/cs16-goldsrc-client) | FuryBaM and contributors | GPL-3.0 | Client-side prediction approach, `client.so` replacement study |
 | [FWGS/cs16-client](https://github.com/FWGS/cs16-client) | [Velaron](https://github.com/Velaron), [a1batross](https://github.com/a1batross), Vladislav4KZ, SNMetamorph, Flying With Gauss and contributors | GPL-2.0-or-later with HL engine exception | Buy presets, extended crosshair, HUD colour, Linux build layout, prediction reference |
+| [Xash3D-FWGS](https://github.com/FWGS/xash3d-fwgs) | FWGS and contributors | GPL-3.0 | Evaluated as a GoldSrc engine replacement, rejected in favour of ReHLDS; kept as a reference for Linux engine layout |
 | [hlsw-portable](https://github.com/portapps/hlsw-portable) | portapps, crazy-max | MIT | Portable application layout for `csretro-server` |
 
 No code from GPL projects is copied into CSRETRO. The license of this repository
@@ -34,12 +35,14 @@ is still undecided; see `HANDOFF.md`.
 | Project | Authors | License | What we use |
 |---|---|---|---|
 | [ReHLDS](https://github.com/dreamstalker/rehlds) | ReHLDS team | GPL-3.0 | Test server engine |
+| [Metamod-R](https://github.com/rehlds/Metamod-R) | ReHLDS team, theAsmodai | GPL-3.0 | Test server plugin loader |
 | [ReGameDLL_CS](https://github.com/s1lentq/ReGameDLL_CS) | s1lentq and contributors | GPL-3.0 | Test server game library |
 | [AMX Mod X](https://github.com/alliedmodders/amxmodx) | AlliedModders | GPL-3.0 | Server plugin runtime |
 | [ReAPI](https://github.com/rehlds/ReAPI) | ReHLDS team | GPL-3.0 | Server module API |
 | [MetaAudio](https://github.com/MoeMod/MetaAudio) | MoeMod and contributors | GPL-3.0 | Reference for the upstream audio path |
 | [YaPB](https://github.com/jeefo/yapb) | jeefo and contributors | GPL-3.0 | Bot reference used by the upstream client |
 | [csldr](https://github.com/mikkokko/csldr) | mikkokko | – | Loader reference used by the upstream client |
+| [cm2network/steamcmd](https://github.com/CM2Walki/steamcmd) | CM2Walki and contributors | MIT | SteamCMD base image that downloads HLDS App 90 for the test server build |
 
 ## People
 

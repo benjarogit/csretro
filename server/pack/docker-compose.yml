@@ -1,0 +1,15 @@
+services:
+  server:
+    build:
+      context: .
+      args:
+        STEAMCMD_IMAGE: ${CSR_STEAMCMD_IMAGE:?set CSR_STEAMCMD_IMAGE to the pinned steamcmd digest}
+    image: ${CSR_IMAGE:-csretro-testserver:local}
+    ports:
+      - "${CSR_HOST_PORT:-27015}:27015/udp"
+    environment:
+      CSR_MAP: ${CSR_MAP:-de_dust2}
+      CSR_MAXPLAYERS: ${CSR_MAXPLAYERS:-16}
+      CSR_PORT: "27015"
+      CSR_RCON_PASSWORD: ${CSR_RCON_PASSWORD:-csretro-e2e}
+    restart: "no"

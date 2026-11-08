@@ -18,7 +18,7 @@ if ! python3 tools/verify_repo.py; then
 fi
 
 note "==> python syntax"
-if ! python3 -m compileall -q tools; then
+if ! python3 -m compileall -q tools tests; then
     fail_msg "python compilation failed"
 fi
 
@@ -27,7 +27,7 @@ if command -v shellcheck >/dev/null 2>&1; then
     # Only our own scripts. Vendored upstream scripts are not ours to restyle and
     # would turn every verification run into noise.
     if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        mapfile -t scripts < <(git ls-files -- 'scripts/*.sh' 'tools/*.sh' '.githooks/*')
+        mapfile -t scripts < <(git ls-files -- 'scripts/*.sh' 'tools/*.sh' '.githooks/*' 'tests/*/*.sh')
     else
         mapfile -t scripts < <(find scripts tools .githooks -type f 2>/dev/null)
     fi

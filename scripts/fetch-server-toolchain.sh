@@ -14,52 +14,16 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 
-CACHE="${CSRETRO_CACHE_DIR:-$ROOT/.cache}"
-DOWNLOADS="$CACHE/downloads"
+# shellcheck source=scripts/lib/fetch.sh
+. "$ROOT/scripts/lib/fetch.sh"
+
 TOOLCHAIN="$CACHE/toolchain"
 
 note() { printf '==> %s\n' "$*" >&2; }
 
-lock_value() {
-    python3 - "$1" "$2" <<'PY'
-import json
-import sys
-
-key, field = sys.argv[1], sys.argv[2]
-with open("versions.lock.json", encoding="utf-8") as handle:
-    data = json.load(handle)
-value = data["server_toolchain"][key][field]
-print(value)
-PY
-}
-
-fetch() {
-    local key="$1" url sha file
-    url="$(lock_value "$key" url)"
-    sha="$(lock_value "$key" sha256)"
-    file="$DOWNLOADS/$(basename "${url%%\?*}")"
-
-    mkdir -p "$DOWNLOADS"
-    if [[ -f "$file" ]] && [[ "$(sha256sum "$file" | awk '{print $1}')" == "$sha" ]]; then
-        note "$key: cached $(basename "$file")"
-    else
-        note "$key: downloading $(basename "$file")"
-        curl -fsSL --retry 3 -o "$file.part" "$url"
-        mv "$file.part" "$file"
-        local actual
-        actual="$(sha256sum "$file" | awk '{print $1}')"
-        if [[ "$actual" != "$sha" ]]; then
-            printf 'ERROR: %s has sha256 %s, expected %s\n' "$file" "$actual" "$sha" >&2
-            rm -f "$file"
-            exit 1
-        fi
-    fi
-    printf '%s\n' "$file"
-}
-
 extract_tar() {
     local key="$1" archive="$2" version dest
-    version="$(lock_value "$key" version)"
+    version="$(lock_value server_toolchain "$key" version)"
     dest="$TOOLCHAIN/$key-$version"
     if [[ ! -d "$dest" ]]; then
         note "$key: extracting to $dest"
@@ -71,7 +35,7 @@ extract_tar() {
 
 extract_zip() {
     local key="$1" archive="$2" version dest
-    version="$(lock_value "$key" version)"
+    version="$(lock_value server_toolchain "$key" version)"
     dest="$TOOLCHAIN/$key-$version"
     if [[ ! -d "$dest" ]]; then
         note "$key: extracting to $dest"
@@ -81,8 +45,8 @@ extract_zip() {
     printf '%s\n' "$dest"
 }
 
-amxx_archive="$(fetch amxmodx)"
-reapi_archive="$(fetch reapi)"
+amxx_archive="$(fetch_archive server_toolchain amxmodx)"
+reapi_archive="$(fetch_archive server_toolchain reapi)"
 
 amxx_dir="$(extract_tar amxmodx "$amxx_archive")"
 reapi_dir="$(extract_zip reapi "$reapi_archive")"

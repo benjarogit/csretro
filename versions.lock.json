@@ -51,12 +51,50 @@
       "usage": "Pawn compiler and scripting includes",
       "gate": "G05"
     },
+    "amxmodx_cstrike": {
+      "version": "1.10.0.5487",
+      "url": "https://github.com/alliedmodders/amxmodx/releases/download/1.10.0.5487/amxmodx-1.10.0-git5487-cstrike-linux.tar.gz",
+      "sha256": "6a7541a213ef71c47c1348b3457722e95669c0135c60102d5cb5a876341aa808",
+      "usage": "AMXX cstrike and csx modules for the test server",
+      "gate": "G06"
+    },
     "reapi": {
       "version": "5.29.0.358",
       "url": "https://github.com/rehlds/ReAPI/releases/download/5.29.0.358/reapi-bin-5.29.0.358.zip",
       "sha256": "f33a7435540bea8706db3fa948e51a85b511f5b18c383b97402a204dc5419195",
       "usage": "ReAPI scripting includes and AMXX module",
       "gate": "G05"
+    }
+  },
+  "server_runtime": {
+    "rehlds": {
+      "version": "3.15.0.896",
+      "url": "https://github.com/rehlds/ReHLDS/releases/download/3.15.0.896/rehlds-bin-3.15.0.896.zip",
+      "sha256": "997baeb7ef3842dab3e034d82dc651ebfe560c23b158adce660a6b97976b4e2b",
+      "usage": "Server engine",
+      "gate": "G06"
+    },
+    "regamedll": {
+      "version": "5.30.0.814",
+      "url": "https://github.com/rehlds/ReGameDLL_CS/releases/download/5.30.0.814/regamedll-bin-5.30.0.814.zip",
+      "sha256": "457f5c96a4d10280fcad47f106cbd5be86363a47df1ccab91c514e9d1bc6fd18",
+      "usage": "Server game library",
+      "gate": "G06"
+    },
+    "metamod_r": {
+      "version": "1.3.0.149",
+      "url": "https://github.com/rehlds/Metamod-R/releases/download/1.3.0.149/metamod-bin-1.3.0.149.zip",
+      "sha256": "ede7f59c4e0220afe8c02aa348a130cce527f87d36ffdb674e37a501ce57be94",
+      "usage": "Metamod plugin loader",
+      "gate": "G06",
+      "note": "Upstream publishes no digest and no signature for this release; the hash was computed from the downloaded asset and is pinned from then on."
+    },
+    "steamcmd": {
+      "version": "latest",
+      "image": "cm2network/steamcmd@sha256:45f6515d6c4dcde659c9ad6872bdbeacd1bf5c4e7f241829c4d2f28fb5eda581",
+      "usage": "Downloads HLDS App 90 during the test server image build",
+      "gate": "G06",
+      "note": "Valve ships no official image. The digest pins the third-party image that only runs SteamCMD; the resulting server image is built locally and never published."
     }
   },
   "references": {

@@ -96,6 +96,12 @@ without evidence is not verification.
 - Pull request against `main`, squash merge, CI required.
 - `main` is always releasable in the sense that it builds and verifies.
 
+Enforcement: GitHub branch protection is not available on a private free-plan
+repository. The repository therefore ships a tracked `pre-push` hook in
+`.githooks/` that runs `scripts/verify.sh`. `scripts/bootstrap.sh` sets
+`core.hooksPath` on every clone, so the gate is local and does not depend on the
+GitHub plan. CI remains the second, independent check.
+
 Commit format:
 
 ```

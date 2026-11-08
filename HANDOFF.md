@@ -6,28 +6,35 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-08
-- **Gate:** G01 – repository and harness
+- **Gate:** G01 – repository and harness, **done**
 - **Branch:** `main`
-- **Commit:** see `git log -1`
+- **Commit:** `b50197c` (harness), follow-up commit for this handoff
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** recorded after the first push
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42479518181 – success
 
 ## Verified (with evidence)
 
 | Claim | Evidence |
 |---|---|
-| Project folder is a git repository with remote `origin` | `git remote -v` |
-| Harness rules are defined | `AGENTS.md` |
-| Plan is part of the repository | `docs/plan/csretro-plan.md` |
-| Documentation is bilingual | `docs/de/index.md`, `docs/en/index.md` |
-| Repository checks pass | `scripts/verify.sh` output |
+| Repository exists with remote `origin` | `git remote -v` → `https://github.com/benjarogit/csretro.git` |
+| Harness rules are defined | `AGENTS.md`, 13 sections |
+| Plan is part of the repository | `docs/plan/csretro-plan.md`, 708 lines |
+| Documentation is bilingual | `docs/de/index.md`, `docs/en/index.md`, parity enforced by tool |
+| Repository checks pass locally | `scripts/verify.sh` → `OK: 50 checks passed on 20 tracked files` |
+| Repository checks pass in CI | run `42479518181`, job `repository verification`, success |
 | Upstream pins and game hashes are recorded | `versions.lock.json` |
+| Git LFS is active | `git lfs install --local` |
+| No maintainer-local paths in tracked files | `grep -rn '/mnt/\|/home/benny'` → no matches |
 
 ## Open / known broken
 
 - `client/` and `server/api/` do not exist yet. They are imported in G02.
 - No build, no tests, no installer yet.
 - License of the project is undecided. The repository stays private.
+- **Branch protection is not available**: GitHub rejects it for a private
+  repository on the free plan (`Upgrade to GitHub Pro or make this repository
+  public`). CI is required by convention until the repository is public or the
+  plan changes. Revisit at G10.
 
 ## Next task
 
@@ -69,14 +76,21 @@ copy outside the Steam library.
 ## Last commands and results
 
 ```text
-$ git init && git remote add origin https://github.com/benjarogit/csretro
+$ git init -b main && git remote add origin https://github.com/benjarogit/csretro.git
 $ scripts/verify.sh
-(pending: fill in the result of the G01 verification run)
+OK: 50 checks passed on 20 tracked files
+Verification passed
+
+$ git push -u origin main
+ * [new branch]      main -> main
+
+$ gh run list --limit 1
+completed success chore(repo): bootstrap harness and documentation skeleton ci main push 42479518181 15s
 ```
 
 ## Gate log
 
 | Gate | State | Evidence |
 |---|---|---|
-| G01 | in progress | this file |
-| G02 | not started | – |
+| G01 | done | commit `b50197c`, CI run `42479518181` |
+| G02 | next | – |

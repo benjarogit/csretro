@@ -60,4 +60,6 @@ Bot*.db -text
 # this rule, prebuilt .a/.lib files that upstream tracks directly would be
 # rewritten into LFS pointers and show up as modified on every checkout.
 /client/**     -filter -diff -merge
-/server/api/** -filter -diff -merge
+# The server API is vendored as source, so it stays diffable: -filter keeps the
+# prebuilt .a archives out of LFS, -merge still forces binary merges.
+/server/api/** -filter -merge

@@ -3,6 +3,13 @@ project(rsa_keygen)
 
 add_executable(${PROJECT_NAME} main.cpp)
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${OPENSSL_INCLUDE_PATHS})
+# Upstream referenced OPENSSL_INCLUDE_PATHS / OPENSSL_STATIC_LIBS, which nothing
+# defines; the target from deps/openssl already carries both.
+target_link_libraries(${PROJECT_NAME} PRIVATE openssl::openssl)
 
-target_link_libraries(${PROJECT_NAME} ${OPENSSL_STATIC_LIBS})
+# The vendored OpenSSL archives are 32-bit, so this helper has to match. Upstream
+# only applied -m32 to the AMXX module and left the tool on the host ABI.
+if (UNIX)
+    target_compile_options(${PROJECT_NAME} PRIVATE -m32)
+    target_link_options(${PROJECT_NAME} PRIVATE -m32)
+endif ()

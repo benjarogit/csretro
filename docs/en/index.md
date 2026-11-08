@@ -28,7 +28,7 @@ German and English trees cannot drift apart.
 | Installing on Linux | G09 |
 | Build prerequisites | [G03](build/prerequisites.md) |
 | Building the client | [G04](build/client.md) |
-| Building the server API | G05 |
+| Building the server API | [G05](build/server.md) |
 | Cvar reference (generated) | G11 |
 | Command reference (generated) | G11 |
 | Native reference (generated) | G11 |

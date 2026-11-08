@@ -36,6 +36,17 @@ The authoritative version string is the `VERSION` file.
   `docs/en/build/client.md`.
 - Verified 32-bit client build: eight ELF32 artifacts including `gameui.so` and
   `vgui2.so`.
+- `scripts/fetch-server-toolchain.sh`: downloads AMX Mod X `1.10.0.5487` and
+  ReAPI `5.29.0.358`, verifies every SHA-256 against `versions.lock.json`,
+  caches them under `.cache/` and provides an `amxxpc` wrapper.
+- `scripts/build-server.sh`: configure, build, CTest, module metadata and ELF32
+  validation, hash manifest.
+- Bilingual server API build guide: `docs/de/build/server.md` and
+  `docs/en/build/server.md`.
+- Verified 32-bit server module `nextclientapi_amxx_i386.so` and 34/34 green
+  tests, including the compiled Pawn test plugin.
+- `patches/` with the documented `rsa_keygen` portability fix for GCC 16 and
+  the 32-bit OpenSSL archives.
 
 ### Changed
 

@@ -3,7 +3,9 @@
 #include <openssl/rsa.h>
 #include <iostream>
 
-void main() {
+// Upstream declared this as `void main()`, which ISO C++ forbids and modern
+// GCC rejects. `pause` is a Windows shell builtin; wait for Enter instead.
+int main() {
 	BIO* bio_out;
 	bio_out = BIO_new_file("rsa-key.pem", "w");
 
@@ -16,7 +18,8 @@ void main() {
 	BIO_free(bio_out);
 
 	std::cout << "RSA-2048 Public and private keys generated in file rsa-key.pem" << std::endl;
-	system("pause");
+	std::cout << "Press Enter to continue..." << std::endl;
+	std::cin.get();
 
 	/*
 	auto enc_ctx = EVP_PKEY_CTX_new(pkey, NULL);

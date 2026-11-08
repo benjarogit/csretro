@@ -28,7 +28,7 @@ damit die Struktur nicht zwischen Deutsch und Englisch auseinanderläuft.
 | Installation unter Linux | G09 |
 | Build-Voraussetzungen | [G03](build/prerequisites.md) |
 | Client bauen | [G04](build/client.md) |
-| Server-API bauen | G05 |
+| Server-API bauen | [G05](build/server.md) |
 | Cvar-Referenz (generiert) | G11 |
 | Command-Referenz (generiert) | G11 |
 | Native-Referenz (generiert) | G11 |

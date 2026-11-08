@@ -6,9 +6,9 @@ CSRETRO ist ein vollständig vendorter CS-1.6-Client plus AMXX-Server-API. Ziel 
 **Default-Public-Branch** des Retail-Spiels. CSRETRO spricht ein eigenes Protokoll,
 hat eine eigene Identität und Infrastruktur und ist zweisprachig dokumentiert.
 
-> Status: frühe Entwicklung (`0.1.0-dev`). Die Gates G01–G04 sind abgeschlossen:
-> Harness, vendorte Upstreams, Toolchain und ein vollständiger 32-Bit-Client-Build.
-> Noch ist nichts installierbar.
+> Status: frühe Entwicklung (`0.1.0-dev`). Die Gates G01–G05 sind abgeschlossen:
+> Harness, vendorte Upstreams, Toolchain, ein vollständiger 32-Bit-Client-Build
+> und ein getestetes 32-Bit-Servermodul. Noch ist nichts installierbar.
 
 ## Was das ist
 

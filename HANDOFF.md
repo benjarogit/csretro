@@ -6,66 +6,72 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-08
-- **Gate:** G04 – client build on Linux x86, **done**
+- **Gate:** G05 – server API build, **done**
 - **Branch:** `main`
-- **Commit:** `3a0e3d9` (G04 code), handoff commit follows
+- **Commit:** recorded after the G05 push
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42482462774 – success
+- **CI:** recorded after the G05 push
 
 ## Verified (with evidence)
 
 | Claim | Evidence |
 |---|---|
-| Configure succeeds | `cmake --preset linux` exit 0, 121.8 s, log `/tmp/opencode/g04-configure2.log` |
-| All targets build | `client_mini`, `engine_mini`, `nitro_api`, `gameui`, `cstrike.exe`, `BUILD_ALL` all exit 0 |
-| Every artifact is 32-bit | 8 artifacts, all `ELF32` via `readelf` |
-| `gameui.so` and `vgui2.so` are built | `out/bin/Release/cstrike/cl_dlls/gameui.so`, `out/bin/Release/vgui2.so` |
-| Manifest is generated | `client/build/linux/manifest-Release.txt`, size + SHA-256 + ELF class |
-| Build script is idempotent | second `scripts/build-client.sh` run → `ninja: no work to do`, exit 0 |
+| Configure succeeds under CMake 4.4.5 | `scripts/build-server.sh --clean` exit 0, log `/tmp/opencode/g05-cleanbuild2.log` |
+| Project minimum is CMake 3.21 | `server/api/CMakeLists.txt` first line |
+| Module is 32-bit | `nextclientapi_amxx_i386.so` → `ELF 32-bit LSB shared object, Intel i386` |
+| Module metadata is correct | script reads name/version/tag from `CMakeLists.txt` and finds them in the binary: `Next Client API 1.6.0 (nclapi)` |
+| Full CTest suite is green | `100% tests passed out of 34` |
+| Pawn plugin compiles | test `pawn-material-plugin` passes, output `test_nextclient_api.amxx` |
+| Build script is idempotent | second `scripts/build-server.sh` run → `ninja: no work to do`, exit 0 |
+| Toolchain downloads are verified | AMXX and ReAPI SHA-256 match the digests in `versions.lock.json` |
 | Repository checks pass | `scripts/verify.sh` green |
 
 Reference artifacts (Release, 2026-11-08):
 
 | Artifact | Size | Type |
 |---|---:|---|
-| `client_mini.dll` | 5,482,420 | ELF32 |
-| `next_engine_mini.dll` | 26,130,800 | ELF32 |
-| `nitro_api2.dll` | 15,000,184 | ELF32 |
-| `cstrike/cl_dlls/gameui.so` | 8,785,140 | ELF32 |
-| `cstrike.exe` | 19,974,812 | ELF32 |
-| `FileSystem_Proxy.dll` | 2,117,508 | ELF32 |
-| `steam_api.dll` | 1,748,084 | ELF32 |
-| `vgui2.so` | 2,597,024 | ELF32 |
+| `nextclientapi_amxx_i386.so` | 8,863,316 | ELF32 |
+| `deps/rsa_keygen/rsa_keygen` | 4,437,032 | ELF32 |
+| `material-entity-sync-tests` | 672,760 | ELF64 |
+| `entity-sync-packets-tests` | 136,040 | ELF64 |
+| `material-visibility-tests` | 22,944 | ELF64 |
 
-Build times: configure 122 s, `client_mini` 32 s, `engine_mini` 56 s,
-`nitro_api` 104 s, `gameui` 18 s, `cstrike.exe` 9 s, `BUILD_ALL` 3 s.
-Disk: `client/build/linux` about 282 MB, `client/vcpkg/downloads` about 90 MB.
+Build times: configure 8 s, build 17 s, CTest about 1 s, clean rebuild 27 s.
+The module needs only `libm`, `libc` and `ld-linux.so.2`; libstdc++ and libgcc
+are linked statically.
 
 ## Open / known broken
 
-- The client is not installed and not run yet. G07/G09 follow.
-- **Path with spaces:** the repository path contains spaces. OpenSSL's `Configure`
-  fails there, so `scripts/build-client.sh` builds through `/tmp/csretro-src`.
-  The same constraint applies to every future build job; keep using the script.
-- The local `client/vcpkg` submodule was a shallow clone and missed the manifest
-  baseline. It was unshallowed. `bootstrap.sh` clones fully, so fresh clones are
-  not affected.
-- Upstream warnings remain: `DT_TEXTREL`, CMake deprecation in the vendored SDK,
-  `FetchContent_Populate`. None change the output.
-- The vendored NextClient still contains upstream Sentry, GameAnalytics and
-  updater references. Removed in G08.
+- The module is not loaded by a real server yet. G06 builds the test server.
+- **Upstream patches:** `server/api/deps/rsa_keygen/` needed two portability
+  fixes (ISO C++ `int main`, `-m32` for the 32-bit OpenSSL archives). They are
+  applied and recorded in `patches/README.md`.
+- **Network at configure time:** `server/api/cmake/Dependencies.cmake` fetches
+  `kangaru`, `sigslot` and `magic_enum` from GitHub. First configure needs
+  network; later ones reuse `_deps`.
+- **Path with spaces:** all builds go through `/tmp/csretro-src`. Keep using the
+  scripts; do not move `build/` between the real path and the symlink.
+- Upstream warnings remain: CMake deprecation in `kangaru`/`sigslot`,
+  `DT_TEXTREL` when linking `rsa_keygen`. None change the output.
+- The vendored NextClient and server API still carry upstream Sentry,
+  GameAnalytics, updater and identity strings. Removed in G08.
 - Branch protection is unavailable on a private free-plan repository. Mitigated
   by the tracked `pre-push` hook.
 
 ## Next task
 
-- **Gate:** G05 – server API build
+- **Gate:** G06 – reproducible test server
 - **Acceptance:**
-  - `server/api` configures with CMake 3.21+ and builds under CMake 4.
-  - `nextclientapi_amxx` is a 32-bit `.so` with correct module metadata.
-  - The complete CTest suite is green.
-  - A Pawn test plugin compiles with the AMXX compiler.
-  - `scripts/build-server.sh` exists and is idempotent.
+  - Docker Compose with ReHLDS + ReGameDLL_CS + AMXX 1.10 + ReAPI + the module
+    and the test plugin.
+  - Healthcheck, logs and defined start/stop.
+  - HLDS base files (App 90) via SteamCMD or a maintained ReHLDS image.
+  - `tests/e2e/` skeleton.
+  - The server starts reproducibly, the module loads, the test plugin reports in,
+    and an automated check proves it.
+- **Risk:** SteamCMD availability for App 90. Fallback is a maintained ReHLDS
+  image. The game is never started automatically on the host; the server runs in
+  a container only.
 
 ## Open decisions
 
@@ -73,8 +79,9 @@ Disk: `client/build/linux` about 282 MB, `client/vcpkg/downloads` about 90 MB.
 2. Discord app, Sentry project, GameAnalytics keys, update signing key and
    hosting are needed for G12/G13.
 3. ~~Host build versus container build for vcpkg on Arch~~ — **decided in G04:
-   host build works.** No container needed for the client. Revisit only if a
-   future dependency breaks on Arch.
+   host build works.**
+4. G06 base image: SteamCMD download at build time or a prebuilt ReHLDS image.
+   Decide from what is reproducible inside CI.
 
 ## Environment
 
@@ -90,6 +97,7 @@ Disk: `client/build/linux` about 282 MB, `client/vcpkg/downloads` about 90 MB.
 | Multilib | works (`-m32`) |
 | Steam | installed, Default Public 1.1.2.7 |
 | Build symlink | `/tmp/csretro-src` → repository |
+| Server toolchain | AMXX `1.10.0.5487`, ReAPI `5.29.0.358` in `.cache/toolchain/` |
 
 The retail game lives in the maintainer's Steam library. It is **not** part of the
 repository and must never be committed. CSRETRO is always installed into a separate
@@ -98,19 +106,18 @@ copy outside the Steam library.
 ## Last commands and results
 
 ```text
-$ scripts/doctor.sh
-40 passed, 0 warnings, 0 failed
-
-$ scripts/build-client.sh
-==> configure (preset linux)
--- Configuring done (121.8s)
-==> build client_mini (Release)   [32 s]
-==> build engine_mini (Release)   [56 s]
-==> build nitro_api (Release)     [104 s]
-==> build gameui (Release)        [18 s]
-==> build cstrike.exe (Release)   [9 s]
-==> build BUILD_ALL (Release)     [3 s]
-manifest: client/build/linux/manifest-Release.txt
+$ scripts/build-server.sh --clean
+==> removing server/api/build/linux
+==> fetching Pawn toolchain
+==> amxmodx: cached amxmodx-1.10.0-git5487-base-linux.tar.gz
+==> reapi: cached reapi-bin-5.29.0.358.zip
+==> configure
+==> build (Release)
+==> ctest
+100% tests passed out of 34
+==> artifacts
+module: Next Client API 1.6.0 (nclapi)
+build time: 18 s
 ```
 
 ## Gate log
@@ -120,5 +127,6 @@ manifest: client/build/linux/manifest-Release.txt
 | G01 | done | commit `b50197c`, CI run `42479518181` |
 | G02 | done | subtree `3fea0c3`, `501d93b`, verify green |
 | G03 | done | doctor 40/0, vcpkg bootstrapped, prerequisites documented |
-| G04 | done | 8 ELF32 artifacts, manifest, build script |
-| G05 | next | – |
+| G04 | done | 8 ELF32 artifacts, manifest, build script, CI run `42482462774` |
+| G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
+| G06 | next | – |

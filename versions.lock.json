@@ -43,6 +43,22 @@
       "gate": "G02"
     }
   },
+  "server_toolchain": {
+    "amxmodx": {
+      "version": "1.10.0.5487",
+      "url": "https://github.com/alliedmodders/amxmodx/releases/download/1.10.0.5487/amxmodx-1.10.0-git5487-base-linux.tar.gz",
+      "sha256": "d82d1d65c907f358c48bdebc07e20084e7e8c4f4d0e95af275e8b43f32815c7e",
+      "usage": "Pawn compiler and scripting includes",
+      "gate": "G05"
+    },
+    "reapi": {
+      "version": "5.29.0.358",
+      "url": "https://github.com/rehlds/ReAPI/releases/download/5.29.0.358/reapi-bin-5.29.0.358.zip",
+      "sha256": "f33a7435540bea8706db3fa948e51a85b511f5b18c383b97402a204dc5419195",
+      "usage": "ReAPI scripting includes and AMXX module",
+      "gate": "G05"
+    }
+  },
   "references": {
     "furybam_cs16_goldsrc_client": {
       "repository": "https://github.com/FuryBaM/cs16-goldsrc-client",

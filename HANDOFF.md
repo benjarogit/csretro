@@ -6,60 +6,56 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-08
-- **Gate:** G02 – vendor import, **done**
+- **Gate:** G03 – toolchain on CachyOS, **done**
 - **Branch:** `main`
-- **Commit:** `c4498dc` (G02 code), handoff commit follows
+- **Commit:** `git log -1`
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42480564411 – success
+- **CI:** recorded after the G03 push
 
 ## Verified (with evidence)
 
 | Claim | Evidence |
 |---|---|
-| NextClient is vendored with history | subtree merge `3fea0c3`, pinned tree `90b4bf76ee4ff1ea3afb2c823feb2137bd65034e` |
-| NextClientServerApi is vendored with history | subtree merge `501d93b`, pinned tree `1da463e0548c3bdb69e441caf2a39caae31edffa` |
-| Upstream history is present | `git rev-list --count HEAD` → 512 commits |
-| Submodules are pinned and checked out | `git submodule status` → `0e9be00` and `b5d1a94`, both clean |
-| Lockfile matches the checked-in gitlinks | `tools/verify_repo.py`, check `check_pins` |
-| Binary assets are imported | `git lfs ls-files` → 790 files, 130 MB in `.git/lfs/objects` |
-| Repository checks pass | `scripts/verify.sh` → `OK: 52 checks passed on 3983 tracked files` |
-| Fresh clone plus bootstrap works | clone of `c4498dc`, `./scripts/bootstrap.sh` → exit 0, both submodules at pinned commits |
-| Push gate is active | `git config core.hooksPath` → `.githooks` |
-| Push gate uploads LFS | `.githooks/pre-push` calls `git lfs pre-push`; upload of 783 objects, 44 MB |
+| Host check passes | `scripts/doctor.sh` → `40 passed, 0 warnings, 0 failed`, exit 0 |
+| 32-bit C and C++ build works | doctor probes with `-m32 -march=pentium4`, probe binary is `ELF32` |
+| 32-bit GL and X11 link | doctor resolves `libGL`, `X11`, `Xext`, `Xcursor`, `Xi`, `Xrandr`, `Xinerama`, `Xss`, `Xfixes`, `Xrender` |
+| Offscreen rendering is possible | 32-bit Mesa swrast at `/usr/lib32/dri/swrast_dri.so` |
+| vcpkg is bootstrapped | `client/vcpkg/vcpkg version` → `2026-03-04-4b3e4c2...` |
+| Bootstrap is idempotent | second `scripts/bootstrap.sh` run exits 0 |
+| Repository checks pass | `scripts/verify.sh` → 52+ checks green |
+| Prerequisites are documented | `docs/de/build/prerequisites.md`, `docs/en/build/prerequisites.md` |
 
 ## Open / known broken
 
-- No build, no tests, no installer yet. G03 and G04 follow.
+- No build yet. G04 is the first real compile of the client.
 - License of the project is undecided. The repository stays private.
-- **Branch protection is not available**: GitHub rejects it for a private
-  repository on the free plan. This is now mitigated by the tracked `pre-push`
-  hook, which runs the same verification as CI. CI remains the second check.
+- Branch protection is unavailable on a private free-plan repository. Mitigated
+  by the tracked `pre-push` hook, which runs the same verification as CI.
 - The vendored NextClient still contains upstream Sentry, GameAnalytics and
-  updater references. They are removed in G08, not before, so the baseline stays
-  comparable.
-- Upstream quirk: `client/dep/cpr/nuget/resources/cpr.png` is tracked as a plain
-  blob although the upstream `.gitattributes` declares `*.png` as LFS. Git LFS
-  prints one warning per checkout. It does not block anything; left untouched
-  because the vendored tree is not ours to rewrite.
+  updater references. Removed in G08.
+- Upstream quirk: `client/dep/cpr/nuget/resources/cpr.png` is a plain blob although
+  the upstream `.gitattributes` declares `*.png` as LFS. One warning per checkout,
+  harmless.
 
 ## Next task
 
-- **Gate:** G03 – toolchain on CachyOS
+- **Gate:** G04 – client build on Linux x86
 - **Acceptance:**
-  - `scripts/doctor.sh` checks OS, glibc, GCC, CMake, Ninja, Python, `uv`,
-    `git-lfs`, a `-m32` test compile, 32-bit GL/X11/Xext/Xcursor/Xi/Xrandr/Xss/
-    Xfixes/Xrender/SDL2, Mesa/llvmpipe, Steam runtime and free disk space.
-  - `scripts/bootstrap.sh` installs missing Arch packages and bootstraps vcpkg,
-    idempotently.
-  - `docs/de/build/prerequisites.md` and `docs/en/build/prerequisites.md` exist
-    and match the checks.
+  - `cmake --preset linux` configures in `client/`.
+  - Targets build in order: `client_mini`, `engine_mini`, `nitro_api`, `gameui`,
+    `launcher`, then `BUILD_ALL`.
+  - `vgui2` and `gameui.so` are part of the build.
+  - Every artifact is a 32-bit ELF.
+  - A hash manifest, build time and peak disk usage are recorded.
+  - Arch/CMake 4 patches live in `patches/` with a written reason.
 
 ## Open decisions
 
 1. Windows support: drop the CEF/browser code or keep it disabled. Decided in G08.
 2. Discord app, Sentry project, GameAnalytics keys, update signing key and
    hosting are needed for G12/G13.
-3. Host build versus container build for vcpkg on Arch. Decided in G04.
+3. Host build versus container build for vcpkg on Arch. **Decided in G04** based
+   on the actual configure result.
 
 ## Environment
 
@@ -82,18 +78,20 @@ copy outside the Steam library.
 ## Last commands and results
 
 ```text
-$ git subtree add --prefix=client https://github.com/CS-NextClient/NextClient.git 90b4bf7
-Added dir 'client'
+$ scripts/doctor.sh
+39 passed, 1 warnings, 0 failed
+All build prerequisites are met.
 
-$ git subtree add --prefix=server/api https://github.com/CS-NextClient/NextClientServerApi.git 1da463e
-Added dir 'server/api'
+$ client/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+vcpkg package management program version 2026-03-04-4b3e4c276b5b87a649e66341e11553e8c577459c
 
-$ git submodule status
- 0e9be00fc52b66742a09c84c8f6169dc7c83ca8a client/dep/ncl-hl1-source-sdk (heads/main)
- b5d1a94fb7f88fd835e360fd23a45a09ceedbf48 client/vcpkg (b5d1a94f)
-
-$ scripts/verify.sh
-OK: 52 checks passed on 3980 tracked files
+$ scripts/bootstrap.sh
+==> git hooks
+==> git lfs
+==> submodules
+==> vcpkg
+==> lfs objects
+==> verification
 Verification passed
 ```
 
@@ -103,4 +101,5 @@ Verification passed
 |---|---|---|
 | G01 | done | commit `b50197c`, CI run `42479518181` |
 | G02 | done | subtree `3fea0c3`, `501d93b`, verify green |
-| G03 | next | – |
+| G03 | done | doctor 39/0, vcpkg bootstrapped, prerequisites documented |
+| G04 | next | – |

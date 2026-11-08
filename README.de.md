@@ -40,8 +40,8 @@ checkt die gepinnten Submodule aus und führt die Verifikation aus.
 
 ## Voraussetzungen
 
-Siehe den [Dokumentationsindex](docs/de/index.md) für die aktuellen Kapitel. G03
-ergänzt `docs/de/build/prerequisites.md` mit der vollständigen Paketliste. Kurzfassung:
+Siehe [`docs/de/build/prerequisites.md`](docs/de/build/prerequisites.md) für die
+vollständige Liste, oder `scripts/doctor.sh` für die Prüfung des Hosts. Kurzfassung:
 Linux x86_64, Multilib, GCC, CMake, Ninja, Python, Git LFS.
 
 ## Dokumentation

@@ -40,8 +40,8 @@ pinned submodules and runs the verification.
 
 ## Requirements
 
-See the [documentation index](docs/en/index.md) for the current chapters. G03 adds
-`docs/en/build/prerequisites.md` with the full package list. The short version:
+See [`docs/en/build/prerequisites.md`](docs/en/build/prerequisites.md) for the
+full list, or run `scripts/doctor.sh` to check the host. The short version:
 Linux x86_64, multilib, GCC, CMake, Ninja, Python, Git LFS.
 
 ## Documentation

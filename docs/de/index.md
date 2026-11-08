@@ -26,7 +26,7 @@ damit die Struktur nicht zwischen Deutsch und Englisch auseinanderläuft.
 | Kapitel | Gate |
 |---|---|
 | Installation unter Linux | G09 |
-| Build-Voraussetzungen | G03 |
+| Build-Voraussetzungen | [G03](build/prerequisites.md) |
 | Client bauen | G04 |
 | Server-API bauen | G05 |
 | Cvar-Referenz (generiert) | G11 |

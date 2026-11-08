@@ -24,6 +24,12 @@ The authoritative version string is the `VERSION` file.
   `client/dep/ncl-hl1-source-sdk` at `0e9be00`.
 - `scripts/bootstrap.sh` for hooks, LFS and submodules.
 - `scripts/sync-upstream.sh` to report upstream changes since the pins.
+- `scripts/doctor.sh`: read-only host check with real 32-bit compile-and-link
+  probes, Mesa swrast, vcpkg triplet and disk space.
+- `scripts/bootstrap.sh --install-deps` for the Arch/CachyOS package set and
+  automatic vcpkg bootstrap.
+- Bilingual build prerequisites: `docs/de/build/prerequisites.md` and
+  `docs/en/build/prerequisites.md`.
 
 ### Changed
 

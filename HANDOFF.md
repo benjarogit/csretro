@@ -6,56 +6,75 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-08
-- **Gate:** G03 – toolchain on CachyOS, **done**
+- **Gate:** G04 – client build on Linux x86, **done**
 - **Branch:** `main`
-- **Commit:** `b1ee521` (G03 code), handoff commit follows
+- **Commit:** `git log -1`
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42481361534 – success
+- **CI:** recorded after the G04 push
 
 ## Verified (with evidence)
 
 | Claim | Evidence |
 |---|---|
-| Host check passes | `scripts/doctor.sh` → `40 passed, 0 warnings, 0 failed`, exit 0 |
-| 32-bit C and C++ build works | doctor probes with `-m32 -march=pentium4`, probe binary is `ELF32` |
-| 32-bit GL and X11 link | doctor resolves `libGL`, `X11`, `Xext`, `Xcursor`, `Xi`, `Xrandr`, `Xinerama`, `Xss`, `Xfixes`, `Xrender` |
-| Offscreen rendering is possible | 32-bit Mesa swrast at `/usr/lib32/dri/swrast_dri.so` |
-| vcpkg is bootstrapped | `client/vcpkg/vcpkg version` → `2026-03-04-4b3e4c2...` |
-| Bootstrap is idempotent | second `scripts/bootstrap.sh` run exits 0 |
-| Repository checks pass | `scripts/verify.sh` → 52+ checks green |
-| Prerequisites are documented | `docs/de/build/prerequisites.md`, `docs/en/build/prerequisites.md` |
+| Configure succeeds | `cmake --preset linux` exit 0, 121.8 s, log `/tmp/opencode/g04-configure2.log` |
+| All targets build | `client_mini`, `engine_mini`, `nitro_api`, `gameui`, `cstrike.exe`, `BUILD_ALL` all exit 0 |
+| Every artifact is 32-bit | 8 artifacts, all `ELF32` via `readelf` |
+| `gameui.so` and `vgui2.so` are built | `out/bin/Release/cstrike/cl_dlls/gameui.so`, `out/bin/Release/vgui2.so` |
+| Manifest is generated | `client/build/linux/manifest-Release.txt`, size + SHA-256 + ELF class |
+| Build script is idempotent | second `scripts/build-client.sh` run → `ninja: no work to do`, exit 0 |
+| Repository checks pass | `scripts/verify.sh` green |
+
+Reference artifacts (Release, 2026-11-08):
+
+| Artifact | Size | Type |
+|---|---:|---|
+| `client_mini.dll` | 5,482,420 | ELF32 |
+| `next_engine_mini.dll` | 26,130,800 | ELF32 |
+| `nitro_api2.dll` | 15,000,184 | ELF32 |
+| `cstrike/cl_dlls/gameui.so` | 8,785,140 | ELF32 |
+| `cstrike.exe` | 19,974,812 | ELF32 |
+| `FileSystem_Proxy.dll` | 2,117,508 | ELF32 |
+| `steam_api.dll` | 1,748,084 | ELF32 |
+| `vgui2.so` | 2,597,024 | ELF32 |
+
+Build times: configure 122 s, `client_mini` 32 s, `engine_mini` 56 s,
+`nitro_api` 104 s, `gameui` 18 s, `cstrike.exe` 9 s, `BUILD_ALL` 3 s.
+Disk: `client/build/linux` about 282 MB, `client/vcpkg/downloads` about 90 MB.
 
 ## Open / known broken
 
-- No build yet. G04 is the first real compile of the client.
-- License of the project is undecided. The repository stays private.
-- Branch protection is unavailable on a private free-plan repository. Mitigated
-  by the tracked `pre-push` hook, which runs the same verification as CI.
+- The client is not installed and not run yet. G07/G09 follow.
+- **Path with spaces:** the repository path contains spaces. OpenSSL's `Configure`
+  fails there, so `scripts/build-client.sh` builds through `/tmp/csretro-src`.
+  The same constraint applies to every future build job; keep using the script.
+- The local `client/vcpkg` submodule was a shallow clone and missed the manifest
+  baseline. It was unshallowed. `bootstrap.sh` clones fully, so fresh clones are
+  not affected.
+- Upstream warnings remain: `DT_TEXTREL`, CMake deprecation in the vendored SDK,
+  `FetchContent_Populate`. None change the output.
 - The vendored NextClient still contains upstream Sentry, GameAnalytics and
   updater references. Removed in G08.
-- Upstream quirk: `client/dep/cpr/nuget/resources/cpr.png` is a plain blob although
-  the upstream `.gitattributes` declares `*.png` as LFS. One warning per checkout,
-  harmless.
+- Branch protection is unavailable on a private free-plan repository. Mitigated
+  by the tracked `pre-push` hook.
 
 ## Next task
 
-- **Gate:** G04 – client build on Linux x86
+- **Gate:** G05 – server API build
 - **Acceptance:**
-  - `cmake --preset linux` configures in `client/`.
-  - Targets build in order: `client_mini`, `engine_mini`, `nitro_api`, `gameui`,
-    `launcher`, then `BUILD_ALL`.
-  - `vgui2` and `gameui.so` are part of the build.
-  - Every artifact is a 32-bit ELF.
-  - A hash manifest, build time and peak disk usage are recorded.
-  - Arch/CMake 4 patches live in `patches/` with a written reason.
+  - `server/api` configures with CMake 3.21+ and builds under CMake 4.
+  - `nextclientapi_amxx` is a 32-bit `.so` with correct module metadata.
+  - The complete CTest suite is green.
+  - A Pawn test plugin compiles with the AMXX compiler.
+  - `scripts/build-server.sh` exists and is idempotent.
 
 ## Open decisions
 
 1. Windows support: drop the CEF/browser code or keep it disabled. Decided in G08.
 2. Discord app, Sentry project, GameAnalytics keys, update signing key and
    hosting are needed for G12/G13.
-3. Host build versus container build for vcpkg on Arch. **Decided in G04** based
-   on the actual configure result.
+3. ~~Host build versus container build for vcpkg on Arch~~ — **decided in G04:
+   host build works.** No container needed for the client. Revisit only if a
+   future dependency breaks on Arch.
 
 ## Environment
 
@@ -70,6 +89,7 @@ Project state for the next session. Personal context belongs in
 | Git LFS | 3.8.1 |
 | Multilib | works (`-m32`) |
 | Steam | installed, Default Public 1.1.2.7 |
+| Build symlink | `/tmp/csretro-src` → repository |
 
 The retail game lives in the maintainer's Steam library. It is **not** part of the
 repository and must never be committed. CSRETRO is always installed into a separate
@@ -79,20 +99,18 @@ copy outside the Steam library.
 
 ```text
 $ scripts/doctor.sh
-39 passed, 1 warnings, 0 failed
-All build prerequisites are met.
+40 passed, 0 warnings, 0 failed
 
-$ client/vcpkg/bootstrap-vcpkg.sh -disableMetrics
-vcpkg package management program version 2026-03-04-4b3e4c276b5b87a649e66341e11553e8c577459c
-
-$ scripts/bootstrap.sh
-==> git hooks
-==> git lfs
-==> submodules
-==> vcpkg
-==> lfs objects
-==> verification
-Verification passed
+$ scripts/build-client.sh
+==> configure (preset linux)
+-- Configuring done (121.8s)
+==> build client_mini (Release)   [32 s]
+==> build engine_mini (Release)   [56 s]
+==> build nitro_api (Release)     [104 s]
+==> build gameui (Release)        [18 s]
+==> build cstrike.exe (Release)   [9 s]
+==> build BUILD_ALL (Release)     [3 s]
+manifest: client/build/linux/manifest-Release.txt
 ```
 
 ## Gate log
@@ -101,5 +119,6 @@ Verification passed
 |---|---|---|
 | G01 | done | commit `b50197c`, CI run `42479518181` |
 | G02 | done | subtree `3fea0c3`, `501d93b`, verify green |
-| G03 | done | doctor 39/0, vcpkg bootstrapped, prerequisites documented |
-| G04 | next | – |
+| G03 | done | doctor 40/0, vcpkg bootstrapped, prerequisites documented |
+| G04 | done | 8 ELF32 artifacts, manifest, build script |
+| G05 | next | – |

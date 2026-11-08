@@ -30,6 +30,12 @@ The authoritative version string is the `VERSION` file.
   automatic vcpkg bootstrap.
 - Bilingual build prerequisites: `docs/de/build/prerequisites.md` and
   `docs/en/build/prerequisites.md`.
+- `scripts/build-client.sh`: configure, build in dependency order, write a hash
+  manifest, fail on non-ELF32 artifacts, transparent space-free symlink.
+- Bilingual client build guide: `docs/de/build/client.md` and
+  `docs/en/build/client.md`.
+- Verified 32-bit client build: eight ELF32 artifacts including `gameui.so` and
+  `vgui2.so`.
 
 ### Changed
 

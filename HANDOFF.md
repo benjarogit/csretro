@@ -8,9 +8,9 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-09
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike now completes `HUD_Init`, engine direction decided: Option A)
 - **Branch:** `main`
-- **Commit:** `d114d0a` (VGUI2 blocker docs), this handoff update on top
+- **Commit:** `c20dd1a` (engine decision docs), this handoff update on top
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42606308690 – success
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42614991668 – success
 
 ## Verified (with evidence)
 

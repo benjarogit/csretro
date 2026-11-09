@@ -8,9 +8,9 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-09
 - **Gate:** G06b – upstream radar, **done**
 - **Branch:** `main`
-- **Commit:** `bcd2e79` (NextClient pull), handoff commit follows
+- **Commit:** `89a4315` (G06b), handoff commit follows
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** G06 run `42514310451` – success; G06b run recorded below
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42579531440 – success
 
 ## Verified (with evidence)
 
@@ -251,5 +251,5 @@ exit 0, 211 s, 8 ELF32 artifacts
 | G04 | done | 8 ELF32 artifacts, manifest, build script, CI run `42482462774` |
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
-| G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred |
+| G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
 | G07 | planned | Default Public runtime |

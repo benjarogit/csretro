@@ -6,11 +6,11 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-09
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d prepared)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed, waiting for the maintainer rerun)
 - **Branch:** `main`
-- **Commit:** `3444ac2` (G07d checklist), handoff commit follows
+- **Commit:** `c6836b6` (G07d fix and plan requirement), handoff commit follows
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42591199253 – G07d checklist success
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42595518318 – success
 
 ## Verified (with evidence)
 
@@ -36,6 +36,8 @@ Project state for the next session. Personal context belongs in
 | Address resolver covers dynsym, symtab and pattern | `nitro_api-tests`: 5 resolver tests green against a fixture library |
 | Public provider names exist in the retail binaries | offline check: 327/327 engine names in `hw.so` `symtab`, 81/81 client names in `client.so` `symtab` |
 | Provider check tool works and fails loudly | `tools/check_address_providers.py --game-dir …` exit 0; injected missing symbol, duplicated string and `SearchType::Offset` each reported |
+| All Linux client modules load | 32-bit `dlopen` probe: `next_engine_mini.dll`, `client_mini.dll`, `gameui.so`, `vgui2.so`, `nitro_api2.dll`, `FileSystem_Proxy.dll` load after the global `steam_api.dll` |
+| The installer keeps Valve's libraries | install test green for Windows/Linux × Tracy off/on, including `vgui2.so.valve` and `libtier0.so.valve` preservation on repeat install |
 
 Reference run (2026-11-08, local):
 
@@ -137,10 +139,33 @@ by SHA-256, a different build gets its own provider, and the tool reports any
 mismatch. The negative cases (missing symbol, duplicated string, unsupported
 search type) were exercised and each is reported.
 
-**G07d – first start, prepared.** The manual check is documented in
-`docs/de/client/first-start.md` and `docs/en/client/first-start.md`: copy the
-game outside Steam, run `scripts/build-client.sh --install-dir <copy>`, start
-with `nextclient.sh -windowed -console`, and record the console lines
+**G07d – first start, fixed after the first run.** The first manual run stopped
+with `Error: …/next_engine_mini.dll: undefined symbol: SteamMatchmakingServers`
+and then `Module next_engine_mini.dll not found`. Two Linux-only gaps caused it:
+
+1. The retail `libsteam_api.so` exports the flat `SteamAPI_Steam*_vNNN`
+   functions but not the legacy C++ accessors (`SteamApps`, `SteamUser`,
+   `SteamUtils`, `SteamMatchmakingServers`) that `next_engine_mini.dll`,
+   `gameui.so` and `vgui2.so` import. The launcher now loads `steam_api.dll`
+   with `RTLD_GLOBAL` before the first module, and the proxy resolves every
+   accessor from the legacy name first and from the flat function second.
+   An accessor that resolves to neither returns `nullptr`.
+2. `client_mini.dll` imports `GetCPUInformation`, which the retail
+   `libtier0.so` does not export. The installer now installs the SDK
+   `libtier0.so` (278 exports, a superset of the retail 197) and keeps Valve's
+   file as `libtier0.so.valve`.
+
+Evidence: a 32-bit `dlopen` probe loads `next_engine_mini.dll`,
+`client_mini.dll`, `gameui.so`, `vgui2.so`, `nitro_api2.dll` and
+`FileSystem_Proxy.dll` once `steam_api.dll` is global; the install test covers
+the tier0 backup and its preservation on a repeated install; the client build
+exits 0 with the same eight ELF32 artifacts; the installed `libtier0.so`
+SHA-256 `3056f15e…` equals the SDK file.
+
+The manual check is documented in `docs/de/client/first-start.md` and
+`docs/en/client/first-start.md`: copy the game outside Steam, run
+`scripts/build-client.sh --install-dir <copy>`, start with
+`nextclient.sh -windowed -console`, and record the console lines
 `Game build identified: public-linux-1.0.1.4`, the absence of
 `Unknown game build` and `Can't get engine address provider`, and whether the
 game reaches the console without a crash.
@@ -247,9 +272,10 @@ implementation; the plan is the only source for the gate list.
 ## Next task
 
 - **Gate:** G07 – Default Public runtime, in progress.
-- **Next step:** the maintainer runs the G07d first-start check from
-  `docs/en/client/first-start.md` and records the console evidence here. Then
-  G07e ABI validation against DWARF, G07f feature smoke. The A2S decision
+- **Next step:** the maintainer rebuilds, reinstalls into `$HOME/csretro-g07d`
+  and reruns the G07d first-start check from `docs/en/client/first-start.md`
+  after the loader fix (`79ba393`), then records the console evidence here.
+  Then G07e ABI validation against DWARF, G07f feature smoke. The A2S decision
   belongs to G07.
 - **After G07:** schedule the server performance backlog above (measurement
   first, then hookchain/native/per-frame work). It needs a plan gate entry.
@@ -335,4 +361,4 @@ exit 0, 211 s, 8 ELF32 artifacts
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: checklist ready, run pending |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending |

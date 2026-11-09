@@ -130,39 +130,59 @@ Offset-Neuberechnung und ABI-Validierung.
 
 ### 3.6 Client-Engine: Xash3D-Befund (Spike, 9. November 2026)
 
-Ein Spike hat geprüft, ob Xash3D-FWGS die Retail-Client-Bibliothek
-`cstrike/cl_dlls/client.so` (32 Bit) tragen kann. Ergebnis:
+Ein Spike hat geprüft, ob Xash3D-FWGS den Retail-Client tragen kann. Ergebnis:
+**ja, bis einschließlich `HUD_Init`; der fehlende Surface-Backend ist die
+einzige verbleibende Lücke.** Geprüft wurde die Paarung Valve `client.so`
+(SHA-256 `2e799ef3…`, identisch mit dem G07a-Registry-Eintrag) und Valve
+`vgui2.so` (SHA-256 `f0291c95…`) auf Xash3D-FWGS `e9b94dc` (32 Bit, SDL2
+2.32.10, Xvfb/llvmpipe).
 
-- Der 32-Bit-Build von Xash3D-FWGS (`e9b94dc`) lädt `client.so`; `Initialize`
-  kopiert `cl_enginefunc_t` (536 Byte, Version 7) und liefert `1`.
-- `HUD_Init` läuft bis zum ersten VGUI2-Aufruf.
-- **Blocker:** Valves und NextClients `vgui2.so` holen das Interface
-  `VGUI_Surface026` (dazu `IEngineSurface`/`EngineSurface007`) per
-  `CreateInterface` aus der Engine. Im Retail-Stack liefert `hw.so` dieses
-  Interface. Xash3D ersetzt `hw.so` und exportiert kein `VGUI_Surface026`; sein
-  `vgui.so` ist FreeVGUI mit der VGUI1-Support-API (`GetVGUISupportAPI`/`InitAPI`).
-- Folge: `SurfaceNext::GetScreenSize` greift auf `g_pSurface == NULL` zu;
-  `HUD_Init` stürzt in `CHudDeathNotice::Init` ab.
-- NextClients `vgui2.so` verlangt zusätzlich `VGUI_SurfaceNext001` und
-  `VGUI_SchemeNext001`.
+Belegt:
 
-Die Engine-Frage ist damit offen. Drei Wege:
+- `Initialize` kopiert `cl_enginefunc_t` (536 Byte, Version 7) und liefert `1`.
+- Ein spike-only `LD_PRELOAD`-Shim (`kvshim.so`, außerhalb des Repos) stellt ein
+  Stub-`VGUI_Surface026` (119 Slots, alle No-ops) bereit, fälscht `SteamApps`/
+  `SteamAPI_Init` und ruft `CounterStrikeViewport::Initialize`/`Start`, weil
+  Xash3D keine GoldSrc-GameUI hat.
+- Damit läuft `HUD_Init` vollständig durch, `CounterStrikeViewport::Start`
+  liefert mit gesetztem Viewport-Panel zurück (Feld `0x48` ≠ 0), und die Engine
+  fährt bis `exec config.cfg` und sauberem Shutdown auf `+quit`.
+- Es wird nichts gerendert: der Stub zeichnet nicht.
 
-| Option | Inhalt | Aufwand / Risiko |
+**Kritischer ABI-Befund:** Valves `client.so` linkt statisch nur die
+VGUI2-*Controls*; `CScheme`, `CSystem`, `CInput`, `CPanel`, `CLocalize` und das
+`KeyValues`-System kommen aus `vgui2.so`. Valves `client.so` ist deshalb nur mit
+Valves `vgui2.so` ABI-kompatibel. NextClients `vgui2.so` hat ein anderes
+`IScheme`-Vtable-Layout; die Paarung mit Valves `client.so` stürzt in
+`Label::ApplySettings` (`pScheme->GetFont`, Slot 6) ab. NextClient-Binaries sind
+nur untereinander kompatibel (`client_mini.dll` + `vgui2.so`). CSRETRO baut
+Client und VGUI2 daher aus **derselben** SDK-Revision (vendored
+`ncl-hl1-source-sdk`) und mischt keine vorgebauten Fremd-Binaries.
+
+Xash3D liefert **FreeVGUI** (`3rdparty/freevgui`, BSD-3-Clause) mit einer
+nativen Xash3D-Platform-Surface (`platform/xash3d-fwgs/surface.cpp`). Das ist
+VGUI1, nicht VGUI2: es zeigt, wie 2D-Zeichnen auf Xash3D geht, stellt aber kein
+`VGUI_Surface026`.
+
+Damit ist die Engine-Frage entschieden: **Option A ist der Weg.** Verbleibende
+Arbeit ist ein echtes `VGUI_Surface026`-Backend über Xash3D (Zeichnen, Fonts,
+Texturen, Maus), kein weiterer ABI-Blocker. Option B bleibt Rückfallebene,
+Option C (Retail) bleibt der funktionierende Vergleichsstand.
+
+| Option | Inhalt | Stand |
 |---|---|---|
-| A | `VGUI_Surface026`/`IEngineSurface`-Adapter in Xash3D | 142 virtuelle Methoden, viele No-ops; VGUI2 rendert danach über Xash3D |
-| B | FreeVGUI um GoldSrc-VGUI2-`CreateInterface`-Exporte inkl. Next-Extensions erweitern, `gameui.so` dagegen bauen | ersetzt Valves VGUI2; NextClient-UI muss gegen FreeVGUI laufen |
-| C | Retail-GoldSrc bleibt Client-Engine | kein Xash3D; 32 Bit und `hw.so`-Hooks bleiben gültig |
+| A | `VGUI_Surface026`-Adapter auf Xash3D | **gewählt**; ABI belegt, Backend offen |
+| B | FreeVGUI um GoldSrc-VGUI2-Exporte erweitern | Rückfallebene, größerer Umbau |
+| C | Retail-GoldSrc als Client-Engine | funktioniert, aber kein Xash3D |
 
 Nebenbefunde:
 
-- NextClients `engine_mini`/`nitro_api` haken in `hw.so` (u. a.
-  `vgui2_surface`). Mit Xash3D entfällt `hw.so`; diese Hooks brauchen einen
-  Engine-Adapter oder einen Ersatz.
+- `engine_mini`/`nitro_api` haken in `hw.so` (`vgui2_surface` u. a.). Mit Xash3D
+  entfällt `hw.so`; die Hooks brauchen einen Xash3D-Engine-Adapter.
+- HTML/MOTD verlangt einen ChromeHTML-Controller/Serializer. Ohne CEF wird MOTD
+  in CSRETRO deaktiviert oder durch eine einfache Text-Ansicht ersetzt.
 - Ein x86_64-Client setzt quelloffenen 64-Bit-Client-Gamecode voraus. Valves
   `client.so` ist ausschließlich 32 Bit.
-- Der Retail-Stack bleibt der funktionierende Fallback, bis eine Option belegt
-  ist.
 
 ---
 

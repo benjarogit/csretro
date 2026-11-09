@@ -476,6 +476,8 @@ Benutzer ausführbaren Installer.
 - Starter und Verknüpfungen: `csretro.sh` (Client), `csretro-server.sh`
   (Server), `csretro-hltv.sh` (HLTV), jeweils mit `.desktop`-Eintrag, Icon und
   sinnvoller Menükategorie; relative Pfade, keine absoluten Pfade des Erstellers
+- Starter prüft, ob Steam läuft, und startet es bei Bedarf, bevor der Client
+  startet; der Start wird abgewartet und ein Fehlschlag klar gemeldet
 - `--uninstall`, das nur installierte Dateien entfernt und die Steam-Installation
   unberührt lässt
 - Start über `csretro.sh`

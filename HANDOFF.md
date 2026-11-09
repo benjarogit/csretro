@@ -8,9 +8,9 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-09
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a done)
 - **Branch:** `main`
-- **Commit:** G07a commit, handoff commit follows
+- **Commit:** `2d7a0fa` (G07a), handoff commit follows
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42579531440 – G06b success
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42581034835 – G07a success
 
 ## Verified (with evidence)
 

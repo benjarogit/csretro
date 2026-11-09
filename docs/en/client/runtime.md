@@ -43,6 +43,31 @@ contains mostly C++ libraries. Stage 2 therefore carries the resolution. The
 provider tables cover 327 engine entries and 81 client entries; every name was
 checked against the retail binaries.
 
+## Checking the providers
+
+`tools/check_address_providers.py` compares both providers with an installation:
+
+```bash
+python3 tools/check_address_providers.py --game-dir /path/to/Half-Life
+```
+
+The tool checks every symbol name against `dynsym` and `symtab` and counts every
+string literal in the binary. A missing symbol, a non-unique string or an
+unsupported search type makes it exit with code 1. That is the evidence to run
+after a Steam update and before adding a new provider.
+
+Three entries differ from the rule:
+
+| Entry | Type | Reason |
+|---|---|---|
+| `isFogEnabled.26640` | symbol | compiler-generated name of a static local; present only under this name in the public build |
+| `R_ForceCVars.part.3` | symbol | compiler-generated part of a function; present only under this name in the public build |
+| `GL_ARB_multitexture ` | string | occurs exactly once in `hw.so` |
+
+The two generated names are bound to this exact binary. The build is pinned by
+SHA-256; another build gets its own provider, and the tool reports every
+mismatch before the client starts.
+
 `EngineMsgBase` is the `cl_parsefuncs` table; its layout
 `{opcode, pszname, pfnParse}` matches `goldsrc::EngineMsg`.
 

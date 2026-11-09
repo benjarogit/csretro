@@ -6,11 +6,11 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-09
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a and G07b done)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done)
 - **Branch:** `main`
-- **Commit:** G07b commit, handoff commit follows
+- **Commit:** `0cf8e7a` (G07b), G07c commit follows
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** pending – G07b push follows
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42590218846 – G07b success
 
 ## Verified (with evidence)
 
@@ -35,6 +35,7 @@ Project state for the next session. Personal context belongs in
 | Pins match the imported code | `versions.lock.json`: NextClient `24cc986…`, `updated_in: G06b` |
 | Address resolver covers dynsym, symtab and pattern | `nitro_api-tests`: 5 resolver tests green against a fixture library |
 | Public provider names exist in the retail binaries | offline check: 327/327 engine names in `hw.so` `symtab`, 81/81 client names in `client.so` `symtab` |
+| Provider check tool works and fails loudly | `tools/check_address_providers.py --game-dir …` exit 0; injected missing symbol, duplicated string and `SearchType::Offset` each reported |
 
 Reference run (2026-11-08, local):
 
@@ -121,11 +122,25 @@ symtab, pattern fallback, missing symbol without pattern, unmatched pattern
 with offset); client build exit 0
 with the same eight ELF32 artifacts.
 
-**Next: G07c – remaining offset and string entries.** Three engine entries still
-depend on renamed symbols or strings (`isFogEnabled.26640`, `R_ForceCVars.part.3`,
-the `GL_ARB_multitexture` string). Each needs a reproducible pattern or a
-documented, stable symbol; then G07d first start, G07e ABI validation against
-DWARF, G07f feature smoke.
+**G07c – remaining entries, done.** No numeric offsets and no byte patterns
+remain in the public providers; every entry resolves by symbol or by a unique
+string. `tools/check_address_providers.py` checks both providers against a game
+installation: every name must exist in `dynsym` or `symtab`, every string must
+occur exactly once, and only `SymbolOrPattern` and `String` are accepted.
+
+Result on the retail binaries: 326 unique engine symbols and 1 engine string
+resolve against `hw.so`; 81 client symbols resolve against `client.so`.
+
+Two engine entries use compiler-generated names (`isFogEnabled.26640`,
+`R_ForceCVars.part.3`) that exist only in this exact binary. The build is pinned
+by SHA-256, a different build gets its own provider, and the tool reports any
+mismatch. The negative cases (missing symbol, duplicated string, unsupported
+search type) were exercised and each is reported.
+
+**Next: G07d – first start.** The maintainer copies the built client into a
+separate game folder outside Steam, starts it, and records whether `hw.so` is
+patched, the console answers and no crash happens. Then G07e ABI validation
+against DWARF, G07f feature smoke.
 
 ## Decisions taken in G06
 
@@ -225,11 +240,10 @@ implementation; the plan is the only source for the gate list.
 ## Next task
 
 - **Gate:** G07 – Default Public runtime, in progress.
-- **Next step:** G07c – remaining offset and string entries
-  (`isFogEnabled.26640`, `R_ForceCVars.part.3`, `GL_ARB_multitexture`), each
-  replaced by a reproducible pattern or a documented stable symbol. Then G07d
-  first start, G07e ABI validation, G07f feature smoke. The A2S decision belongs
-  to G07.
+- **Next step:** G07d – first start in a separate game folder outside Steam;
+  the maintainer records whether `hw.so` is patched, the console answers and no
+  crash happens. Then G07e ABI validation against DWARF, G07f feature smoke. The
+  A2S decision belongs to G07.
 - **After G07:** schedule the server performance backlog above (measurement
   first, then hookchain/native/per-frame work). It needs a plan gate entry.
 - **Dependency backlog:** vcpkg baseline bump (`b5d1a94` → current) as its own
@@ -314,4 +328,4 @@ exit 0, 211 s, 8 ELF32 artifacts
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests, 65/65 `nitro_api-tests`, client build green. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, client build green |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names |

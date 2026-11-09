@@ -44,6 +44,33 @@ im Wesentlichen C++-Bibliotheken. Stufe 2 trägt daher die Auflösung. Die
 Provider-Tabellen decken 327 Engine-Einträge und 81 Client-Einträge ab; alle
 Namen wurden gegen die retail Binärdateien geprüft.
 
+## Provider prüfen
+
+`tools/check_address_providers.py` vergleicht beide Provider mit einer
+Installation:
+
+```bash
+python3 tools/check_address_providers.py --game-dir /pfad/zu/Half-Life
+```
+
+Das Werkzeug prüft jeden Symbolnamen gegen `dynsym` und `symtab` und zählt jedes
+String-Literal in der Binärdatei. Ein fehlendes Symbol, ein nicht eindeutiger
+String oder ein nicht unterstützter Suchtyp lassen es mit Exit-Code 1 enden.
+Das ist der Nachweis nach einem Steam-Update und vor dem Anlegen eines neuen
+Providers.
+
+Drei Einträge weichen vom Regelfall ab:
+
+| Eintrag | Typ | Begründung |
+|---|---|---|
+| `isFogEnabled.26640` | Symbol | Compiler-generierter Name eines statischen Locals; im Public-Build nur so vorhanden |
+| `R_ForceCVars.part.3` | Symbol | Compiler-generierter Teil einer Funktion; im Public-Build nur so vorhanden |
+| `GL_ARB_multitexture ` | String | kommt in `hw.so` genau einmal vor |
+
+Die beiden generierten Namen sind an genau diese Binärdatei gebunden. Der Build
+ist über SHA-256 gepinnt; ein anderer Build erhält einen eigenen Provider, und
+das Werkzeug meldet jede Abweichung, bevor der Client startet.
+
 `EngineMsgBase` ist die Tabelle `cl_parsefuncs`; ihr Aufbau
 `{opcode, pszname, pfnParse}` ist layoutgleich zu `goldsrc::EngineMsg`.
 

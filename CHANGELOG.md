@@ -81,6 +81,9 @@ The authoritative version string is the `VERSION` file.
 - Resolver tests with a dedicated fixture library covering dynsym, symtab,
   pattern fallback, a missing symbol and an unmatched pattern that must not turn
   into an address through its offset.
+- `tools/check_address_providers.py`: checks both public providers against a game
+  installation, rejects missing symbols, non-unique strings and unsupported
+  search types.
 
 ### Changed
 

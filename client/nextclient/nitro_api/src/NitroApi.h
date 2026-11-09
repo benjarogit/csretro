@@ -59,7 +59,7 @@ namespace nitroapi
         void InvokeLibraryLoaded(const std::string& module_path, ModuleHookData& module_hook_data);
         static void InvokeLibraryUnloading(const std::string& module_path, ModuleHookData& module_hook_data);
 
-        void RetrieveEngineBuildVersion();
+        void DetectBuildIdentity();
         std::shared_ptr<AddressProviderBase> GetEngineAddressProvider();
         std::shared_ptr<AddressProviderBase> GetClientAddressProvider();
     };

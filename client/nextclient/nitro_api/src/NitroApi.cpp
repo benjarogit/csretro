@@ -12,12 +12,9 @@
 #include <ncl_perf/profiler.h>
 #include <nitroapi/handler_helper/Handler.h>
 
+#include "build_registry.h"
 #include "FrameLifecycle.h"
 #include "modules/windows/WindowsModule.h"
-#include "modules/engine/EngineAddressProvider8684Windows.h"
-#include "modules/engine/EngineAddressProvider8684Linux.h"
-#include "modules/client/ClientAddressProvider8684Windows.h"
-#include "modules/client/ClientAddressProvider8684Linux.h"
 #include "modules/sdl2/SDL2AddressProvider.h"
 #include "modules/sdl2/loaded_sdl_module.h"
 
@@ -81,7 +78,7 @@ namespace nitroapi
         windows_data_ = windows_module->GetWindowsData();
         modules_.emplace_back("<exe>", std::move(windows_module));
 
-        RetrieveEngineBuildVersion();
+        DetectBuildIdentity();
 
         std::shared_ptr<AddressProviderBase> engine_provider = GetEngineAddressProvider();
 
@@ -242,71 +239,79 @@ namespace nitroapi
         }
     }
 
-    void NitroApi::RetrieveEngineBuildVersion()
+    void NitroApi::DetectBuildIdentity()
     {
-        std::string engine_path = IsWindows() ? "hw.dll" : "hw.so";
+        const std::string platform = IsWindows() ? "windows" : "linux";
+        const std::string engine_path = IsWindows() ? "hw.dll" : "hw.so";
+        const std::string client_path = IsWindows() ? "cstrike\\cl_dlls\\client.dll" : "cstrike/cl_dlls/client.so";
 
-        std::ifstream engine_file(engine_path, std::ifstream::ate | std::ifstream::binary);
+        const std::string engine_sha256 = HashFileSha256(engine_path);
 
-        if (!engine_file.is_open())
+        if (engine_sha256.empty())
         {
-            LOG(INFO) << "Can't open " << engine_path << " to retrieve engine build version";
+            LOG(INFO) << "Can't read " << engine_path << " to identify the game build";
 
             return;
         }
 
-        size_t engine_size = engine_file.tellg();
+        const std::string client_sha256 = HashFileSha256(client_path);
 
-        if (engine_size == 1641376 || engine_size == 9330714)
+        if (client_sha256.empty())
         {
-            build_version_ = BuildVersion{8684};
+            LOG(INFO) << "Can't read " << client_path << " to identify the game build";
+
+            return;
         }
-        else
+
+        std::optional<BuildVersion> identity = IdentifyBuild({platform, engine_sha256, client_sha256});
+
+        if (!identity.has_value())
         {
-            LOG(INFO) << "Unsupported engine version";
+            build_version_ = BuildVersion{};
+            build_version_.engine_sha256 = engine_sha256;
+            build_version_.client_sha256 = client_sha256;
+
+            LOG(INFO) << "Unknown game build: " << engine_path << " sha256=" << engine_sha256
+                      << ", " << client_path << " sha256=" << client_sha256;
+
+            return;
         }
+
+        build_version_ = std::move(identity.value());
+
+        LOG(INFO) << "Game build identified: " << build_version_.id
+                  << " (Steam build " << build_version_.build_number << ")";
     }
 
     std::shared_ptr<AddressProviderBase> NitroApi::GetEngineAddressProvider()
     {
-        if (build_version_.build_number != 8684)
+        if (!build_version_.IsSupported())
         {
+            LOG(INFO) << "No address provider for an unidentified engine build; engine hooks are disabled";
+
             return nullptr;
         }
 
-        std::shared_ptr<AddressProviderBase> address_provider;
+        // The Default Public provider is built on the three-stage resolver in
+        // G07b and filled with Public offsets in G07c. Until then no legacy
+        // provider may stand in for it.
+        LOG(INFO) << "No address provider implemented for build " << build_version_.id;
 
-        if (IsWindows())
-        {
-            address_provider = std::make_shared<EngineAddressProvider8684Windows>();
-        }
-        else
-        {
-            address_provider = std::make_shared<EngineAddressProvider8684Linux>();
-        }
-
-        return address_provider;
+        return nullptr;
     }
 
     std::shared_ptr<AddressProviderBase> NitroApi::GetClientAddressProvider()
     {
-        if (build_version_.build_number != 8684)
+        if (!build_version_.IsSupported())
         {
+            LOG(INFO) << "No address provider for an unidentified client build; client hooks are disabled";
+
             return nullptr;
         }
 
-        std::shared_ptr<AddressProviderBase> address_provider;
+        LOG(INFO) << "No address provider implemented for build " << build_version_.id;
 
-        if (IsWindows())
-        {
-            address_provider = std::make_shared<ClientAddressProvider8684Windows>();
-        }
-        else
-        {
-            address_provider = std::make_shared<ClientAddressProvider8684Linux>();
-        }
-
-        return address_provider;
+        return nullptr;
     }
 
 #ifdef _WIN32

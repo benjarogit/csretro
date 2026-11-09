@@ -6,11 +6,11 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-09
-- **Gate:** G06b – upstream radar, **done**
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a done)
 - **Branch:** `main`
-- **Commit:** `89a4315` (G06b), handoff commit follows
+- **Commit:** G07a commit, handoff commit follows
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42579531440 – success
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42579531440 – G06b success
 
 ## Verified (with evidence)
 
@@ -73,6 +73,33 @@ rebuild of every dependency and can change ABI and CMake minimums. That is a
 separate dependency gate with its own build-and-test evidence, not a side effect
 of the radar. The pin stays at `b5d1a94`; the gap is recorded here so the next
 radar does not treat it as new.
+
+## Default Public runtime (G07)
+
+**G07a – build registry, done.** The client no longer guesses the build from
+`hw.so` file size. `NitroApi::DetectBuildIdentity()` hashes `hw.so` and
+`cstrike/cl_dlls/client.so`, and `build_registry.cpp` maps the pair to an
+identity. Only an exact match is accepted; an unknown pair logs both digests and
+disables the hooks. The legacy 8684 address providers are deleted: they target a
+build CSRETRO does not support and are not a fallback.
+
+Registered build:
+
+| Field | Value |
+|---|---|
+| ID | `public-linux-1.0.1.4` |
+| Platform | Linux |
+| Steam build | 12934623 |
+| `hw.so` SHA-256 | `fca6628b5a4d76a945e11b9796f327004edc65420d9f9cc23f883143508edd78` |
+| `client.so` SHA-256 | `2e799ef31931c0f4372ff31ad30f0aab529b16461ed3b0928dfbd958183b2e5a` |
+
+Evidence: `nitro_api-tests` 65/65 green, including 7 registry tests (known,
+unknown, incomplete, wrong platform, case-insensitive, file hashing); client
+build exit 0 with the same eight ELF32 artifacts.
+
+**Next: G07b – three-stage resolver** (`dynsym` → `symtab` → pattern) and the
+Public address provider. Until it lands, a recognised build still runs without
+engine or client hooks.
 
 ## Decisions taken in G06
 
@@ -162,16 +189,14 @@ implementation; the plan is the only source for the gate list.
 
 ## Next task
 
-- **Gate:** G07 – Default Public runtime (build registry, resolver, offsets, first
-  start, ABI validation, feature smoke). The A2S decision from below belongs to
-  it.
+- **Gate:** G07 – Default Public runtime, in progress.
+- **Next step:** G07b – three-stage resolver (`dynsym` → `symtab` → pattern) and
+  the Public address provider. Then G07c offsets, G07d first start, G07e ABI
+  validation, G07f feature smoke. The A2S decision belongs to G07.
 - **After G07:** schedule the server performance backlog above (measurement
   first, then hookchain/native/per-frame work). It needs a plan gate entry.
 - **Dependency backlog:** vcpkg baseline bump (`b5d1a94` → current) as its own
   gate with a full rebuild and test run.
-- **G07 acceptance (plan section 7):** Default Public build registry, resolver,
-  offsets, first start, ABI validation, feature smoke. Includes the A2S decision
-  from above.
 
 ## Open decisions
 
@@ -252,4 +277,4 @@ exit 0, 211 s, 8 ELF32 artifacts
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | planned | Default Public runtime |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests, 65/65 `nitro_api-tests`, client build green |

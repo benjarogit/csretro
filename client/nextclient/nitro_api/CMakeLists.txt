@@ -41,17 +41,15 @@ add_library(nitro_api SHARED
         src/modules/client/studio_animation.h
         src/modules/engine/EngineModule.cpp
         src/modules/engine/EngineModule.h
-        src/modules/engine/EngineAddressProvider8684Windows.cpp
-        src/modules/engine/EngineAddressProvider8684Windows.h
         src/AddressProviderBase.h
         src/modules/ModuleBase.cpp
         src/modules/ModuleBase.h
         include/nitroapi/Concepts.h
-        src/modules/client/ClientAddressProvider8684Windows.cpp
-        src/modules/client/ClientAddressProvider8684Windows.h
         src/SearchConfig.cpp
         src/SearchConfig.h
         include/nitroapi/BuildVersion.h
+        src/build_registry.cpp
+        src/build_registry.h
         include/nitroapi/modules/client/ClientData.h
         src/modules/sdl2/SDL2Module.cpp
         src/modules/sdl2/SDL2Module.h
@@ -62,10 +60,6 @@ add_library(nitro_api SHARED
         src/profiler.h
         src/seh_platform.h
         src/AddressProviderBase.cpp
-        src/modules/client/ClientAddressProvider8684Linux.cpp
-        src/modules/client/ClientAddressProvider8684Linux.h
-        src/modules/engine/EngineAddressProvider8684Linux.cpp
-        src/modules/engine/EngineAddressProvider8684Linux.h
 )
 
 # Built with nitro_api, never linked into it: the layout test is a compile-time check.
@@ -88,6 +82,7 @@ target_link_libraries(nitro_api PRIVATE
         xbyak::xbyak
         funchook-static
         nitro_utils
+        data_encoding::data_encoding
 )
 
 if (WIN32)

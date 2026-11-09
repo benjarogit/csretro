@@ -66,6 +66,11 @@ The authoritative version string is the `VERSION` file.
 - Bilingual test server guide: `docs/de/server/testserver.md` and
   `docs/en/server/testserver.md`.
 - `scripts/doctor.sh` reports Docker and Compose as optional prerequisites.
+- SHA-256 build registry in `nitro_api` (`build_registry.cpp`) that identifies
+  the Default Public build from `hw.so` and `client.so` and refuses unknown
+  fingerprints.
+- `docs/de/client/runtime.md` and `docs/en/client/runtime.md`: build detection
+  and how to register a build.
 
 ### Changed
 
@@ -74,6 +79,9 @@ The authoritative version string is the `VERSION` file.
 - Vendored NextClient moved from `90b4bf7` to `24cc986` (G06b radar): Linux
   process-map parsing no longer truncates module paths that contain spaces.
   Imported with full history via `git subtree pull`; `versions.lock.json` updated.
+- Build detection switched from `hw.so` file size to SHA-256 fingerprints; the
+  legacy 8684 address providers are removed because CSRETRO targets only the
+  Default Public build.
 - `scripts/fetch-server-toolchain.sh` uses the shared `scripts/lib/fetch.sh`
   download helper.
 

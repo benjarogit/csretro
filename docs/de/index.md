@@ -30,6 +30,7 @@ damit die Struktur nicht zwischen Deutsch und Englisch auseinanderläuft.
 | Client bauen | [G04](build/client.md) |
 | Server-API bauen | [G05](build/server.md) |
 | Testserver | [G06](server/testserver.md) |
+| Client-Laufzeit | [G07](client/runtime.md) |
 | Cvar-Referenz (generiert) | G11 |
 | Command-Referenz (generiert) | G11 |
 | Native-Referenz (generiert) | G11 |

@@ -5,6 +5,8 @@ add_executable(nitro_api-tests
         StudioAnimationBindingsTests.cpp
         StudioDirectCallTests.cpp
         StudioDispatchTests.cpp
+        BuildRegistryTests.cpp
+        ../src/build_registry.cpp
         ../../client_mini/src/studio/StudioAnimation.cpp
         ../../client_mini/src/studio/studio_pose.cpp
         ../src/modules/client/studio_animation.cpp
@@ -36,6 +38,7 @@ target_include_directories(nitro_api-tests PRIVATE
 target_link_libraries(nitro_api-tests PRIVATE
         GTest::gtest_main
         nitro_utils::nitro_utils
+        data_encoding::data_encoding
         magic_enum::magic_enum
         funchook-static
         xbyak::xbyak

@@ -59,6 +59,16 @@ if (WIN32)
                     "${NEXTCLIENT_ROOT}/test_support/runtime/tier0.dll" $<TARGET_FILE_DIR:nitro_api-tests>)
 endif ()
 
+if (NOT WIN32)
+    add_library(resolver-test-module SHARED ResolverTestModule.cpp)
+    target_compile_options(resolver-test-module PRIVATE -O0 -fno-omit-frame-pointer)
+    set_target_properties(resolver-test-module PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
+    target_sources(nitro_api-tests PRIVATE ResolverTests.cpp)
+    add_dependencies(nitro_api-tests resolver-test-module)
+    target_compile_definitions(nitro_api-tests PRIVATE RESOLVER_TEST_MODULE_PATH="$<TARGET_FILE:resolver-test-module>")
+endif ()
+
 gtest_discover_tests(nitro_api-tests)
 
 add_library(performance-test-sdl SHARED FakeSdl.cpp)

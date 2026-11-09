@@ -6,11 +6,11 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-09
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a done)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a and G07b done)
 - **Branch:** `main`
-- **Commit:** `2d7a0fa` (G07a), handoff commit follows
+- **Commit:** G07b commit, handoff commit follows
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42581034835 – G07a success
+- **CI:** pending – G07b push follows
 
 ## Verified (with evidence)
 
@@ -33,6 +33,8 @@ Project state for the next session. Personal context belongs in
 | The imported fix is covered by upstream tests | `ctest -C Release -R LinuxModulePath` → 2/2 passed |
 | Client still builds after the import | `scripts/build-client.sh` exit 0, 211 s, 8 ELF32 artifacts |
 | Pins match the imported code | `versions.lock.json`: NextClient `24cc986…`, `updated_in: G06b` |
+| Address resolver covers dynsym, symtab and pattern | `nitro_api-tests`: 5 resolver tests green against a fixture library |
+| Public provider names exist in the retail binaries | offline check: 327/327 engine names in `hw.so` `symtab`, 81/81 client names in `client.so` `symtab` |
 
 Reference run (2026-11-08, local):
 
@@ -97,9 +99,33 @@ Evidence: `nitro_api-tests` 65/65 green, including 7 registry tests (known,
 unknown, incomplete, wrong platform, case-insensitive, file hashing); client
 build exit 0 with the same eight ELF32 artifacts.
 
-**Next: G07b – three-stage resolver** (`dynsym` → `symtab` → pattern) and the
-Public address provider. Until it lands, a recognised build still runs without
-engine or client hooks.
+**G07b – three-stage resolver, done.** `SearchConfig` has a
+`SearchType::SymbolOrPattern` mode that resolves in order: dynamic symbol
+(`dlsym`), full ELF symbol table (read from the file on disk), then a byte
+pattern. The public providers are `EngineAddressProviderPublicLinux.cpp`
+(327 entries) and `ClientAddressProviderPublicLinux.cpp` (81 entries); an offline
+check confirmed that every name exists in the retail `symtab` of `hw.so` or
+`client.so`. `BuildVersion` gained `BuildFamily`, and `NitroApi` selects the
+provider by family instead of by a single hardcoded build.
+
+`EngineMsgBase` is `cl_parsefuncs`; DWARF confirms the layout
+`svc_func_s { int opcode; const char* pszname; pfnParse; }`, which matches
+`goldsrc::EngineMsg`.
+
+Fixed `GetSysModuleInfo` in `client/dep/nitro_utils/src/platform/platform_linux.cpp`:
+it returned only the first mapping segment (the ELF header page), so pattern
+searches never saw code. It now spans all segments of the module.
+
+Evidence: `nitro_api-tests` 70/70 green, including 5 resolver tests (dynsym,
+symtab, pattern fallback, missing symbol without pattern, unmatched pattern
+with offset); client build exit 0
+with the same eight ELF32 artifacts.
+
+**Next: G07c – remaining offset and string entries.** Three engine entries still
+depend on renamed symbols or strings (`isFogEnabled.26640`, `R_ForceCVars.part.3`,
+the `GL_ARB_multitexture` string). Each needs a reproducible pattern or a
+documented, stable symbol; then G07d first start, G07e ABI validation against
+DWARF, G07f feature smoke.
 
 ## Decisions taken in G06
 
@@ -199,9 +225,11 @@ implementation; the plan is the only source for the gate list.
 ## Next task
 
 - **Gate:** G07 – Default Public runtime, in progress.
-- **Next step:** G07b – three-stage resolver (`dynsym` → `symtab` → pattern) and
-  the Public address provider. Then G07c offsets, G07d first start, G07e ABI
-  validation, G07f feature smoke. The A2S decision belongs to G07.
+- **Next step:** G07c – remaining offset and string entries
+  (`isFogEnabled.26640`, `R_ForceCVars.part.3`, `GL_ARB_multitexture`), each
+  replaced by a reproducible pattern or a documented stable symbol. Then G07d
+  first start, G07e ABI validation, G07f feature smoke. The A2S decision belongs
+  to G07.
 - **After G07:** schedule the server performance backlog above (measurement
   first, then hookchain/native/per-frame work). It needs a plan gate entry.
 - **Dependency backlog:** vcpkg baseline bump (`b5d1a94` → current) as its own
@@ -286,4 +314,4 @@ exit 0, 211 s, 8 ELF32 artifacts
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests, 65/65 `nitro_api-tests`, client build green |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests, 65/65 `nitro_api-tests`, client build green. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, client build green |

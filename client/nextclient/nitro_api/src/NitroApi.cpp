@@ -15,6 +15,8 @@
 #include "build_registry.h"
 #include "FrameLifecycle.h"
 #include "modules/windows/WindowsModule.h"
+#include "modules/client/ClientAddressProviderPublicLinux.h"
+#include "modules/engine/EngineAddressProviderPublicLinux.h"
 #include "modules/sdl2/SDL2AddressProvider.h"
 #include "modules/sdl2/loaded_sdl_module.h"
 
@@ -285,33 +287,42 @@ namespace nitroapi
 
     std::shared_ptr<AddressProviderBase> NitroApi::GetEngineAddressProvider()
     {
-        if (!build_version_.IsSupported())
+        switch (build_version_.family)
         {
-            LOG(INFO) << "No address provider for an unidentified engine build; engine hooks are disabled";
+            case BuildFamily::PublicLinux:
+                return std::make_shared<EngineAddressProviderPublicLinux>();
 
-            return nullptr;
+            case BuildFamily::PublicWindows:
+                LOG(INFO) << "Windows is not a supported CSRETRO target; engine hooks are disabled";
+
+                return nullptr;
+
+            case BuildFamily::Unknown:
+            default:
+                LOG(INFO) << "No address provider for an unidentified engine build; engine hooks are disabled";
+
+                return nullptr;
         }
-
-        // The Default Public provider is built on the three-stage resolver in
-        // G07b and filled with Public offsets in G07c. Until then no legacy
-        // provider may stand in for it.
-        LOG(INFO) << "No address provider implemented for build " << build_version_.id;
-
-        return nullptr;
     }
 
     std::shared_ptr<AddressProviderBase> NitroApi::GetClientAddressProvider()
     {
-        if (!build_version_.IsSupported())
+        switch (build_version_.family)
         {
-            LOG(INFO) << "No address provider for an unidentified client build; client hooks are disabled";
+            case BuildFamily::PublicLinux:
+                return std::make_shared<ClientAddressProviderPublicLinux>();
 
-            return nullptr;
+            case BuildFamily::PublicWindows:
+                LOG(INFO) << "Windows is not a supported CSRETRO target; client hooks are disabled";
+
+                return nullptr;
+
+            case BuildFamily::Unknown:
+            default:
+                LOG(INFO) << "No address provider for an unidentified client build; client hooks are disabled";
+
+                return nullptr;
         }
-
-        LOG(INFO) << "No address provider implemented for build " << build_version_.id;
-
-        return nullptr;
     }
 
 #ifdef _WIN32

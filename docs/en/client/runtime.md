@@ -29,6 +29,23 @@ hooks. There is no fallback to another build and no size-based guess. An unknown
 build means CSRETRO does not work until the digests are checked and an entry is
 added.
 
+## Address resolution
+
+The public providers live in `EngineAddressProviderPublicLinux.cpp` and
+`ClientAddressProviderPublicLinux.cpp`. Every entry is resolved in three stages:
+
+1. **dynsym** – `dlsym` through the dynamic symbol table entry.
+2. **symtab** – the full ELF symbol table of the file on disk.
+3. **pattern** – a byte pattern as the last resort.
+
+On the public build the engine functions exist only in `symtab`; `dynsym`
+contains mostly C++ libraries. Stage 2 therefore carries the resolution. The
+provider tables cover 327 engine entries and 81 client entries; every name was
+checked against the retail binaries.
+
+`EngineMsgBase` is the `cl_parsefuncs` table; its layout
+`{opcode, pszname, pfnParse}` matches `goldsrc::EngineMsg`.
+
 ## Adding a build
 
 1. Take both files from an unmodified installation.
@@ -38,5 +55,5 @@ added.
 4. Run `nitro_api-tests`; the registry tests cover unknown, incomplete and
    platform-mismatched fingerprints.
 
-The address providers for the public build arrive in G07b and G07c. Until then
-the client reports the detected build ID but leaves the hooks disabled.
+A new build also needs its own address provider whose symbol names are checked
+against the new binaries. The resolver itself stays unchanged.

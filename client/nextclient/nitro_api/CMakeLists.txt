@@ -60,6 +60,10 @@ add_library(nitro_api SHARED
         src/profiler.h
         src/seh_platform.h
         src/AddressProviderBase.cpp
+        src/modules/client/ClientAddressProviderPublicLinux.cpp
+        src/modules/client/ClientAddressProviderPublicLinux.h
+        src/modules/engine/EngineAddressProviderPublicLinux.cpp
+        src/modules/engine/EngineAddressProviderPublicLinux.h
 )
 
 # Built with nitro_api, never linked into it: the layout test is a compile-time check.

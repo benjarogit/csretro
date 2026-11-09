@@ -108,6 +108,13 @@ namespace nitroapi
         search_type(search_type)
     { }
 
+    SearchConfig::SearchConfig(std::string search_string, SearchType search_type, std::string fallback_pattern, uint32_t offset) :
+        search_string(std::move(search_string)),
+        fallback_pattern(std::move(fallback_pattern)),
+        offset(offset),
+        search_type(search_type)
+    { }
+
     uint32_t SearchConfig::FindAddress(MemScanner& mem_scanner) const
     {
         switch (search_type)
@@ -128,6 +135,32 @@ namespace nitroapi
 #else
                 return FindSymbolAddress(mem_scanner.Module(), search_string);
 #endif
+
+            case SearchType::SymbolOrPattern:
+            {
+                uint32_t address = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
+                    nitro_utils::GetProcAddress(mem_scanner.Module(), search_string.c_str())));
+
+                if (address != 0)
+                    return address;
+
+#ifndef _WIN32
+                address = FindSymbolAddress(mem_scanner.Module(), search_string);
+
+                if (address != 0)
+                    return address;
+#endif
+
+                if (fallback_pattern.empty())
+                    return 0;
+
+                const uint32_t pattern_address = mem_scanner.FindPattern(fallback_pattern.c_str());
+
+                if (pattern_address == 0)
+                    return 0;
+
+                return pattern_address + offset;
+            }
 
             case SearchType::Offset:
                 return mem_scanner.ModuleStart() + offset;

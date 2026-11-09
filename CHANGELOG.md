@@ -71,6 +71,16 @@ The authoritative version string is the `VERSION` file.
   fingerprints.
 - `docs/de/client/runtime.md` and `docs/en/client/runtime.md`: build detection
   and how to register a build.
+- Three-stage address resolver (`SearchType::SymbolOrPattern`): dynamic symbol,
+  full ELF symbol table, byte pattern as the last resort.
+- Public address providers `EngineAddressProviderPublicLinux` (327 entries) and
+  `ClientAddressProviderPublicLinux` (81 entries); every name is checked against
+  the retail binaries.
+- `BuildFamily` in `BuildVersion` so the provider choice follows the detected
+  build family instead of a single hardcoded provider.
+- Resolver tests with a dedicated fixture library covering dynsym, symtab,
+  pattern fallback, a missing symbol and an unmatched pattern that must not turn
+  into an address through its offset.
 
 ### Changed
 
@@ -93,6 +103,9 @@ The authoritative version string is the `VERSION` file.
   staged into the image; a missing model aborted the map load.
 - The test server keeps `modules.ini` empty so AMXX detects modules itself
   instead of loading each one twice through Metamod.
+- `GetSysModuleInfo` on Linux now returns the span across all mapping segments
+  of a module. It previously reported only the first mapping, so a pattern
+  search never reached executable code.
 
 ## [0.1.0-dev] - 2026-11-08
 

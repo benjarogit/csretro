@@ -1,4 +1,5 @@
 #include <nitro_utils/platform.h>
+#include <algorithm>
 #include <cstring>
 #include <link.h>
 #include <sys/mman.h>
@@ -28,23 +29,44 @@ namespace nitro_utils
         if (maps == nullptr)
             return false;
 
+        // A shared object is mapped in several segments (r--, r-x, r--, rw-).
+        // The span must cover all of them; the first entry alone is only the
+        // ELF header page, so a pattern search over it never matches code.
+        uint32_t span_start = 0;
+        uint32_t span_end = 0;
+        bool found = false;
+
         procmaps_struct* maps_tmp = nullptr;
         while ((maps_tmp = pmparser_next(maps)) != nullptr)
         {
-            if (std::strcmp(linkmap->l_name, maps_tmp->pathname) == 0)
+            if (std::strcmp(linkmap->l_name, maps_tmp->pathname) != 0)
+                continue;
+
+            const uint32_t mapping_start = (uint32_t)maps_tmp->addr_start;
+            const uint32_t mapping_end = (uint32_t)maps_tmp->addr_end;
+
+            if (!found)
             {
-                *start_address = (uint32_t)maps_tmp->addr_start;
-                *size = (uint32_t)maps_tmp->length;
+                span_start = mapping_start;
+                span_end = mapping_end;
+                found = true;
 
-                pmparser_free(maps);
-
-                return true;
+                continue;
             }
+
+            span_start = std::min(span_start, mapping_start);
+            span_end = std::max(span_end, mapping_end);
         }
 
         pmparser_free(maps);
 
-        return false;
+        if (!found)
+            return false;
+
+        *start_address = span_start;
+        *size = span_end - span_start;
+
+        return true;
     }
 
     SysModule LoadSysModule(const char* name)

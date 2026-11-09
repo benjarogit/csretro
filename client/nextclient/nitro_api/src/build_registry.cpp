@@ -20,6 +20,7 @@ namespace nitroapi
             const char* platform;
             const char* engine_sha256;
             const char* client_sha256;
+            BuildFamily family;
         };
 
         // One entry per supported build. The fingerprints are SHA-256 digests of
@@ -35,6 +36,7 @@ namespace nitroapi
                 "linux",
                 "fca6628b5a4d76a945e11b9796f327004edc65420d9f9cc23f883143508edd78",
                 "2e799ef31931c0f4372ff31ad30f0aab529b16461ed3b0928dfbd958183b2e5a",
+                BuildFamily::PublicLinux,
             },
         };
 
@@ -83,6 +85,7 @@ namespace nitroapi
             build.id = record.id;
             build.engine_sha256 = engine_sha256;
             build.client_sha256 = client_sha256;
+            build.family = record.family;
 
             return build;
         }

@@ -4,8 +4,15 @@
 
 namespace nitroapi
 {
+    enum class BuildFamily
+    {
+        Unknown,
+        PublicLinux,
+        PublicWindows,
+    };
+
     // Identity of the detected game build. It is filled from the build registry
-    // in BuildRegistry.h; an empty id means the binaries are not registered.
+    // in build_registry.h; an empty id means the binaries are not registered.
     struct BuildVersion
     {
         // Steam app build id, 0 when unknown.
@@ -15,6 +22,7 @@ namespace nitroapi
         // SHA-256 of the engine and client binaries that produced this identity.
         std::string engine_sha256;
         std::string client_sha256;
+        BuildFamily family{};
 
         bool IsSupported() const { return !id.empty(); }
     };

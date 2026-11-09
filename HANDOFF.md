@@ -140,6 +140,15 @@ engine or client hooks.
 - **Manual copy stays possible.** `scripts/install.sh` (G09) is a convenience
   around copy, hashes and backups; a user who already has a valid game folder can
   point CSRETRO at it.
+- **The installer is the normal path.** G09 ships `scripts/install.sh` with a
+  `--target client|server|hltv|all` selector, `--dry-run` and `--uninstall`.
+  Each target gets its own launcher (`csretro.sh`, `csretro-server.sh`,
+  `csretro-hltv.sh`) and a `.desktop` entry with icon and menu category.
+- **Import is allowlist-based.** Only the files CSRETRO needs leave the Steam
+  installation: `cstrike`, `valve`, `platform`, the engine and client binaries,
+  VGUI2 and required assets. Steam binaries, CEF and HTML caches, logs, dumps,
+  demos, local configs and foreign mods are skipped, and the import reports what
+  was skipped and why. Retail binaries are checked against the build registry.
 - **Open:** whether the client still needs a running Steam client for auth
   tickets after G08 replaces the protocol. The vendored launcher starts through
   the Steam runtime today.

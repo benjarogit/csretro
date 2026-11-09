@@ -458,19 +458,36 @@ Option wäre ein Hybrid aus `client.so`-Ersatz und Engine-Patches (FuryBaM-Ansat
 
 #### G09 – Installation & E2E
 
-**Ziel:** CSRETRO läuft auf dem echten System.
+**Ziel:** CSRETRO läuft auf dem echten System, installiert über einen vom
+Benutzer ausführbaren Installer.
 
 **Aufgaben:**
 - Separate Spielkopie außerhalb der Steam-Library
-- `scripts/install.sh`: kopieren, Rechte setzen, Hashes prüfen, Backup
+- `scripts/install.sh` als benutzbarer Installer: kopieren, Rechte setzen,
+  Hashes prüfen, Backup, `--dry-run`, klare Fehlermeldungen, kein Root-Zwang
+- Import der Client-Daten aus einer Steam-Installation über eine **Allowlist**:
+  nur benötigte Verzeichnisse und Dateien übernehmen (`cstrike`, `valve`,
+  `platform`, Engine- und Client-Binaries, VGUI2, nötige Assets). Nicht
+  übernehmen: Steam-Binaries, CEF/HTML-Cache, Logs, Crashes, Demos, lokale
+  Konfigurationen, Download-Caches, Fremd-Mods. Der Import berichtet, was
+  übersprungen wurde und warum.
+- Importierte Retail-Binaries gegen die Build-Registry prüfen (SHA-256)
+- Zielauswahl `--target client|server|hltv|all` mit getrennten Verzeichnissen
+- Starter und Verknüpfungen: `csretro.sh` (Client), `csretro-server.sh`
+  (Server), `csretro-hltv.sh` (HLTV), jeweils mit `.desktop`-Eintrag, Icon und
+  sinnvoller Menükategorie; relative Pfade, keine absoluten Pfade des Erstellers
+- `--uninstall`, das nur installierte Dateien entfernt und die Steam-Installation
+  unberührt lässt
 - Start über `csretro.sh`
 - `csr_version`, Connect zum Testserver, Handshake
 - Smoke: Radar, Killfeed, Viewmodel, Server-API
 - Manuelle Checkliste dokumentieren
 
-**Abnahme:** Lauf bestätigt, Logs + Screenshots, Handoff aktualisiert.
+**Abnahme:** Lauf bestätigt, Logs + Screenshots, Handoff aktualisiert; Installer
+und Deinstallation auf einem sauberen Benutzerkonto nachvollzogen.
 
-**Sicherheit:** niemals im Steam-Ordner installieren, niemals auf VAC-Servern testen.
+**Sicherheit:** niemals im Steam-Ordner installieren, niemals auf VAC-Servern
+testen, keine Steam-Zugangsdaten annehmen oder speichern.
 
 ---
 

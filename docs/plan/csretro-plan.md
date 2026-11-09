@@ -1,6 +1,6 @@
 # CSRETRO – Gesamtplan
 
-**Stand:** 8. November 2026
+**Stand:** 9. November 2026
 **Rolle:** maßgebliche Quelle für Ziele, Entscheidungen und Gates
 **Fortschritt:** steht ausschließlich in [`HANDOFF.md`](../../HANDOFF.md), nicht hier
 **Repository:** `https://github.com/benjarogit/csretro` (privat)
@@ -127,6 +127,42 @@ Offset-Neuberechnung und ABI-Validierung.
 | FuryBaM/cs16-goldsrc-client | GPL-3.0 | nur Ideen/Verfahren |
 | FWGS/cs16-client | GPL-2.0-or-later + HL-Engine-Exception | nur Ideen/Verfahren |
 | portapps/hlsw-portable | MIT | Muster für portables Layout |
+
+### 3.6 Client-Engine: Xash3D-Befund (Spike, 9. November 2026)
+
+Ein Spike hat geprüft, ob Xash3D-FWGS die Retail-Client-Bibliothek
+`cstrike/cl_dlls/client.so` (32 Bit) tragen kann. Ergebnis:
+
+- Der 32-Bit-Build von Xash3D-FWGS (`e9b94dc`) lädt `client.so`; `Initialize`
+  kopiert `cl_enginefunc_t` (536 Byte, Version 7) und liefert `1`.
+- `HUD_Init` läuft bis zum ersten VGUI2-Aufruf.
+- **Blocker:** Valves und NextClients `vgui2.so` holen das Interface
+  `VGUI_Surface026` (dazu `IEngineSurface`/`EngineSurface007`) per
+  `CreateInterface` aus der Engine. Im Retail-Stack liefert `hw.so` dieses
+  Interface. Xash3D ersetzt `hw.so` und exportiert kein `VGUI_Surface026`; sein
+  `vgui.so` ist FreeVGUI mit der VGUI1-Support-API (`GetVGUISupportAPI`/`InitAPI`).
+- Folge: `SurfaceNext::GetScreenSize` greift auf `g_pSurface == NULL` zu;
+  `HUD_Init` stürzt in `CHudDeathNotice::Init` ab.
+- NextClients `vgui2.so` verlangt zusätzlich `VGUI_SurfaceNext001` und
+  `VGUI_SchemeNext001`.
+
+Die Engine-Frage ist damit offen. Drei Wege:
+
+| Option | Inhalt | Aufwand / Risiko |
+|---|---|---|
+| A | `VGUI_Surface026`/`IEngineSurface`-Adapter in Xash3D | 142 virtuelle Methoden, viele No-ops; VGUI2 rendert danach über Xash3D |
+| B | FreeVGUI um GoldSrc-VGUI2-`CreateInterface`-Exporte inkl. Next-Extensions erweitern, `gameui.so` dagegen bauen | ersetzt Valves VGUI2; NextClient-UI muss gegen FreeVGUI laufen |
+| C | Retail-GoldSrc bleibt Client-Engine | kein Xash3D; 32 Bit und `hw.so`-Hooks bleiben gültig |
+
+Nebenbefunde:
+
+- NextClients `engine_mini`/`nitro_api` haken in `hw.so` (u. a.
+  `vgui2_surface`). Mit Xash3D entfällt `hw.so`; diese Hooks brauchen einen
+  Engine-Adapter oder einen Ersatz.
+- Ein x86_64-Client setzt quelloffenen 64-Bit-Client-Gamecode voraus. Valves
+  `client.so` ist ausschließlich 32 Bit.
+- Der Retail-Stack bleibt der funktionierende Fallback, bis eine Option belegt
+  ist.
 
 ---
 

@@ -6,9 +6,9 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-09
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed, Xash3D client spike running)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed, Xash3D spike: VGUI2 surface blocker found)
 - **Branch:** `main`
-- **Commit:** `5d0c1c6` (Steam autostart), spike docs follow
+- **Commit:** `3c57667` (rebrand scope + spike), VGUI2 finding committed on top
 - **Version:** `0.1.0-dev` (`VERSION`)
 - **CI:** https://github.com/benjarogit/csretro/actions/runs/42598171791 – success
 
@@ -39,6 +39,9 @@ Project state for the next session. Personal context belongs in
 | All Linux client modules load | 32-bit `dlopen` probe: `next_engine_mini.dll`, `client_mini.dll`, `gameui.so`, `vgui2.so`, `nitro_api2.dll`, `FileSystem_Proxy.dll` load after the global `steam_api.dll` |
 | The installer keeps Valve's libraries | install test green for Windows/Linux × Tracy off/on, including `vgui2.so.valve` and `libtier0.so.valve` preservation on repeat install |
 | Xash3D x86_64 starts headless | dedicated log: `Dll loaded for game "Counter-Strike"`, `ReGameDLL version: 5.30.0.871-dev`, `execing maps/de_dust2_load.cfg`, `4 player server started` |
+| Xash3D 32-bit loads Valve's `client.so` | `client.so` `Initialize` returns 1 (`cl_enginefunc_t` 536 bytes, version 7); `HUD_Init` reaches the first VGUI2 call |
+| The Xash3D blocker is pinned to VGUI2 | crash stack `SurfaceNext::GetScreenSize` ← `CSchemeManager::GetProportionalScaledValue` ← `CHudDeathNotice::Init`, `g_pSurface == NULL` |
+| Xash3D provides no VGUI2 surface factory | `nm -D vgui.so` exports only `GetVGUISupportAPI`/`InitAPI`; `hw.so` carries `VGUI_Surface026` and `EngineSurface007` |
 | The ReHLDS test server is ready for the spike | `tests/e2e/test_server.py` green on udp/27016: Metamod-R, AMXX, nclapi, `de_dust2`, `nclapi_version 1.6.0` |
 
 Reference run (2026-11-08, local):
@@ -176,6 +179,36 @@ game reaches the console without a crash.
 game is never started by a script. The result goes into this file, then G07e ABI
 validation against DWARF and G07f feature smoke follow.
 
+**Xash3D spike – VGUI2 surface blocker.** The spike runs Xash3D-FWGS `e9b94dc`
+(32-bit build) with Valve's `cstrike/cl_dlls/client.so`, not with FWGS
+`cs16-client`. The engine loads the library, `Initialize` accepts
+`cl_enginefunc_t` (536 bytes, version 7) and returns 1, and `HUD_Init` runs
+until the first VGUI2 call. It then crashes in
+`CHudDeathNotice::Init` → `CSchemeManager::GetProportionalScaledValue` →
+`SurfaceNext::GetScreenSize` because `g_pSurface` is `NULL`.
+
+Cause: both Valve's and NextClient's `vgui2.so` obtain `VGUI_Surface026` (plus
+`IEngineSurface`/`EngineSurface007`) through `CreateInterface` from the engine.
+In the retail stack `hw.so` provides it. Xash3D replaces `hw.so` and exports no
+such interface; its `vgui.so` is FreeVGUI with the VGUI1 support API
+(`GetVGUISupportAPI`/`InitAPI`). NextClient's `vgui2.so` additionally requires
+`VGUI_SurfaceNext001` and `VGUI_SchemeNext001`.
+
+A spike-only `LD_PRELOAD` shim (`kvshim.so`, outside the repository) hooks the
+`F` export, patches `pfnInitialize`, and after `Initialize` fills the client's
+VGUI2 globals with NextClient's `KeyValues003`, `VGUI_ivgui006`,
+`VGUI_Panel007`, `VGUI_Scheme009`, `VGUI_System009`, `VGUI_Input004`,
+`VGUI_Localize003` and the client's own `VFileSystem009`. That proves the
+remaining gap is the surface, nothing earlier. `VGUI_Surface026` stays `nil`.
+
+Consequence: the client engine is an open decision with three options, recorded
+in `docs/plan/csretro-plan.md` section 3.6: (A) a `VGUI_Surface026` /
+`IEngineSurface` adapter in Xash3D, (B) GoldSrc VGUI2 exports in FreeVGUI
+including the Next extensions, or (C) keep retail GoldSrc. NextClient's
+`engine_mini`/`nitro_api` also hook `hw.so` (`vgui2_surface`), so Xash3D needs
+an engine adapter or a replacement for those hooks. Details:
+`.local/xash-spike.md` (ignored).
+
 ## Decisions taken in G06
 
 1. **Steam ABI.** ReHLDS 3.15 imports `SteamGameServer_Init`, `SteamGameServer`
@@ -256,6 +289,9 @@ implementation; the plan is the only source for the gate list.
 - **A2S under Default Public:** open decision for G07. Either adapt
   `ISteamGameServer011` to the 015 interface or write a dedicated query
   responder.
+- **Client engine undecided:** retail GoldSrc is the proven path (G07d rerun
+  pending); Xash3D loads `client.so` but has no `VGUI_Surface026`, so `HUD_Init`
+  stops. Three options in plan section 3.6.
 - **Steam stub is test-only.** It authenticates nobody and must never be used
   for a public server. A production server needs real Steam connectivity.
 - **E2E is not in CI yet.** The Docker job arrives with G10; the test needs
@@ -274,18 +310,21 @@ implementation; the plan is the only source for the gate list.
 ## Next task
 
 - **Gate:** G07 – Default Public runtime, in progress.
-- **Next step (spike):** the maintainer runs the Xash3D client spike
-  (`$HOME/csretro-xash-spike/run-csretro-xash.sh`, then
-  `connect 127.0.0.1:27016`) and records whether the engine starts, the client
-  library loads, the ReHLDS server accepts the connection and `de_dust2`
-  renders with HUD, radar and buy menu. Pins: Xash3D-FWGS `e9b94dc`, cs16-client
-  `9ca704b`. Details: `.local/xash-spike.md` (ignored). If green, the plan moves
-  to a client-engine pivot; if red, the retail path continues.
-- **Fallback (retail):** rerun G07d from `docs/en/client/first-start.md` after
-  the loader fix (`79ba393`), then G07e ABI validation against DWARF and G07f
-  feature smoke. The A2S decision belongs to G07.
-- **After G07:** schedule the server performance backlog above (measurement
-  first, then hookchain/native/per-frame work). It needs a plan gate entry.
+- **Next step (decision):** choose the client engine path from
+  `docs/plan/csretro-plan.md` section 3.6 before more spike work:
+  - **A** – implement a minimal `VGUI_Surface026`/`IEngineSurface` adapter in
+    Xash3D (many no-ops first, then real drawing) and rerun the spike to see how
+    far `HUD_Init` and the map load get.
+  - **B** – extend FreeVGUI with the GoldSrc VGUI2 `CreateInterface` exports
+    including `VGUI_SurfaceNext001`/`VGUI_SchemeNext001`, build `gameui.so`
+    against it, and drop Valve's VGUI2.
+  - **C** – keep retail GoldSrc as the client engine and continue with the G07d
+    maintainer rerun, G07e ABI validation and G07f feature smoke.
+- **Also needed for A/B:** sketch the `engine_mini`/`nitro_api` port off the
+  `hw.so` hooks (`vgui2_surface` and friends) onto an Xash3D engine adapter.
+- **After the decision:** schedule the server performance backlog above
+  (measurement first, then hookchain/native/per-frame work). It needs a plan gate
+  entry.
 - **Dependency backlog:** vcpkg baseline bump (`b5d1a94` → current) as its own
   gate with a full rebuild and test run.
 
@@ -357,6 +396,20 @@ $ scripts/build-client.sh
 exit 0, 211 s, 8 ELF32 artifacts
 ```
 
+Xash3D 32-bit spike (2026-11-09, local):
+
+```text
+$ ./xash3d -game cstrike -console +quit   (LD_PRELOAD=kvshim.so, Xvfb, llvmpipe)
+[kvshim] intercepted client F at 0xcec15530
+[kvshim] patched client F table, Initialize 0xcec153b0
+[kvshim] client Initialize returned 1
+[kvshim] VGUI_Surface026=(nil)
+Crash: signal 11
+ 1: <_ZN11SurfaceNext13GetScreenSizeERiS0_+19> (vgui2.so)
+ 2: <_ZN14CSchemeManager26GetProportionalScaledValueEi.localalias+65> (vgui2.so)
+ 3: _ZN15CHudDeathNotice4InitEv (death.cpp:88) (client.so)
+```
+
 ## Gate log
 
 | Gate | State | Evidence |
@@ -368,4 +421,4 @@ exit 0, 211 s, 8 ELF32 artifacts
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc` + cs16-client `9ca704b` x86_64 build, headless dedicated and ReHLDS e2e green, client run pending |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, x86_64 build with cs16-client `9ca704b` as a reference (not the target), headless dedicated and ReHLDS e2e green; 32-bit Xash3D loads Valve's `client.so`, blocked at `VGUI_Surface026` (plan section 3.6) |

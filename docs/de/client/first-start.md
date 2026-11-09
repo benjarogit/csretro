@@ -7,7 +7,7 @@ startet das Spiel nie selbst.
 ## Voraussetzungen
 
 - Counter-Strike 1.6 aus der eigenen Steam-Installation (App 10)
-- Steam läuft
+- Steam ist installiert; der Starter startet es bei Bedarf und wartet darauf
 - Die 32-Bit-Laufzeitbibliotheken sind vorhanden (`scripts/doctor.sh`)
 
 ## Schritte

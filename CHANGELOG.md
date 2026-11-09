@@ -32,6 +32,9 @@ The authoritative version string is the `VERSION` file.
   `docs/en/build/prerequisites.md`.
 - `scripts/build-client.sh`: configure, build in dependency order, write a hash
   manifest, fail on non-ELF32 artifacts, transparent space-free symlink.
+- The Linux starter starts Steam when it is closed, waits up to 90 seconds for
+  the process and fails with a clear message instead of starting a client that
+  cannot authenticate.
 - Bilingual client build guide: `docs/de/build/client.md` and
   `docs/en/build/client.md`.
 - Verified 32-bit client build: eight ELF32 artifacts including `gameui.so` and

@@ -6,11 +6,11 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-09
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d prepared)
 - **Branch:** `main`
-- **Commit:** `0cf8e7a` (G07b), G07c commit follows
+- **Commit:** `e96dcce` (G07c), G07d checklist commit follows
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42590218846 – G07b success
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42590684300 – G07c success
 
 ## Verified (with evidence)
 
@@ -137,10 +137,17 @@ by SHA-256, a different build gets its own provider, and the tool reports any
 mismatch. The negative cases (missing symbol, duplicated string, unsupported
 search type) were exercised and each is reported.
 
-**Next: G07d – first start.** The maintainer copies the built client into a
-separate game folder outside Steam, starts it, and records whether `hw.so` is
-patched, the console answers and no crash happens. Then G07e ABI validation
-against DWARF, G07f feature smoke.
+**G07d – first start, prepared.** The manual check is documented in
+`docs/de/client/first-start.md` and `docs/en/client/first-start.md`: copy the
+game outside Steam, run `scripts/build-client.sh --install-dir <copy>`, start
+with `nextclient.sh -windowed -console`, and record the console lines
+`Game build identified: public-linux-1.0.1.4`, the absence of
+`Unknown game build` and `Can't get engine address provider`, and whether the
+game reaches the console without a crash.
+
+**Blocked on the maintainer run.** Automation stops at the process boundary; the
+game is never started by a script. The result goes into this file, then G07e ABI
+validation against DWARF and G07f feature smoke follow.
 
 ## Decisions taken in G06
 
@@ -240,10 +247,10 @@ implementation; the plan is the only source for the gate list.
 ## Next task
 
 - **Gate:** G07 – Default Public runtime, in progress.
-- **Next step:** G07d – first start in a separate game folder outside Steam;
-  the maintainer records whether `hw.so` is patched, the console answers and no
-  crash happens. Then G07e ABI validation against DWARF, G07f feature smoke. The
-  A2S decision belongs to G07.
+- **Next step:** the maintainer runs the G07d first-start check from
+  `docs/en/client/first-start.md` and records the console evidence here. Then
+  G07e ABI validation against DWARF, G07f feature smoke. The A2S decision
+  belongs to G07.
 - **After G07:** schedule the server performance backlog above (measurement
   first, then hookchain/native/per-frame work). It needs a plan gate entry.
 - **Dependency backlog:** vcpkg baseline bump (`b5d1a94` → current) as its own
@@ -328,4 +335,4 @@ exit 0, 211 s, 8 ELF32 artifacts
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: checklist ready, run pending |

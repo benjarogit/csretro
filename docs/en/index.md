@@ -31,6 +31,7 @@ German and English trees cannot drift apart.
 | Building the server API | [G05](build/server.md) |
 | Test server | [G06](server/testserver.md) |
 | Client runtime | [G07](client/runtime.md) |
+| First client start | [G07](client/first-start.md) |
 | Cvar reference (generated) | G11 |
 | Command reference (generated) | G11 |
 | Native reference (generated) | G11 |

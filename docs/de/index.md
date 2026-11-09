@@ -31,6 +31,7 @@ damit die Struktur nicht zwischen Deutsch und Englisch auseinanderläuft.
 | Server-API bauen | [G05](build/server.md) |
 | Testserver | [G06](server/testserver.md) |
 | Client-Laufzeit | [G07](client/runtime.md) |
+| Erster Client-Start | [G07](client/first-start.md) |
 | Cvar-Referenz (generiert) | G11 |
 | Command-Referenz (generiert) | G11 |
 | Native-Referenz (generiert) | G11 |

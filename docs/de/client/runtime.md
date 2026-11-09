@@ -86,3 +86,8 @@ das Werkzeug meldet jede Abweichung, bevor der Client startet.
 Ein neuer Build braucht außerdem einen eigenen Address-Provider, dessen
 Symbolnamen gegen die neuen Binärdateien geprüft werden. Der Resolver selbst
 bleibt unverändert.
+
+## Erster Start
+
+Die manuelle Prüfung nach einem Client-Build steht in
+[Erster Client-Start](first-start.md).

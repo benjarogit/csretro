@@ -82,3 +82,8 @@ mismatch before the client starts.
 
 A new build also needs its own address provider whose symbol names are checked
 against the new binaries. The resolver itself stays unchanged.
+
+## First start
+
+The manual check after a client build is described in
+[First client start](first-start.md).

@@ -445,6 +445,8 @@ Option wäre ein Hybrid aus `client.so`-Ersatz und Engine-Patches (FuryBaM-Ansat
 **Aufgaben:**
 - `ncl_` → `csr_`, `NextClient` → `CSRETRO`, Modul-/Dateinamen
   (`csretro_client.dll`, `csretro_engine.dll`, `csretro_nitro_api.dll`, `csretro_gameui.so`, `csretro.sh`)
+- Interne C++-Namespaces und Klassennamen bleiben vorerst unverändert; G08
+  benennt nur ausgelieferte Namen um
 - Protokoll: Header `nclm` → `csrm`, eigene Opcodes, Version `CSR-PROTO 1`
 - Eigene RSA-Keys + `pkeys`-Rotation (`tools/keygen.sh`)
 - Pflicht-Handshake mit Timeout-Kick für Fremdclients

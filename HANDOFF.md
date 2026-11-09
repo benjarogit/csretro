@@ -6,11 +6,11 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-09
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed, waiting for the maintainer rerun)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed, Xash3D client spike running)
 - **Branch:** `main`
-- **Commit:** `c6836b6` (G07d fix and plan requirement), handoff commit follows
+- **Commit:** `5d0c1c6` (Steam autostart), spike docs follow
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42595518318 – success
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42598171791 – success
 
 ## Verified (with evidence)
 
@@ -38,6 +38,8 @@ Project state for the next session. Personal context belongs in
 | Provider check tool works and fails loudly | `tools/check_address_providers.py --game-dir …` exit 0; injected missing symbol, duplicated string and `SearchType::Offset` each reported |
 | All Linux client modules load | 32-bit `dlopen` probe: `next_engine_mini.dll`, `client_mini.dll`, `gameui.so`, `vgui2.so`, `nitro_api2.dll`, `FileSystem_Proxy.dll` load after the global `steam_api.dll` |
 | The installer keeps Valve's libraries | install test green for Windows/Linux × Tracy off/on, including `vgui2.so.valve` and `libtier0.so.valve` preservation on repeat install |
+| Xash3D x86_64 starts headless | dedicated log: `Dll loaded for game "Counter-Strike"`, `ReGameDLL version: 5.30.0.871-dev`, `execing maps/de_dust2_load.cfg`, `4 player server started` |
+| The ReHLDS test server is ready for the spike | `tests/e2e/test_server.py` green on udp/27016: Metamod-R, AMXX, nclapi, `de_dust2`, `nclapi_version 1.6.0` |
 
 Reference run (2026-11-08, local):
 
@@ -272,11 +274,16 @@ implementation; the plan is the only source for the gate list.
 ## Next task
 
 - **Gate:** G07 – Default Public runtime, in progress.
-- **Next step:** the maintainer rebuilds, reinstalls into `$HOME/csretro-g07d`
-  and reruns the G07d first-start check from `docs/en/client/first-start.md`
-  after the loader fix (`79ba393`), then records the console evidence here.
-  Then G07e ABI validation against DWARF, G07f feature smoke. The A2S decision
-  belongs to G07.
+- **Next step (spike):** the maintainer runs the Xash3D client spike
+  (`$HOME/csretro-xash-spike/run-csretro-xash.sh`, then
+  `connect 127.0.0.1:27016`) and records whether the engine starts, the client
+  library loads, the ReHLDS server accepts the connection and `de_dust2`
+  renders with HUD, radar and buy menu. Pins: Xash3D-FWGS `e9b94dc`, cs16-client
+  `9ca704b`. Details: `.local/xash-spike.md` (ignored). If green, the plan moves
+  to a client-engine pivot; if red, the retail path continues.
+- **Fallback (retail):** rerun G07d from `docs/en/client/first-start.md` after
+  the loader fix (`79ba393`), then G07e ABI validation against DWARF and G07f
+  feature smoke. The A2S decision belongs to G07.
 - **After G07:** schedule the server performance backlog above (measurement
   first, then hookchain/native/per-frame work). It needs a plan gate entry.
 - **Dependency backlog:** vcpkg baseline bump (`b5d1a94` → current) as its own
@@ -361,4 +368,4 @@ exit 0, 211 s, 8 ELF32 artifacts
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc` + cs16-client `9ca704b` x86_64 build, headless dedicated and ReHLDS e2e green, client run pending |

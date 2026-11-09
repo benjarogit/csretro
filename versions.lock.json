@@ -9,12 +9,13 @@
   "upstreams": {
     "nextclient": {
       "repository": "https://github.com/CS-NextClient/NextClient",
-      "commit": "90b4bf76ee4ff1ea3afb2c823feb2137bd65034e",
-      "describe": "2.6.0-preview.2",
+      "commit": "24cc98637998640086fda54c341d6842bbd292c5",
+      "describe": "main after 2.6.0-preview.2 (Linux module path fix)",
       "prefix": "client/",
       "method": "git-subtree",
       "vendored": true,
-      "gate": "G02"
+      "gate": "G02",
+      "updated_in": "G06b"
     },
     "nextclient_server_api": {
       "repository": "https://github.com/CS-NextClient/NextClientServerApi",

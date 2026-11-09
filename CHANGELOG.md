@@ -71,6 +71,9 @@ The authoritative version string is the `VERSION` file.
 
 - Root `.gitattributes` no longer reinterprets vendored binaries through the LFS
   rules; each vendored tree keeps its own attribute policy.
+- Vendored NextClient moved from `90b4bf7` to `24cc986` (G06b radar): Linux
+  process-map parsing no longer truncates module paths that contain spaces.
+  Imported with full history via `git subtree pull`; `versions.lock.json` updated.
 - `scripts/fetch-server-toolchain.sh` uses the shared `scripts/lib/fetch.sh`
   download helper.
 

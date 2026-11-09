@@ -5,12 +5,12 @@ Project state for the next session. Personal context belongs in
 
 ## State
 
-- **Date:** 2026-11-08
-- **Gate:** G06 – reproducible test server, **done**
+- **Date:** 2026-11-09
+- **Gate:** G06b – upstream radar, **done**
 - **Branch:** `main`
-- **Commit:** `164e4e7` (G06 code), handoff commit follows
+- **Commit:** `bcd2e79` (NextClient pull), handoff commit follows
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42514310451 – success
+- **CI:** G06 run `42514310451` – success; G06b run recorded below
 
 ## Verified (with evidence)
 
@@ -29,6 +29,10 @@ Project state for the next session. Personal context belongs in
 | Cleanup is guaranteed | `run.sh` trap runs `docker compose down --volumes --remove-orphans` |
 | Doctor reports container tooling | `scripts/doctor.sh`: 43 passed, 0 warnings, 0 failed |
 | Repository checks pass | `scripts/verify.sh` green |
+| NextClient upstream fix is imported | `git subtree pull` merge `bcd2e79`, `pmparser.h` uses `pathname[PATH_MAX]` |
+| The imported fix is covered by upstream tests | `ctest -C Release -R LinuxModulePath` → 2/2 passed |
+| Client still builds after the import | `scripts/build-client.sh` exit 0, 211 s, 8 ELF32 artifacts |
+| Pins match the imported code | `versions.lock.json`: NextClient `24cc986…`, `updated_in: G06b` |
 
 Reference run (2026-11-08, local):
 
@@ -42,6 +46,33 @@ ok   rcon: "nclapi_version" is "1.6.0"
 ok   rcon: amxx plugins: Test NCL API running
 all e2e checks passed
 ```
+
+## Upstream radar (G06b)
+
+`scripts/sync-upstream.sh` run on 2026-11-09 against the four pins.
+
+| Upstream | Pin | Head | Verdict |
+|---|---|---|---|
+| NextClient | `90b4bf7` | `24cc986` | **taken** – 1 commit, Linux maps parsing for paths with spaces |
+| NextClientServerApi | `1da463e` | `1da463e` | up to date, nothing to do |
+| ncl-hl1-source-sdk | `0e9be00` | `0e9be00` | up to date, nothing to do |
+| vcpkg | `b5d1a94` | `ec48c11` | **deferred** – 2919 commits behind |
+
+**NextClient `24cc986` – taken.** `pmparser` split map lines on whitespace, so a
+process path containing a space (this repository itself) was truncated. The fix
+switches `pathname` to `PATH_MAX` and scans to the line end. It is imported with
+full history via `git subtree pull` (`bcd2e79`); the pin in `versions.lock.json`
+now points at `24cc986`. Upstream added `dep/nitro_utils/tests/`
+(`LinuxModulePathTests`); a local build with `NEXTCLIENT_BUILD_TESTS=ON` runs
+2/2 green. The client rebuild after the import stays green with the same eight
+ELF32 artifacts.
+
+**vcpkg – deferred, not ignored.** The 2919 commits are a registry-wide baseline
+move (port updates, no security-driven pin). Bumping it forces a full port
+rebuild of every dependency and can change ABI and CMake minimums. That is a
+separate dependency gate with its own build-and-test evidence, not a side effect
+of the radar. The pin stays at `b5d1a94`; the gap is recorded here so the next
+radar does not treat it as new.
 
 ## Decisions taken in G06
 
@@ -131,15 +162,13 @@ implementation; the plan is the only source for the gate list.
 
 ## Next task
 
-- **Gate:** G06b – upstream radar (decided after G06; add it to the plan's gate
-  list before starting), then G07 – Default Public runtime.
+- **Gate:** G07 – Default Public runtime (build registry, resolver, offsets, first
+  start, ABI validation, feature smoke). The A2S decision from below belongs to
+  it.
 - **After G07:** schedule the server performance backlog above (measurement
   first, then hookchain/native/per-frame work). It needs a plan gate entry.
-- **G06b acceptance:**
-  - Report upstream changes since the vendored pins for NextClient,
-    NextClientServerApi, ncl-hl1-source-sdk and vcpkg.
-  - Classify each change: take, defer or ignore, with a reason.
-  - Update `versions.lock.json` only for what is actually imported.
+- **Dependency backlog:** vcpkg baseline bump (`b5d1a94` → current) as its own
+  gate with a full rebuild and test run.
 - **G07 acceptance (plan section 7):** Default Public build registry, resolver,
   offsets, first start, ABI validation, feature smoke. Includes the A2S decision
   from above.
@@ -150,8 +179,6 @@ implementation; the plan is the only source for the gate list.
 2. Discord app, Sentry project, GameAnalytics keys, update signing key and
    hosting are needed for G12/G13.
 3. A2S under Default Public: 011→015 adapter versus own query responder (G07).
-4. G06b needs a gate entry in `docs/plan/csretro-plan.md`; the plan is the only
-   source for the gate list.
 
 ## Environment
 
@@ -195,6 +222,25 @@ all e2e checks passed
 ==> e2e passed
 ```
 
+G06b radar and verification (2026-11-09, local):
+
+```text
+$ scripts/sync-upstream.sh
+nextclient           90b4bf7 -> 24cc986  fix Linux maps parsing for paths with spaces
+nextclient_server_api 1da463e -> 1da463e  up to date
+ncl_hl1_source_sdk   0e9be00 -> 0e9be00  up to date
+vcpkg                b5d1a94 -> ec48c11  (2919 commits, deferred)
+
+$ git subtree pull --prefix=client … main
+Merge made by the 'ort' strategy.  (bcd2e79)
+
+$ ctest -C Release -R LinuxModulePath
+2/2 tests passed
+
+$ scripts/build-client.sh
+exit 0, 211 s, 8 ELF32 artifacts
+```
+
 ## Gate log
 
 | Gate | State | Evidence |
@@ -205,5 +251,5 @@ all e2e checks passed
 | G04 | done | 8 ELF32 artifacts, manifest, build script, CI run `42482462774` |
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
-| G06b | next | upstream radar |
+| G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred |
 | G07 | planned | Default Public runtime |

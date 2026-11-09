@@ -49,9 +49,9 @@ committet und gepusht, bevor das nächste beginnt.
 
 | Projekt | Commit | Stand |
 |---|---|---|
-| `CS-NextClient/NextClient` | `90b4bf76ee4ff1ea3afb2c823feb2137bd65034e` | 2.6.0-preview.2, 7. Nov 2026 |
+| `CS-NextClient/NextClient` | `24cc98637998640086fda54c341d6842bbd292c5` | main nach 2.6.0-preview.2, Linux-Maps-Pfadfix |
 | `CS-NextClient/NextClientServerApi` | `1da463e0548c3bdb69e441caf2a39caae31edffa` | main, nach v1.6.0, Material-API |
-| `CS-NextClient/ncl-hl1-source-sdk` | wird in G02 gepinnt | Fork von `tmp64/hl1_source_sdk` |
+| `CS-NextClient/ncl-hl1-source-sdk` | `0e9be00fc52b66742a09c84c8f6169dc7c83ca8a` | Fork von `tmp64/hl1_source_sdk` |
 
 Der API-Tag `v1.6.0` (Juli 2026) kennt die Material-Synchronisation noch nicht.
 Deshalb wird `main` gepinnt.

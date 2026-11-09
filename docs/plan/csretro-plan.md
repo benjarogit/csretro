@@ -395,6 +395,29 @@ Template:
 
 ---
 
+#### G06b – Upstream-Radar
+
+**Ziel:** Vor der Public-Bindung in G07 wissen, was sich seit den vendorten Pins
+upstream bewegt hat, und bewusst entscheiden, was davon ins Projekt kommt.
+
+**Aufgaben:**
+- `scripts/sync-upstream.sh` für NextClient, NextClientServerApi,
+  ncl-hl1-source-sdk und vcpkg ausführen
+- Jede Änderung seit dem Pin klassifizieren: **übernehmen**, **zurückstellen**
+  oder **ignorieren**, jeweils mit Begründung
+- Pin-Bumps nur für tatsächlich importierte Änderungen; `versions.lock.json`
+  aktualisieren
+- Ergebnis in `HANDOFF.md` und `CHANGELOG.md` festhalten
+
+**Abnahme:** Radar-Report vollständig, jede Änderung klassifiziert, Pins und Doku
+konsistent, CI grün.
+
+**Risiko:** Upstream hat force-gepusht oder Historie gelöscht. Dann den Pin als
+nicht mehr auflösbar markieren, den letzten erreichbaren Stand sichern und die
+weitere Bindung neu bewerten.
+
+---
+
 ### P3 – Public & Identität
 
 #### G07 – Public-Runtime

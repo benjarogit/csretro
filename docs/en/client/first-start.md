@@ -26,8 +26,9 @@ game itself.
    ./scripts/build-client.sh --install-dir "$HOME/csretro-g07d"
    ```
 
-   This installs eight libraries, `nextclient.sh` and the assets, and keeps
-   Valve's `vgui2.so` as a backup.
+   This installs eight libraries, `nextclient.sh` and the assets, keeps
+   Valve's `vgui2.so` as a backup and replaces `libtier0.so` with the SDK
+   variant. Valve's original stays next to it as `libtier0.so.valve`.
 
 3. Start:
 

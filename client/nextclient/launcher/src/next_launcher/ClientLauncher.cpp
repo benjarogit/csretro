@@ -16,6 +16,7 @@
 #include <magic_enum/magic_enum.hpp>
 
 #ifndef _WIN32
+    #include <dlfcn.h>
     #include <fcntl.h>
     #include <sys/file.h>
     #include <unistd.h>
@@ -225,6 +226,22 @@ ClientLauncher::EngineSessionResult ClientLauncher::RunEngine()
     }
 
     CheckVideoModeCrash();
+
+#ifndef _WIN32
+    // The NextClient modules import the legacy Steam C++ accessors, which the
+    // retail libsteam_api.so does not export. The proxy supplies them, and the
+    // loader resolves module imports from the global scope, so the proxy has to
+    // be loaded before the first module. The launcher runs from the game root.
+    if (dlopen("./steam_api.dll", RTLD_NOW | RTLD_GLOBAL) == nullptr)
+    {
+        std::string error = "Module steam_api.dll not found";
+
+        analytics_->SendCrashMonitoringEvent("LoadModule Error", error.c_str(), true);
+        fprintf(stderr, "%s: %s\n", kErrorTitle, error.c_str());
+
+        return EngineSessionResult::Exit;
+    }
+#endif
 
     char post_restart_cmd_line[4096] = { '\0' };
 

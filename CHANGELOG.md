@@ -109,6 +109,17 @@ The authoritative version string is the `VERSION` file.
 - `GetSysModuleInfo` on Linux now returns the span across all mapping segments
   of a module. It previously reported only the first mapping, so a pattern
   search never reached executable code.
+- The Linux client start no longer stops at `undefined symbol`:
+  - The launcher loads `steam_api.dll` into the global scope before the first
+    module, so `next_engine_mini.dll`, `gameui.so` and `vgui2.so` find the legacy
+    Steam accessors they import.
+  - The proxy resolves those accessors through the flat
+    `SteamAPI_Steam*_vNNN` functions of the retail `libsteam_api.so`, which does
+    not export the legacy names. Missing accessors return `nullptr` instead of
+    calling through a null pointer.
+  - The installer replaces `libtier0.so` with the SDK build, which exports
+    `GetCPUInformation` for `client_mini.dll`; Valve's original is kept as
+    `libtier0.so.valve`.
 
 ## [0.1.0-dev] - 2026-11-08
 

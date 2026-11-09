@@ -16,8 +16,6 @@
 #include <signal.h>
 #include <execinfo.h>
 
-#include <nitroapi/NitroApiInterface.h>
-#include <next_client_mini/client_mini.h>
 #undef GetProcAddress
 #include <nitro_utils/platform.h>
 #endif
@@ -83,18 +81,57 @@ static Void_NoParams_Func SteamGameServer_Shutdown_func = nullptr;
 static Void_NoParams_Func SteamGameServer_RunCallbacks_func = nullptr;
 static SteamGameServer_Func SteamGameServer_func = nullptr;
 
+template <typename Func>
+static void ResolveAccessor(Func& func, const char* legacy_name, const char* flat_name)
+{
+    if (func != nullptr)
+        return;
+
+    func = reinterpret_cast<Func>(GetProcAddress(g_ValueModule, legacy_name));
+
+    if (func == nullptr)
+        func = reinterpret_cast<Func>(GetProcAddress(g_ValueModule, flat_name));
+}
+
+// The retail libsteam_api.so exports the flat SteamAPI_Steam*_vNNN accessors but
+// not the legacy C++ accessor names that the NextClient modules import. The flat
+// functions return the same interfaces, so resolving them keeps those modules
+// working without a second Steam library.
+static void ResolveAccessors()
+{
+    if (g_ValueModule == nullptr)
+        return;
+
+    ResolveAccessor(SteamUser_func, "SteamUser", "SteamAPI_SteamUser_v023");
+    ResolveAccessor(SteamFriends_func, "SteamFriends", "SteamAPI_SteamFriends_v017");
+    ResolveAccessor(SteamUtils_func, "SteamUtils", "SteamAPI_SteamUtils_v010");
+    ResolveAccessor(SteamMatchmaking_func, "SteamMatchmaking", "SteamAPI_SteamMatchmaking_v009");
+    ResolveAccessor(SteamUserStats_func, "SteamUserStats", "SteamAPI_SteamUserStats_v012");
+    ResolveAccessor(SteamApps_func, "SteamApps", "SteamAPI_SteamApps_v008");
+    ResolveAccessor(SteamNetworking_func, "SteamNetworking", "SteamAPI_SteamNetworking_v006");
+    ResolveAccessor(SteamMatchmakingServers_func, "SteamMatchmakingServers", "SteamAPI_SteamMatchmakingServers_v002");
+    ResolveAccessor(SteamRemoteStorage_func, "SteamRemoteStorage", "SteamAPI_SteamRemoteStorage_v016");
+    ResolveAccessor(SteamScreenshots_func, "SteamScreenshots", "SteamAPI_SteamScreenshots_v003");
+    ResolveAccessor(SteamHTTP_func, "SteamHTTP", "SteamAPI_SteamHTTP_v003");
+    ResolveAccessor(SteamUnifiedMessages_func, "SteamUnifiedMessages", "SteamAPI_SteamUnifiedMessages_v001");
+    ResolveAccessor(SteamGameServer_func, "SteamGameServer", "SteamAPI_SteamGameServer_v015");
+}
+
 #ifdef _WINDOWS
 void Initialize()
 {
     g_ValueModule = LoadSysModule("steam_api_orig.dll");
-    if (g_ValueModule != nullptr)
-        return;
 
-    g_ValueModule = LoadSysModule("platform\\steam\\steam_api_orig.dll");
-    if (g_ValueModule != nullptr)
-        return;
+    if (g_ValueModule == nullptr)
+        g_ValueModule = LoadSysModule("platform\\steam\\steam_api_orig.dll");
 
-    MessageBoxA(nullptr, "steam_api_orig.dll not found", "", MB_OK | MB_ICONERROR);
+    if (g_ValueModule == nullptr)
+    {
+        MessageBoxA(nullptr, "steam_api_orig.dll not found", "", MB_OK | MB_ICONERROR);
+        return;
+    }
+
+    ResolveAccessors();
 }
 #else
 void SigHandler(int signum)
@@ -139,23 +176,18 @@ void Initialize()
     remove("crash_backtrace.txt");
     SetSigHandlers();
 
-    g_ValueModule = LoadSysModule("libsteam_api_orig.so");
+    // hw.so keeps using the retail libsteam_api.so for the modern SteamInternal
+    // API. The proxy only adds the legacy accessors that the NextClient modules
+    // import, so the retail library stays in place and is loaded here.
+    g_ValueModule = LoadSysModule("libsteam_api.so");
+
     if (g_ValueModule == nullptr)
-        std::cerr << "g_ValueModule is null\n";
-    CSysModule* nitro_module = Sys_LoadModule("nitro_api2.so");
-    CreateInterfaceFn nitro_factory = Sys_GetFactory(nitro_module);
-    if (nitro_factory == nullptr)
-        std::cerr << "nitro_factory is null\n";
-    nitroapi::NitroApiInterface* nitroapi = (nitroapi::NitroApiInterface*)nitro_factory(NITROAPI_INTERFACE_VERSION, nullptr);
+    {
+        std::cerr << "libsteam_api.so not found\n";
+        return;
+    }
 
-    CSysModule* client_mini_module = Sys_LoadModule("cstrike/cl_dlls/client_mini.so");
-    CreateInterfaceFn client_mini_factory = Sys_GetFactory(client_mini_module);
-    if (client_mini_factory == nullptr)
-        std::cerr << "client_mini_factory is null\n";
-    ClientMiniInterface* client_mini = (ClientMiniInterface*)client_mini_factory(CLIENT_MINI_INTERFACE_VERSION, nullptr);
-
-    nitroapi->Initialize(nullptr, nullptr, nullptr);
-    client_mini->Init(nitroapi);
+    ResolveAccessors();
 }
 #endif
 
@@ -340,10 +372,7 @@ S_API ISteamUser *SteamUser()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamUser_func)
-        SteamUser_func = reinterpret_cast<SteamUser_Func>(GetProcAddress(g_ValueModule, "SteamUser"));
-
-    return SteamUser_func();
+    return SteamUser_func != nullptr ? SteamUser_func() : nullptr;
 }
 
 S_API ISteamFriends *SteamFriends()
@@ -351,10 +380,7 @@ S_API ISteamFriends *SteamFriends()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamFriends_func)
-        SteamFriends_func = reinterpret_cast<SteamFriends_Func>(GetProcAddress(g_ValueModule, "SteamFriends"));
-
-    return SteamFriends_func();
+    return SteamFriends_func != nullptr ? SteamFriends_func() : nullptr;
 }
 
 S_API ISteamUtils *SteamUtils()
@@ -362,10 +388,7 @@ S_API ISteamUtils *SteamUtils()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamUtils_func)
-        SteamUtils_func = reinterpret_cast<SteamUtils_Func>(GetProcAddress(g_ValueModule, "SteamUtils"));
-
-    return SteamUtils_func();
+    return SteamUtils_func != nullptr ? SteamUtils_func() : nullptr;
 }
 
 S_API ISteamMatchmaking *SteamMatchmaking()
@@ -373,10 +396,7 @@ S_API ISteamMatchmaking *SteamMatchmaking()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamMatchmaking_func)
-        SteamMatchmaking_func = reinterpret_cast<SteamMatchmaking_Func>(GetProcAddress(g_ValueModule, "SteamMatchmaking"));
-
-    return SteamMatchmaking_func();
+    return SteamMatchmaking_func != nullptr ? SteamMatchmaking_func() : nullptr;
 }
 
 S_API ISteamUserStats *SteamUserStats()
@@ -384,10 +404,7 @@ S_API ISteamUserStats *SteamUserStats()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamUserStats_func)
-        SteamUserStats_func = reinterpret_cast<SteamUserStats_Func>(GetProcAddress(g_ValueModule, "SteamUserStats"));
-
-    return SteamUserStats_func();
+    return SteamUserStats_func != nullptr ? SteamUserStats_func() : nullptr;
 }
 
 S_API ISteamApps *SteamApps()
@@ -395,10 +412,7 @@ S_API ISteamApps *SteamApps()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamApps_func)
-        SteamApps_func = reinterpret_cast<SteamApps_Func>(GetProcAddress(g_ValueModule, "SteamApps"));
-
-    return SteamApps_func();
+    return SteamApps_func != nullptr ? SteamApps_func() : nullptr;
 }
 
 S_API ISteamNetworking *SteamNetworking()
@@ -406,10 +420,7 @@ S_API ISteamNetworking *SteamNetworking()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamNetworking_func)
-        SteamNetworking_func = reinterpret_cast<SteamNetworking_Func>(GetProcAddress(g_ValueModule, "SteamNetworking"));
-
-    return SteamNetworking_func();
+    return SteamNetworking_func != nullptr ? SteamNetworking_func() : nullptr;
 }
 
 S_API ISteamMatchmakingServers *SteamMatchmakingServers()
@@ -417,10 +428,7 @@ S_API ISteamMatchmakingServers *SteamMatchmakingServers()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamMatchmakingServers_func)
-        SteamMatchmakingServers_func = reinterpret_cast<SteamMatchmakingServers_Func>(GetProcAddress(g_ValueModule, "SteamMatchmakingServers"));
-
-    return SteamMatchmakingServers_func();
+    return SteamMatchmakingServers_func != nullptr ? SteamMatchmakingServers_func() : nullptr;
 }
 
 S_API ISteamRemoteStorage *SteamRemoteStorage()
@@ -428,10 +436,7 @@ S_API ISteamRemoteStorage *SteamRemoteStorage()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamRemoteStorage_func)
-        SteamRemoteStorage_func = reinterpret_cast<SteamRemoteStorage_Func>(GetProcAddress(g_ValueModule, "SteamRemoteStorage"));
-
-    return SteamRemoteStorage_func();
+    return SteamRemoteStorage_func != nullptr ? SteamRemoteStorage_func() : nullptr;
 }
 
 S_API ISteamScreenshots *SteamScreenshots()
@@ -439,10 +444,7 @@ S_API ISteamScreenshots *SteamScreenshots()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamScreenshots_func)
-        SteamScreenshots_func = reinterpret_cast<SteamScreenshots_Func>(GetProcAddress(g_ValueModule, "SteamScreenshots"));
-
-    return SteamScreenshots_func();
+    return SteamScreenshots_func != nullptr ? SteamScreenshots_func() : nullptr;
 }
 
 S_API ISteamHTTP *SteamHTTP()
@@ -450,10 +452,7 @@ S_API ISteamHTTP *SteamHTTP()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamHTTP_func)
-        SteamHTTP_func = reinterpret_cast<SteamHTTP_Func>(GetProcAddress(g_ValueModule, "SteamHTTP"));
-
-    return SteamHTTP_func();
+    return SteamHTTP_func != nullptr ? SteamHTTP_func() : nullptr;
 }
 
 S_API ISteamUnifiedMessages *SteamUnifiedMessages()
@@ -461,10 +460,7 @@ S_API ISteamUnifiedMessages *SteamUnifiedMessages()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamUnifiedMessages_func)
-        SteamUnifiedMessages_func = reinterpret_cast<SteamUnifiedMessages_Func>(GetProcAddress(g_ValueModule, "SteamUnifiedMessages"));
-
-    return SteamUnifiedMessages_func();
+    return SteamUnifiedMessages_func != nullptr ? SteamUnifiedMessages_func() : nullptr;
 }
 
 S_API bool SteamGameServer_Init(uint32 unIP, uint16 usSteamPort, uint16 usGamePort, uint16 usQueryPort, EServerMode eServerMode, const char* pchVersionString)
@@ -505,8 +501,5 @@ S_API ISteamGameServer* SteamGameServer()
     if (!IsInitialized())
         Initialize();
 
-    if (!SteamGameServer_func)
-        SteamGameServer_func = reinterpret_cast<SteamGameServer_Func>(GetProcAddress(g_ValueModule, "SteamGameServer"));
-
-    return SteamGameServer_func();
+    return SteamGameServer_func != nullptr ? SteamGameServer_func() : nullptr;
 }

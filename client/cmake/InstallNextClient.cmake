@@ -22,8 +22,16 @@ if (INSTALL_PLATFORM STREQUAL Windows)
 else ()
     # hw.so loads GameUI by this exact name; preserve Valve's original VGUI library.
     list(APPEND destinations cstrike/cl_dlls/gameui.so steam_api.dll nitro_api2.dll vgui2.so)
-    set(VGUI2_PATH "${INSTALL_DIRECTORY}/vgui2.so")
-    include("${CMAKE_CURRENT_LIST_DIR}/BackupValveVgui2.cmake")
+    include("${CMAKE_CURRENT_LIST_DIR}/BackupValveLibrary.cmake")
+    BackupValveLibrary("${INSTALL_DIRECTORY}/vgui2.so")
+
+    # client_mini needs GetCPUInformation, which the retail tier0 library does not
+    # export. Keep Valve's copy and install the SDK tier0, a superset of it.
+    if (NOT EXISTS "${INSTALL_TIER0_SOURCE}")
+        message(FATAL_ERROR "InstallNextClient: INSTALL_TIER0_SOURCE must name the SDK tier0 library")
+    endif ()
+    BackupValveLibrary("${INSTALL_DIRECTORY}/libtier0.so")
+    file(COPY_FILE "${INSTALL_TIER0_SOURCE}" "${INSTALL_DIRECTORY}/libtier0.so")
 endif ()
 
 file(MAKE_DIRECTORY "${INSTALL_DIRECTORY}/cstrike/cl_dlls")

@@ -27,8 +27,9 @@ startet das Spiel nie selbst.
    ./scripts/build-client.sh --install-dir "$HOME/csretro-g07d"
    ```
 
-   Das installiert acht Bibliotheken, `nextclient.sh` und die Assets und legt
-   Valves `vgui2.so` als Sicherung ab.
+   Das installiert acht Bibliotheken, `nextclient.sh` und die Assets, legt
+   Valves `vgui2.so` als Sicherung ab und ersetzt `libtier0.so` durch die
+   SDK-Variante. Valves Original bleibt als `libtier0.so.valve` daneben liegen.
 
 3. Starten:
 

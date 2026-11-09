@@ -203,6 +203,12 @@ if (NOT NEXTCLIENT_BUILD_TESTS)
         if (USE_PROFILER)
             set(NEXTCLIENT_INSTALL_TRACY_SOURCE "$<TARGET_FILE:Tracy::TracyClient>")
         endif ()
+        # The retail libtier0.so does not export GetCPUInformation, which the
+        # SDK-built client_mini needs; only Linux replaces the retail library.
+        set(NEXTCLIENT_INSTALL_TIER0_SOURCE "")
+        if (NEXTCLIENT_INSTALL_PLATFORM STREQUAL "Linux")
+            set(NEXTCLIENT_INSTALL_TIER0_SOURCE "$<TARGET_FILE:tier0>")
+        endif ()
         configure_file(cmake/NextClientInstallManifest.cmake.in
                 "${CMAKE_CURRENT_BINARY_DIR}/install-nextclient-configured.cmake" @ONLY)
         file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/install-nextclient-$<CONFIG>.cmake"

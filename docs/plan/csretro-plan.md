@@ -225,16 +225,52 @@ gdb-Watchpoint belegt den Schreibzugriff beim zweiten Paint über die Kette
 Der Spike patched daher nur den ersten Aufruf durchzulassen: an `0x1b9a`
 springt der Code in eine Code-Cave, die den Paint-Zähler mit `1` vergleicht
 und den Aufruf ab Paint 2 überspringt (`spike-shims/patch_once.py` im
-Spike-Baum). Ergebnis: 12800 Text-Aufrufe pro Paint statt 50 nur im ersten,
-und der Backbuffer-Diff um den HUD-Paint ist bei Paint 1 und Paint 60
-bit-identisch (1755 Pixel, Bildschirmzeilen 5..23, Spalten 56..810,
-`glGetError()` 0).
+Spike-Baum). Ergebnis: 50 Text-Aufrufe pro Paint, konstant über zwölf
+aufeinanderfolgende Paints (ungepatcht: 50 nur in Paint 1, danach 0), und der
+Backbuffer-Diff um den HUD-Paint ist bei Paint 1 und Paint 60 bit-identisch
+(1755 Pixel, Bildschirmzeilen 5..23, Spalten 56..810, `glGetError()` 0).
 
-Offene Defekte daraus:
+#### 3.6.2 Nachtrag 10. November 2026: gefüllte Panels
 
-- `fill_rect` setzt `set_color 255,255,255,128` in `rgba=188,112,0,128` um,
-  dadurch werden Flächen zu einem opaken Orangefilter; der Evidenzlauf nutzt
-  daher einen Stub ohne Füllungen.
+Der Adapter zeichnet auch die Flächen. Beleg:
+`docs/evidence/g07-xash3d-vgui2-filled-panel.png` und Zoom
+`docs/evidence/g07-xash3d-vgui2-filled-panel-zoom.png` (Paint 20,
+`glReadPixels` vor/nach dem HUD-Paint: 499 200 geänderte Pixel = exakt
+832 × 600, Bildschirmzeilen 0..599, Spalten 0..831, `glGetError()` 0; Pixel
+(400,300) `32,30,26` → `220,142,26`).
+
+Der frühere Befund „nur ein heller Balken über Zeilen 0..37" war ein
+**Artefakt des Messaufbaus**, kein Zeichenfehler. Die Dumps entstanden nur beim
+ersten Paint, und in Paint 1 liefert der Stub seine Flächen noch mit
+`255,255,255` und VGUI-Alpha 0. VGUI zählt 0 als opak, der Stub invertiert zu
+Engine-Alpha 0, also vollständig transparent; erst ab Paint 2 setzt das Scheme
+`188,112,0` bei Alpha 128 durch. Sichtbar blieb in Paint 1 deshalb nur das eine
+Rechteck mit echtem Alpha (`0,0 400x38`, Alpha 127).
+
+Gegenproben:
+
+- Ein direkter Aufruf von `CL_FillRGBA` (`libxash.so` Offset `0xfc270`) mit
+  `10,0 811x599 rgba=188,112,0,127` unmittelbar nach dem Paint füllt exakt
+  485 789 Pixel (Zeilen 0..598, Spalten 10..820); die Engine-Seite ist in
+  Ordnung.
+- gdb an `fill_rect+0x79` (`0x17b9`) zeigt korrektes Marshallen von
+  `x,y,w,h,r,g,b,a`; Alpha wird mit `not`/`movzbl` invertiert, `R_FillRGBA`
+  empfängt dieselben Werte als Floats. Der frühere Farb-/Alpha-Verdacht war
+  falsch: die geloggten Werte entstehen nach dem Engine-Aufruf und sind
+  irreführend.
+
+Steady State: 12 `fill_rect`-Aufrufe pro Paint (Paint 1: 11), konstant über
+alle Frames. Paint 2 und Paint 32 sind bit-identisch; Paint 32 zu 62
+unterscheidet sich nur in 444 Pixeln (animierte Szene hinter dem
+halbtransparenten Panel).
+
+Offener Rest:
+
+- Der Header-Hintergrund (`0,0 400x38`) wird mit der Default-Farbe Weiß
+  gezeichnet und **nach** seinem Label, dessen Text ebenfalls weiß ist. Dadurch
+  ist `Spectators - 0 players` nicht lesbar, während `Score`, `Deaths`,
+  `Latency` sichtbar sind. Nächster Schritt: Scheme-Farbe dieses Panels prüfen
+  und die Zeichenreihenfolge gegen den Retail-Client vergleichen.
 
 Nebenbefunde:
 

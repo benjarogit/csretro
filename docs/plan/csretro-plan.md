@@ -264,22 +264,62 @@ alle Frames. Paint 2 und Paint 32 sind bit-identisch; Paint 32 zu 62
 unterscheidet sich nur in 444 Pixeln (animierte Szene hinter dem
 halbtransparenten Panel).
 
-Offener Rest:
+#### 3.6.3 Herkunft der Füllungen und der fehlende Texturpfad
 
-- Der Header-Hintergrund (`0,0 400x38`) wird mit der Default-Farbe Weiß
-  (Alpha 127) gezeichnet, sein Label ebenfalls in Weiß und **danach**. Die
-  verifizierte Reihenfolge pro Paint ist: Header-Balken `0,0 400x38` → zehn
-  Panel-Fills (`10,0 811x599` und Rahmen) → 18 Text-Calls. Der Text liegt also
-  oben, hat auf dem hellen Balken aber kaum Kontrast; deshalb ist
-  `Spectators - 0 players` nicht lesbar, während `Score`, `Deaths`, `Latency`
-  außerhalb des Balkens sauber erscheinen.
-  Die Farbe kommt **vom Client, nicht vom Stub**: gdb auf `draw_set_color`
-  (`0x1d50`) zeigt vor dem Balken viermal `DrawSetColor(255,255,255,128)` und
-  direkt danach viermal `188,112,0,128` für die Panel-Flächen. Der Stub
-  marshallt beide korrekt. Nächster Schritt: denselben Frame mit dem
-  Retail-Client vergleichen und entscheiden, ob Balkenfarbe oder Label-Farbe
-  abweicht (Automation endet an der Prozessgrenze, der Vergleich ist ein
-  Maintainer-Lauf).
+Ein gdb-Backtrace an jedem der zwölf `fill_rect`-Aufrufe eines Paints
+(Paint 2) ordnet jede Fläche ihrem Aufrufer zu:
+
+| Rect | Aufrufer |
+|---|---|
+| `0,10 10x579`, `10,0 811x599`, `821,10 10x579` | `CCSClientScoreBoardDialog::PaintBackground` (`cstrikeclientscoreboard.cpp:402/409/416`) |
+| `0,10 1x580`, `10,0 812x1`, `10,599 812x1`, `831,10 1x580` | dito, `:428/434/442/450` |
+| `0,0 832x600` | `vgui2::Panel::PaintBackground` (`Panel.cpp:556`) |
+| `1,21 819x1` (zweimal) | `vgui2::CSectionHeader::Paint` (`SectionedListPanel.cpp:97`) |
+| `0,0 822x33` | `vgui2::CItemButton::PaintBackground` (`SectionedListPanel.cpp:501`) |
+| `0,0 400x38` | `vgui2::Panel::PaintBackground` (`Panel.cpp:556`) für das Label `ServerName` |
+
+Alle Flächen kommen also aus echtem Client-/VGUI2-Code; der Stub marshallt nur.
+Der weiße Balken `0,0 400x38` ist der Default-Hintergrund
+`255,255,255,128` des Labels `ServerName` (gdb: `this->GetClassName()` =
+`Label`, `GetName()` = `ServerName`, `_bgColor` bleibt der VGUI2-Default).
+Der Text darauf ist die Scheme-Farbe `BaseText` `255 176 0 255`
+(`resource/ClientScheme.res:24`), die VGUI über `DrawSetTextColor` setzt und
+die der Stub korrekt an die Engine gibt. Beides ist eine Client-Entscheidung,
+kein Stub-Defekt; unklar bleibt nur, ob der Retail-Client denselben Balken
+zeigt (Maintainer-Lauf, Automation endet an der Prozessgrenze).
+
+**Texturen fehlen vollständig.** Die vier Textur-Slots des Stubs sind
+No-Ops: `draw_set_texture_file` (`0x12f0`), `draw_set_texture_rgba`
+(`0x1300`), `draw_set_texture` (`0x1310`) und `draw_textured_rect`
+(`0x1340`) sind jeweils ein einzelnes `ret`, `create_new_texture_id`
+(`0x1360`) vergibt nur fortlaufende Zahlen und `draw_get_texture_size`
+(`0x1320`) meldet konstant `16x16`. VGUI fragt pro Paint acht Texturen an:
+
+```text
+gfx/vgui/round_corner_nw        gfx/vgui/round_corner_small_nw
+gfx/vgui/round_corner_ne        gfx/vgui/round_corner_small_ne
+gfx/vgui/round_corner_sw        gfx/vgui/round_corner_small_sw
+gfx/vgui/round_corner_se        gfx/vgui/round_corner_small_se
+```
+
+Die Dateien liegen im Spike-Baum (`cstrike/gfx/vgui/*.tga`), werden aber nie
+geladen. Aufrufer ist `vgui2::Bitmap::Paint` (`Bitmap.cpp:134`):
+`DrawSetTexture` (Vtable-Slot `0x68`) → `DrawSetColor` (Slot `0x20`) →
+`DrawTexturedRect` (Slot `0x78`, additiv Slot `0x190`). Weil der Stub alle vier
+Slots verschluckt, bleibt von diesen Bitmaps nichts sichtbar.
+
+Zweiter Befund daraus: alle acht `DrawTexturedRect`-Aufrufe kommen mit
+`0,0 10,10` an, obwohl die vier Ecken an verschiedenen Stellen liegen. VGUI
+zeichnet Bitmaps in **elternrelativen** Koordinaten und erwartet die
+Verschiebung aus `PushMakeCurrent` (Stub `0x1de0`, loggt nur). Der Stub
+übersetzt nicht, deshalb landen alle Ecken auf `0,0`. Ein Texturpfad braucht
+also beides: TGA-Laden plus Upload **und** einen Koordinaten-Offset aus
+`PushMakeCurrent`/`PopMakeCurrent` (`0x11b0`).
+
+Offener Rest daraus: Texturen (TGA → GL-Textur, `DrawTexturedRect` als Quad,
+echte `DrawGetTextureSize`-Werte) und der Push/Pop-Offset. Danach Fonts
+(`DrawPrintText` nutzt bereits `CL_DrawString`, aber ohne Metrik aus
+`draw_set_text_font`).
 
 Nebenbefunde:
 

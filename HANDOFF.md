@@ -45,6 +45,8 @@ Project state for the next session. Personal context belongs in
 | The VGUI_Surface026 backend paints real VGUI2 **text** into a rendered frame | `docs/evidence/g07-xash3d-vgui2-text.png`: `Spectators - 0 players`, `benny`, `Score`, `Deaths`, `Latency` over the lit `de_dust2` scene; `glReadPixels` before/after the HUD paint = 1755 changed pixels, bbox screen rows 5..23, columns 56..810, `glGetError()` 0, identical on a second run |
 | The VGUI2 text overlay is **steady state**, not a single frame | `docs/evidence/g07-xash3d-vgui2-text-steady.png`: the back-buffer diff around the HUD paint is 1755 px, rows 5..23, columns 56..810 at paint 1 *and* at paint 60; the patched stub emits 50 surface text calls per paint (unpatched: 50 in paint 1, then 0), constant; gdb watchpoint traced the disappearing images to `Panel::InvalidateLayout(true,true)` -> `PerformApplySchemeSettings` -> `SectionedListPanelHeader::ApplySchemeSettings` -> `ClearImages()` |
 | The VGUI_Surface026 backend paints **filled panels** with text | `docs/evidence/g07-xash3d-vgui2-filled-panel.png` / `-zoom.png` (paint 20): the HUD paint changes 499 200 px = exactly 832x600, rows 0..599, columns 0..831, `glGetError()` 0; pixel (400,300) `32,30,26` -> `220,142,26` shows the translucent scheme fill `188,112,0` over the scene with `Score`/`Deaths`/`Latency` text; 12 `fill_rect` calls per paint, constant; paint 2 and paint 32 bit-identical |
+| Every scoreboard fill is traced to its VGUI caller | gdb backtrace at each of the 12 `fill_rect` calls of paint 2: seven rects from `CCSClientScoreBoardDialog::PaintBackground`, `832x600` and `400x38` from `vgui2::Panel::PaintBackground` (`Panel.cpp:556`), two `1,21 819x1` from `vgui2::CSectionHeader::Paint` and `822x33` from `vgui2::CItemButton::PaintBackground`; the white `400x38` is the default `255,255,255,128` background of the label `ServerName` |
+| The stub has no texture path yet | the four texture slots are one-instruction `ret`s, `DrawGetTextureSize` always returns `16x16`; VGUI asks for the eight `gfx/vgui/round_corner*` files per paint through `vgui2::Bitmap::Paint` and every `DrawTexturedRect` arrives as `0,0 10,10` because `PushMakeCurrent` is a no-op |
 | Valve's `client.so` requires Valve's `vgui2.so` | pairing it with NextClient's `vgui2.so` crashes in `Label::ApplySettings` (`pScheme->GetFont`, slot 6 → type_info vtable); the interface implementations live in `vgui2.so`, not `client.so` |
 | Xash3D ships FreeVGUI (VGUI1) but no `VGUI_Surface026` | `3rdparty/freevgui` plus `platform/xash3d-fwgs/surface.cpp`; `nm -D vgui.so` exports only `GetVGUISupportAPI`/`InitAPI` |
 | The ReHLDS test server is ready for the spike | `tests/e2e/test_server.py` green on udp/27016: Metamod-R, AMXX, nclapi, `de_dust2`, `nclapi_version 1.6.0` |
@@ -340,10 +342,11 @@ implementation; the plan is the only source for the gate list.
   inversion are correct, the "38-row band" was an artefact of dumping only
   paint 1 (scheme not yet applied, VGUI alpha 0 = transparent). Open work, in
   order:
-  (1) header bar of the scoreboard: it still uses the default white scheme
-  colour, so its white label has no contrast and `Spectators - 0 players` is
-  unreadable while the column headers are fine; (2) textures and
-  fonts; (3) mouse/cursor and `VGUI_Input004`; (4)
+  (1) textures: the four texture slots of the stub are no-ops, so VGUI's eight
+  `gfx/vgui/round_corner*` bitmaps never appear (`vgui2::Bitmap::Paint` calls
+  `DrawSetTexture` -> `DrawSetColor` -> `DrawTexturedRect`); `DrawTexturedRect`
+  also arrives with parental coordinates because the stub ignores
+  `PushMakeCurrent`; (2) fonts; (3) mouse/cursor and `VGUI_Input004`; (4)
   `engine_mini`/`nitro_api` port onto an Xash3D adapter. Re-run the spike after
   each step and record the first thing that is actually visible.
 - **Wiki reference gathered:** Tier1, VGUI Documentation, Category:VGUI (54
@@ -597,17 +600,32 @@ Remaining defects, each with its own next task:
   scheme `188,112,0`/128 only takes effect from paint 2. A direct
   `CL_FillRGBA` call after the paint fills the full rect, so engine and ref are
   fine. Evidence: `docs/evidence/g07-xash3d-vgui2-filled-panel.png`.
-- **Scoreboard header bar.** The `0,0 400x38` header background keeps the
-  default white scheme colour (alpha 127). The verified draw order per paint is
-  header bar, then the ten panel fills, then 18 text calls, so the white label
-  is drawn *on top* of the bar and simply has no contrast on it:
-  `Spectators - 0 players` is unreadable while `Score`, `Deaths`, `Latency`
-  render cleanly outside the bar. The colour comes from the client, not from
-  the stub: gdb on `draw_set_color` (`0x1d50`) shows four
-  `DrawSetColor(255,255,255,128)` calls before the bar and four
-  `188,112,0,128` calls for the panel fills, both marshalled correctly. Next:
-  compare the same frame against the retail client (maintainer run) to decide
-  whether the bar colour or the label colour differs.
+- **Scoreboard header bar is a Label background.** The `0,0 400x38` white rect
+  is the default background colour `255,255,255,128` of the VGUI label named
+  `ServerName` (`Label::GetClassName`), painted by `vgui2::Panel::PaintBackground`
+  (`Panel.cpp:556`); its text is the scheme colour `BaseText` `255 176 0 255`
+  (`resource/ClientScheme.res:24`) set through `DrawSetTextColor`. Both are
+  client decisions and the stub marshals them correctly, so the low contrast on
+  that label is not a stub defect. The retail comparison is still open
+  (maintainer run).
+- **Textures are missing entirely.** `draw_set_texture_file` (`0x12f0`),
+  `draw_set_texture_rgba` (`0x1300`), `draw_set_texture` (`0x1310`) and
+  `draw_textured_rect` (`0x1340`) are one-instruction `ret` stubs,
+  `create_new_texture_id` (`0x1360`) hands out plain counters and
+  `draw_get_texture_size` (`0x1320`) always reports `16x16`. VGUI asks for the
+  eight `gfx/vgui/round_corner*` files per paint (they exist in the spike tree
+  as `.tga`) through `vgui2::Bitmap::Paint` (`Bitmap.cpp:134`). All eight
+  `DrawTexturedRect` calls arrive as `0,0 10,10` because VGUI draws bitmaps in
+  parent-relative coordinates and expects the offset from
+  `PushMakeCurrent` (`0x1de0`, a no-op in the stub). A texture path therefore
+  needs TGA loading, GL upload, a textured quad and the push/pop offset.
+- **Fill provenance is fully mapped** (gdb backtrace per fill, paint 2): seven
+  rects from `CCSClientScoreBoardDialog::PaintBackground`
+  (`cstrikeclientscoreboard.cpp:402/409/416/428/434/442/450`), `0,0 832x600`
+  and `0,0 400x38` from `vgui2::Panel::PaintBackground` (`Panel.cpp:556`), two
+  `1,21 819x1` from `vgui2::CSectionHeader::Paint`
+  (`SectionedListPanel.cpp:97`) and `0,0 822x33` from
+  `vgui2::CItemButton::PaintBackground` (`SectionedListPanel.cpp:501`).
 - **Font atlas.** `cls.creditsFont` (texture 37) is used by `pfnDrawString`;
   `gfx/creditsfont.fnt` does not exist in the spike tree, yet texture 37 is
   valid and draws. The steady-state patch did not change this; leave it alone
@@ -655,6 +673,56 @@ text calls, so all text lands on top of the fills.
 
 CI: run `42849944792` (evidence) and `42850326226` (paint-order correction),
 both green.
+
+### Fill provenance and the missing texture path
+
+A gdb backtrace at each of the twelve `fill_rect` calls of paint 2 names the
+VGUI caller of every rect:
+
+```text
+0,10 10x579    CCSClientScoreBoardDialog::PaintBackground  cstrikeclientscoreboard.cpp:402
+10,0 811x599   CCSClientScoreBoardDialog::PaintBackground  :409
+821,10 10x579  CCSClientScoreBoardDialog::PaintBackground  :416
+0,10 1x580     CCSClientScoreBoardDialog::PaintBackground  :428
+10,0 812x1     CCSClientScoreBoardDialog::PaintBackground  :434
+10,599 812x1   CCSClientScoreBoardDialog::PaintBackground  :442
+831,10 1x580   CCSClientScoreBoardDialog::PaintBackground  :450
+0,0 832x600    vgui2::Panel::PaintBackground               Panel.cpp:556
+1,21 819x1     vgui2::CSectionHeader::Paint                SectionedListPanel.cpp:97
+1,21 819x1     vgui2::CSectionHeader::Paint                SectionedListPanel.cpp:97
+0,0 822x33     vgui2::CItemButton::PaintBackground         SectionedListPanel.cpp:501
+0,0 400x38     vgui2::Panel::PaintBackground               Panel.cpp:556
+```
+
+The last one is the white band: gdb on the same breakpoint reports
+`this->GetClassName()` = `Label`, `this->GetName()` = `ServerName`, and the
+colour is that panel's default background `255,255,255,128`. Its text is
+`BaseText` `255 176 0 255` from `resource/ClientScheme.res:24`, set through
+`DrawSetTextColor` and marshalled correctly. So neither the band nor the text
+is a stub defect; only the retail comparison stays open.
+
+What *is* missing is the texture path. The stub's `draw_set_texture_file`
+(`0x12f0`), `draw_set_texture_rgba` (`0x1300`), `draw_set_texture` (`0x1310`)
+and `draw_textured_rect` (`0x1340`) are single `ret` instructions,
+`create_new_texture_id` (`0x1360`) returns a counter and `draw_get_texture_size`
+(`0x1320`) always reports `16x16`. VGUI therefore requests eight textures per
+paint and draws none of them:
+
+```text
+gfx/vgui/round_corner_nw   gfx/vgui/round_corner_small_nw
+gfx/vgui/round_corner_ne   gfx/vgui/round_corner_small_ne
+gfx/vgui/round_corner_sw   gfx/vgui/round_corner_small_sw
+gfx/vgui/round_corner_se   gfx/vgui/round_corner_small_se
+```
+
+The caller is `vgui2::Bitmap::Paint` (`Bitmap.cpp:134`): `DrawSetTexture`
+(vtable slot `0x68`), `DrawSetColor` (slot `0x20`), `DrawTexturedRect` (slot
+`0x78`, additive variant slot `0x190`). All eight rects arrive as `0,0 10,10`
+even though the four corners sit in different places, because VGUI hands
+bitmaps to the surface in parent-relative coordinates and expects the offset
+from `PushMakeCurrent` (stub `0x1de0`, currently a logging no-op). The texture
+step therefore has two halves: load the TGA and upload it as a GL texture with
+a real `DrawTexturedRect`, and apply the push/pop offset.
 
 ## Gate log
 

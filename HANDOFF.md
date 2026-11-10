@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-10
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text in every frame; engine direction decided: Option A)
 - **Branch:** `main`
-- **Commit:** `3cfdf6e` (first rendered VGUI2 text frame) plus the steady-state update on top
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42817747641 – success (`3cfdf6e`)
+- **Commit:** `a51ef3e` (steady-state VGUI2 text evidence) plus this handoff update on top
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42821354428 – success (`a51ef3e`)
 - **Version:** `0.1.0-dev` (`VERSION`)
 
 ## Verified (with evidence)

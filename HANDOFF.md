@@ -341,8 +341,8 @@ implementation; the plan is the only source for the gate list.
   paint 1 (scheme not yet applied, VGUI alpha 0 = transparent). Open work, in
   order:
   (1) header bar of the scoreboard: it still uses the default white scheme
-  colour and is painted after its own (white) label, so `Spectators - 0
-  players` is unreadable while the column headers are fine; (2) textures and
+  colour, so its white label has no contrast and `Spectators - 0 players` is
+  unreadable while the column headers are fine; (2) textures and
   fonts; (3) mouse/cursor and `VGUI_Input004`; (4)
   `engine_mini`/`nitro_api` port onto an Xash3D adapter. Re-run the spike after
   each step and record the first thing that is actually visible.
@@ -598,9 +598,11 @@ Remaining defects, each with its own next task:
   `CL_FillRGBA` call after the paint fills the full rect, so engine and ref are
   fine. Evidence: `docs/evidence/g07-xash3d-vgui2-filled-panel.png`.
 - **Scoreboard header bar.** The `0,0 400x38` header background keeps the
-  default white scheme colour and is painted *after* its white label, so
-  `Spectators - 0 players` is unreadable; `Score`, `Deaths`, `Latency` render
-  correctly. Next: check that panel's scheme colour lookup and the paint order
+  default white scheme colour (alpha 127). The verified draw order per paint is
+  header bar, then the ten panel fills, then 18 text calls, so the white label
+  is drawn *on top* of the bar and simply has no contrast on it:
+  `Spectators - 0 players` is unreadable while `Score`, `Deaths`, `Latency`
+  render cleanly outside the bar. Next: check that panel's scheme colour
   against the retail client.
 - **Font atlas.** `cls.creditsFont` (texture 37) is used by `pfnDrawString`;
   `gfx/creditsfont.fnt` does not exist in the spike tree, yet texture 37 is
@@ -643,7 +645,11 @@ refuted:
 
 Steady state: 12 `fill_rect` calls and 50 text calls per paint, constant;
 paint 2 versus paint 32 is bit-identical, paint 32 versus 62 differs in 444
-pixels only (animated scene behind the translucent panel).
+pixels only (animated scene behind the translucent panel). The draw order
+inside one paint is header bar `0,0 400x38`, then the ten panel fills, then 18
+text calls, so all text lands on top of the fills.
+
+CI: run `42849944792` green.
 
 ## Gate log
 

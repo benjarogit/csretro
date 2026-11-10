@@ -267,10 +267,13 @@ halbtransparenten Panel).
 Offener Rest:
 
 - Der Header-Hintergrund (`0,0 400x38`) wird mit der Default-Farbe Weiß
-  gezeichnet und **nach** seinem Label, dessen Text ebenfalls weiß ist. Dadurch
-  ist `Spectators - 0 players` nicht lesbar, während `Score`, `Deaths`,
-  `Latency` sichtbar sind. Nächster Schritt: Scheme-Farbe dieses Panels prüfen
-  und die Zeichenreihenfolge gegen den Retail-Client vergleichen.
+  (Alpha 127) gezeichnet, sein Label ebenfalls in Weiß und **danach**. Die
+  verifizierte Reihenfolge pro Paint ist: Header-Balken `0,0 400x38` → zehn
+  Panel-Fills (`10,0 811x599` und Rahmen) → 18 Text-Calls. Der Text liegt also
+  oben, hat auf dem hellen Balken aber kaum Kontrast; deshalb ist
+  `Spectators - 0 players` nicht lesbar, während `Score`, `Deaths`, `Latency`
+  außerhalb des Balkens sauber erscheinen. Nächster Schritt: Scheme-Farbe
+  dieses Panels gegen den Retail-Client prüfen.
 
 Nebenbefunde:
 

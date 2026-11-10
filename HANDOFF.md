@@ -6,12 +6,11 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-10
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and now paints real VGUI2 text into a rendered frame; engine direction decided: Option A)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text in every frame; engine direction decided: Option A)
 - **Branch:** `main`
-- **Commit:** `1ef0556` (surface backend diagnostics) plus the VGUI2 text overlay commit on top
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42615247940 – success
+- **Commit:** `3cfdf6e` (first rendered VGUI2 text frame) plus the steady-state update on top
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42817747641 – success (`3cfdf6e`)
 - **Version:** `0.1.0-dev` (`VERSION`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42614991668 – success
 
 ## Verified (with evidence)
 
@@ -44,6 +43,7 @@ Project state for the next session. Personal context belongs in
 | The Xash3D client spike completes `HUD_Init` | `CounterStrikeViewport::Start` returns with viewport field `0x48` non-null; run exit 0, no `crash_backtrace.txt` |
 | The VGUI_Surface026 backend paints real VGUI2 trees | `paint_tree` traverses the scoreboard dialog (25 children, nested), draws 706 rects/frame through Xash3D's `pfnFillRGBA`; screenshot 1024x768 shows coloured panel rects; no crash; IPanel slot mapping verified against `vgui2.so` VPanelWrapper vtable (GetSize=8, GetAbsPos=13, IsVisible=17, GetChildCount=18, GetChild=19, GetName=39, GetClassName=40, PaintTraverse=44) |
 | The VGUI_Surface026 backend paints real VGUI2 **text** into a rendered frame | `docs/evidence/g07-xash3d-vgui2-text.png`: `Spectators - 0 players`, `benny`, `Score`, `Deaths`, `Latency` over the lit `de_dust2` scene; `glReadPixels` before/after the HUD paint = 1755 changed pixels, bbox screen rows 5..23, columns 56..810, `glGetError()` 0, identical on a second run |
+| The VGUI2 text overlay is **steady state**, not a single frame | `docs/evidence/g07-xash3d-vgui2-text-steady.png`: the back-buffer diff around the HUD paint is 1755 px, rows 5..23, columns 56..810 at paint 1 *and* at paint 60; the patched stub emits 12800 surface text calls per paint, constant; gdb watchpoint traced the disappearing images to `Panel::InvalidateLayout(true,true)` -> `PerformApplySchemeSettings` -> `SectionedListPanelHeader::ApplySchemeSettings` -> `ClearImages()` |
 | Valve's `client.so` requires Valve's `vgui2.so` | pairing it with NextClient's `vgui2.so` crashes in `Label::ApplySettings` (`pScheme->GetFont`, slot 6 → type_info vtable); the interface implementations live in `vgui2.so`, not `client.so` |
 | Xash3D ships FreeVGUI (VGUI1) but no `VGUI_Surface026` | `3rdparty/freevgui` plus `platform/xash3d-fwgs/surface.cpp`; `nm -D vgui.so` exports only `GetVGUISupportAPI`/`InitAPI` |
 | The ReHLDS test server is ready for the spike | `tests/e2e/test_server.py` green on udp/27016: Metamod-R, AMXX, nclapi, `de_dust2`, `nclapi_version 1.6.0` |
@@ -333,14 +333,12 @@ implementation; the plan is the only source for the gate list.
 - **Gate:** G07 – Default Public runtime, in progress.
 - **Engine decided:** Option A from `docs/plan/csretro-plan.md` section 3.6.
 - **Next step:** the stub `VGUI_Surface026` backend traverses and paints the
-  real VGUI2 panel tree and now draws real VGUI2 text into a rendered frame
-  (evidence above). Open work, in order:
-  (1) make the VGUI text draw every frame instead of only the first paint
-  (`Label::Paint` image loop, `this+0x80` / count `this+0x8c`); (2) fix the
-  `fill_rect` colour/alpha mismatch (`set_color 255,255,255,128` arrives as
-  `rgba=188,112,0,128`) so panel backgrounds are translucent instead of an
-  orange wash; (3) textures and fonts; (4) mouse/cursor and `VGUI_Input004`;
-  (5) `engine_mini`/`nitro_api` port onto an Xash3D adapter.
+  real VGUI2 panel tree and draws real VGUI2 text in every frame (evidence
+  above). Open work, in order:
+  (1) fix the `fill_rect` colour/alpha mismatch (`set_color 255,255,255,128`
+  arrives as `rgba=188,112,0,128`) so panel backgrounds are translucent instead
+  of an orange wash; (2) textures and fonts; (3) mouse/cursor and
+  `VGUI_Input004`; (4) `engine_mini`/`nitro_api` port onto an Xash3D adapter.
   Re-run the spike after each step and record the first thing that is actually
   visible.
 - **Wiki reference gathered:** Tier1, VGUI Documentation, Category:VGUI (54
@@ -519,14 +517,71 @@ LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEODRIVER=x11 \
 ./xash3d -game cstrike +map de_dust2 +showscores
 ```
 
+## Xash3D spike update (2026-11-10, steady-state VGUI2 text)
+
+**Result: the same real VGUI2 strings now paint in every frame, not just the
+first one.** The back-buffer diff around the HUD paint is bit-identical at
+paint 1 and at paint 60: 1755 changed pixels, screen rows 5..23, columns
+56..810.
+
+![G07 Xash3D VGUI2 text, steady state](docs/evidence/g07-xash3d-vgui2-text-steady.png)
+
+Root cause, proven with a gdb watchpoint on the label's image vector:
+
+1. `stub_surface_paint` increments a per-process paint counter
+   (`[GOT+0x2b8]`) and then calls the paint-root helper at stub offset
+   `0x1b32`. That helper called
+   `vgui2::Panel::InvalidateLayout(true, true)` on the root panel **every
+   frame** (`stub_surface.so +0x1b9e -> +0x1afd`, vtable slot `0xf4`, which is
+   `Panel::InvalidateLayout`; the object vptr points past the two Itanium
+   header words, so the byte offset is `0xf4`, not `0xec`).
+2. `InvalidateLayout(layoutNow, reloadScheme=true)` recurses into every child
+   and ends in `Panel::PerformApplySchemeSettings` ->
+   `SectionedListPanelHeader::ApplySchemeSettings` -> `Label::ApplySchemeSettings`
+   (`Label.cpp:1001`), which clears `_imageDar` entries. `SectionedListPanelHeader`
+   calls `ClearImages()` explicitly; the header rebuilds its per-column text
+   images only in `PerformLayout`.
+3. Watchpoint evidence at paint 2:
+   `#0 Label::ApplySchemeSettings` <- `#1 CSectionHeader::ApplySchemeSettings`
+   <- `#2 Panel::PerformApplySchemeSettings` <- `#3/#4/#5 Panel::InvalidateLayout`
+   <- `#6 paint_tree` (stub). The label vector's first entry is written to
+   `NULL` there.
+4. Therefore the first paint draws text and every later paint has an empty
+   image list.
+
+Fix, spike-only binary patch (no engine or client change): allow the first
+`InvalidateLayout(true, true)` call, skip it from paint 2 on. The call site
+`0x1b9a` jumps into a code cave at `0x1be0` that compares the paint counter
+with `1`:
+
+```text
+0x1b9a  e9 41 00 00 00      jmp 0x1be0
+0x1be0  8b 83 b8 02 00 00   mov 0x2b8(%ebx),%eax
+0x1be6  83 f8 01            cmp $1,%eax
+0x1be9  75 0c               jne 0x1bf7
+0x1beb  83 ec 0c            sub $0xc,%esp
+0x1bee  51                  push %ecx
+0x1bef  e8 09 ff ff ff      call 0x1afd
+0x1bf4  83 c4 10            add $0x10,%esp
+0x1bf7  e9 aa ff ff ff      jmp 0x1ba6
+```
+
+`spike-shims/patch_once.py` in the spike tree reproduces the patched
+`stub_surface.once.so` byte for byte from `stub_surface.nofill.so`.
+
+Verification: the patched stub emits 12800 surface text calls per paint
+(instead of 50 only in paint 1), constant across paints, and `huddump2.so`
+(`HUDDUMP_CALL=<n>`) reads the back buffer immediately before and after the
+HUD paint of paint `n`:
+
+```text
+paint  1: changed=1755 rows_screen=5..23 cols=56..810
+paint 60: changed=1755 rows_screen=5..23 cols=56..810
+glGetError() 0
+```
+
 Remaining defects, each with its own next task:
 
-- **VGUI text is drawn only once.** `CSectionHeader::Paint` and `Label::Paint`
-  are called every frame, but after paint 1 the labels stop calling the
-  surface's text calls. Either the stub caches the text command list, or the
-  label images report a zero content size after the first frame. Next: log
-  `Label::Paint`'s image loop (`this+0x80`, count `this+0x8c`) per paint and
-  find where the emission stops; a steady-state overlay needs this fixed.
 - **`fill_rect` colour/alpha mismatch.** The stub calls `set_color
   255,255,255,128` but `fill_rect` emits `rgba=188,112,0,128`, so every filled
   rect becomes an opaque orange wash. The evidence run therefore uses
@@ -534,7 +589,8 @@ Remaining defects, each with its own next task:
   `set_color` argument marshalling against `ISurface` slot order.
 - **Font atlas.** `cls.creditsFont` (texture 37) is used by `pfnDrawString`;
   `gfx/creditsfont.fnt` does not exist in the spike tree, yet texture 37 is
-  valid and draws. Do not "fix" this until the steady-state paint works.
+  valid and draws. The steady-state patch did not change this; leave it alone
+  until filled panels render.
 - **Stale assumption to drop:** the y-band search (y=3 vs y=751) that ran
   before this finding was a symptom of the drawing order, not of a clip
   rectangle. Text renders at its true coordinates.
@@ -550,4 +606,4 @@ Remaining defects, each with its own next task:
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`; the stub now paints real VGUI2 panel trees and real VGUI2 text into a rendered frame (`docs/evidence/g07-xash3d-vgui2-text.png`, 1755 px verified by back-buffer diff); engine direction Option A (plan section 3.6) |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`; the stub paints real VGUI2 panel trees and real VGUI2 text into a rendered frame in **every** frame (`docs/evidence/g07-xash3d-vgui2-text.png`, `-steady.png`, 1755 px verified by back-buffer diff at paint 1 and paint 60); engine direction Option A (plan section 3.6) |

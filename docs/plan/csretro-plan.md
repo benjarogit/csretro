@@ -209,10 +209,29 @@ HUD-Paint: 1755 geänderte Pixel, Bounding-Box Bildschirmzeilen 5..23, Spalten
 56..810, `glGetError()` 0, in zwei Läufen identisch. Ein X11-Screenshot des
 Front-Buffers verpasst den Frame, weil der Text nur einmal gezeichnet wird.
 
+Der Text erscheint inzwischen in **jedem** Frame. Ursache der Einmal-Emission
+war wieder der Stub, nicht VGUI: `stub_surface_paint` erhöht einen Paint-Zähler
+und rief pro Frame `Panel::InvalidateLayout(true, true)` auf der Wurzel auf
+(Stub-Offset `0x1b9e` → `0x1afd`, Vtable-Slot `0xf4`). Der zweite Parameter
+lädt das Scheme neu: `PerformApplySchemeSettings` →
+`SectionedListPanelHeader::ApplySchemeSettings` → `ClearImages()`, und
+`Label::ApplySchemeSettings` leert die Bildliste. Die Spaltenbilder entstehen
+erst wieder in `PerformLayout`, das in diesem Pfad nicht läuft. Ein
+gdb-Watchpoint belegt den Schreibzugriff beim zweiten Paint über die Kette
+`paint_tree` → `InvalidateLayout` → `PerformApplySchemeSettings` →
+`CSectionHeader::ApplySchemeSettings` → `Label::ApplySchemeSettings`
+(`Label.cpp:1001`).
+
+Der Spike patched daher nur den ersten Aufruf durchzulassen: an `0x1b9a`
+springt der Code in eine Code-Cave, die den Paint-Zähler mit `1` vergleicht
+und den Aufruf ab Paint 2 überspringt (`spike-shims/patch_once.py` im
+Spike-Baum). Ergebnis: 12800 Text-Aufrufe pro Paint statt 50 nur im ersten,
+und der Backbuffer-Diff um den HUD-Paint ist bei Paint 1 und Paint 60
+bit-identisch (1755 Pixel, Bildschirmzeilen 5..23, Spalten 56..810,
+`glGetError()` 0).
+
 Offene Defekte daraus:
 
-- VGUI-Text wird nur einmal gezeichnet; für ein Dauer-Overlay muss die
-  Text-Emission pro Frame wiederhergestellt werden.
 - `fill_rect` setzt `set_color 255,255,255,128` in `rgba=188,112,0,128` um,
   dadurch werden Flächen zu einem opaken Orangefilter; der Evidenzlauf nutzt
   daher einen Stub ohne Füllungen.

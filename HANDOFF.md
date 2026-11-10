@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-10
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text, panel fills and textured quads in every frame; engine direction decided: Option A)
 - **Branch:** `main`
-- **Commit:** `6b2dbee` (fill provenance) plus this handoff update on top
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42853388349 – success (`6b2dbee`)
+- **Commit:** `d9bcdd9` (VGUI2 texture path evidence) plus this handoff update on top
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42867114212 – success (`d9bcdd9`)
 - **Version:** `0.1.0-dev` (`VERSION`)
 
 ## Verified (with evidence)
@@ -820,4 +820,4 @@ the GL window and `ffmpeg -f x11grab` records a black or white rectangle, while
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`; the stub paints real VGUI2 panel trees, real VGUI2 text, the scheme-coloured panel fills and textured quads into a rendered frame in **every** frame (`docs/evidence/g07-xash3d-vgui2-text.png`, `-steady.png`, `-filled-panel.png`, `-texture-corner.png`, `-texture-sampled.png`; 1755 px text diff at paint 1 and paint 60, 499 200 px = 832x600 fill at paint 20, 12 fills and 50 text calls per paint, 8 TGAs loaded per paint and 27 px texture diff in `0..9 x 0..9` at paint 40, `glGetError()` 0); engine direction Option A (plan section 3.6) |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`; the stub paints real VGUI2 panel trees, real VGUI2 text, the scheme-coloured panel fills and textured quads into a rendered frame in **every** frame (`docs/evidence/g07-xash3d-vgui2-text.png`, `-steady.png`, `-filled-panel.png`, `-texture-corner.png`, `-texture-sampled.png`; 1755 px text diff at paint 1 and paint 60, 499 200 px = 832x600 fill at paint 20, 12 fills and 50 text calls per paint, 8 TGAs loaded per paint and 27 px texture diff in `0..9 x 0..9` at paint 40, `glGetError()` 0; CI `42867114212`); engine direction Option A (plan section 3.6) |

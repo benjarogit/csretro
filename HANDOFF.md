@@ -5,10 +5,11 @@ Project state for the next session. Personal context belongs in
 
 ## State
 
-- **Date:** 2026-11-09
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike now completes `HUD_Init`, engine direction decided: Option A)
+- **Date:** 2026-11-10
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and now paints real VGUI2 text into a rendered frame; engine direction decided: Option A)
 - **Branch:** `main`
-- **Commit:** `c20dd1a` (engine decision docs), this handoff update on top
+- **Commit:** `1ef0556` (surface backend diagnostics) plus the VGUI2 text overlay commit on top
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42615247940 – success
 - **Version:** `0.1.0-dev` (`VERSION`)
 - **CI:** https://github.com/benjarogit/csretro/actions/runs/42614991668 – success
 
@@ -41,6 +42,8 @@ Project state for the next session. Personal context belongs in
 | Xash3D x86_64 starts headless | dedicated log: `Dll loaded for game "Counter-Strike"`, `ReGameDLL version: 5.30.0.871-dev`, `execing maps/de_dust2_load.cfg`, `4 player server started` |
 | Xash3D 32-bit loads and fully initialises Valve's `client.so` | `Initialize` returns 1 (`cl_enginefunc_t` 536 bytes, version 7); with the spike surface adapter `HUD_Init` returns and the engine reaches `exec config.cfg` and a clean `+quit` shutdown |
 | The Xash3D client spike completes `HUD_Init` | `CounterStrikeViewport::Start` returns with viewport field `0x48` non-null; run exit 0, no `crash_backtrace.txt` |
+| The VGUI_Surface026 backend paints real VGUI2 trees | `paint_tree` traverses the scoreboard dialog (25 children, nested), draws 706 rects/frame through Xash3D's `pfnFillRGBA`; screenshot 1024x768 shows coloured panel rects; no crash; IPanel slot mapping verified against `vgui2.so` VPanelWrapper vtable (GetSize=8, GetAbsPos=13, IsVisible=17, GetChildCount=18, GetChild=19, GetName=39, GetClassName=40, PaintTraverse=44) |
+| The VGUI_Surface026 backend paints real VGUI2 **text** into a rendered frame | `docs/evidence/g07-xash3d-vgui2-text.png`: `Spectators - 0 players`, `benny`, `Score`, `Deaths`, `Latency` over the lit `de_dust2` scene; `glReadPixels` before/after the HUD paint = 1755 changed pixels, bbox screen rows 5..23, columns 56..810, `glGetError()` 0, identical on a second run |
 | Valve's `client.so` requires Valve's `vgui2.so` | pairing it with NextClient's `vgui2.so` crashes in `Label::ApplySettings` (`pScheme->GetFont`, slot 6 → type_info vtable); the interface implementations live in `vgui2.so`, not `client.so` |
 | Xash3D ships FreeVGUI (VGUI1) but no `VGUI_Surface026` | `3rdparty/freevgui` plus `platform/xash3d-fwgs/surface.cpp`; `nm -D vgui.so` exports only `GetVGUISupportAPI`/`InitAPI` |
 | The ReHLDS test server is ready for the spike | `tests/e2e/test_server.py` green on udp/27016: Metamod-R, AMXX, nclapi, `de_dust2`, `nclapi_version 1.6.0` |
@@ -329,12 +332,24 @@ implementation; the plan is the only source for the gate list.
 
 - **Gate:** G07 – Default Public runtime, in progress.
 - **Engine decided:** Option A from `docs/plan/csretro-plan.md` section 3.6.
-- **Next step:** turn the stub `VGUI_Surface026` into a real Xash3D backend, in
-  this order: (1) screen size, proportional base and text metrics; (2) filled
-  rects, lines and text through Xash3D's engine draw calls (FreeVGUI's
-  `platform/xash3d-fwgs/surface.cpp` is the reference); (3) textures and fonts;
-  (4) mouse/cursor and `VGUI_Input004`. Re-run the spike after each step and
-  record the first thing that is actually visible.
+- **Next step:** the stub `VGUI_Surface026` backend traverses and paints the
+  real VGUI2 panel tree and now draws real VGUI2 text into a rendered frame
+  (evidence above). Open work, in order:
+  (1) make the VGUI text draw every frame instead of only the first paint
+  (`Label::Paint` image loop, `this+0x80` / count `this+0x8c`); (2) fix the
+  `fill_rect` colour/alpha mismatch (`set_color 255,255,255,128` arrives as
+  `rgba=188,112,0,128`) so panel backgrounds are translucent instead of an
+  orange wash; (3) textures and fonts; (4) mouse/cursor and `VGUI_Input004`;
+  (5) `engine_mini`/`nitro_api` port onto an Xash3D adapter.
+  Re-run the spike after each step and record the first thing that is actually
+  visible.
+- **Wiki reference gathered:** Tier1, VGUI Documentation, Category:VGUI (54
+  pages + 3 subcategories), KeyValues, Panel, RootPanel, VPANEL, Frame. Key
+  findings: `PaintBackground()`/`Paint()` are on by default; `IsFullyVisible()`
+  checks parents; `ShouldPaintChildPanel()` gates child painting; `PaintTraverse`
+  promotes `repaint` only when `+0x30` (NEEDS_REPAINT) is set and `allowForce`
+  is true; `surface()->PushMakeCurrent`/`PopMakeCurrent` bracket every paint;
+  VGUI alpha 0 = opaque (engine 255 = opaque).
 - **Then:** port `engine_mini`/`nitro_api` off the `hw.so` hooks
   (`vgui2_surface` and friends) onto an Xash3D engine adapter, and build
   `client_mini` + `vgui2` from the vendored `ncl-hl1-source-sdk` as one matched
@@ -433,6 +448,97 @@ Valve's `vgui2.so` exports the init entry point under the mangling
 `…PPFPvPKcPiEi`, not NextClient's `…PPFP14IBaseInterfacePKcPiEi`; the shim
 resolves both. The surface stub still renders nothing.
 
+## Xash3D spike update (2026-11-10)
+
+- Engine text path proven per-frame: with `GLTRACE_SWAPPAINT=1 GLTRACE_ENGDRAW=1`, the swap hook forces a 1024x768 ortho and calls `pfnDrawString`/`pfnDrawConsoleString` every frame; screenshot `/tmp/opencode/vgui_text2.png` shows yellow `ENGINEHELLO`, cyan `VGUI2 TEXT OK` and orange `CONSOLEHELLO` persisting across frames (95 yellow / 76 cyan pixels sampled).
+- Real surface path was text-less for a *drawing-order* reason, not a coordinate
+  or font reason; see the section below.
+
+## Xash3D spike update (2026-11-10, real VGUI2 text on screen)
+
+**Result: the stub `VGUI_Surface026` now paints real VGUI2 text into a rendered
+Xash3D frame.** The frame shows the scoreboard dialog's own strings –
+`Spectators - 0 players`, the local player name `benny`, and the section
+headers `Score`, `Deaths`, `Latency` – in the dialog's colour, at the dialog's
+own top-down coordinates, over the lit `de_dust2` scene.
+
+![G07 Xash3D VGUI2 text](docs/evidence/g07-xash3d-vgui2-text.png)
+
+![G07 Xash3D VGUI2 text, zoom](docs/evidence/g07-xash3d-vgui2-text-zoom.png)
+
+Root cause chain, each step proven by a measurement:
+
+1. **The stub is called twice per frame and only one call is visible.**
+   `kvshim.so` hooks both client exports: `frame_wrap` (the client `Frame`
+   export, called from `Host_ClientFrame`, i.e. *before* `R_RenderScene`) and
+   `redraw_wrap` (`HUD_Redraw`, called from `CL_DrawHUD`, i.e. *after*
+   `R_RenderScene` and inside the engine 2D block). Confirmed with gdb: every
+   `frame_wrap` paint has `scene=0`, every `redraw_wrap` paint has `scene=1`
+   and `R_Set2DMode` is already active (`flag2d=1`). A `frame_wrap` paint is
+   silently overwritten by the 3D scene.
+2. **VGUI emits its text draw calls only on the first paint of the process.**
+   `CSectionHeader::Paint`/`Label::Paint` run every frame (gdb counter), but
+   `DrawPrintText` reaches the stub only on paint 1. Because `frame_wrap` runs
+   first in each frame, it consumed that single emission and the visible
+   `redraw_wrap` paint had nothing left to draw.
+3. **Disabling the `frame_wrap` paint makes the `redraw_wrap` paint the first
+   paint**, so the real VGUI2 text lands after the world is rendered.
+   Spike shim `hudonly.so` patches kvshim `frame_wrap` at `+0x12ce` from
+   `mov eax,[ebx+0x110]` to `xor eax,eax` (the following `test/je` then skips
+   the paint call). No engine or stub change is involved.
+4. **Coordinates, projection, depth and scissor are all correct.** GL state
+   dumped inside the HUD paint: viewport `0,0 1024x768`, scissor box
+   `0,0 1024x768` with `GL_SCISSOR_TEST` disabled, `GL_DEPTH_TEST` disabled,
+   projection `[0.0020 0 0 -1 | 0 -0.0026 0 1]`, i.e. a full-screen top-down
+   ortho for `0..1024 x 0..768`. The glyph quads arrive from the stub as
+   `x=623 y=3 w=7 h=19` etc. with the dialog colour `0xffff9d48` (alpha 255).
+
+**Verification (reproducible, twice, identical numbers):** the spike shim
+`huddump.so` reads the back buffer with `glReadPixels(GL_BACK)` immediately
+before and after the first HUD paint.
+
+```text
+call 1 changed px 1755
+bbox (GL bottom-up) y 744..762  x 56..810
+=> screen rows 5..23, columns 56..810
+call 2 changed px 0
+```
+
+1755 changed pixels inside exactly the rows and columns the stub reported,
+zero changed pixels on the next paint. `glGetError()` is `0` throughout.
+Because the text is emitted only in that one paint, an X11 front-buffer
+screenshot misses the frame; the frame image above is the engine's own back
+buffer, read at the paint.
+
+Reproduce (all paths outside the repo, spike tree only):
+
+```text
+LD_PRELOAD="<spike>/kvshim.so <spike>/huddump.so <spike>/hudonly.so" \
+LD_LIBRARY_PATH="<spike>:<sdl32>:/usr/lib32" \
+LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEODRIVER=x11 \
+./xash3d -game cstrike +map de_dust2 +showscores
+```
+
+Remaining defects, each with its own next task:
+
+- **VGUI text is drawn only once.** `CSectionHeader::Paint` and `Label::Paint`
+  are called every frame, but after paint 1 the labels stop calling the
+  surface's text calls. Either the stub caches the text command list, or the
+  label images report a zero content size after the first frame. Next: log
+  `Label::Paint`'s image loop (`this+0x80`, count `this+0x8c`) per paint and
+  find where the emission stops; a steady-state overlay needs this fixed.
+- **`fill_rect` colour/alpha mismatch.** The stub calls `set_color
+  255,255,255,128` but `fill_rect` emits `rgba=188,112,0,128`, so every filled
+  rect becomes an opaque orange wash. The evidence run therefore uses
+  `stub_surface.nofill.so` (`fill_rect` patched to `ret`). Next: compare the
+  `set_color` argument marshalling against `ISurface` slot order.
+- **Font atlas.** `cls.creditsFont` (texture 37) is used by `pfnDrawString`;
+  `gfx/creditsfont.fnt` does not exist in the spike tree, yet texture 37 is
+  valid and draws. Do not "fix" this until the steady-state paint works.
+- **Stale assumption to drop:** the y-band search (y=3 vs y=751) that ran
+  before this finding was a symptom of the drawing order, not of a clip
+  rectangle. Text renders at its true coordinates.
+
 ## Gate log
 
 | Gate | State | Evidence |
@@ -444,4 +550,4 @@ resolves both. The surface stub still renders nothing.
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`, engine direction Option A (plan section 3.6) |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`; the stub now paints real VGUI2 panel trees and real VGUI2 text into a rendered frame (`docs/evidence/g07-xash3d-vgui2-text.png`, 1755 px verified by back-buffer diff); engine direction Option A (plan section 3.6) |

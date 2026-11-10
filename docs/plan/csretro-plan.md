@@ -147,7 +147,8 @@ Belegt:
 - Damit läuft `HUD_Init` vollständig durch, `CounterStrikeViewport::Start`
   liefert mit gesetztem Viewport-Panel zurück (Feld `0x48` ≠ 0), und die Engine
   fährt bis `exec config.cfg` und sauberem Shutdown auf `+quit`.
-- Es wird nichts gerendert: der Stub zeichnet nicht.
+- Es wird nichts gerendert: der Stub zeichnet nicht. *(Überholt durch den
+  Nachtrag unten: Füllflächen und echter VGUI2-Text erscheinen im Frame.)*
 
 **Kritischer ABI-Befund:** Valves `client.so` linkt statisch nur die
 VGUI2-*Controls*; `CScheme`, `CSystem`, `CInput`, `CPanel`, `CLocalize` und das
@@ -171,9 +172,50 @@ Option C (Retail) bleibt der funktionierende Vergleichsstand.
 
 | Option | Inhalt | Stand |
 |---|---|---|
-| A | `VGUI_Surface026`-Adapter auf Xash3D | **gewählt**; ABI belegt, Backend offen |
+| A | `VGUI_Surface026`-Adapter auf Xash3D | **gewählt**; ABI belegt, Backend zeichnet Text |
 | B | FreeVGUI um GoldSrc-VGUI2-Exporte erweitern | Rückfallebene, größerer Umbau |
 | C | Retail-GoldSrc als Client-Engine | funktioniert, aber kein Xash3D |
+
+#### 3.6.1 Nachtrag 10. November 2026: Text und Flächen sind sichtbar
+
+Der Stub-Adapter zeichnet jetzt echte VGUI2-Ausgabe in einen gerenderten
+Xash3D-Frame: das Scoreboard-Dialog zeichnet seine eigenen Strings
+(`Spectators - 0 players`, Spielername `benny`, Spaltenköpfe `Score`, `Deaths`,
+`Latency`) in seiner eigenen Farbe an seinen eigenen Koordinaten über der
+beleuchteten `de_dust2`-Szene. Beleg:
+`docs/evidence/g07-xash3d-vgui2-text.png`, Zoom
+`docs/evidence/g07-xash3d-vgui2-text-zoom.png`.
+
+Ursache der bisherigen Unsichtbarkeit war die **Zeichenreihenfolge**, nicht die
+Geometrie:
+
+1. `kvshim.so` ruft den Stub an zwei Stellen: `frame_wrap` (Client-Export
+   `Frame`, aus `Host_ClientFrame`, also **vor** `R_RenderScene`) und
+   `redraw_wrap` (`HUD_Redraw`, aus `CL_DrawHUD`, also **nach** der Welt und
+   innerhalb des 2D-Blocks der Engine). Ein Paint aus `frame_wrap` wird von der
+   Welt überschrieben; nur `redraw_wrap` bleibt sichtbar (gdb: `scene=0` bzw.
+   `scene=1`, `flag2d=1`).
+2. VGUI emittiert Text-Draws nur im **ersten** Paint des Prozesses, obwohl
+   `CSectionHeader::Paint`/`Label::Paint` jeden Frame laufen. Weil `frame_wrap`
+   pro Frame zuerst läuft, verbrauchte er diese eine Emission.
+3. Wird der `frame_wrap`-Paint abgeschaltet (Spike-Shim patcht
+   `mov eax,[ebx+0x110]` auf `xor eax,eax`), ist der HUD-Paint der erste Paint
+   und der Text landet nach der Welt.
+
+Projektion, Depth und Scissor sind korrekt (Viewport `0,0 1024x768`,
+Scissor-Test aus, Depth-Test aus, Ortho `0..1024 × 0..768` top-down). Die
+Verifikation erfolgt über `glReadPixels(GL_BACK)` unmittelbar vor und nach dem
+HUD-Paint: 1755 geänderte Pixel, Bounding-Box Bildschirmzeilen 5..23, Spalten
+56..810, `glGetError()` 0, in zwei Läufen identisch. Ein X11-Screenshot des
+Front-Buffers verpasst den Frame, weil der Text nur einmal gezeichnet wird.
+
+Offene Defekte daraus:
+
+- VGUI-Text wird nur einmal gezeichnet; für ein Dauer-Overlay muss die
+  Text-Emission pro Frame wiederhergestellt werden.
+- `fill_rect` setzt `set_color 255,255,255,128` in `rgba=188,112,0,128` um,
+  dadurch werden Flächen zu einem opaken Orangefilter; der Evidenzlauf nutzt
+  daher einen Stub ohne Füllungen.
 
 Nebenbefunde:
 

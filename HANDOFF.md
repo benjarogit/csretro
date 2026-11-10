@@ -6,10 +6,10 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-10
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text in every frame; engine direction decided: Option A)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text, panel fills and textured quads in every frame; engine direction decided: Option A)
 - **Branch:** `main`
-- **Commit:** `a51ef3e` (steady-state VGUI2 text evidence) plus this handoff update on top
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42821354428 – success (`a51ef3e`)
+- **Commit:** `6b2dbee` (fill provenance) plus this handoff update on top
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42853388349 – success (`6b2dbee`)
 - **Version:** `0.1.0-dev` (`VERSION`)
 
 ## Verified (with evidence)
@@ -41,12 +41,14 @@ Project state for the next session. Personal context belongs in
 | Xash3D x86_64 starts headless | dedicated log: `Dll loaded for game "Counter-Strike"`, `ReGameDLL version: 5.30.0.871-dev`, `execing maps/de_dust2_load.cfg`, `4 player server started` |
 | Xash3D 32-bit loads and fully initialises Valve's `client.so` | `Initialize` returns 1 (`cl_enginefunc_t` 536 bytes, version 7); with the spike surface adapter `HUD_Init` returns and the engine reaches `exec config.cfg` and a clean `+quit` shutdown |
 | The Xash3D client spike completes `HUD_Init` | `CounterStrikeViewport::Start` returns with viewport field `0x48` non-null; run exit 0, no `crash_backtrace.txt` |
-| The VGUI_Surface026 backend paints real VGUI2 trees | `paint_tree` traverses the scoreboard dialog (25 children, nested) and draws its rects through Xash3D's `pfnFillRGBA` (12 `fill_rect` calls per paint, constant); no crash; IPanel slot mapping verified against `vgui2.so` VPanelWrapper vtable (GetSize=8, GetAbsPos=13, IsVisible=17, GetChildCount=18, GetChild=19, GetName=39, GetClassName=40, PaintTraverse=44) |
+| The VGUI_Surface026 backend paints real VGUI2 trees | `paint_tree` traverses the scoreboard dialog (25 children, nested) and draws its rects through Xash3D's `pfnFillRGBA` (12 `fill_rect` calls per paint, constant); no crash; IPanel slots read straight out of `_ZTV13VPanelWrapper` (`vgui2.so` 0x2a0b0, address point 0x2a0b8): SetPos=3, GetPos=4, SetSize=5, GetSize=6, GetAbsPos=11, SetInset=13, IsVisible=16, GetChildCount=18, GetChild=19, GetName=37, GetClassName=38, PaintTraverse=42 |
 | The VGUI_Surface026 backend paints real VGUI2 **text** into a rendered frame | `docs/evidence/g07-xash3d-vgui2-text.png`: `Spectators - 0 players`, `benny`, `Score`, `Deaths`, `Latency` over the lit `de_dust2` scene; `glReadPixels` before/after the HUD paint = 1755 changed pixels, bbox screen rows 5..23, columns 56..810, `glGetError()` 0, identical on a second run |
 | The VGUI2 text overlay is **steady state**, not a single frame | `docs/evidence/g07-xash3d-vgui2-text-steady.png`: the back-buffer diff around the HUD paint is 1755 px, rows 5..23, columns 56..810 at paint 1 *and* at paint 60; the patched stub emits 50 surface text calls per paint (unpatched: 50 in paint 1, then 0), constant; gdb watchpoint traced the disappearing images to `Panel::InvalidateLayout(true,true)` -> `PerformApplySchemeSettings` -> `SectionedListPanelHeader::ApplySchemeSettings` -> `ClearImages()` |
 | The VGUI_Surface026 backend paints **filled panels** with text | `docs/evidence/g07-xash3d-vgui2-filled-panel.png` / `-zoom.png` (paint 20): the HUD paint changes 499 200 px = exactly 832x600, rows 0..599, columns 0..831, `glGetError()` 0; pixel (400,300) `32,30,26` -> `220,142,26` shows the translucent scheme fill `188,112,0` over the scene with `Score`/`Deaths`/`Latency` text; 12 `fill_rect` calls per paint, constant; paint 2 and paint 32 bit-identical |
 | Every scoreboard fill is traced to its VGUI caller | gdb backtrace at each of the 12 `fill_rect` calls of paint 2: seven rects from `CCSClientScoreBoardDialog::PaintBackground`, `832x600` and `400x38` from `vgui2::Panel::PaintBackground` (`Panel.cpp:556`), two `1,21 819x1` from `vgui2::CSectionHeader::Paint` and `822x33` from `vgui2::CItemButton::PaintBackground`; the white `400x38` is the default `255,255,255,128` background of the label `ServerName` |
-| The stub has no texture path yet | the four texture slots are one-instruction `ret`s, `DrawGetTextureSize` always returns `16x16`; VGUI asks for the eight `gfx/vgui/round_corner*` files per paint through `vgui2::Bitmap::Paint` and every `DrawTexturedRect` arrives as `0,0 10,10` because `PushMakeCurrent` is a no-op |
+| The stock stub has no texture path | the four texture slots are one-instruction `ret`s and `DrawGetTextureSize` always returns `16x16`; VGUI asks for the eight `gfx/vgui/round_corner*` files per paint through `vgui2::Bitmap::Paint` and every `DrawTexturedRect` arrives as `0,0 10,10` because `PushMakeCurrent` is a no-op |
+| The VGUI_Surface026 backend paints **textured quads** | `docs/evidence/g07-xash3d-vgui2-texture-corner.png` / `-zoom.png`: 8 TGAs loaded per paint (ids 11–14 64x64, 16–19 10x10), 8 `DrawTexturedRect` at `0,0 10,10`, paint 40 vs 41 differs in 27 px in `x 0..9, y 0..9` (`(0,9)` `255,255,255` → `255,200,32`), `glGetError()` 0; `docs/evidence/g07-xash3d-vgui2-texture-sampled.png` / `-zoom.png`: a diagnostic 256x256 blit of `round_corner_nw` reproduces the TGA's quarter-circle alpha mask with the scene visible through the transparent part |
+| Ending a textured quad with `glDisable(GL_TEXTURE_2D)` white-washes the frame | separate frames with the real draw vs. no draw show that only the trailing state teardown breaks it; six probe stages (enable/disable, colour, bind, empty `glBegin`, immediate quad, vertex arrays) all keep the frame intact; saving/restoring `GL_TEXTURE_2D` + binding + blend + depth + cull + colour fixes it |
 | Valve's `client.so` requires Valve's `vgui2.so` | pairing it with NextClient's `vgui2.so` crashes in `Label::ApplySettings` (`pScheme->GetFont`, slot 6 → type_info vtable); the interface implementations live in `vgui2.so`, not `client.so` |
 | Xash3D ships FreeVGUI (VGUI1) but no `VGUI_Surface026` | `3rdparty/freevgui` plus `platform/xash3d-fwgs/surface.cpp`; `nm -D vgui.so` exports only `GetVGUISupportAPI`/`InitAPI` |
 | The ReHLDS test server is ready for the spike | `tests/e2e/test_server.py` green on udp/27016: Metamod-R, AMXX, nclapi, `de_dust2`, `nclapi_version 1.6.0` |
@@ -314,8 +316,9 @@ implementation; the plan is the only source for the gate list.
   responder.
 - **Client engine decided (Option A):** Xash3D runs Valve's `client.so` through
   `HUD_Init` with a stub surface; the open work is a real `VGUI_Surface026`
-  backend (drawing, fonts, textures, mouse) and the `engine_mini`/`nitro_api`
-  hooks ported off `hw.so`. Retail GoldSrc remains the working fallback.
+  backend (drawing, fonts, texture-coordinate translation, mouse) and the
+  `engine_mini`/`nitro_api` hooks ported off `hw.so`. Retail GoldSrc remains the
+  working fallback.
 - **Steam stub is test-only.** It authenticates nobody and must never be used
   for a public server. A production server needs real Steam connectivity.
 - **E2E is not in CI yet.** The Docker job arrives with G10; the test needs
@@ -336,19 +339,19 @@ implementation; the plan is the only source for the gate list.
 - **Gate:** G07 – Default Public runtime, in progress.
 - **Engine decided:** Option A from `docs/plan/csretro-plan.md` section 3.6.
 - **Next step:** the stub `VGUI_Surface026` backend traverses and paints the
-  real VGUI2 panel tree, draws real VGUI2 text in every frame and fills the
-  panel backgrounds with the scheme colour (evidence above). The earlier
-  `fill_rect` colour/alpha suspicion is disproved: marshalling and alpha
-  inversion are correct, the "38-row band" was an artefact of dumping only
-  paint 1 (scheme not yet applied, VGUI alpha 0 = transparent). Open work, in
-  order:
-  (1) textures: the four texture slots of the stub are no-ops, so VGUI's eight
-  `gfx/vgui/round_corner*` bitmaps never appear (`vgui2::Bitmap::Paint` calls
-  `DrawSetTexture` -> `DrawSetColor` -> `DrawTexturedRect`); `DrawTexturedRect`
-  also arrives with parental coordinates because the stub ignores
-  `PushMakeCurrent`; (2) fonts; (3) mouse/cursor and `VGUI_Input004`; (4)
-  `engine_mini`/`nitro_api` port onto an Xash3D adapter. Re-run the spike after
-  each step and record the first thing that is actually visible.
+  real VGUI2 panel tree, draws real VGUI2 text in every frame, fills the
+  panel backgrounds with the scheme colour and draws VGUI2's TGAs as textured
+  quads (evidence above). The earlier `fill_rect` colour/alpha suspicion is
+  disproved: marshalling and alpha inversion are correct, the "38-row band"
+  was an artefact of dumping only paint 1 (scheme not yet applied, VGUI alpha
+  0 = transparent). Open work, in order:
+  (1) texture coordinate translation: loading, upload and drawing work, but the
+  stub ignores `PushMakeCurrent`, so all eight `DrawTexturedRect` calls land on
+  `0,0 10,10` and the four corners pile up in one place; the adapter needs the
+  offset from `GetAbsPos` (IPanel slot 11) instead of the stub's no-op;
+  (2) fonts; (3) mouse/cursor and `VGUI_Input004`; (4) `engine_mini`/`nitro_api`
+  port onto an Xash3D adapter. Re-run the spike after each step and record the
+  first thing that is actually visible.
 - **Wiki reference gathered:** Tier1, VGUI Documentation, Category:VGUI (54
   pages + 3 subcategories), KeyValues, Panel, RootPanel, VPANEL, Frame. Key
   findings: `PaintBackground()`/`Paint()` are on by default; `IsFullyVisible()`
@@ -608,17 +611,20 @@ Remaining defects, each with its own next task:
   client decisions and the stub marshals them correctly, so the low contrast on
   that label is not a stub defect. The retail comparison is still open
   (maintainer run).
-- **Textures are missing entirely.** `draw_set_texture_file` (`0x12f0`),
-  `draw_set_texture_rgba` (`0x1300`), `draw_set_texture` (`0x1310`) and
-  `draw_textured_rect` (`0x1340`) are one-instruction `ret` stubs,
-  `create_new_texture_id` (`0x1360`) hands out plain counters and
-  `draw_get_texture_size` (`0x1320`) always reports `16x16`. VGUI asks for the
-  eight `gfx/vgui/round_corner*` files per paint (they exist in the spike tree
-  as `.tga`) through `vgui2::Bitmap::Paint` (`Bitmap.cpp:134`). All eight
-  `DrawTexturedRect` calls arrive as `0,0 10,10` because VGUI draws bitmaps in
-  parent-relative coordinates and expects the offset from
-  `PushMakeCurrent` (`0x1de0`, a no-op in the stub). A texture path therefore
-  needs TGA loading, GL upload, a textured quad and the push/pop offset.
+- **Textures are no longer missing in the spike.** In the stock stub
+  `draw_set_texture_file` (`0x12f0`), `draw_set_texture_rgba` (`0x1300`),
+  `draw_set_texture` (`0x1310`) and `draw_textured_rect` (`0x1340`) are
+  one-instruction `ret`s, `create_new_texture_id` (`0x1360`) hands out plain
+  counters and `draw_get_texture_size` (`0x1320`) always reports `16x16`.
+  A spike shim now replaces them; see the texture section below.
+- **Push/Pop are still no-ops.** All eight `DrawTexturedRect` calls arrive as
+  `0,0 10,10` because VGUI draws bitmaps in parent-relative coordinates and
+  expects the offset from `PushMakeCurrent` (`0x1de0`) /
+  `PopMakeCurrent` (`0x11b0`). The correct `GetAbsPos` source is IPanel slot
+  **11** (`VPanelWrapper::GetAbsPos`, `_ZTV13VPanelWrapper` at
+  `vgui2.so 0x2a0b0`); slot 13 is `SetInset` and corrupts the layout.
+  The offset is deliberately off in the spike so fills and texture quads share
+  the same local basis; it belongs in the adapter.
 - **Fill provenance is fully mapped** (gdb backtrace per fill, paint 2): seven
   rects from `CCSClientScoreBoardDialog::PaintBackground`
   (`cstrikeclientscoreboard.cpp:402/409/416/428/434/442/450`), `0,0 832x600`
@@ -701,12 +707,12 @@ colour is that panel's default background `255,255,255,128`. Its text is
 `DrawSetTextColor` and marshalled correctly. So neither the band nor the text
 is a stub defect; only the retail comparison stays open.
 
-What *is* missing is the texture path. The stub's `draw_set_texture_file`
+What the stock stub lacks is the texture path. Its `draw_set_texture_file`
 (`0x12f0`), `draw_set_texture_rgba` (`0x1300`), `draw_set_texture` (`0x1310`)
 and `draw_textured_rect` (`0x1340`) are single `ret` instructions,
 `create_new_texture_id` (`0x1360`) returns a counter and `draw_get_texture_size`
 (`0x1320`) always reports `16x16`. VGUI therefore requests eight textures per
-paint and draws none of them:
+paint and the stub draws none of them:
 
 ```text
 gfx/vgui/round_corner_nw   gfx/vgui/round_corner_small_nw
@@ -724,6 +730,85 @@ from `PushMakeCurrent` (stub `0x1de0`, currently a logging no-op). The texture
 step therefore has two halves: load the TGA and upload it as a GL texture with
 a real `DrawTexturedRect`, and apply the push/pop offset.
 
+## Xash3D spike update (2026-11-10, textured quads)
+
+**Result: the stub loads VGUI2's TGAs, uploads them as GL textures and draws
+textured quads into the frame.** The scoreboard's rounded corners are the
+first real textures: at paint 40 the eight `DrawTexturedRect` calls land on
+`0,0 10,10` (parent-relative, see below) and the next frame differs in the
+`x 0..9, y 0..9` block, e.g. `(0,9)` goes from `255,255,255` to `255,200,32`.
+`glGetError()` is `0`.
+
+![G07 Xash3D VGUI2 texture corner](docs/evidence/g07-xash3d-vgui2-texture-corner.png)
+
+![G07 Xash3D VGUI2 texture corner, zoom](docs/evidence/g07-xash3d-vgui2-texture-corner-zoom.png)
+
+A diagnostic 256×256 blit of `gfx/vgui/round_corner_nw` shows the texture's
+actual texel content: the TGA is a black RGB image whose alpha is a
+quarter-circle mask, and the quad reproduces that mask exactly, with the map
+visible through the transparent part. This proves loader, upload, sampling and
+blending separately from the 10×10 in-place draw.
+
+![G07 Xash3D VGUI2 sampled texture](docs/evidence/g07-xash3d-vgui2-texture-sampled.png)
+
+![G07 Xash3D VGUI2 sampled texture, zoom](docs/evidence/g07-xash3d-vgui2-texture-sampled-zoom.png)
+
+What the shim does (spike-only, `texture.c`, not in the repository):
+
+- `DrawSetTextureFile(id, name, filtered, reload)` loads the TGA from
+  `cstrike/`, uploads it once and remembers the id; all eight files load per
+  paint: ids 11–14 `round_corner_{nw,ne,sw,se}` at 64×64, ids 16–19
+  `round_corner_small_{nw,ne,sw,se}` at 10×10.
+- `DrawGetTextureSize` returns the real size instead of `16x16`.
+- `DrawTexturedRect` enqueues a quad; the queue is flushed after
+  `stub_surface_paint`, otherwise the rest of the panel paints over it.
+- The tint is read from the stub's `DrawSetColor` state (four ints at GOT
+  `+0x5c`, `+0x60`, `+0x64`, `+0x68`; alpha inverted for the engine), so it is
+  `255,255,255,128` for four corners and `188,112,0,128` for the other four —
+  not a hardcoded colour.
+
+Three engine behaviours had to be handled, and they are requirements for the
+real adapter:
+
+1. **Save and restore the GL state.** The first working quad ended with
+   `glBindTexture(GL_TEXTURE_2D, 0)` and `glDisable(GL_TEXTURE_2D)`. Xash3D's
+   own batched 2D drawing then rendered untextured white quads over the whole
+   frame, which is exactly the "white screen" that looked like a surface bug.
+   Restoring `GL_TEXTURE_2D`, the binding, blend, depth, cull and the current
+   colour fixes it. A six-stage probe (enable/disable, colour, bind, empty
+   `glBegin`, immediate-mode quad, vertex arrays) confirmed stages 1–6 all keep
+   the frame intact; only the trailing state teardown broke it.
+2. **Use an own projection and viewport.** The engine's HUD-paint state has
+   `Viewport 0,0 1280x1024` while the stub coordinates are `1024x768`, so a
+   quad drawn in engine state lands at the wrong place. The shim pushes
+   projection and modelview, loads `glOrtho(0,1024,768,0)` and
+   `glViewport(0,0,1024,768)`, draws, then pops.
+3. **Defer the draw.** Drawing inside `DrawTexturedRect` is overpainted by the
+   remaining panel paint. The deferred flush after `stub_surface_paint` is what
+   makes the pixels survive to the back buffer.
+
+Remaining defect: VGUI hands bitmaps over in parent-relative coordinates, so
+all eight rects are `0,0 10,10`. `PushMakeCurrent` (`0x1de0`) and
+`PopMakeCurrent` (`0x11b0`) are no-ops in the stub. The `GetAbsPos` call has to
+come from IPanel slot **11** (`VPanelWrapper::GetAbsPos`, `_ZTV13VPanelWrapper`
+at `vgui2.so 0x2a0b0`); an earlier attempt used slot 13, which is `SetInset`
+and corrupted the panel layout. The offset is off in the spike on purpose so
+fills and texture quads share one local basis; the adapter owns the
+translation.
+
+Reproduce (all paths outside the repo):
+
+```text
+LD_PRELOAD="<spike>/kvshim.so <spike>/texture.so <spike>/hudonly.so" \
+LD_LIBRARY_PATH="<spike>:<sdl32>:/usr/lib32" \
+LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEODRIVER=x11 \
+./xash3d -game cstrike +map de_dust2 +showscores
+```
+
+Back-buffer dumps are the only valid capture here: `import`/`xwd` cannot open
+the GL window and `ffmpeg -f x11grab` records a black or white rectangle, while
+`glReadPixels(GL_BACK)` at the paint contains the HUD.
+
 ## Gate log
 
 | Gate | State | Evidence |
@@ -735,4 +820,4 @@ a real `DrawTexturedRect`, and apply the push/pop offset.
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`; the stub paints real VGUI2 panel trees, real VGUI2 text and the scheme-coloured panel fills into a rendered frame in **every** frame (`docs/evidence/g07-xash3d-vgui2-text.png`, `-steady.png`, `-filled-panel.png`; 1755 px text diff at paint 1 and paint 60, 499 200 px = 832x600 fill at paint 20, 12 fills and 50 text calls per paint); engine direction Option A (plan section 3.6) |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`; the stub paints real VGUI2 panel trees, real VGUI2 text, the scheme-coloured panel fills and textured quads into a rendered frame in **every** frame (`docs/evidence/g07-xash3d-vgui2-text.png`, `-steady.png`, `-filled-panel.png`, `-texture-corner.png`, `-texture-sampled.png`; 1755 px text diff at paint 1 and paint 60, 499 200 px = 832x600 fill at paint 20, 12 fills and 50 text calls per paint, 8 TGAs loaded per paint and 27 px texture diff in `0..9 x 0..9` at paint 40, `glGetError()` 0); engine direction Option A (plan section 3.6) |

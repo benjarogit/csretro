@@ -288,12 +288,13 @@ die der Stub korrekt an die Engine gibt. Beides ist eine Client-Entscheidung,
 kein Stub-Defekt; unklar bleibt nur, ob der Retail-Client denselben Balken
 zeigt (Maintainer-Lauf, Automation endet an der Prozessgrenze).
 
-**Texturen fehlen vollständig.** Die vier Textur-Slots des Stubs sind
-No-Ops: `draw_set_texture_file` (`0x12f0`), `draw_set_texture_rgba`
-(`0x1300`), `draw_set_texture` (`0x1310`) und `draw_textured_rect`
-(`0x1340`) sind jeweils ein einzelnes `ret`, `create_new_texture_id`
-(`0x1360`) vergibt nur fortlaufende Zahlen und `draw_get_texture_size`
-(`0x1320`) meldet konstant `16x16`. VGUI fragt pro Paint acht Texturen an:
+**Texturpfad im Spike nachgewiesen.** Die vier Textur-Slots des ausgelieferten
+Stubs sind No-Ops: `draw_set_texture_file` (`0x12f0`),
+`draw_set_texture_rgba` (`0x1300`), `draw_set_texture` (`0x1310`) und
+`draw_textured_rect` (`0x1340`) sind jeweils ein einzelnes `ret`,
+`create_new_texture_id` (`0x1360`) vergibt nur fortlaufende Zahlen und
+`draw_get_texture_size` (`0x1320`) meldet konstant `16x16`. VGUI fragt pro
+Paint acht Texturen an:
 
 ```text
 gfx/vgui/round_corner_nw        gfx/vgui/round_corner_small_nw
@@ -302,24 +303,50 @@ gfx/vgui/round_corner_sw        gfx/vgui/round_corner_small_sw
 gfx/vgui/round_corner_se        gfx/vgui/round_corner_small_se
 ```
 
-Die Dateien liegen im Spike-Baum (`cstrike/gfx/vgui/*.tga`), werden aber nie
-geladen. Aufrufer ist `vgui2::Bitmap::Paint` (`Bitmap.cpp:134`):
-`DrawSetTexture` (Vtable-Slot `0x68`) → `DrawSetColor` (Slot `0x20`) →
-`DrawTexturedRect` (Slot `0x78`, additiv Slot `0x190`). Weil der Stub alle vier
-Slots verschluckt, bleibt von diesen Bitmaps nichts sichtbar.
+Aufrufer ist `vgui2::Bitmap::Paint` (`Bitmap.cpp:134`): `DrawSetTexture`
+(Vtable-Slot `0x68`) → `DrawSetColor` (Slot `0x20`) → `DrawTexturedRect`
+(Slot `0x78`, additive Variante Slot `0x190`). Ein Preload-Shim im Spike-Baum
+(`texture.c`, nicht im Repository) ersetzt die vier Slots und belegt, dass der
+Weg TGA → GL-Textur → Textur-Quad → Bildpuffer vollständig trägt:
 
-Zweiter Befund daraus: alle acht `DrawTexturedRect`-Aufrufe kommen mit
+| Messung | Ergebnis |
+|---|---|
+| Laden pro Paint | 8 TGAs, IDs 11–14 `round_corner_{nw,ne,sw,se}` 64x64, IDs 16–19 `round_corner_small_*` 10x10 |
+| `DrawTexturedRect` | achtmal `0,0 10,10`, Tint aus `DrawSetColor` (`255,255,255,128`, danach `188,112,0,128`) |
+| Paint 40 vs. 41 | 27 Pixel in `x 0..9, y 0..9`, z. B. `(0,9)` `255,255,255` → `255,200,32` |
+| Diagnose-Blitte `round_corner_nw` 256x256 | Alpha-Maske (Viertelkreis) korrekt gesampelt, transparente Fläche zeigt die Szene |
+| `glGetError()` | 0 |
+
+Beweise: `docs/evidence/g07-xash3d-vgui2-texture-corner.png` (+ `-zoom`) und
+`docs/evidence/g07-xash3d-vgui2-texture-sampled.png` (+ `-zoom`).
+
+Drei Engine-Anforderungen folgen daraus für den späteren Adapter:
+
+1. **GL-Zustand retten.** Wer das Quad mit `glBindTexture(…, 0)` und
+   `glDisable(GL_TEXTURE_2D)` beendet, zerstört den Engine-Zustand: Xash3Ds
+   eigenes 2D-Zeichnen rendert danach untexturierte weiße Quads über den
+   ganzen Frame (weißer Bildschirm). Der Shim sichert und restauriert daher
+   `GL_TEXTURE_2D`-Enable, Bindung, Blend, Depth, Cull und `glColor`.
+2. **Eigene Projektion und eigener Viewport.** Der Engine-Zustand im HUD-Paint
+   hat `Viewport 1280x1024`, die Stub-Koordinaten sind aber `1024x768`. Das
+   Quad braucht `glOrtho(0,1024,768,0)` und `glViewport(0,0,1024,768)` mit
+   Push/Pop der Matrizen.
+3. **Verzögertes Zeichnen.** `DrawTexturedRect` sammelt nur ein; geflusht wird
+   nach `stub_surface_paint`, sonst übermalt der Rest des Panels die Quads.
+
+Offen bleibt die Übersetzung: alle acht `DrawTexturedRect`-Aufrufe kommen mit
 `0,0 10,10` an, obwohl die vier Ecken an verschiedenen Stellen liegen. VGUI
 zeichnet Bitmaps in **elternrelativen** Koordinaten und erwartet die
-Verschiebung aus `PushMakeCurrent` (Stub `0x1de0`, loggt nur). Der Stub
-übersetzt nicht, deshalb landen alle Ecken auf `0,0`. Ein Texturpfad braucht
-also beides: TGA-Laden plus Upload **und** einen Koordinaten-Offset aus
-`PushMakeCurrent`/`PopMakeCurrent` (`0x11b0`).
+Verschiebung aus `PushMakeCurrent` (Stub `0x1de0`) beziehungsweise
+`PopMakeCurrent` (`0x11b0`); beide sind im Stub No-Ops. Die korrekte
+`GetAbsPos`-Quelle ist IPanel-Slot **11** (`VPanelWrapper::GetAbsPos`,
+`_ZTV13VPanelWrapper` bei `vgui2.so 0x2a0b0`); Slot 13 ist `SetInset` und
+zerstört das Layout. Ohne Offset landen alle Bitmaps auf `0,0`. Der Offset ist
+im Spike absichtlich noch nicht aktiv, damit Fills und Textur-Quads dieselbe
+lokale Basis haben; er gehört in den Adapter.
 
-Offener Rest daraus: Texturen (TGA → GL-Textur, `DrawTexturedRect` als Quad,
-echte `DrawGetTextureSize`-Werte) und der Push/Pop-Offset. Danach Fonts
-(`DrawPrintText` nutzt bereits `CL_DrawString`, aber ohne Metrik aus
-`draw_set_text_font`).
+Offener Rest daraus: der Push/Pop-Offset und Fonts (`DrawPrintText` nutzt
+bereits `CL_DrawString`, aber ohne Metrik aus `draw_set_text_font`).
 
 Nebenbefunde:
 

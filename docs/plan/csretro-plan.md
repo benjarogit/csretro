@@ -272,8 +272,14 @@ Offener Rest:
   Panel-Fills (`10,0 811x599` und Rahmen) → 18 Text-Calls. Der Text liegt also
   oben, hat auf dem hellen Balken aber kaum Kontrast; deshalb ist
   `Spectators - 0 players` nicht lesbar, während `Score`, `Deaths`, `Latency`
-  außerhalb des Balkens sauber erscheinen. Nächster Schritt: Scheme-Farbe
-  dieses Panels gegen den Retail-Client prüfen.
+  außerhalb des Balkens sauber erscheinen.
+  Die Farbe kommt **vom Client, nicht vom Stub**: gdb auf `draw_set_color`
+  (`0x1d50`) zeigt vor dem Balken viermal `DrawSetColor(255,255,255,128)` und
+  direkt danach viermal `188,112,0,128` für die Panel-Flächen. Der Stub
+  marshallt beide korrekt. Nächster Schritt: denselben Frame mit dem
+  Retail-Client vergleichen und entscheiden, ob Balkenfarbe oder Label-Farbe
+  abweicht (Automation endet an der Prozessgrenze, der Vergleich ist ein
+  Maintainer-Lauf).
 
 Nebenbefunde:
 

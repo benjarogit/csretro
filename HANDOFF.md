@@ -602,8 +602,12 @@ Remaining defects, each with its own next task:
   header bar, then the ten panel fills, then 18 text calls, so the white label
   is drawn *on top* of the bar and simply has no contrast on it:
   `Spectators - 0 players` is unreadable while `Score`, `Deaths`, `Latency`
-  render cleanly outside the bar. Next: check that panel's scheme colour
-  against the retail client.
+  render cleanly outside the bar. The colour comes from the client, not from
+  the stub: gdb on `draw_set_color` (`0x1d50`) shows four
+  `DrawSetColor(255,255,255,128)` calls before the bar and four
+  `188,112,0,128` calls for the panel fills, both marshalled correctly. Next:
+  compare the same frame against the retail client (maintainer run) to decide
+  whether the bar colour or the label colour differs.
 - **Font atlas.** `cls.creditsFont` (texture 37) is used by `pfnDrawString`;
   `gfx/creditsfont.fnt` does not exist in the spike tree, yet texture 37 is
   valid and draws. The steady-state patch did not change this; leave it alone
@@ -649,7 +653,8 @@ pixels only (animated scene behind the translucent panel). The draw order
 inside one paint is header bar `0,0 400x38`, then the ten panel fills, then 18
 text calls, so all text lands on top of the fills.
 
-CI: run `42849944792` green.
+CI: run `42849944792` (evidence) and `42850326226` (paint-order correction),
+both green.
 
 ## Gate log
 

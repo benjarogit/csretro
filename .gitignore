@@ -38,6 +38,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
+.playwright-mcp/
 .mypy_cache/
 node_modules/
 

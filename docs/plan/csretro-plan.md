@@ -705,6 +705,17 @@ Steam bleibt der `name`-Setinfo und es gibt kein Portrait. Das ist nicht der
 Serverpfad. Ein öffentlicher Server braucht weiter echte Steam-Anbindung.
 Der Host startet das Spiel nicht.
 
+**Launcher.** Der Xash-Launcher setzt die vorhandenen Stücke zu einem Befehl
+zusammen: `xash_host`, die eine `VGUI_Surface026`, `client_mini`, `vgui2`,
+`gameui`, die `VFileSystem009`-Wurzel und die ELF64-`libsteam_api.so`. Er
+fügt keine zweite Surface, keine zweite Factory und keinen zweiten
+Identitätsslot hinzu. Der Aufrufer übergibt die Inhaltswurzel. Fehlt sie,
+ist das ein Fehlschlag. Der Launcher sucht die Steam-Bibliothek nicht und
+erfindet keinen Pfad. Er wird in diesem Stand nicht ausgeführt, startet das
+Spiel nicht, führt Xash3D nicht aus und ruft `RunFrame` nicht auf. Der
+bisherige GoldSrc-Starter `nextclient.sh` und der First-Start bleiben, bis
+dieser Pfad sie tatsächlich ersetzt.
+
 **Ohne Steam-Prozess.** Der portierte Client startet keinen Steam-Client.
 Voraussetzung bleiben die Originaldaten des Besitzers: Maps, Modelle, Sounds
 und `valve/resource` (darunter Marlett). Sie liegen nicht im Repository. Der

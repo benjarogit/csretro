@@ -41,6 +41,11 @@ eingeloggtes Steam meldet sie abgemeldet. Ein fehlender Schnittstellenname
 wird nicht aufgerufen. Der Name bleibt `ResolvePlayerIdentity` und der
 `name`-Setinfo, ohne Portrait.
 
+Der Xash-Launcher setzt diese Stücke zu einem Befehl zusammen. Die
+Inhaltswurzel kommt vom Aufrufer. Fehlt sie, startet nichts. Der Launcher
+wird nicht ausgeführt, startet Steam nicht und braucht die Originaldaten.
+`nextclient.sh` und der First-Start bleiben der GoldSrc-Weg.
+
 Die Build-Registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 bleibt die Offline-Quelle für den Public-Linux-Fingerabdruck. Sie ist nicht
 der Startpfad.

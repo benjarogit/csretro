@@ -133,3 +133,39 @@ TEST_F(HostFactory, MouseEventsDispatchOnceAndCursorWarpsDoNot)
     EXPECT_EQ(x, 4);
     EXPECT_EQ(y, 5);
 }
+
+TEST_F(HostFactory, AMissingPairLibraryLeavesTheSurfaceFactory)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    EXPECT_EQ(csr_host_load_pair("/no/such/client_mini.dll", XASH_VGUI_FILE), 0);
+    EXPECT_EQ(csr_host_pair_loaded(), 0);
+    EXPECT_EQ(csr_host_vgui_dispatch(), nullptr);
+    EXPECT_EQ(csr_host_scheme(), nullptr);
+    EXPECT_NE(csr_host_create_interface("VGUI_Surface026", nullptr), nullptr);
+
+    EXPECT_EQ(csr_host_load_pair(XASH_CLIENT_FILE, "/no/such/vgui2.so"), 0);
+    EXPECT_EQ(csr_host_pair_loaded(), 0);
+    EXPECT_EQ(csr_host_scheme(), nullptr);
+
+    EXPECT_EQ(csr_host_load_pair(XASH_CLIENT_FILE, XASH_SURFACE_FILE), 0);
+    EXPECT_EQ(csr_host_vgui_dispatch(), nullptr);
+}
+
+TEST_F(HostFactory, ThePairPublishesTheSurfaceAndTheOneScheme)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    ASSERT_EQ(csr_host_load_pair(XASH_CLIENT_FILE, XASH_VGUI_FILE), 1);
+    EXPECT_EQ(csr_host_pair_loaded(), 1);
+
+    void* surface = csr_host_create_interface("VGUI_Surface026", nullptr);
+    void* scheme = csr_host_scheme();
+    ASSERT_NE(surface, nullptr);
+    ASSERT_NE(scheme, nullptr);
+    EXPECT_NE(scheme, surface);
+    ASSERT_NE(csr_host_vgui_dispatch(), nullptr);
+
+    csr_host_factories_t factories{};
+    ASSERT_EQ(csr_host_factory_list(nullptr, 0, &factories), 1);
+    EXPECT_EQ(factories.count, 1);
+    EXPECT_EQ(factories.list[0]("VGUI_Surface026", nullptr), surface);
+}

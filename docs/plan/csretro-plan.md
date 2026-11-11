@@ -671,6 +671,13 @@ werden nicht gelinkt. Beide tragen `VGUI_Scheme009`. Die Surface bleibt die
 eine Host-Factory. Der Linux-Patch, der Valves `client.so` umschreibt, läuft
 in diesem Prozess nicht.
 
+**Host lädt das Paar.** `xash_host` öffnet `client_mini` und `vgui2`, nachdem
+die Surface-Factory steht. Er liest `csr_vgui_dispatch_messages` und
+`VGUI_Scheme009`. Fehlt eine Bibliothek oder ein Export, ist das ein
+Fehlschlag und kein Aufruf. Der Dispatch-Zeiger wird nicht gerufen.
+`CVGui::RunFrame` bleibt ungenutzt. Es gibt keine zweite Surface und keine
+zweite Factory. Der Host startet das Spiel nicht.
+
 **Ohne Steam-Prozess.** Der portierte Client startet keinen Steam-Client.
 Voraussetzung bleiben die Originaldaten des Besitzers: Maps, Modelle, Sounds
 und `valve/resource` (darunter Marlett). Sie liegen nicht im Repository. Der

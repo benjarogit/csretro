@@ -337,7 +337,7 @@ implementation; the plan is the only source for the gate list.
   Product process is x86_64 (plan section 3.7). The Linux client preset is
   `linux` with the vcpkg triplet `x64-linux`. There is no second 32-bit client
   preset. `engine_mini-tests` (555), `nitro_api-tests` (70),
-  `xash_surface-tests` (18), `xash_host-tests` (3), `xash_engine-tests` (3),
+  `xash_surface-tests` (18), `xash_host-tests` (5), `xash_engine-tests` (3),
   `sdk_pair-tests` (3) and `player_identity-tests` (6) pass as ELF64 binaries
   and do not load Valve's
   i386 `hw.so`, `client.so`
@@ -348,9 +348,10 @@ implementation; the plan is the only source for the gate list.
   `xash_engine` forwards `vgui2_surface`, texture reset and text color to that
   one surface. `VGUI2_Draw_Init` has no entry there. Other `engine_mini`
   forwards still call the retail hook, which stays unset. `client_mini` and
-  `vgui2` now build from that SDK as ELF64 and link the host runtime. Next is
-  the host load of that pair. The launcher, filesystem proxy and steam_api
-  proxy are still not part of this build.
+  `vgui2` now build from that SDK as ELF64 and link the host runtime.
+  `xash_host` opens that pair after the surface factory. A missing library is
+  not called. The host does not start the game. The launcher, `gameui`, the
+  filesystem proxy and the steam_api proxy stay unbuilt.
   Retail GoldSrc remains the working fallback. The server module, its
   `-m32` doctor probe, the goldsrc fact extractor, `golden_layout.cpp`,
   the Windows presets and the G04 ELF32 size table stay 32-bit records.
@@ -383,7 +384,8 @@ implementation; the plan is the only source for the gate list.
   Product identity is `xash`. Startup does not open `hw.so`.
   `xash_engine` covers `vgui2_surface`, texture reset and text color.
   `client_mini` and `vgui2` are the matched ELF64 pair and link the host runtime.
-  Next: the host loads that pair. The launcher is still not built.
+  `xash_host` loads that pair. It does not start the game.
+  Next: `gameui` from the same SDK. The launcher stays unbuilt.
   The host factory and the mouse bind are in `xash_host`. `RunFrame` stays unused.
   Local identity is `ResolvePlayerIdentity` (plan section 3.7).
   `player_identity-tests` 6/6, no network. The lookup does not read Steam.
@@ -395,9 +397,9 @@ implementation; the plan is the only source for the gate list.
   promotes `repaint` only when `+0x30` (NEEDS_REPAINT) is set and `allowForce`
   is true; `surface()->PushMakeCurrent`/`PopMakeCurrent` bracket every paint;
   VGUI alpha 0 = opaque (engine 255 = opaque).
-- **Then:** the host loads the matched `client_mini` + `vgui2` pair. The
-  launcher, filesystem proxy and steam_api proxy stay unbuilt. The other
-  `engine_mini` retail forwards stay as they are.
+- **Then:** build `gameui` from the same SDK. The launcher, filesystem proxy
+  and steam_api proxy stay unbuilt. The host still does not start the game.
+  The other `engine_mini` retail forwards stay as they are.
 - **After the decision:** schedule the server performance backlog above
   (measurement first, then hookchain/native/per-frame work). It needs a plan gate
   entry.

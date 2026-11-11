@@ -21,6 +21,10 @@ und linken `libtier0.so`, `libvstdlib.so` und `libsteam_api.so` aus dem
 Host. Beide tragen `VGUI_Scheme009`. Valves i386-`client.so` wird nicht
 geöffnet und nicht gelinkt.
 
+`xash_host` öffnet dieses Paar, nachdem die Surface-Factory steht. Er sieht
+`csr_vgui_dispatch_messages` und `VGUI_Scheme009`. Eine fehlende Bibliothek
+ist ein Fehlschlag und kein Aufruf. Der Host startet das Spiel nicht.
+
 Die Build-Registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 bleibt die Offline-Quelle für den Public-Linux-Fingerabdruck. Sie ist nicht
 der Startpfad.

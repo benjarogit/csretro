@@ -27,6 +27,31 @@ namespace
     csr_host_factory_fn g_list[1 + CSR_HOST_EXTRA_FACTORY_CAP]{};
     int g_count = 0;
 
+    struct PairApi
+    {
+        void* client = nullptr;
+        void* vgui = nullptr;
+        void (*dispatch)() = nullptr;
+        void* scheme = nullptr;
+    };
+
+    PairApi g_pair;
+
+    void ClosePair()
+    {
+        g_pair.dispatch = nullptr;
+        g_pair.scheme = nullptr;
+        if (g_pair.vgui != nullptr)
+        {
+            dlclose(g_pair.vgui);
+        }
+        if (g_pair.client != nullptr)
+        {
+            dlclose(g_pair.client);
+        }
+        g_pair = {};
+    }
+
     void OnCursorMoved(int x, int y, void* /*user*/)
     {
         if (g_vgui.cursor_moved != nullptr)
@@ -110,8 +135,71 @@ int csr_host_open(const char* path)
     return 1;
 }
 
+int csr_host_load_pair(const char* client_path, const char* vgui_path)
+{
+    ClosePair();
+    if (g_surface.create_interface == nullptr || client_path == nullptr || client_path[0] == '\0' || vgui_path == nullptr ||
+        vgui_path[0] == '\0')
+    {
+        return 0;
+    }
+
+    void* client = dlopen(client_path, RTLD_NOW | RTLD_LOCAL);
+    if (client == nullptr)
+    {
+        return 0;
+    }
+    void* vgui = dlopen(vgui_path, RTLD_NOW | RTLD_LOCAL);
+    if (vgui == nullptr)
+    {
+        dlclose(client);
+        return 0;
+    }
+
+    auto dispatch = LoadSymbol<void (*)()>(vgui, CSR_VGUI_DISPATCH_SYMBOL);
+    auto create = LoadSymbol<void* (*)(const char*, int*)>(vgui, "CreateInterface");
+    auto client_create = LoadSymbol<void* (*)(const char*, int*)>(client, "CreateInterface");
+    if (dispatch == nullptr || create == nullptr || client_create == nullptr)
+    {
+        dlclose(vgui);
+        dlclose(client);
+        return 0;
+    }
+
+    int code = 1;
+    void* scheme = create("VGUI_Scheme009", &code);
+    if (scheme == nullptr)
+    {
+        dlclose(vgui);
+        dlclose(client);
+        return 0;
+    }
+
+    g_pair.client = client;
+    g_pair.vgui = vgui;
+    g_pair.dispatch = dispatch;
+    g_pair.scheme = scheme;
+    return 1;
+}
+
+int csr_host_pair_loaded(void)
+{
+    return g_pair.client != nullptr && g_pair.vgui != nullptr ? 1 : 0;
+}
+
+void (*csr_host_vgui_dispatch(void))(void)
+{
+    return g_pair.dispatch;
+}
+
+void* csr_host_scheme(void)
+{
+    return g_pair.scheme;
+}
+
 void csr_host_close(void)
 {
+    ClosePair();
     csr_xash_engine_clear();
     if (g_surface.surface != nullptr && g_surface.destroy != nullptr)
     {

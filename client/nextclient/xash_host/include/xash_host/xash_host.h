@@ -49,6 +49,16 @@ typedef struct csr_host_vgui
 CSR_HOST_API int csr_host_open(const char* path);
 CSR_HOST_API void csr_host_close(void);
 
+/*
+ * Opens the matched client_mini and vgui2 after the surface factory is live.
+ * Returns 0 when a library or a required export is missing, and does not call
+ * a null pointer. Does not call the dispatch and does not start the client.
+ */
+CSR_HOST_API int csr_host_load_pair(const char* client_path, const char* vgui_path);
+CSR_HOST_API int csr_host_pair_loaded(void);
+CSR_HOST_API void (*csr_host_vgui_dispatch(void))(void);
+CSR_HOST_API void* csr_host_scheme(void);
+
 /* list[0] answers VGUI_Surface026. extras follow, up to CSR_HOST_EXTRA_FACTORY_CAP. */
 CSR_HOST_API int csr_host_factory_list(csr_host_factory_fn* extra, int extra_count, csr_host_factories_t* out);
 CSR_HOST_API void* csr_host_create_interface(const char* name, int* code);

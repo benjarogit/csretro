@@ -19,6 +19,10 @@ forwards stay on the retail hook.
 link the host `libtier0.so`, `libvstdlib.so` and `libsteam_api.so`. Both carry
 `VGUI_Scheme009`. Valve's i386 `client.so` is not opened and not linked.
 
+`xash_host` opens that pair after the surface factory is live. It sees
+`csr_vgui_dispatch_messages` and `VGUI_Scheme009`. A missing library is a
+failure and is not called. The host does not start the game.
+
 The build registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 remains the offline record of the public-linux fingerprint. It is not the
 startup path.

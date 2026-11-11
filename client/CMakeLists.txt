@@ -157,6 +157,11 @@ target_include_directories(tier0 PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public/tier1")
 target_compile_definitions(tier0 PRIVATE GNUC LINUX POSIX _LINUX NO_MALLOC_OVERRIDE)
 add_library(vstdlib SHARED sdk_host/vstdlib_stub.cpp)
+target_include_directories(vstdlib PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public"
+        "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public/tier0"
+        "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public/tier1")
+target_compile_definitions(vstdlib PRIVATE GNUC LINUX POSIX _LINUX NO_MALLOC_OVERRIDE)
 add_library(steam_api SHARED sdk_host/steam_api_stub.cpp)
 
 add_subdirectory(dep/ncl-hl1-source-sdk)

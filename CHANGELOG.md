@@ -16,6 +16,10 @@ The authoritative version string is the `VERSION` file.
   Verdana and Tahoma. `PaintTraverse` enters the embedded panel and popups.
   Mouse move, press and release are forwarded to the host and each one is
   followed by a dispatch. `RunFrame` stays empty.
+- `xash_host.so` loads that surface and publishes it as the first
+  `VGUI_Surface026` factory. Our `vgui2` exports `csr_vgui_dispatch_messages`
+  because the retail library keeps `DispatchMessages` local. The Xash client
+  does not start a Steam process; original game content stays required.
   Tests run from the `linux-tests` preset.
 - Repository harness: `AGENTS.md`, `HANDOFF.md`, `CREDITS.md`, `VERSION`,
   `versions.lock.json`.

@@ -118,6 +118,26 @@ set(FUNCHOOK_BUILD_TESTS OFF)
 set(FUNCHOOK_INSTALL OFF)
 set(FUNCHOOK_CPU "x86")
 
+# The SDK pin stays on the upstream commit. This patch is applied in the
+# checkout so vgui2 exports csr_vgui_dispatch_messages. A configure that finds
+# the patch already applied leaves the file alone.
+set(CSR_VGUI_DISPATCH_PATCH "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0001-export-vgui-dispatch.patch")
+if (NOT EXISTS "${CSR_VGUI_DISPATCH_PATCH}")
+    message(FATAL_ERROR "Missing ${CSR_VGUI_DISPATCH_PATCH}")
+endif ()
+execute_process(
+        COMMAND git apply --check "${CSR_VGUI_DISPATCH_PATCH}"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk"
+        RESULT_VARIABLE CSR_VGUI_DISPATCH_PATCH_NEEDED
+        OUTPUT_QUIET
+        ERROR_QUIET)
+if (CSR_VGUI_DISPATCH_PATCH_NEEDED EQUAL 0)
+    execute_process(
+            COMMAND git apply "${CSR_VGUI_DISPATCH_PATCH}"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk"
+            COMMAND_ERROR_IS_FATAL ANY)
+endif ()
+
 add_subdirectory(dep/ncl-hl1-source-sdk)
 add_subdirectory(dep/nitro_utils)
 add_subdirectory(dep/funchook) # while funchook is not in vcpkg, add it as add_subdirectory (PS do NOT make it a sub-module).
@@ -131,6 +151,7 @@ unset(CMAKE_CXX_STANDARD)
 add_subdirectory(nextclient/packages)
 add_subdirectory(nextclient/engine_mini)
 add_subdirectory(nextclient/xash_surface)
+add_subdirectory(nextclient/xash_host)
 add_subdirectory(nextclient/gameui)
 add_subdirectory(nextclient/client_mini)
 add_subdirectory(tools/matgen)

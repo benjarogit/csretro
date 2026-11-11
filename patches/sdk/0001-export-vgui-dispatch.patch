@@ -1,0 +1,34 @@
+diff --git a/vgui2/src/vgui.cpp b/vgui2/src/vgui.cpp
+index 63f2ffb..a5fe456 100644
+--- a/vgui2/src/vgui.cpp
++++ b/vgui2/src/vgui.cpp
+@@ -174,7 +174,11 @@ private:
+ 
+     void PanelCreated(VPanel* panel);
+     void PanelDeleted(VPanel* panel);
++public:
++    // CSRETRO host entry. Retail vgui2 keeps this method local, so the
++    // product library exports csr_vgui_dispatch_messages instead of RunFrame.
+     bool DispatchMessages();
++private:
+     void DestroyAllContexts();
+     void ClearMessageQueues();
+ 
+@@ -211,6 +215,17 @@ private:
+ CVGui g_VGui;
+ EXPOSE_SINGLE_INTERFACE_GLOBALVAR(CVGui, IVGui, VGUI_IVGUI_INTERFACE_VERSION_GS, g_VGui);
+ 
++#if defined(_WIN32)
++#define CSR_VGUI_EXPORT __declspec(dllexport)
++#else
++#define CSR_VGUI_EXPORT __attribute__((visibility("default")))
++#endif
++
++extern "C" CSR_VGUI_EXPORT void csr_vgui_dispatch_messages()
++{
++    g_VGui.DispatchMessages();
++}
++
+ bool IsDispatchingMessageQueue(void)
+ {
+     return g_VGui.IsDispatchingMessages();

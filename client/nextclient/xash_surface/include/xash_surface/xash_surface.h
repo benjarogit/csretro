@@ -80,6 +80,7 @@ CSR_SURFACE_API void csr_surface_input_button(csr_surface_t* surface, int button
 CSR_SURFACE_API void* csr_surface_vgui(csr_surface_t* surface);
 CSR_SURFACE_API void csr_surface_set_panel(csr_surface_t* surface, const csr_surface_panel_fns_t* panel);
 CSR_SURFACE_API void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t* input);
+CSR_SURFACE_API void* csr_surface_create_interface(const char* name, int* code);
 
 #ifdef __cplusplus
 }

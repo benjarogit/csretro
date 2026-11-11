@@ -4,7 +4,7 @@
 **Rolle:** maßgebliche Quelle für Ziele, Entscheidungen und Gates
 **Fortschritt:** steht ausschließlich in [`HANDOFF.md`](../../HANDOFF.md), nicht hier
 **Repository:** `https://github.com/benjarogit/csretro` (privat)
-**Zielplattform:** Linux x86_64 Host, 32-bit Ziel (CachyOS / Arch als Referenz)
+**Zielplattform:** Linux, Produktprozess x86_64 (Abschnitt 3.7)
 
 ---
 
@@ -628,8 +628,31 @@ nicht selbst.
 Hosts und legt sie in `g_pSurface`; `SurfaceNext` reicht jeden Aufruf dorthin
 weiter. Eine zweite Surface in der Control-Bibliothek würde diese eine
 Identität aufspalten. Xash3D bleibt unverändert (GPL, nicht vendoren). Der
-CSRETRO-Launcher registriert später die Factory von `xash_surface.so`.
-`LD_PRELOAD` bleibt ein Spike-Werkzeug.
+CSRETRO-Host `xash_host` lädt `xash_surface.so` mit `RTLD_LOCAL` und stellt
+die Factory-Liste bereit. Der erste Eintrag beantwortet `VGUI_Surface026`.
+Mausbewegung, Druck und Loslassen gehen über Funktionszeiger an
+`CInputWin32`, danach genau eine Zustellung über
+`csr_vgui_dispatch_messages`. `CVGui::RunFrame` wird nicht gerufen.
+`LD_PRELOAD` bleibt ein Spike-Werkzeug. Die Retail-Bibliothek exportiert
+`DispatchMessages` nicht. Die aus dem SDK gebaute `vgui2` exportiert den
+C-Einstieg. Aufgerufen wird er nur über diesen Zeiger oder die
+C++-Schnittstelle. Die erste Factory, die `VGUI_Surface026` liefert, wird
+`g_pSurface`.
+
+**Prozess.** Der Produktprozess ist x86_64. Valves `client.so`, `vgui2.so`
+und `hw.so` sind i386 und werden nicht in diesen Prozess geladen. Client und
+`vgui2` kommen aus dem vendorten SDK, die Engine ist Xash3D. Der Baum baut
+bis zum Migrations-Slice noch `-m32` und das vcpkg-Triplet `x86-linux`. Es
+gibt keine zweite Surface für 32-bit.
+
+**Ohne Steam-Prozess.** Der portierte Client startet keinen Steam-Client.
+Voraussetzung bleiben die Originaldaten des Besitzers: Maps, Modelle, Sounds
+und `valve/resource` (darunter Marlett). Sie liegen nicht im Repository. Der
+bisherige GoldSrc-Starter über die Steam-Runtime gilt nur, bis dieser Host
+ihn ersetzt.
+
+**Bildrate.** 60 fps ist die Untergrenze, keine Obergrenze. Counter-Strike 1.6
+lief darüber. Kein 60-Hz-VSync-Lock und kein zweites fps-Cvar.
 
 Der erste Stand liegt in `client/nextclient/xash_surface/` (Target
 `xash_surface`, Artefakt `xash_surface.so`):
@@ -1016,8 +1039,8 @@ Benutzer ausführbaren Installer.
 - Starter und Verknüpfungen: `csretro.sh` (Client), `csretro-server.sh`
   (Server), `csretro-hltv.sh` (HLTV), jeweils mit `.desktop`-Eintrag, Icon und
   sinnvoller Menükategorie; relative Pfade, keine absoluten Pfade des Erstellers
-- Starter prüft, ob Steam läuft, und startet es bei Bedarf, bevor der Client
-  startet; der Start wird abgewartet und ein Fehlschlag klar gemeldet
+- Client-Starter folgt Abschnitt 3.7: kein Steam-Prozess, Originaldaten
+  erforderlich, fehlende Kopie endet mit einer klaren Meldung
 - `--uninstall`, das nur installierte Dateien entfernt und die Steam-Installation
   unberührt lässt
 - Start über `csretro.sh`

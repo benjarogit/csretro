@@ -51,9 +51,9 @@ cmake --build --preset linux-tests-release --target xash_surface-tests
 ```
 
 Der Offscreen-Lauf setzt `LIBGL_ALWAYS_SOFTWARE=1` und öffnet einen
-EGL-Pbuffer. Er startet das Spiel nicht. Der Spike mit dem externen Stub
-bleibt der Beweis für den echten VGUI2-Baum, bis der Launcher diese Bibliothek
-registriert.
+EGL-Pbuffer. Er startet das Spiel nicht. `xash_host` veröffentlicht diese
+Bibliothek als erste Factory. Der Spike mit dem externen Stub
+bleibt der Beweis für den echten VGUI2-Baum, bis der Prozess diesen Host lädt.
 
 Die Entscheidung und der Umfang stehen in
 [Plan, Abschnitt 3.7](../../plan/csretro-plan.md).

@@ -6,7 +6,7 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-11
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry and mouse dispatch)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required)
 - **Branch:** `main`
 - **Commit:** `8c7164b` (surface forwards mouse input and dispatches it once)
 - **CI:** https://github.com/benjarogit/csretro/actions/runs/43061687251 – success (`8c7164b`)
@@ -287,9 +287,10 @@ or replaced by a simple text view. Details: `.local/xash-spike.md` (ignored).
   VGUI2 and required assets. Steam binaries, CEF and HTML caches, logs, dumps,
   demos, local configs and foreign mods are skipped, and the import reports what
   was skipped and why. Retail binaries are checked against the build registry.
-- **Open:** whether the client still needs a running Steam client for auth
-  tickets after G08 replaces the protocol. The vendored launcher starts through
-  the Steam runtime today.
+- **Decided:** the Xash client does not start a Steam process and does not
+  need one for auth. Original game content stays required. The vendored
+  GoldSrc launcher still starts through the Steam runtime until the Xash host
+  replaces it.
 
 ## Server performance backlog (after G06b)
 
@@ -328,9 +329,14 @@ implementation; the plan is the only source for the gate list.
   `SolveTraverse` walks the visible tree and `PaintTraverse` enters the
   embedded panel, then popups. Mouse move, press and release go through
   `csr_surface_input_fns_t` and each event is followed by one dispatch.
-  `RunFrame` stays empty. Still open: the launcher registering the factory
-  and binding those callbacks to `CInputWin32` plus `DispatchMessages`.
-  `engine_mini`/`nitro_api` still hook `hw.so`.
+  `RunFrame` stays empty. `xash_host.so` loads the surface with `RTLD_LOCAL`
+  and publishes it as the first `VGUI_Surface026` factory. Retail `vgui2`
+  keeps `DispatchMessages` local, so our `vgui2` exports
+  `csr_vgui_dispatch_messages`. The Xash client does not start a Steam
+  process; original maps, models, sounds and `valve/resource` stay required.
+  Product process is x86_64 (plan section 3.7). This tree still builds
+  `-m32` / `x86-linux`. Still open: that migration, then
+  `engine_mini`/`nitro_api` off `hw.so`.
   Retail GoldSrc remains the working fallback.
 - **Steam stub is test-only.** It authenticates nobody and must never be used
   for a public server. A production server needs real Steam connectivity.
@@ -356,9 +362,10 @@ implementation; the plan is the only source for the gate list.
   The spike team-click was reproduced on 2026-11-11: exit 137, `Button/terbutton`
   at `239,201`, `CTeamMenu` hidden on release, `g_iTeamNumber` `0` at paint 30
   and `1` at paint 31, both framebuffer dumps `glerr=0`. Open work, in order:
-  (1) the launcher registers the `xash_surface` factory and binds the input
-  callbacks to `CInputWin32` plus `DispatchMessages`, without `CVGui::RunFrame`;
+  (1) switch CMake, vcpkg and `engine_mini` from `-m32` / `x86-linux` to the
+  x86_64 product process, one surface, no second build;
   (2) `engine_mini`/`nitro_api` move off `hw.so`.
+  The host factory and the mouse bind are in `xash_host`. `RunFrame` stays unused.
   Keep the Xvfb screen equal to the game resolution.
 - **Wiki reference gathered:** Tier1, VGUI Documentation, Category:VGUI (54
   pages + 3 subcategories), KeyValues, Panel, RootPanel, VPANEL, Frame. Key
@@ -367,7 +374,7 @@ implementation; the plan is the only source for the gate list.
   promotes `repaint` only when `+0x30` (NEEDS_REPAINT) is set and `allowForce`
   is true; `surface()->PushMakeCurrent`/`PopMakeCurrent` bracket every paint;
   VGUI alpha 0 = opaque (engine 255 = opaque).
-- **Then:** port `engine_mini`/`nitro_api` off the `hw.so` hooks
+- **Then:** the x86_64 migration above, then port `engine_mini`/`nitro_api` off the `hw.so` hooks
   (`vgui2_surface` and friends) onto an Xash3D engine adapter, and build
   `client_mini` + `vgui2` from the vendored `ncl-hl1-source-sdk` as one matched
   pair.
@@ -1108,9 +1115,12 @@ instance and rejects every other name. `vgui2` already loads that name from
 the host factory into `g_pSurface`; the surface is therefore not linked into
 `vgui2.so`, and Xash3D is not patched.
 
-What the tests cover (`xash_surface-tests`, preset `linux-tests`, software GL,
-18/18 passed; shipping `xash_surface.so` is ELF32, BuildID
-`0dc3e8eedf6dc4957839014ccb7ec619cc70f3a6`):
+What the tests cover (`xash_surface-tests` 18/18 and `xash_host-tests` 3/3,
+preset `linux-tests`; shipping ELF32 BuildIDs `xash_host`
+`1c31106327a06a849467a3eb102f81092c0e0404`, `xash_surface`
+`a392e4fdf47b7eaebf6702085d84fb94921bfe76`, `vgui2`
+`da042bdd164c647a20c8db2d3bc9ea3cf896904b` with dynamic export
+`csr_vgui_dispatch_messages`):
 
 | Check | Result |
 |---|---|
@@ -1133,10 +1143,19 @@ Mouse move, press and release each call the matching host function and then
 one dispatch. `RunFrame` adds no call. `SurfaceSetCursorPos` stores the
 position and does not dispatch.
 
-Not in this slice: scheme textures, blur, scanlines, outline, and loading the
-library from the launcher. The launcher still has to bind the input callbacks
-to `CInputWin32` and `DispatchMessages`. Marlett is resolved by the host. The
-spike stub is still what paints the real VGUI2 tree.
+`xash_host` loads the surface and binds mouse move, press and release to
+caller-supplied function pointers, then one dispatch.
+`csr_vgui_dispatch_messages` is the product export, applied to the pinned SDK
+checkout by `patches/sdk/0001-export-vgui-dispatch.patch`. The submodule pin
+does not move. `RunFrame` is not called.
+Calls do not use file offsets. REA's Ghidra provider did not bind to the
+installed Ghidra 12.2. Headless Ghidra 12.2 confirmed that the retail library
+does not export `DispatchMessages`, that the first factory returning the
+surface name wins, and that `RunFrame` updates mouse focus before dispatch.
+
+Not in this slice: scheme textures, blur, scanlines, outline, and starting
+Xash from this host. Marlett is resolved by the host. The spike stub is still
+what paints the real VGUI2 tree.
 
 ## Gate log
 

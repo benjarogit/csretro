@@ -1444,6 +1444,13 @@ namespace
 
 } // namespace
 
+extern "C" IBaseInterface* CreateInterface(const char* name, int* code);
+
+extern "C" CSR_SURFACE_API void* csr_surface_create_interface(const char* name, int* code)
+{
+    return CreateInterface(name, code);
+}
+
 extern "C" IBaseInterface* CreateInterface(const char* name, int* code)
 {
     if (name != nullptr && std::strcmp(name, VGUI_SURFACE_INTERFACE_VERSION_GS) == 0 && xash::XashSurface::current() != nullptr)

@@ -13,6 +13,20 @@ git apply patches/server-api/0001-rsa-keygen-portability.patch
 If an upstream update makes a patch unnecessary, delete the file and the
 corresponding change together.
 
+## sdk
+
+| Patch | Files | Reason | Gate |
+|---|---|---|---|
+| `0001-export-vgui-dispatch.patch` | `client/dep/ncl-hl1-source-sdk/vgui2/src/vgui.cpp` | Retail `vgui2` keeps `CVGui::DispatchMessages` local. The product library exports `csr_vgui_dispatch_messages` so the host can pump messages without `CVGui::RunFrame`. The submodule pin does not move; configure applies this patch inside the checkout. | G07 |
+
+Apply from the repository root when the checkout does not already contain it:
+
+```bash
+git -C client/dep/ncl-hl1-source-sdk apply "$PWD/patches/sdk/0001-export-vgui-dispatch.patch"
+```
+
+`client/CMakeLists.txt` applies it on configure when `git apply --check` succeeds.
+
 ## server-api
 
 | Patch | Files | Reason | Gate |

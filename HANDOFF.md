@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-11
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas and a panel solve/paint entry)
 - **Branch:** `main`
-- **Commit:** `8342133` (glyph atlas on the surface adapter)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43030237434 – success (`8342133`)
+- **Commit:** `f5420ce` (surface enters the embedded VGUI panel)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43049888166 – success (`f5420ce`)
 - **Version:** `0.1.0-dev` (`VERSION`)
 
 ## Verified (with evidence)

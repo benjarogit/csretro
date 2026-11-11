@@ -6,7 +6,7 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-11
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text, panel fills and textured quads in every frame, and its font collapse is measured; engine direction decided: Option A)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text, panel fills and textured quads in every frame, places the scoreboard at its real layout position, and its font collapse is measured; engine direction decided: Option A)
 - **Branch:** `main`
 - **Commit:** `57bfedc` (font metric evidence) plus this handoff update on top
 - **CI:** https://github.com/benjarogit/csretro/actions/runs/42971570882 – success (`57bfedc`)
@@ -50,6 +50,9 @@ Project state for the next session. Personal context belongs in
 | The VGUI_Surface026 backend paints **textured quads** | `docs/evidence/g07-xash3d-vgui2-texture-corner.png` / `-zoom.png`: 8 TGAs loaded per paint (ids 11–14 64x64, 16–19 10x10), 8 `DrawTexturedRect` at `0,0 10,10`, paint 40 vs 41 differs in 27 px in `x 0..9, y 0..9` (`(0,9)` `255,255,255` → `255,200,32`), `glGetError()` 0; `docs/evidence/g07-xash3d-vgui2-texture-sampled.png` / `-zoom.png`: a diagnostic 256x256 blit of `round_corner_nw` reproduces the TGA's quarter-circle alpha mask with the scene visible through the transparent part |
 | Ending a textured quad with `glDisable(GL_TEXTURE_2D)` white-washes the frame | separate frames with the real draw vs. no draw show that only the trailing state teardown breaks it; six probe stages (enable/disable, colour, bind, empty `glBegin`, immediate quad, vertex arrays) all keep the frame intact; saving/restoring `GL_TEXTURE_2D` + binding + blend + depth + cull + colour fixes it |
 | VGUI2 fonts collapse to one engine font | 14 s spike run: 36 `CreateFont` calls all return `1`, 54 `AddGlyphSetToFont` calls all carry `font=1` and request 27 distinct (name, tall, weight) triples (Verdana 12/20, Verdana Bold 18/38, Tahoma 12–55, Arial 13–55, Marlett 11/23), 42 089 `GetFontTall` calls all return `16`, `GetFontAscent` and `AddCustomFontFile` are never called; the `16` is the stub's one global tall from measuring `"Wg."` with `DrawConsoleStringLen` |
+| The scoreboard renders at its real layout position | with push/pop translation on all three primitive families, `PushMakeCurrent` reports `96,84` for the scoreboard dialog, the four corner textures land on `96,84`, `917,84`, `96,673`, `917,673`, and paints 40 vs. 41 differ in 108 px inside `96..926, 84..682`; `docs/evidence/g07-xash3d-vgui2-laid-out.png`, `-header.png`, `-corner.png` show the filled panel, the rounded corners, the white `ServerName` bar and the right-aligned `Score`/`Deaths`/`Latency` |
+| The panel offset comes from `VPanel::GetAbsPos`, slot 19 | the `VPANEL` passed to `PushMakeCurrent` is a `vgui2::VPanel`; `_ZTVN5vgui26VPanelE` (`vgui2.so 0x29fb0`, address point `0x29fb8`) has `VPanel::GetAbsPos(int&, int&)` (`0x17200`) at slot 19, while slot 11 is `GetAbsPos` only in the engine-side `VPanelWrapper` vtable |
+| VGUI screen size must match the framebuffer | `get_screen_size` forwards `funcs+0x30` (virtual, `this` plus two `int*`); a 1280x1024 Xvfb with a 1024x768 buffer made VGUI lay out for 1280x1024 (dialog `1098x714` at `85,149`, corners at `1183,863`, outside the buffer); with a 1024x768 Xvfb the same run reports `1024x768` and the dialog sits at `96,84` |
 | Valve's `client.so` requires Valve's `vgui2.so` | pairing it with NextClient's `vgui2.so` crashes in `Label::ApplySettings` (`pScheme->GetFont`, slot 6 → type_info vtable); the interface implementations live in `vgui2.so`, not `client.so` |
 | Xash3D ships FreeVGUI (VGUI1) but no `VGUI_Surface026` | `3rdparty/freevgui` plus `platform/xash3d-fwgs/surface.cpp`; `nm -D vgui.so` exports only `GetVGUISupportAPI`/`InitAPI` |
 | The ReHLDS test server is ready for the spike | `tests/e2e/test_server.py` green on udp/27016: Metamod-R, AMXX, nclapi, `de_dust2`, `nclapi_version 1.6.0` |
@@ -341,24 +344,23 @@ implementation; the plan is the only source for the gate list.
 - **Gate:** G07 – Default Public runtime, in progress.
 - **Engine decided:** Option A from `docs/plan/csretro-plan.md` section 3.6.
 - **Next step:** the stub `VGUI_Surface026` backend traverses and paints the
-  real VGUI2 panel tree, draws real VGUI2 text in every frame, fills the
-  panel backgrounds with the scheme colour and draws VGUI2's TGAs as textured
-  quads (evidence above). The earlier `fill_rect` colour/alpha suspicion is
-  disproved: marshalling and alpha inversion are correct, the "38-row band"
-  was an artefact of dumping only paint 1 (scheme not yet applied, VGUI alpha
-  0 = transparent). Open work, in order:
-  (1) texture coordinate translation: loading, upload and drawing work, but the
-  stub ignores `PushMakeCurrent`, so all eight `DrawTexturedRect` calls land on
-  `0,0 10,10` and the four corners pile up in one place; the adapter needs the
-  offset from `GetAbsPos` (IPanel slot 11) instead of the stub's no-op;
-  (2) font backend: measured - 36 `CreateFont` calls all return the same handle,
-  54 glyph sets request 27 real faces (Verdana, Verdana Bold, Tahoma, Arial,
-  Marlett, tall 11-55) but all land on that one handle, and all 42 089
-  `GetFontTall` calls return the same `16`, the engine console font; the adapter
-  needs a TTF rasterizer plus glyph atlas with per-handle metrics;
-  (3) mouse/cursor and `VGUI_Input004`; (4) `engine_mini`/`nitro_api` port onto
-  an Xash3D adapter. Re-run the spike after each step and record the first thing
-  that is actually visible.
+  real VGUI2 panel tree, draws real VGUI2 text in every frame, fills the panel
+  backgrounds with the scheme colour, draws VGUI2's TGAs as textured quads and
+  places the whole scoreboard at its real position (evidence above). The
+  earlier `fill_rect` colour/alpha suspicion is disproved: marshalling and
+  alpha inversion are correct, the "38-row band" was an artefact of dumping
+  only paint 1 (scheme not yet applied, VGUI alpha 0 = transparent). Open work,
+  in order:
+  (1) font backend: measured - 36 `CreateFont` calls all return the same
+  handle, 54 glyph sets request 27 real faces (Verdana, Verdana Bold, Tahoma,
+  Arial, Marlett, tall 11-55) but all land on that one handle, and all 42 089
+  `GetFontTall` calls return the same `16`, the engine console font; the
+  adapter needs a TTF rasterizer plus glyph atlas with per-handle metrics;
+  (2) mouse/cursor and `VGUI_Input004`; (3) `engine_mini`/`nitro_api` port onto
+  an Xash3D adapter. Re-run the spike after each step and record the first
+  thing that is actually visible. Keep the Xvfb screen equal to the game
+  resolution; a larger desktop makes VGUI report the larger screen size and
+  lays the panels out for it.
 - **Wiki reference gathered:** Tier1, VGUI Documentation, Category:VGUI (54
   pages + 3 subcategories), KeyValues, Panel, RootPanel, VPANEL, Frame. Key
   findings: `PaintBackground()`/`Paint()` are on by default; `IsFullyVisible()`
@@ -886,6 +888,66 @@ gcc -m32 -shared -fPIC -O2 -o <tmp>/fontprobe.so <spike>/spike-shims/fontprobe.c
     -ldl -lpthread
 ```
 
+## Xash3D spike update (2026-11-11, laid-out scoreboard)
+
+**Result: the VGUI2 scoreboard now paints at its real position on screen, not
+at the top-left corner.** Two corrections made the difference.
+
+First, the offset source was wrong. The `VPANEL` that VGUI hands to
+`PushMakeCurrent` is a `vgui2::VPanel`, so `GetAbsPos` is slot **19** in
+`_ZTVN5vgui26VPanelE` (`vgui2.so 0x29fb0`, address point `0x29fb8`,
+`VPanel::GetAbsPos(int&, int&)` at `0x17200`). Slot 11 is only correct for the
+engine-side `VPanelWrapper` interface (`_ZTV13VPanelWrapper` at `0x2a0b0`).
+Calling the wrong slot (11, or earlier 13 = `SetInset`) yields `0,0` or
+corrupts the layout.
+
+Second, the offset has to be applied to every primitive, not just to textures.
+The shim now copies the engine funcs table and replaces two slots: fills
+(`funcs+0x2c`) and text (`funcs+0x1c8`) get wrappers that add the current push
+offset to `x`/`y`; textures already use it. The copy is installed at
+`stub+0x5ff4+0x3fc`, and `PopMakeCurrent` restores the previous offset.
+
+Measurements (paint 40 vs. 41, 1024x768):
+
+| Item | Value |
+|---|---|
+| engine screen size | `1024x768` |
+| dialog offset (`GetAbsPos`) | `96,84` |
+| texture corners | `96,84`, `917,84`, `96,673`, `917,673` |
+| texture diff between paints | 108 px inside `96..926, 84..682` |
+
+The frame shows the `832x600` panel at `96,84`, its four rounded corners, the
+white `ServerName` bar and the right-aligned `Score`, `Deaths`, `Latency`
+header.
+
+![G07 Xash3D VGUI2 laid-out scoreboard](docs/evidence/g07-xash3d-vgui2-laid-out.png)
+
+![G07 Xash3D VGUI2 laid-out scoreboard, header](docs/evidence/g07-xash3d-vgui2-laid-out-header.png)
+
+![G07 Xash3D VGUI2 laid-out scoreboard, corner](docs/evidence/g07-xash3d-vgui2-laid-out-corner.png)
+
+Third finding, and a trap for every later run: **the engine screen size must
+match the framebuffer size.** The stub asks for it through `funcs+0x30`
+(`get_screen_size` is virtual: `this` plus two `int*`). With an Xvfb desktop
+of 1280x1024 and a 1024x768 game buffer, VGUI reported 1280x1024 and laid the
+dialog out for that area (`1098x714` at `85,149`, corner textures at
+`1183,863`, outside the buffer). Matching the Xvfb screen to the game
+resolution makes the same run report `1024x768` and place the dialog at
+`96,84`.
+
+Reproduce (spike paths outside the repo):
+
+```text
+csretro_push=1 csretro_translate=1 csretro_texdebug=1 \
+LD_PRELOAD="<spike>/kvshim.so <tmp>/texture.so <spike>/hudonly.so" \
+LD_LIBRARY_PATH="<spike>:<sdl32>:/usr/lib32" \
+LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEODRIVER=x11 \
+./xash3d -game cstrike +map de_dust2 +showscores
+```
+
+The Xvfb screen has to be 1024x768; a 1280x1024 desktop reproduces the
+mis-scaled layout above.
+
 ## Gate log
 
 | Gate | State | Evidence |
@@ -897,4 +959,4 @@ gcc -m32 -shared -fPIC -O2 -o <tmp>/fontprobe.so <spike>/spike-shims/fontprobe.c
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`; the stub paints real VGUI2 panel trees, real VGUI2 text, the scheme-coloured panel fills and textured quads into a rendered frame in **every** frame (`docs/evidence/g07-xash3d-vgui2-text.png`, `-steady.png`, `-filled-panel.png`, `-texture-corner.png`, `-texture-sampled.png`; 1755 px text diff at paint 1 and paint 60, 499 200 px = 832x600 fill at paint 20, 12 fills and 50 text calls per paint, 8 TGAs loaded per paint and 27 px texture diff in `0..9 x 0..9` at paint 40, `glGetError()` 0; CI `42867114212`; font measurement: 36 `CreateFont` -> `1`, 54 glyph sets -> `font=1` with 27 real faces, 42 089 `GetFontTall` -> `16`, `GetFontAscent`/`AddCustomFontFile` never called); engine direction Option A (plan section 3.6) |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`; the stub paints real VGUI2 panel trees, real VGUI2 text, the scheme-coloured panel fills and textured quads into a rendered frame in **every** frame (`docs/evidence/g07-xash3d-vgui2-text.png`, `-steady.png`, `-filled-panel.png`, `-texture-corner.png`, `-texture-sampled.png`; 1755 px text diff at paint 1 and paint 60, 499 200 px = 832x600 fill at paint 20, 12 fills and 50 text calls per paint, 8 TGAs loaded per paint and 27 px texture diff in `0..9 x 0..9` at paint 40, `glGetError()` 0; CI `42867114212`; font measurement: 36 `CreateFont` -> `1`, 54 glyph sets -> `font=1` with 27 real faces, 42 089 `GetFontTall` -> `16`, `GetFontAscent`/`AddCustomFontFile` never called; laid-out scoreboard: `VPanel::GetAbsPos` slot 19, dialog at `96,84`, four corners at `96,84`/`917,84`/`96,673`/`917,673`, 108 px texture diff, `docs/evidence/g07-xash3d-vgui2-laid-out.png`, `-header.png`, `-corner.png`); engine direction Option A (plan section 3.6) |

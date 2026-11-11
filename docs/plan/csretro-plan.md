@@ -397,13 +397,62 @@ Höhe (`stub+0x5ff4+0x3c`). `get_text_size` (`0x2510`) und
 `DrawConsoleStringLen`, gezeichnet wird über `pfnDrawString`
 (`funcs+0x1c8`).
 
-Damit ist die Font-Lücke präzise: Nicht der Textpfad fehlt – VGUI2-Text
+damit ist die Font-Lücke präzise: Nicht der Textpfad fehlt – VGUI2-Text
 erscheint pro Frame –, sondern **jede Schriftmetrik kollabiert auf die eine
 Konsolenschrift des jeweiligen Xash3D-Builds**. Ein `VGUI_Surface026`-Adapter
 braucht deshalb einen eigenen TTF-Rasterizer plus Glyph-Atlas und echte
 Metriken pro Handle (Höhe, Ascent, ABC-Breiten), statt die Engine-Font-API
 weiterzureichen. Das ist Adapter-Arbeit, kein Stub-Patch: Der Stub hat für
 Fonts keine Datenstruktur, an der ein Patch ansetzen könnte.
+
+#### 3.6.5 Nachtrag 11. November 2026: Layout, Push/Pop und Bildschirmgröße
+
+Der Spike zeichnet das Scoreboard jetzt an seiner echten Position. Drei
+Befunde waren dafür nötig:
+
+1. **`PushMakeCurrent` liefert den Offset über `VPanel`, nicht über
+   `VPanelWrapper`.** Das Panel, das VGUI an `PushMakeCurrent` übergibt, ist
+   ein `vgui2::VPanel`. In `_ZTVN5vgui26VPanelE` (`vgui2.so 0x29fb0`,
+   Adresspunkt `0x29fb8`) ist `VPanel::GetAbsPos(int&, int&)` (`0x17200`)
+   Slot **19**. Slot 11 ist dort nicht `GetAbsPos`; die frühere Angabe
+   „IPanel-Slot 11“ gilt nur für die Engine-Schnittstelle
+   `VPanelWrapper` (`_ZTV13VPanelWrapper` bei `0x2a0b0`).
+2. **Die Übersetzung muss alle drei Primitive erfassen.** Fills laufen über
+   `funcs+0x2c`, Text über `funcs+0x1c8`, Texturen über die Quads. Ein
+   Shim, der nur die Texturen verschiebt, reißt das Layout auseinander.
+   Der Spike kopiert daher die Engine-Funcs-Tabelle, ersetzt die beiden
+   Slots durch Wrapper, die `x`/`y` um den aktuellen Push-Offset erhöhen,
+   und setzt die Kopie in `stub+0x5ff4+0x3fc` ein. `PopMakeCurrent` stellt
+   den Offset wieder her.
+3. **Die Engine-Bildschirmgröße muss zur Framebuffer-Größe passen.** Der
+   Stub fragt sie über `funcs+0x30` ab (`get_screen_size` ist eine virtuelle
+   Methode mit `this` plus zwei `int*`). Läuft der X-Server mit 1280x1024,
+   während das Spiel 1024x768 rendert, meldet VGUI 1280x1024 und legt das
+   Dialogfenster für diese Fläche aus: gemessen `1098x714` bei `85,149`,
+   die Ecken bei `1183,863` – also außerhalb des 1024x768-Buffers. Mit
+   einem Xvfb passend zur Spielauflösung (1024x768) liefert
+   `get_screen_size` `1024x768`, und das Dialogfenster sitzt bei `96,84`.
+
+Messung im Spike (Paint 40 vs. 41, 1024x768):
+
+| Größe | Wert |
+|---|---|
+| Engine-Bildschirmgröße | `1024x768` |
+| Dialog-Offset (`GetAbsPos`) | `96,84` |
+| Textur-Ecken | `96,84`, `917,84`, `96,673`, `917,673` |
+| Textur-Diff zwischen zwei Paints | 108 Pixel im Rechteck `96..926, 84..682` |
+
+Sichtbar sind damit der Panel-Hintergrund `832x600` an `96,84`, die vier
+gerundeten Ecken, der weiße `ServerName`-Balken und der rechtsbündige
+Kopftext `Score`, `Deaths`, `Latency`. Beweise:
+`docs/evidence/g07-xash3d-vgui2-laid-out.png` (ganzer Frame),
+`-header.png` (Kopfzeile) und `-corner.png` (Ecke).
+
+Für den Adapter folgt daraus: Push/Pop muss den Offset für **jedes**
+Primitive anwenden, und die Bildschirmgröße muss aus derselben Quelle kommen
+wie die Framebuffer-Größe, oder die Differenz muss explizit skaliert werden.
+Beides ist Adapter-Arbeit; der Stub selbst kennt weder Push-Offset noch
+Skalierung.
 
 ---
 

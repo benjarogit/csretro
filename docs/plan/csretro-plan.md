@@ -454,6 +454,74 @@ wie die Framebuffer-Größe, oder die Differenz muss explizit skaliert werden.
 Beides ist Adapter-Arbeit; der Stub selbst kennt weder Push-Offset noch
 Skalierung.
 
+#### 3.6.6 Nachtrag 11. November 2026: Font-Backend (Handles, Metriken, Glyphen)
+
+Der Stub patcht seine fünf Font-Slots erst beim ersten Paint – zu spät: VGUI
+legt die Scheme-Fonts schon in `HUD_Init` an, und ein Lauf mit spätem Patch
+sah **null** `CreateFont`-Aufrufe. Der Spike patcht die Slots deshalb in einem
+Polling-Thread, sobald `stub_surface.so` gemappt ist (dieselbe Technik wie
+`fontprobe.c`; KVShim exportiert ein eigenes `dlsym`, `RTLD_NEXT` ist hier
+nicht sicher).
+
+Damit gilt im Lauf (`+map de_dust2 +showscores`, 1024x768):
+
+| Slot | Aufrufe | Ergebnis |
+|---|---|---|
+| `CreateFont` (`0x14b0`) | 36 | Handles `1`…`36` |
+| `AddGlyphSetToFont` (`0x14c0`) | 54 | 36 primäre Sets + 18 Charset-Fallbacks |
+| `GetFontTall` (`0x14e0`) | 1024 (Paint 41) | je Handle die angeforderte Höhe |
+| `GetCharABCwide` (`0x1500`) | 1471 (nur Paint 1) | FreeType-Advance, danach gecacht |
+| `GetCharacterWidth` (`0x2480`) | 4611 (Paint 41) | FreeType-Advance pro Zeichen |
+| `GetTextSize` (`0x2510`) | 0 | – (VGUI2 ruft es nicht auf) |
+| `GetFontAscent` (`0x1680`) | 0 | – (VGUI2 ruft es nicht auf) |
+
+**Erster Glyph-Set gewinnt.** VGUI hängt an denselben Handle einen zweiten
+Glyph-Set für einen anderen Zeichenbereich (`Tahoma 26/800`, dann
+`Arial 26/700` – gleiche Höhe, andere Familie). Der erste Set definiert
+Familie und Höhe, die weiteren nur die Abdeckung. Die 36 primären Sets
+verlangen 15 verschiedene Höhen (`11, 12, 14, 17, 18, 19, 20, 22, 24, 26, 28,
+32, 35, 38, 41`), vorher lieferten alle 42 089 `GetFontTall`-Aufrufe `16`.
+
+**Schriftdateien fehlen unter Linux.** Das Retail-Scheme nennt Windows-Fonts;
+im Spike-Baum liegt nur `valve/resource/marlett.ttf` (Retail-Asset). Der Spike
+löst deshalb auf:
+
+| Angefragt | Datei |
+|---|---|
+| `Marlett` | `valve/resource/marlett.ttf` (echter Retail-Font) |
+| `Arial` | `LiberationSans-{Regular,Bold}.ttf` (metrikkompatibel) |
+| `Verdana`, `Tahoma` | `DejaVuSans{,-Bold}.ttf` |
+
+**Zeichnen.** `text_at.isra.0` macht aus dem UTF-32-Text einen Byte-String
+(alles außerhalb `0x20..0x7f` wird `?`) und ruft `funcs+0x1c8`. Der Shim
+ersetzt diesen Slot: pro Zeichen `FT_Load_Char(..., FT_LOAD_RENDER)`, daraus
+eine GL-Textur (weißes RGB, Coverage im Alpha), Baseline `y + ascent`, ein
+Quad pro Glyph in die verzögerte Queue. Messung: 50 Textaufrufe und 42
+Glyph-Quads pro Paint, 21 Glyph-Texturen insgesamt, **0** Engine-Fallbacks –
+die sichtbaren Buchstaben kommen vollständig aus dem Backend. Ein Lauf mit
+`csretro_face=DejaVuSerif-Bold.ttf` zeigt die Kopfzeile in Serifen und belegt,
+dass die Glyphen der konfigurierten Datei folgen.
+
+Beweise: `docs/evidence/g07-xash3d-vgui2-fonts.png` (Frame),
+`-header.png` (Kopfzeile) und `-serif.png` (Serifen-Diagnose).
+
+Für den Adapter folgt daraus:
+
+1. **Eigener Rasterizer plus Glyph-Atlas.** Der Stub hat keine
+   Font-Datenstruktur; das Spike-Backend nutzt eine GL-Textur pro Glyph
+   (21 Texturen für den Scoreboard), der Adapter braucht einen gepackten
+   Atlas mit UV-Rechtecken.
+2. **Handle pro `CreateFont`, erster Glyph-Set primär**, Metriken ausschließlich
+   aus FreeType: Höhe, Ascent, Advance. `GetTextSize` und `GetFontAscent`
+   werden von VGUI2 nicht benutzt und dürfen keine Layoutquelle sein.
+3. **Fonts müssen mitgeliefert werden.** Linux hat weder Verdana noch Tahoma
+   noch Arial; Retail liefert nur `marlett.ttf`. Ersatzschriften ändern
+   Glyphenformen und Breiten, also auch Textlängen und damit Layouts – das ist
+   eine dokumentierte Abweichung zum Retail-Client, keine Regression.
+4. **Text in Baumreihenfolge zeichnen.** Der Spike schiebt Glyph-Quads wie die
+   Texturen hinter den Paint; damit liegt Text über später gezeichneten
+   Kind-Hintergründen. Der Adapter zeichnet synchron im Traverse.
+
 ---
 
 ## 4. Repo-Struktur

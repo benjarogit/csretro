@@ -6,7 +6,7 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-11
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text, panel fills and textured quads in every frame, places the scoreboard at its real layout position, and its font collapse is measured; engine direction decided: Option A)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text, panel fills and textured quads in every frame, places the scoreboard at its real layout position, and draws its own text with real per-handle TTF fonts; engine direction decided: Option A)
 - **Branch:** `main`
 - **Commit:** `32a3ef1` (laid-out scoreboard evidence) plus this handoff update on top
 - **CI:** https://github.com/benjarogit/csretro/actions/runs/42973488306 – success (`32a3ef1`)
@@ -53,7 +53,8 @@ Project state for the next session. Personal context belongs in
 | The scoreboard renders at its real layout position | with push/pop translation on all three primitive families, `PushMakeCurrent` reports `96,84` for the scoreboard dialog, the four corner textures land on `96,84`, `917,84`, `96,673`, `917,673`, and paints 40 vs. 41 differ in 108 px inside `96..926, 84..682`; `docs/evidence/g07-xash3d-vgui2-laid-out.png`, `-header.png`, `-corner.png` show the filled panel, the rounded corners, the white `ServerName` bar and the right-aligned `Score`/`Deaths`/`Latency` |
 | The panel offset comes from `VPanel::GetAbsPos`, slot 19 | the `VPANEL` passed to `PushMakeCurrent` is a `vgui2::VPanel`; `_ZTVN5vgui26VPanelE` (`vgui2.so 0x29fb0`, address point `0x29fb8`) has `VPanel::GetAbsPos(int&, int&)` (`0x17200`) at slot 19, while slot 11 is `GetAbsPos` only in the engine-side `VPanelWrapper` vtable |
 | VGUI screen size must match the framebuffer | `get_screen_size` forwards `funcs+0x30` (virtual, `this` plus two `int*`); a 1280x1024 Xvfb with a 1024x768 buffer made VGUI lay out for 1280x1024 (dialog `1098x714` at `85,149`, corners at `1183,863`, outside the buffer); with a 1024x768 Xvfb the same run reports `1024x768` and the dialog sits at `96,84` |
-| Valve's `client.so` requires Valve's `vgui2.so` | pairing it with NextClient's `vgui2.so` crashes in `Label::ApplySettings` (`pScheme->GetFont`, slot 6 → type_info vtable); the interface implementations live in `vgui2.so`, not `client.so` |
+
+| VGUI2 gets real fonts: 36 handles, 15 heights, glyph quads | font slots are patched as soon as the stub is mapped (VGUI creates scheme fonts in `HUD_Init`, before the first paint; late patching sees 0 `CreateFont` calls): 36 `CreateFont` calls return handles `1`..`36`, 54 `AddGlyphSetToFont` calls carry 36 primary sets plus 18 charset fallbacks (first set defines face and height), the primary heights are `11,12,14,17,18,19,20,22,24,26,28,32,35,38,41` instead of one `16`, `GetCharacterWidth` is answered from FreeType (4611 calls by paint 41), `GetTextSize`/`GetFontAscent` are never called; text goes through the glyph backend (50 calls and 42 glyph quads per paint, 21 glyph textures, 0 engine fallbacks) || Valve's `client.so` requires Valve's `vgui2.so` | pairing it with NextClient's `vgui2.so` crashes in `Label::ApplySettings` (`pScheme->GetFont`, slot 6 → type_info vtable); the interface implementations live in `vgui2.so`, not `client.so` |
 | Xash3D ships FreeVGUI (VGUI1) but no `VGUI_Surface026` | `3rdparty/freevgui` plus `platform/xash3d-fwgs/surface.cpp`; `nm -D vgui.so` exports only `GetVGUISupportAPI`/`InitAPI` |
 | The ReHLDS test server is ready for the spike | `tests/e2e/test_server.py` green on udp/27016: Metamod-R, AMXX, nclapi, `de_dust2`, `nclapi_version 1.6.0` |
 
@@ -320,8 +321,7 @@ implementation; the plan is the only source for the gate list.
   responder.
 - **Client engine decided (Option A):** Xash3D runs Valve's `client.so` through
   `HUD_Init` with a stub surface; the open work is a real `VGUI_Surface026`
-  backend (drawing, a real font backend, texture-coordinate translation, mouse)
-  and the
+  backend (drawing, texture-coordinate translation, mouse) and the
   `engine_mini`/`nitro_api` hooks ported off `hw.so`. Retail GoldSrc remains the
   working fallback.
 - **Steam stub is test-only.** It authenticates nobody and must never be used
@@ -351,11 +351,10 @@ implementation; the plan is the only source for the gate list.
   alpha inversion are correct, the "38-row band" was an artefact of dumping
   only paint 1 (scheme not yet applied, VGUI alpha 0 = transparent). Open work,
   in order:
-  (1) font backend: measured - 36 `CreateFont` calls all return the same
-  handle, 54 glyph sets request 27 real faces (Verdana, Verdana Bold, Tahoma,
-  Arial, Marlett, tall 11-55) but all land on that one handle, and all 42 089
-  `GetFontTall` calls return the same `16`, the engine console font; the
-  adapter needs a TTF rasterizer plus glyph atlas with per-handle metrics;
+  (1) font backend: done in the spike - 36 distinct handles, 15 real heights,
+  FreeType metrics and glyph quads with 0 engine fallbacks (evidence above);
+  the adapter still needs the glyph atlas instead of one texture per glyph and
+  shipped font files;
   (2) mouse/cursor and `VGUI_Input004`; (3) `engine_mini`/`nitro_api` port onto
   an Xash3D adapter. Re-run the spike after each step and record the first
   thing that is actually visible. Keep the Xvfb screen equal to the game
@@ -947,6 +946,76 @@ LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEODRIVER=x11 \
 
 The Xvfb screen has to be 1024x768; a 1280x1024 desktop reproduces the
 mis-scaled layout above.
+
+## Xash3D spike update (2026-11-11, font backend)
+
+**Result: VGUI2 now lays out and draws with real per-handle fonts.** The stub
+patched its font slots at the first paint, which is too late: VGUI creates its
+scheme fonts during `HUD_Init`, and a run with late patching logged **zero**
+`CreateFont` calls. The shim now patches the five font slots (plus
+`DrawSetTextFont`) as soon as `stub_surface.so` is mapped, using the same
+polling thread as `fontprobe.c`.
+
+Measurements (`+map de_dust2 +showscores`, 1024x768, paint 41):
+
+| Slot | Calls | Result |
+|---|---|---|
+| `CreateFont` | 36 | handles `1`..`36` |
+| `AddGlyphSetToFont` | 54 | 36 primary sets + 18 charset fallbacks |
+| `GetFontTall` | 1024 | the requested height per handle |
+| `GetCharABCwide` | 1471 | FreeType advances (only during paint 1, then cached) |
+| `GetCharacterWidth` | 4611 | FreeType advance per character |
+| `GetTextSize` | 0 | VGUI2 never calls it |
+| `GetFontAscent` | 0 | VGUI2 never calls it |
+
+The 36 primary sets ask for 15 distinct heights
+(`11,12,14,17,18,19,20,22,24,26,28,32,35,38,41`); before this change every one
+of the 42 089 `GetFontTall` calls returned the stub's single `16`.
+
+`AddGlyphSetToFont` can be called twice for one handle: the first set is the
+face (`Tahoma 26/800`), the second a charset fallback with the same height and
+another family (`Arial 26/700`). The backend keeps the first set for face and
+height and lets the later ones only extend coverage.
+
+Linux has neither Verdana, Tahoma nor Arial, and the retail tree ships only
+`valve/resource/marlett.ttf`, so the spike resolves faces explicitly: Marlett
+from the retail file, Arial to Liberation Sans, Verdana/Tahoma to DejaVu Sans
+(bold for weight >= 600).
+
+Drawing replaces the `funcs+0x1c8` engine string call: each character is
+rasterised with FreeType, uploaded as a small GL texture (white RGB, coverage
+in alpha) and queued as a quad at baseline `y + ascent`. Per paint: 50 text
+calls, 42 glyph quads, 21 glyph textures in total, **0** engine fallbacks - the
+visible letters come entirely from the backend. A control run with
+`csretro_face=DejaVuSerif-Bold.ttf` renders the header in serif, which shows
+the glyphs follow the configured file.
+
+![G07 Xash3D VGUI2 fonts](docs/evidence/g07-xash3d-vgui2-fonts.png)
+
+![G07 Xash3D VGUI2 fonts, header](docs/evidence/g07-xash3d-vgui2-fonts-header.png)
+
+![G07 Xash3D VGUI2 fonts, serif control](docs/evidence/g07-xash3d-vgui2-fonts-serif.png)
+
+Reproduce (spike paths outside the repo):
+
+```text
+csretro_push=1 csretro_translate=1 csretro_fonts=1 csretro_glyphs=1 \
+LD_PRELOAD="<spike>/kvshim.so <tmp>/texture.so <spike>/hudonly.so" \
+LD_LIBRARY_PATH="<spike>:<sdl32>:/usr/lib32" \
+LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEODRIVER=x11 \
+./xash3d -game cstrike +map de_dust2 +showscores
+```
+
+The shim is built with FreeType:
+
+```text
+gcc -m32 -shared -fPIC -O2 -o <tmp>/texture.so <spike>/spike-shims/texture.c \
+    -I/usr/include/freetype2 -lfreetype -lpthread
+```
+
+Known spike limitation: glyph quads are deferred like the texture quads, so
+text is drawn after later child backgrounds. The adapter must draw text in
+traverse order; see plan section 3.6.6.
 
 ## Gate log
 

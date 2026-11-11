@@ -345,8 +345,8 @@ zerstört das Layout. Ohne Offset landen alle Bitmaps auf `0,0`. Der Offset ist
 im Spike absichtlich noch nicht aktiv, damit Fills und Textur-Quads dieselbe
 lokale Basis haben; er gehört in den Adapter.
 
-Offener Rest daraus: der Push/Pop-Offset und Fonts (`DrawPrintText` nutzt
-bereits `CL_DrawString`, aber ohne Metrik aus `draw_set_text_font`).
+Offener Rest daraus: der Push/Pop-Offset. Fonts sind separat in 3.6.4 gemessen
+(`DrawPrintText` nutzt bereits `CL_DrawString`, aber ohne echte Metrik).
 
 Nebenbefunde:
 
@@ -356,6 +356,54 @@ Nebenbefunde:
   in CSRETRO deaktiviert oder durch eine einfache Text-Ansicht ersetzt.
 - Ein x86_64-Client setzt quelloffenen 64-Bit-Client-Gamecode voraus. Valves
   `client.so` ist ausschließlich 32 Bit.
+
+#### 3.6.4 Nachtrag 11. November 2026: Fonts kollabieren auf eine Engine-Schrift
+
+Ein Preload-Shim (`fontprobe.c`, Spike-Baum, nicht im Repository) protokolliert
+die fünf Font-Slots des Stubs in einem 14-Sekunden-Lauf
+(`+map de_dust2 +showscores`, 1024x768):
+
+| Slot | Aufrufe | Ergebnis |
+|---|---|---|
+| `CreateFont` (`0x14b0`) | 36 | immer `1` |
+| `AddGlyphSetToFont` (`0x14c0`) | 54 | immer `1`, immer `font=1` |
+| `AddCustomFontFile` (`0x14d0`) | 0 | – (kein `CustomFontFiles`-Key in `ClientScheme.res`) |
+| `GetFontTall` (`0x14e0`) | 42 089 | immer `16` |
+| `GetFontAscent` (`0x1680`) | 0 | – (VGUI2 fragt nur `GetFontTall`) |
+
+Die 54 `AddGlyphSetToFont`-Aufrufe verlangen 27 verschiedene Kombinationen aus
+Name, Höhe und Gewicht (Format `Name Höhe/Gewicht`; die Höhen 42–55 sind
+bereits mit dem Scheme-Faktor skaliert):
+
+```text
+Verdana       12/0     20/0     20/600
+Verdana Bold  18/500   38/500
+Tahoma        12/500   25/500
+Tahoma        20/800   22/800   24/800  26/800
+Tahoma        42/800   46/800   51/800  55/800
+Arial         13/600   16/600   27/600  34/600
+Arial         20/700   22/700   24/700  26/700
+Arial         42/700   46/700   51/700  55/700
+Marlett       11/0     23/0
+```
+
+Alle 36 Handles sind dieselbe Zahl `1`, alle 54 Glyph-Sets landen auf diesem
+einen Handle, und alle 42 089 `GetFontTall`-Aufrufe liefern `16`. Der Stub
+berechnet diese 16 einmalig in `draw_set_text_font` (`0x11c0`): Er misst den
+Literal-String `"Wg."` (`.rodata 0x3000`) über die Engine-Funktion
+`DrawConsoleStringLen` (`funcs+0x74`) und speichert das Ergebnis als globale
+Höhe (`stub+0x5ff4+0x3c`). `get_text_size` (`0x2510`) und
+`get_character_width` (`0x2480`) messen denselben String ebenfalls mit
+`DrawConsoleStringLen`, gezeichnet wird über `pfnDrawString`
+(`funcs+0x1c8`).
+
+Damit ist die Font-Lücke präzise: Nicht der Textpfad fehlt – VGUI2-Text
+erscheint pro Frame –, sondern **jede Schriftmetrik kollabiert auf die eine
+Konsolenschrift des jeweiligen Xash3D-Builds**. Ein `VGUI_Surface026`-Adapter
+braucht deshalb einen eigenen TTF-Rasterizer plus Glyph-Atlas und echte
+Metriken pro Handle (Höhe, Ascent, ABC-Breiten), statt die Engine-Font-API
+weiterzureichen. Das ist Adapter-Arbeit, kein Stub-Patch: Der Stub hat für
+Fonts keine Datenstruktur, an der ein Patch ansetzen könnte.
 
 ---
 

@@ -5,8 +5,8 @@ Project state for the next session. Personal context belongs in
 
 ## State
 
-- **Date:** 2026-11-10
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text, panel fills and textured quads in every frame; engine direction decided: Option A)
+- **Date:** 2026-11-11
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text, panel fills and textured quads in every frame, and its font collapse is measured; engine direction decided: Option A)
 - **Branch:** `main`
 - **Commit:** `d9bcdd9` (VGUI2 texture path evidence) plus this handoff update on top
 - **CI:** https://github.com/benjarogit/csretro/actions/runs/42867114212 – success (`d9bcdd9`)
@@ -49,6 +49,7 @@ Project state for the next session. Personal context belongs in
 | The stock stub has no texture path | the four texture slots are one-instruction `ret`s and `DrawGetTextureSize` always returns `16x16`; VGUI asks for the eight `gfx/vgui/round_corner*` files per paint through `vgui2::Bitmap::Paint` and every `DrawTexturedRect` arrives as `0,0 10,10` because `PushMakeCurrent` is a no-op |
 | The VGUI_Surface026 backend paints **textured quads** | `docs/evidence/g07-xash3d-vgui2-texture-corner.png` / `-zoom.png`: 8 TGAs loaded per paint (ids 11–14 64x64, 16–19 10x10), 8 `DrawTexturedRect` at `0,0 10,10`, paint 40 vs 41 differs in 27 px in `x 0..9, y 0..9` (`(0,9)` `255,255,255` → `255,200,32`), `glGetError()` 0; `docs/evidence/g07-xash3d-vgui2-texture-sampled.png` / `-zoom.png`: a diagnostic 256x256 blit of `round_corner_nw` reproduces the TGA's quarter-circle alpha mask with the scene visible through the transparent part |
 | Ending a textured quad with `glDisable(GL_TEXTURE_2D)` white-washes the frame | separate frames with the real draw vs. no draw show that only the trailing state teardown breaks it; six probe stages (enable/disable, colour, bind, empty `glBegin`, immediate quad, vertex arrays) all keep the frame intact; saving/restoring `GL_TEXTURE_2D` + binding + blend + depth + cull + colour fixes it |
+| VGUI2 fonts collapse to one engine font | 14 s spike run: 36 `CreateFont` calls all return `1`, 54 `AddGlyphSetToFont` calls all carry `font=1` and request 27 distinct (name, tall, weight) triples (Verdana 12/20, Verdana Bold 18/38, Tahoma 12–55, Arial 13–55, Marlett 11/23), 42 089 `GetFontTall` calls all return `16`, `GetFontAscent` and `AddCustomFontFile` are never called; the `16` is the stub's one global tall from measuring `"Wg."` with `DrawConsoleStringLen` |
 | Valve's `client.so` requires Valve's `vgui2.so` | pairing it with NextClient's `vgui2.so` crashes in `Label::ApplySettings` (`pScheme->GetFont`, slot 6 → type_info vtable); the interface implementations live in `vgui2.so`, not `client.so` |
 | Xash3D ships FreeVGUI (VGUI1) but no `VGUI_Surface026` | `3rdparty/freevgui` plus `platform/xash3d-fwgs/surface.cpp`; `nm -D vgui.so` exports only `GetVGUISupportAPI`/`InitAPI` |
 | The ReHLDS test server is ready for the spike | `tests/e2e/test_server.py` green on udp/27016: Metamod-R, AMXX, nclapi, `de_dust2`, `nclapi_version 1.6.0` |
@@ -316,7 +317,8 @@ implementation; the plan is the only source for the gate list.
   responder.
 - **Client engine decided (Option A):** Xash3D runs Valve's `client.so` through
   `HUD_Init` with a stub surface; the open work is a real `VGUI_Surface026`
-  backend (drawing, fonts, texture-coordinate translation, mouse) and the
+  backend (drawing, a real font backend, texture-coordinate translation, mouse)
+  and the
   `engine_mini`/`nitro_api` hooks ported off `hw.so`. Retail GoldSrc remains the
   working fallback.
 - **Steam stub is test-only.** It authenticates nobody and must never be used
@@ -349,9 +351,14 @@ implementation; the plan is the only source for the gate list.
   stub ignores `PushMakeCurrent`, so all eight `DrawTexturedRect` calls land on
   `0,0 10,10` and the four corners pile up in one place; the adapter needs the
   offset from `GetAbsPos` (IPanel slot 11) instead of the stub's no-op;
-  (2) fonts; (3) mouse/cursor and `VGUI_Input004`; (4) `engine_mini`/`nitro_api`
-  port onto an Xash3D adapter. Re-run the spike after each step and record the
-  first thing that is actually visible.
+  (2) font backend: measured - 36 `CreateFont` calls all return the same handle,
+  54 glyph sets request 27 real faces (Verdana, Verdana Bold, Tahoma, Arial,
+  Marlett, tall 11-55) but all land on that one handle, and all 42 089
+  `GetFontTall` calls return the same `16`, the engine console font; the adapter
+  needs a TTF rasterizer plus glyph atlas with per-handle metrics;
+  (3) mouse/cursor and `VGUI_Input004`; (4) `engine_mini`/`nitro_api` port onto
+  an Xash3D adapter. Re-run the spike after each step and record the first thing
+  that is actually visible.
 - **Wiki reference gathered:** Tier1, VGUI Documentation, Category:VGUI (54
   pages + 3 subcategories), KeyValues, Panel, RootPanel, VPANEL, Frame. Key
   findings: `PaintBackground()`/`Paint()` are on by default; `IsFullyVisible()`
@@ -809,6 +816,66 @@ Back-buffer dumps are the only valid capture here: `import`/`xwd` cannot open
 the GL window and `ffmpeg -f x11grab` records a black or white rectangle, while
 `glReadPixels(GL_BACK)` at the paint contains the HUD.
 
+## Xash3D spike update (2026-11-11, font metrics)
+
+**Result: VGUI2 asks for 27 real font faces and gets one engine console font
+back.** A spike-only preload shim (`fontprobe.c`, outside the repository)
+patches the stub's five font slots and logs every call during a 14 s run:
+
+| Slot | Calls | Result |
+|---|---|---|
+| `CreateFont` (`0x14b0`) | 36 | always `1` |
+| `AddGlyphSetToFont` (`0x14c0`) | 54 | always `1`, always `font=1` |
+| `AddCustomFontFile` (`0x14d0`) | 0 | not used (`ClientScheme.res` has no `CustomFontFiles`) |
+| `GetFontTall` (`0x14e0`) | 42 089 | always `16` |
+| `GetFontAscent` (`0x1680`) | 0 | VGUI2 only queries `GetFontTall` |
+
+The 54 glyph sets request 27 distinct (name, tall, weight) triples
+(`Name height/weight`, scaled by the scheme factor):
+
+```text
+Verdana       12/0     20/0     20/600
+Verdana Bold  18/500   38/500
+Tahoma        12/500   25/500
+Tahoma        20/800   22/800   24/800  26/800
+Tahoma        42/800   46/800   51/800  55/800
+Arial         13/600   16/600   27/600  34/600
+Arial         20/700   22/700   24/700  26/700
+Arial         42/700   46/700   51/700  55/700
+Marlett       11/0     23/0
+```
+
+Every handle is the number `1`, so every glyph set lands on the same handle and
+every metric query returns `16`. The stub computes that `16` once in
+`draw_set_text_font` (`0x11c0`): it measures the literal `"Wg."` (`.rodata
+0x3000`) through the engine's `DrawConsoleStringLen` (`funcs+0x74`) and stores
+the result as one global tall (`stub+0x5ff4+0x3c`). `get_text_size` (`0x2510`)
+and `get_character_width` (`0x2480`) measure the same string with the same
+engine call; drawing goes through `pfnDrawString` (`funcs+0x1c8`).
+
+So the gap is not the text path (VGUI2 text already renders every frame) but
+**font metrics**: every face collapses onto the engine's console font. The
+`VGUI_Surface026` adapter needs its own TTF rasterizer, glyph atlas and
+per-handle metrics (tall, ascent, ABC widths) instead of forwarding to the
+engine font API. That is adapter work, not a stub patch: the stub has no font
+data structure to patch.
+
+Reproduce (spike paths outside the repo):
+
+```text
+csretro_fontlog=100000 LD_PRELOAD="<spike>/kvshim.so <spike>/texture.so \
+<spike>/hudonly.so <spike>/fontprobe.so" \
+LD_LIBRARY_PATH="<spike>:<sdl32>:/usr/lib32" \
+LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEODRIVER=x11 \
+./xash3d -game cstrike +map de_dust2 +showscores 2> fontprobe.log
+```
+
+`fontprobe` watches for the `stub_surface.so` mapping with `dl_iterate_phdr`
+(KVShim exports its own `dlsym`, so `RTLD_NEXT` interposition is unsafe here)
+and patches the five slots before VGUI loads its scheme. The hook signatures
+take raw words: the stub's entry points are reached through a C++ interface, so
+the first stack slot is the interface pointer and the font arguments follow.
+
 ## Gate log
 
 | Gate | State | Evidence |
@@ -820,4 +887,4 @@ the GL window and `ffmpeg -f x11grab` records a black or white rectangle, while
 | G05 | done | module ELF32 + metadata, 34/34 tests, build script, `patches/` |
 | G06 | done | test server `healthy`, module and plugin loaded, e2e green, CI run `42514310451` |
 | G06b | done | NextClient `24cc986` imported (`bcd2e79`), 2/2 path tests, client rebuild green, vcpkg deferred, CI run `42579531440` |
-| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`; the stub paints real VGUI2 panel trees, real VGUI2 text, the scheme-coloured panel fills and textured quads into a rendered frame in **every** frame (`docs/evidence/g07-xash3d-vgui2-text.png`, `-steady.png`, `-filled-panel.png`, `-texture-corner.png`, `-texture-sampled.png`; 1755 px text diff at paint 1 and paint 60, 499 200 px = 832x600 fill at paint 20, 12 fills and 50 text calls per paint, 8 TGAs loaded per paint and 27 px texture diff in `0..9 x 0..9` at paint 40, `glGetError()` 0; CI `42867114212`); engine direction Option A (plan section 3.6) |
+| G07 | in progress | G07a: SHA-256 build registry, 7 registry tests. G07b: three-stage resolver, 327 engine + 81 client entries, 70/70 `nitro_api-tests`, CI `42590218846`. G07c: provider check tool, 0 offsets, 0 unverified names. G07d: loader fix `79ba393` (global Steam proxy, SDK tier0), CI `42595518318`, maintainer rerun pending. Xash3D client spike: Xash3D-FWGS `e9b94dc`, headless dedicated and ReHLDS e2e green; 32-bit Xash3D runs Valve's `client.so` + `vgui2.so` through `HUD_Init` with a stub `VGUI_Surface026`; the stub paints real VGUI2 panel trees, real VGUI2 text, the scheme-coloured panel fills and textured quads into a rendered frame in **every** frame (`docs/evidence/g07-xash3d-vgui2-text.png`, `-steady.png`, `-filled-panel.png`, `-texture-corner.png`, `-texture-sampled.png`; 1755 px text diff at paint 1 and paint 60, 499 200 px = 832x600 fill at paint 20, 12 fills and 50 text calls per paint, 8 TGAs loaded per paint and 27 px texture diff in `0..9 x 0..9` at paint 40, `glGetError()` 0; CI `42867114212`; font measurement: 36 `CreateFont` -> `1`, 54 glyph sets -> `font=1` with 27 real faces, 42 089 `GetFontTall` -> `16`, `GetFontAscent`/`AddCustomFontFile` never called); engine direction Option A (plan section 3.6) |

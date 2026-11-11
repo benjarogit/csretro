@@ -678,6 +678,12 @@ Fehlschlag und kein Aufruf. Der Dispatch-Zeiger wird nicht gerufen.
 `CVGui::RunFrame` bleibt ungenutzt. Es gibt keine zweite Surface und keine
 zweite Factory. Der Host startet das Spiel nicht.
 
+**GameUI.** `gameui` kommt aus derselben SDK-Revision und ist ELF64. Es linkt
+`libtier0.so`, `libvstdlib.so` und `libsteam_api.so`. Es trägt `GameUI007`
+und `GameConsole003` und keine eigene `VGUI_Surface026`. Die Surface bleibt
+die eine Host-Factory. Der Host lädt `gameui` noch nicht und startet das
+Spiel nicht.
+
 **Ohne Steam-Prozess.** Der portierte Client startet keinen Steam-Client.
 Voraussetzung bleiben die Originaldaten des Besitzers: Maps, Modelle, Sounds
 und `valve/resource` (darunter Marlett). Sie liegen nicht im Repository. Der

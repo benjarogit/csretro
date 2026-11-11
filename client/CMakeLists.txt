@@ -278,9 +278,10 @@ if (NEXTCLIENT_BUILD_TESTS AND UNIX AND NOT APPLE)
     add_executable(sdk_pair-tests nextclient/client_mini/tests/SdkPairTests.cpp)
     target_compile_definitions(sdk_pair-tests PRIVATE
             "SDK_PAIR_CLIENT=\"$<TARGET_FILE:client_mini>\""
-            "SDK_PAIR_VGUI=\"$<TARGET_FILE:vgui2>\"")
+            "SDK_PAIR_VGUI=\"$<TARGET_FILE:vgui2>\""
+            "SDK_PAIR_GAMEUI=\"$<TARGET_FILE:gameui>\"")
     target_link_libraries(sdk_pair-tests PRIVATE GTest::gtest_main)
-    add_dependencies(sdk_pair-tests client_mini vgui2)
+    add_dependencies(sdk_pair-tests client_mini vgui2 gameui)
     gtest_discover_tests(sdk_pair-tests)
 endif ()
 

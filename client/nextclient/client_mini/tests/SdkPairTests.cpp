@@ -160,3 +160,21 @@ TEST(SdkPair, BothCarryTheSameSchemeVersion)
     EXPECT_TRUE(Contains(vgui, "VGUI_Scheme009"));
     EXPECT_TRUE(Contains(vgui, "csr_vgui_dispatch_messages"));
 }
+
+TEST(SdkPair, GameUiIsTheSameElf64Pair)
+{
+    const std::vector<unsigned char> gameui = ReadFile(SDK_PAIR_GAMEUI);
+    ASSERT_FALSE(gameui.empty());
+    EXPECT_TRUE(IsElf64(gameui));
+
+    const std::vector<std::string> needed = Needed(gameui);
+    for (const char* name : {"libtier0.so", "libvstdlib.so", "libsteam_api.so"})
+    {
+        EXPECT_TRUE(NeedsHost(needed, name)) << name;
+    }
+
+    // A missing interface name fails here. Nothing is called.
+    EXPECT_TRUE(Contains(gameui, "GameUI007"));
+    EXPECT_TRUE(Contains(gameui, "GameConsole003"));
+    EXPECT_FALSE(Contains(gameui, "VGUI_Surface026"));
+}

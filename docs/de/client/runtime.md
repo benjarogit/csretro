@@ -25,6 +25,10 @@ geöffnet und nicht gelinkt.
 `csr_vgui_dispatch_messages` und `VGUI_Scheme009`. Eine fehlende Bibliothek
 ist ein Fehlschlag und kein Aufruf. Der Host startet das Spiel nicht.
 
+`gameui` ist ELF64 aus derselben SDK-Revision und linkt dieselbe Host-Laufzeit.
+Es trägt `GameUI007` und `GameConsole003` und keine eigene Surface. Der Host
+lädt es noch nicht.
+
 Die Build-Registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 bleibt die Offline-Quelle für den Public-Linux-Fingerabdruck. Sie ist nicht
 der Startpfad.

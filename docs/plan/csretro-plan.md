@@ -522,6 +522,98 @@ Für den Adapter folgt daraus:
    Texturen hinter den Paint; damit liegt Text über später gezeichneten
    Kind-Hintergründen. Der Adapter zeichnet synchron im Traverse.
 
+#### 3.6.7 Nachtrag 11. November 2026: Eingabe, Hover und Klick
+
+Bisher war nur der Zeichenweg belegt. Geprüft wurde jetzt, ob der Stub auch
+**Eingabe** an VGUI2 weiterreicht – ohne echten Mauszeiger und ohne
+Fensterfokus, im Xvfb-Lauf.
+
+**Aufbau.** VGUI2 hält `CInputWin32` als Singleton in `.bss`
+(`vgui2.so+0x34420`); KVShim liefert die Adresse als `VGUI_Input004`. Der
+Spike ruft die Methoden direkt auf (i386-cdecl, Objektzeiger als erstes
+Argument) und schiebt die Nachrichten danach durch `CVGui`:
+
+| Schritt | Symbol | Adresse |
+|---|---|---|
+| Cursor | `CInputWin32::InternalCursorMoved(int,int)` | `vgui2+0x1dc00` |
+| Druck | `CInputWin32::InternalMousePressed(MouseCode)` | `vgui2+0x1e8a0` |
+| Loslassen | `CInputWin32::InternalMouseReleased(MouseCode)` | `vgui2+0x1e200` |
+| Zustellung | `CVGui::DispatchMessages()` | `vgui2+0x1b120`, Singleton `vgui2+0x34340` |
+| Abfrage | `CInputWin32::GetMouseOver()` | `vgui2+0x1ce60` |
+
+Zwei Fallen:
+
+1. **`CVGui::RunFrame` ist unbrauchbar.** Es ruft nach `surface()->RunFrame()`
+   noch `UpdateMouseFocus(GetCursorPosition())`. Der Stub meldet als
+   Cursorposition `0,0`, also würde jeder Frame den Fokus auf die linke obere
+   Ecke zurücksetzen. Der Spike ruft deshalb nur die drei Input-Methoden und
+   `DispatchMessages`.
+2. **`UpdateMouseFocus` braucht ein Embedded-Panel.** Ohne `_rootPanel`
+   (`g_Input+0x1b4`, im Spike `NULL`) fällt `CInputWin32::UpdateMouseFocus`
+   auf `surface()->GetEmbeddedPanel()` zurück und ruft dort
+   `Client()->IsWithinTraverse(x,y,false)`. Der Spike setzt das Embedded-Panel
+   deshalb auf die TeamMenu-Wurzel (`stub+0x1cc0`); `IsWithinTraverse` ist
+   Slot 44 (`vptr+0xb0`) des `IPanel`-Wrappers, `GetEmbeddedPanel` liefert
+   sonst `NULL` und der Fokus bleibt leer.
+
+**Messung.** Lauf mit `chooseteam` bei Paint 20, Cursor `239,201` bei Paint
+29, Druck und Loslassen bei Paint 30, `+map de_dust2`, 1024x768:
+
+| Prüfung | Aufruf | Ergebnis |
+|---|---|---|
+| Treffer | `IsWithinTraverse(239,201)` | `Button/terbutton` |
+| Hover | `InternalCursorMoved` + `DispatchMessages` | `GetMouseOver()` = `Button/terbutton` |
+| Klick | `InternalMousePressed`/`Released` + `DispatchMessages` | `SetVisible(0)` auf `CTeamMenu` beim Release |
+| Teamwechsel | `g_iTeamNumber` (`client.so+0x1e54ec`) | Paint 30 `0`, Paint 31 **`1`** (Terrorist) |
+| Negativkontrolle | Klick auf `700,600` (`RichText/MapInfo`) | kein `SetVisible`, `g_iTeamNumber` bleibt `0` |
+
+Damit ist die Kette Maus → `CInputWin32` → `PostMessage` →
+`CVGui::DispatchMessages` → `Button` → `CTeamMenu`-Kommando → Teamwechsel
+belegt. Die Negativkontrolle schließt aus, dass irgendein Druck das Menü
+schließt: derselbe Ablauf auf einem Panel ohne Kommando ändert nichts. Der
+Teamwechsel erscheint erst im Frame nach dem Klick, weil er über den Server
+zurückkommt.
+
+**Bilder.** `docs/evidence/g07-xash3d-vgui2-team-menu.png` (Paint 29, Menü mit
+`SELECT TEAM`), `-team-menu-header.png` (Ausschnitt) und `-team-click.png`
+(Paint 30, Menü weg, Scoreboard/HUD sichtbar). Zwischen beiden Frames ändern
+sich 617 714 Pixel im Rechteck `121,0..1023,715`; das Menü bedeckte also
+genau diesen Bereich.
+
+**Grenzen des Spikes.** Diese Punkte sind Adapter-Aufgaben, keine
+VGUI2-Befunde:
+
+1. **Kein Rollover-Bild.** `Button::OnCursorEntered` setzt `armed`, die
+   Darstellung stammt aber aus Scheme-Texturen (`button/rollover`), die der
+   Stub nicht lädt. Ein Lauf ohne Klick, aber mit `InternalCursorMoved`,
+   ändert zwischen Paint 29 und 30 nur **99 Pixel** – Hover ist deshalb nur
+   semantisch über `GetMouseOver` belegt, nicht visuell.
+2. **Kein Mauszeiger.** Der Stub zeichnet keinen Cursor; Retail nutzt dafür
+   eine Cursor-Textur über `VGUI_Surface026`. Die Position ist nur über
+   `GetCursorPos`/`GetMouseOver` prüfbar.
+3. **Trefferfläche ≠ gerenderte Fläche.** Der Spike-Offset verschiebt
+   Füllungen und Text um wenige Pixel gegenüber den gesolveten
+   Panel-Rechtecken; `239,201` liegt laut Hit-Test im `terbutton`, optisch
+   aber knapp über dessen Kante. Ursache ist der getrennte Offset-Pfad, nicht
+   VGUI2. Der Adapter braucht **eine** Transformation für Hit-Test und Paint.
+4. **Der Scoreboard-Pfad malt immer.** Der Stub zeichnet sein Scoreboard
+   unabhängig von der Sichtbarkeit, deshalb liegt es in den Team-Menu-Bildern
+   als Hintergrund. Der Adapter malt nur sichtbare Bäume.
+
+**Für den Adapter folgt daraus:**
+
+1. **Eingabe einspeisen, nicht nachbauen.** Xash3D-Eingabe wird zu
+   `InternalCursorMoved`/`InternalMousePressed`/`InternalMouseReleased` und
+   danach `CVGui::DispatchMessages`; kein eigener Fokus-Code, kein
+   `RunFrame`-Fokus-Reset.
+2. **Embedded-Panel ist die VGUI2-Wurzel**, nicht das jeweilige Fenster. Der
+   Spike setzt die TeamMenu-Wurzel nur, weil die VGUI2-Wurzel im Stub fehlt.
+3. **Rollover und Cursor brauchen Scheme-Texturen.** Ohne
+   `ClientScheme.res`-Materialien bleibt Hover unsichtbar und der Zeiger
+   fehlt; beides gehört in den Adapter, nicht in den Spike.
+4. **Hit-Test und Paint teilen die Transformation.** Der Spike belegt, dass
+   getrennte Offset-Pfade zu Klicks neben dem sichtbaren Ziel führen.
+
 ---
 
 ## 4. Repo-Struktur

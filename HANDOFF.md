@@ -876,6 +876,16 @@ and patches the five slots before VGUI loads its scheme. The hook signatures
 take raw words: the stub's entry points are reached through a C++ interface, so
 the first stack slot is the interface pointer and the font arguments follow.
 
+`<sdl32>` holds the real SDL2 2.32.10 from the Steam runtime; the distro and
+flatpak `sdl2-compat` builds abort with `Failed loading SDL3 library.` The
+preload shims are built from `<spike>/spike-shims/*.c`, and `/tmp` scratch is
+not durable, so rebuild them after a reboot:
+
+```text
+gcc -m32 -shared -fPIC -O2 -o <tmp>/fontprobe.so <spike>/spike-shims/fontprobe.c \
+    -ldl -lpthread
+```
+
 ## Gate log
 
 | Gate | State | Evidence |

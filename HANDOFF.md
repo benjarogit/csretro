@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-11
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry and mouse dispatch)
 - **Branch:** `main`
-- **Commit:** `f5420ce` (surface enters the embedded VGUI panel)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43049888166 – success (`f5420ce`)
+- **Commit:** `8c7164b` (surface forwards mouse input and dispatches it once)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43061687251 – success (`8c7164b`)
 - **Version:** `0.1.0-dev` (`VERSION`)
 
 ## Verified (with evidence)
@@ -1108,7 +1108,9 @@ instance and rejects every other name. `vgui2` already loads that name from
 the host factory into `g_pSurface`; the surface is therefore not linked into
 `vgui2.so`, and Xash3D is not patched.
 
-What the tests cover (`xash_surface-tests`, preset `linux-tests`, software GL):
+What the tests cover (`xash_surface-tests`, preset `linux-tests`, software GL,
+18/18 passed; shipping `xash_surface.so` is ELF32, BuildID
+`0dc3e8eedf6dc4957839014ccb7ec619cc70f3a6`):
 
 | Check | Result |
 |---|---|

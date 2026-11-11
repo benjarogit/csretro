@@ -60,6 +60,9 @@ Bot*.db -text
 # this rule, prebuilt .a/.lib files that upstream tracks directly would be
 # rewritten into LFS pointers and show up as modified on every checkout.
 /client/**     -filter -diff -merge
+# CSRETRO-owned surface sources stay reviewable. The blanket rule above keeps
+# vendored binaries out of LFS; it also suppresses every diff under client/.
+/client/nextclient/xash_surface/** text diff merge eol=lf
 # The server API is vendored as source, so it stays diffable: -filter keeps the
 # prebuilt .a archives out of LFS, -merge still forces binary merges.
 /server/api/** -filter -merge

@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-11
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `7b2c006` (gameui builds from the same SDK)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43090627163 – success (`7b2c006`)
+- **Commit:** `a591fc0` (host loads gameui through the surface factory)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43091388721 – success (`a591fc0`)
 - **Version:** `0.1.0-dev` (`VERSION`)
 
 ## Verified (with evidence)
@@ -350,7 +350,7 @@ implementation; the plan is the only source for the gate list.
   forwards still call the retail hook, which stays unset. `client_mini` and
   `vgui2` now build from that SDK as ELF64 and link the host runtime.
   `xash_host` opens that pair after the surface factory. A missing library is
-  not called. The host does not start the game.   `gameui` now builds from the
+  not called. The host does not start the game. `gameui` now builds from the
   same SDK as ELF64 and links the host runtime. The host opens it after the
   surface factory and does not call into the game UI. The launcher, filesystem
   proxy and steam_api proxy stay unbuilt.

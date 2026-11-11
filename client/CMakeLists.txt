@@ -90,6 +90,12 @@ if (MSVC)
     )
 endif ()
 
+# Static libraries are linked into the x86_64 shared modules. They need
+# position-independent code or the link of vgui2 and client_mini fails.
+if (UNIX AND NOT APPLE)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif ()
+
 # external dependencies (needed by engine_mini as well as the launcher)
 add_subdirectory(dep/cpr)
 add_subdirectory(dep/easyloggingpp)
@@ -259,6 +265,18 @@ if (NOT NEXTCLIENT_BUILD_TESTS)
                         -P "${NEXTCLIENT_ROOT}/cmake/InstallNextClient.cmake"
                 VERBATIM)
     endif ()
+endif ()
+
+if (NEXTCLIENT_BUILD_TESTS AND UNIX AND NOT APPLE)
+    find_package(GTest CONFIG REQUIRED)
+    include(GoogleTest)
+    add_executable(sdk_pair-tests nextclient/client_mini/tests/SdkPairTests.cpp)
+    target_compile_definitions(sdk_pair-tests PRIVATE
+            "SDK_PAIR_CLIENT=\"$<TARGET_FILE:client_mini>\""
+            "SDK_PAIR_VGUI=\"$<TARGET_FILE:vgui2>\"")
+    target_link_libraries(sdk_pair-tests PRIVATE GTest::gtest_main)
+    add_dependencies(sdk_pair-tests client_mini vgui2)
+    gtest_discover_tests(sdk_pair-tests)
 endif ()
 
 if (NEXTCLIENT_BUILD_TESTS)

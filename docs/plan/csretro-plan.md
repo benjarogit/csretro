@@ -664,6 +664,13 @@ kein Aufruf. Textfarbe geht mit VGUI-Alpha 0 an `DrawSetTextColor`. Ein
 fehlender Zeiger wird nicht aufgerufen. Die übrigen Weiterleitungen von
 `engine_mini` bleiben unverändert.
 
+**Client-Paar.** `client_mini` und `vgui2` werden aus derselben vendorten
+SDK-Revision als ELF64 gebaut. Beide linken die Host-Laufzeit
+`libtier0.so`, `libvstdlib.so` und `libsteam_api.so`. Valves i386-Bibliotheken
+werden nicht gelinkt. Beide tragen `VGUI_Scheme009`. Die Surface bleibt die
+eine Host-Factory. Der Linux-Patch, der Valves `client.so` umschreibt, läuft
+in diesem Prozess nicht.
+
 **Ohne Steam-Prozess.** Der portierte Client startet keinen Steam-Client.
 Voraussetzung bleiben die Originaldaten des Besitzers: Maps, Modelle, Sounds
 und `valve/resource` (darunter Marlett). Sie liegen nicht im Repository. Der

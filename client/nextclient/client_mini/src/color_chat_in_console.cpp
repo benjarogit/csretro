@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <string>
 #include <nitro_utils/platform.h>
 #include <nitro_utils/MemoryTools.h>
@@ -44,6 +45,7 @@ static SayTextLine g_sayTextLine[kSayTextMaxLines + 1];
 
 void ColorChatInConsolePatch()
 {
+#if defined(_WIN32) || UINTPTR_MAX <= UINT32_MAX
 #ifdef _WIN32
     MemoryModule module("client.dll");
     MemScanner scanner(module);
@@ -76,6 +78,10 @@ void ColorChatInConsolePatch()
     *(uint8_t*)printConsoleAddress = 0xe8; // CALL
     *(intptr_t*)(printConsoleAddress + 1) = (uintptr_t)ColorChatConsolePrint - (printConsoleAddress + 5); // ADDRESS
     nitro_utils::SetProtect((void*)(printConsoleAddress - 1), 6, nitro_utils::ProtectMode::PROTECT_RE);
+#else
+    // The Linux patch rewrites i386 instructions inside Valve's client.so.
+    // This process does not open that file.
+#endif
 }
 
 static void PrintWithConsole(TextRange* range, const std::wstring& print_text)

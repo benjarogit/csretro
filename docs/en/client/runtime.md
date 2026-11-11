@@ -15,6 +15,10 @@ through `xash_engine` to the one surface. `VGUI2_Draw_Init` has no entry
 there. A missing function pointer is not called. The other `engine_mini`
 forwards stay on the retail hook.
 
+`client_mini` and `vgui2` come from the same SDK revision. Both are ELF64 and
+link the host `libtier0.so`, `libvstdlib.so` and `libsteam_api.so`. Both carry
+`VGUI_Scheme009`. Valve's i386 `client.so` is not opened and not linked.
+
 The build registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 remains the offline record of the public-linux fingerprint. It is not the
 startup path.

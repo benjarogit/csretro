@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <tier1/utlvector.h>
 
 constexpr int kSayTextMaxLines = 5;
@@ -21,4 +22,8 @@ struct SayTextLine
     float* m_teamColor;
 };
 
+// The +28 tail is the i386 CUtlVector layout of the retail client. This process
+// does not overlay that object.
+#if UINTPTR_MAX <= UINT32_MAX
 static_assert(sizeof(SayTextLine) == sizeof(wchar_t) * kSayTextMaxChars + 28);
+#endif

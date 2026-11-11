@@ -16,6 +16,11 @@ gehen über `xash_engine` an die eine Surface. `VGUI2_Draw_Init` hat dort
 keinen Einstieg. Ein fehlender Funktionszeiger wird nicht aufgerufen. Die
 übrigen `engine_mini`-Weiterleitungen bleiben am Retail-Hook.
 
+`client_mini` und `vgui2` kommen aus derselben SDK-Revision. Beide sind ELF64
+und linken `libtier0.so`, `libvstdlib.so` und `libsteam_api.so` aus dem
+Host. Beide tragen `VGUI_Scheme009`. Valves i386-`client.so` wird nicht
+geöffnet und nicht gelinkt.
+
 Die Build-Registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 bleibt die Offline-Quelle für den Public-Linux-Fingerabdruck. Sie ist nicht
 der Startpfad.

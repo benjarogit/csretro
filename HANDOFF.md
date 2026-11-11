@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-11
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init` and paints real VGUI2 text, panel fills and textured quads in every frame, and its font collapse is measured; engine direction decided: Option A)
 - **Branch:** `main`
-- **Commit:** `d9bcdd9` (VGUI2 texture path evidence) plus this handoff update on top
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42867114212 – success (`d9bcdd9`)
+- **Commit:** `57bfedc` (font metric evidence) plus this handoff update on top
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42971570882 – success (`57bfedc`)
 - **Version:** `0.1.0-dev` (`VERSION`)
 
 ## Verified (with evidence)

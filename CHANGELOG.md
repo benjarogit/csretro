@@ -14,7 +14,8 @@ The authoritative version string is the `VERSION` file.
   fills, texture quads and a FreeType glyph atlas, with panel offset, clip and
   GL state restored after each draw. Shipped substitutes stand in for Arial,
   Verdana and Tahoma. `PaintTraverse` enters the embedded panel and popups.
-  Mouse dispatch is still open.
+  Mouse move, press and release are forwarded to the host and each one is
+  followed by a dispatch. `RunFrame` stays empty.
   Tests run from the `linux-tests` preset.
 - Repository harness: `AGENTS.md`, `HANDOFF.md`, `CREDITS.md`, `VERSION`,
   `versions.lock.json`.

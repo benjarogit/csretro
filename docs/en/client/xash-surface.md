@@ -29,7 +29,10 @@ through `resolve_font`. Blur, scanlines and outline are still open.
 `PaintTraverse` calls the panel paint once with repaint and allow-force set;
 vgui2 walks the children itself. `ShouldPaintChildPanel` skips popups and the
 surface paints them afterwards. Without the function table neither call does
-anything. Mouse events are only stored.
+anything. Mouse events go to the host input functions: cursor, press or
+release, then exactly one dispatch. Button 0 is the left button. `RunFrame`
+does nothing, so a focus reset cannot overwrite the click. `SurfaceSetCursorPos`
+stores the position and does not emit input.
 
 ## Build and tests
 

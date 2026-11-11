@@ -653,8 +653,12 @@ Der erste Stand liegt in `client/nextclient/xash_surface/` (Target
   `SolveTraverse` läuft den sichtbaren Baum über `csr_surface_panel_fns_t`.
   `PaintTraverse` ruft die Panel-Paint-Methode mit Repaint und Allow-Force
   auf; den Kind-Durchlauf macht VGUI2. Popups schließt
-  `ShouldPaintChildPanel` aus, die Surface malt sie danach. Eingabe
-  speichert nur Cursor und Taste, sie erreicht `CInputWin32` noch nicht.
+  `ShouldPaintChildPanel` aus, die Surface malt sie danach. Mauseingabe
+  geht über `csr_surface_input_fns_t` an den Host: Cursor, Druck oder
+  Loslassen, danach eine Zustellung. `RunFrame` bleibt leer, damit
+  `UpdateMouseFocus` den Fokus nicht auf eine gespeicherte `0,0`-Position
+  zurücksetzt. Der Host bildet die drei Aufrufe auf `CInputWin32` und
+  `CVGui::DispatchMessages` ab.
 - Tests: `xash_surface-tests` über das Preset `linux-tests`. Der
   Offscreen-Lauf nutzt einen EGL-Pbuffer und `LIBGL_ALWAYS_SOFTWARE=1`.
   Das Spiel wird dabei nicht gestartet.

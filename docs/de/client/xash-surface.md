@@ -30,7 +30,11 @@ Retail-`valve/resource` und wird nicht mitgeliefert; der Host reicht den Pfad
 `PaintTraverse` ruft die Paint-Methode des Panels einmal mit Repaint und
 Allow-Force auf; die Kinder läuft VGUI2 selbst. Popups lässt
 `ShouldPaintChildPanel` aus und die Surface malt sie danach. Ohne die
-Funktionstabelle passiert nichts. Mausereignisse werden nur gespeichert.
+Funktionstabelle passiert nichts. Mausereignisse gehen an die Input-Funktionen
+des Hosts: Cursor, Druck oder Loslassen, danach genau eine Zustellung.
+Taste 0 ist die linke Maustaste. `RunFrame` tut nichts, damit kein
+Fokus-Reset auf die letzte Cursorposition den Klick überschreibt.
+`SurfaceSetCursorPos` speichert die Position und löst keine Eingabe aus.
 
 ## Bauen und Testen
 

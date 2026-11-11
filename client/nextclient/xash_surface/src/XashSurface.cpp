@@ -178,12 +178,29 @@ namespace xash
         {
             cursor_x_ = x;
             cursor_y_ = y;
+            if (input_.cursor_moved != nullptr)
+            {
+                input_.cursor_moved(x, y, input_.user);
+            }
+            DispatchInput();
         }
 
         void SetButton(int button, int down)
         {
             button_ = button;
             button_down_ = down != 0;
+            if (down != 0)
+            {
+                if (input_.mouse_pressed != nullptr)
+                {
+                    input_.mouse_pressed(button, input_.user);
+                }
+            }
+            else if (input_.mouse_released != nullptr)
+            {
+                input_.mouse_released(button, input_.user);
+            }
+            DispatchInput();
         }
 
         void BeginFrame(int wide, int tall)
@@ -210,6 +227,10 @@ namespace xash
             stack_.clear();
         }
 
+        // CVGui::RunFrame follows this with UpdateMouseFocus(GetCursorPos()).
+        // A headless host must not take that path: it resets focus to the
+        // stored cursor, which used to be 0,0. Input arrives through the
+        // input table instead.
         void RunFrame() override {}
 
         vgui2::VPANEL GetEmbeddedPanel() override
@@ -711,6 +732,16 @@ namespace xash
                 return;
             }
             panel_ = *panel;
+        }
+
+        void SetInputFns(const csr_surface_input_fns_t* input)
+        {
+            if (input == nullptr)
+            {
+                input_ = {};
+                return;
+            }
+            input_ = *input;
         }
 
         void EnableMouseCapture(vgui2::VPANEL, bool) override {}
@@ -1333,6 +1364,14 @@ namespace xash
             }
         }
 
+        void DispatchInput()
+        {
+            if (input_.dispatch != nullptr)
+            {
+                input_.dispatch(input_.user);
+            }
+        }
+
         void ErasePopup(vgui2::VPANEL panel)
         {
             for (auto it = popups_.begin(); it != popups_.end(); ++it)
@@ -1349,6 +1388,7 @@ namespace xash
 
         csr_surface_host_t host_{};
         csr_surface_panel_fns_t panel_{};
+        csr_surface_input_fns_t input_{};
         std::vector<SurfaceFrame> stack_;
         std::vector<Texture> textures_;
         // Faces close before FreeType shuts down: fonts_ is declared after faces_.
@@ -1479,6 +1519,14 @@ void csr_surface_set_panel(csr_surface_t* surface, const csr_surface_panel_fns_t
     if (surface != nullptr)
     {
         As(surface)->SetPanelFns(panel);
+    }
+}
+
+void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t* input)
+{
+    if (surface != nullptr)
+    {
+        As(surface)->SetInputFns(input);
     }
 }
 

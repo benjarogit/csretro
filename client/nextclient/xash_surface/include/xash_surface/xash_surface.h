@@ -18,6 +18,10 @@
  * PaintTraverse calls the panel paint once with repaint and allow-force set,
  * then paints popups. Child traversal stays in vgui2. Without the function
  * table both calls do nothing.
+ *
+ * Mouse input is stored and, when csr_surface_input_fns_t is set, forwarded
+ * as cursor, press and release followed by one dispatch. Button 0 is the
+ * left mouse button. RunFrame does not dispatch and does not move the cursor.
  */
 
 #ifdef __cplusplus
@@ -51,6 +55,15 @@ typedef struct csr_surface_panel_fns
     void* user;
 } csr_surface_panel_fns_t;
 
+typedef struct csr_surface_input_fns
+{
+    void (*cursor_moved)(int x, int y, void* user);
+    void (*mouse_pressed)(int code, void* user);
+    void (*mouse_released)(int code, void* user);
+    void (*dispatch)(void* user);
+    void* user;
+} csr_surface_input_fns_t;
+
 #if defined(_WIN32)
 #define CSR_SURFACE_API __declspec(dllexport)
 #else
@@ -66,6 +79,7 @@ CSR_SURFACE_API void csr_surface_input_move(csr_surface_t* surface, int x, int y
 CSR_SURFACE_API void csr_surface_input_button(csr_surface_t* surface, int button, int down);
 CSR_SURFACE_API void* csr_surface_vgui(csr_surface_t* surface);
 CSR_SURFACE_API void csr_surface_set_panel(csr_surface_t* surface, const csr_surface_panel_fns_t* panel);
+CSR_SURFACE_API void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t* input);
 
 #ifdef __cplusplus
 }

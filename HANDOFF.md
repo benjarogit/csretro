@@ -6,7 +6,7 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-11
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas and a panel solve/paint entry)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry and mouse dispatch)
 - **Branch:** `main`
 - **Commit:** `f5420ce` (surface enters the embedded VGUI panel)
 - **CI:** https://github.com/benjarogit/csretro/actions/runs/43049888166 – success (`f5420ce`)
@@ -326,8 +326,11 @@ implementation; the plan is the only source for the gate list.
   atlas, Liberation Sans for Arial and DejaVu Sans for Verdana and Tahoma.
   Marlett is not shipped; the host passes it through `resolve_font`.
   `SolveTraverse` walks the visible tree and `PaintTraverse` enters the
-  embedded panel, then popups. Still open: mouse dispatch into `CInputWin32`
-  and the launcher registering the factory. `engine_mini`/`nitro_api` still hook `hw.so`.
+  embedded panel, then popups. Mouse move, press and release go through
+  `csr_surface_input_fns_t` and each event is followed by one dispatch.
+  `RunFrame` stays empty. Still open: the launcher registering the factory
+  and binding those callbacks to `CInputWin32` plus `DispatchMessages`.
+  `engine_mini`/`nitro_api` still hook `hw.so`.
   Retail GoldSrc remains the working fallback.
 - **Steam stub is test-only.** It authenticates nobody and must never be used
   for a public server. A production server needs real Steam connectivity.
@@ -353,10 +356,9 @@ implementation; the plan is the only source for the gate list.
   The spike team-click was reproduced on 2026-11-11: exit 137, `Button/terbutton`
   at `239,201`, `CTeamMenu` hidden on release, `g_iTeamNumber` `0` at paint 30
   and `1` at paint 31, both framebuffer dumps `glerr=0`. Open work, in order:
-  (1) mouse dispatch into `CInputWin32` plus `DispatchMessages`, without
-  `CVGui::RunFrame`;
-  (2) the launcher registers the `xash_surface` factory;
-  (3) `engine_mini`/`nitro_api` move off `hw.so`.
+  (1) the launcher registers the `xash_surface` factory and binds the input
+  callbacks to `CInputWin32` plus `DispatchMessages`, without `CVGui::RunFrame`;
+  (2) `engine_mini`/`nitro_api` move off `hw.so`.
   Keep the Xvfb screen equal to the game resolution.
 - **Wiki reference gathered:** Tier1, VGUI Documentation, Category:VGUI (54
   pages + 3 subcategories), KeyValues, Panel, RootPanel, VPANEL, Frame. Key
@@ -1125,9 +1127,14 @@ What the tests cover (`xash_surface-tests`, preset `linux-tests`, software GL):
 calls the root paint with repaint and allow-force set, then each popup.
 `ShouldPaintChildPanel` is false for a popup. The child loop stays in vgui2.
 
-Not in this slice: mouse dispatch, scheme textures, blur, scanlines, outline,
-and loading the library from the launcher. Marlett is resolved by the host.
-The spike stub is still what paints the real VGUI2 tree.
+Mouse move, press and release each call the matching host function and then
+one dispatch. `RunFrame` adds no call. `SurfaceSetCursorPos` stores the
+position and does not dispatch.
+
+Not in this slice: scheme textures, blur, scanlines, outline, and loading the
+library from the launcher. The launcher still has to bind the input callbacks
+to `CInputWin32` and `DispatchMessages`. Marlett is resolved by the host. The
+spike stub is still what paints the real VGUI2 tree.
 
 ## Gate log
 

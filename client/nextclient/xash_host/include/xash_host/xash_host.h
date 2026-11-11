@@ -69,7 +69,16 @@ CSR_HOST_API int csr_host_gameui_loaded(void);
 CSR_HOST_API void* csr_host_gameui(void);
 CSR_HOST_API void* csr_host_game_console(void);
 
-/* list[0] answers VGUI_Surface026. extras follow, up to CSR_HOST_EXTRA_FACTORY_CAP. */
+/*
+ * Mounts the one VFileSystem009 on this factory list, after the surface.
+ * root is the only directory that is served. Returns 0 when the surface
+ * factory is down or root is not a directory, and does not invent a path.
+ * A missing file is a miss. Does not open hw.so.
+ */
+CSR_HOST_API int csr_host_mount_filesystem(const char* root);
+CSR_HOST_API int csr_host_filesystem_mounted(void);
+
+/* list[0] answers VGUI_Surface026. A mounted filesystem follows it, then extras. */
 CSR_HOST_API int csr_host_factory_list(csr_host_factory_fn* extra, int extra_count, csr_host_factories_t* out);
 CSR_HOST_API void* csr_host_create_interface(const char* name, int* code);
 

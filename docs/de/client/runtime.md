@@ -30,6 +30,11 @@ Es trägt `GameUI007` und `GameConsole003` und keine eigene Surface. Der Host
 öffnet es nach der Surface-Factory, ruft die Spieloberfläche nicht auf und
 hängt keine zweite Factory an.
 
+Dieselbe Factory-Liste beantwortet `VFileSystem009`, nachdem der Host eine
+Wurzel gemountet hat. Die Surface bleibt der erste Eintrag. Der Proxy liest
+nur Dateien unter dieser Wurzel. Eine fehlende Datei ist ein Fehltreffer.
+`hw.so` wird dabei nicht geöffnet. Der Host startet das Spiel nicht.
+
 Die Build-Registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 bleibt die Offline-Quelle für den Public-Linux-Fingerabdruck. Sie ist nicht
 der Startpfad.

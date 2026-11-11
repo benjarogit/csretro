@@ -5,8 +5,10 @@ uses to ask for `VGUI_Surface026`. The surface stays its own library. It is
 not linked into `vgui2.so`, Xash3D is not modified, and `LD_PRELOAD` stays a
 spike tool.
 
-The first list entry answers only `VGUI_Surface026`. Later factories are not
-asked for that name.
+The first list entry answers only `VGUI_Surface026`. Once a root is mounted,
+`VFileSystem009` follows on that same list. The proxy reads only files under
+that root. A missing file or a path outside the root is a miss. Later
+factories are not asked for the surface name.
 
 Mouse move, press and release go to the three input calls and then to exactly
 one message dispatch. `RunFrame` is not called, so focus cannot jump back to a

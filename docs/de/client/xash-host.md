@@ -5,8 +5,10 @@
 Sie wird nicht in `vgui2.so` eingebunden, Xash3D wird nicht verändert, und
 `LD_PRELOAD` bleibt ein Spike-Werkzeug.
 
-Der erste Eintrag der Liste beantwortet nur `VGUI_Surface026`. Weitere
-Factories folgen und werden für diesen Namen nicht gefragt.
+Der erste Eintrag der Liste beantwortet nur `VGUI_Surface026`. Ist eine Wurzel
+gemountet, folgt `VFileSystem009` auf derselben Liste. Der Proxy liest nur
+Dateien unter dieser Wurzel. Eine fehlende Datei oder ein Pfad außerhalb ist
+ein Fehltreffer. Weitere Factories werden für den Surface-Namen nicht gefragt.
 
 Mausbewegung, Druck und Loslassen gehen an die drei Input-Aufrufe und danach
 genau einmal an die Nachrichtenzustellung. `RunFrame` wird nicht aufgerufen,

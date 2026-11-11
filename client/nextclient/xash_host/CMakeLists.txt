@@ -4,12 +4,17 @@ project(xash_host)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_library(xash_host SHARED src/xash_host.cpp)
+add_library(xash_host SHARED
+        src/xash_host.cpp
+        src/host_filesystem.cpp)
 add_library(xash::host ALIAS xash_host)
 
 target_include_directories(xash_host
         PUBLIC include
-        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../xash_surface/include")
+        PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/../xash_surface/include"
+            "${NEXTCLIENT_ROOT}/dep/ncl-hl1-source-sdk/public"
+            "${NEXTCLIENT_ROOT}/dep/ncl-hl1-source-sdk/public/tier1")
 
 target_link_libraries(xash_host PRIVATE xash::engine ${CMAKE_DL_LIBS})
 

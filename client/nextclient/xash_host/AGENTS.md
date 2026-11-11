@@ -9,11 +9,14 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
 - `csr_host_load_pair` opens the matched `client_mini` and `vgui2` after that
   factory. A missing library or export returns 0 and is not called. The
   dispatch pointer is kept and not invoked. `RunFrame` stays unused. The
-  surface factory stays the only factory.
+  pair does not add a factory.
 - `csr_host_load_gameui` opens `gameui` after that factory and reads
   `GameUI007` and `GameConsole003`. It does not call into the game UI and
   does not add a factory.
-- Extra factories follow that entry. The surface name is not forwarded to them.
+- `csr_host_mount_filesystem` puts `VFileSystem009` on that same list after
+  the surface. The caller supplies the only root. A missing file or a path
+  outside that root is a miss. The proxy does not open `hw.so`.
+- Extra factories follow those entries. The surface name is not forwarded to them.
 - `csr_host_bind_input` forwards cursor, press and release, then one dispatch.
   `CVGui::RunFrame` is not called. `SurfaceSetCursorPos` does not dispatch.
 - Our `vgui2` exports `csr_vgui_dispatch_messages` through

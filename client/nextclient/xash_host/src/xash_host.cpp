@@ -1,5 +1,6 @@
 #include "xash_host/xash_host.h"
 
+#include "host_filesystem.h"
 #include "xash_engine/xash_engine.h"
 #include "xash_surface/xash_surface.h"
 
@@ -24,7 +25,9 @@ namespace
 
     SurfaceApi g_surface;
     csr_host_vgui_t g_vgui{};
-    csr_host_factory_fn g_list[1 + CSR_HOST_EXTRA_FACTORY_CAP]{};
+    csr_host_factory_fn g_list[2 + CSR_HOST_EXTRA_FACTORY_CAP]{};
+    csr_host_factory_fn g_extra[CSR_HOST_EXTRA_FACTORY_CAP]{};
+    int g_extra_count = 0;
     int g_count = 0;
 
     struct PairApi
@@ -110,6 +113,28 @@ namespace
         return reinterpret_cast<T>(dlsym(module, name));
     }
 
+    void RebuildList()
+    {
+        std::memset(g_list, 0, sizeof(g_list));
+        if (g_surface.create_interface == nullptr)
+        {
+            g_count = 0;
+            return;
+        }
+
+        int index = 0;
+        g_list[index++] = g_surface.create_interface;
+        if (csr_host_filesystem_mounted() != 0)
+        {
+            g_list[index++] = csr_host_filesystem_factory;
+        }
+        for (int extra = 0; extra < g_extra_count; ++extra)
+        {
+            g_list[index++] = g_extra[extra];
+        }
+        g_count = index;
+    }
+
 } // namespace
 
 int csr_host_open(const char* path)
@@ -150,8 +175,7 @@ int csr_host_open(const char* path)
         hooks(g_surface.surface, &engine_surface);
         csr_xash_engine_bind(&engine_surface);
     }
-    g_list[0] = g_surface.create_interface;
-    g_count = 1;
+    RebuildList();
     return 1;
 }
 
@@ -268,10 +292,25 @@ void* csr_host_game_console(void)
     return g_gameui.console;
 }
 
+int csr_host_mount_filesystem(const char* root)
+{
+    if (g_surface.create_interface == nullptr)
+    {
+        return 0;
+    }
+    if (csr_host_filesystem_set_root(root) == 0)
+    {
+        return 0;
+    }
+    RebuildList();
+    return 1;
+}
+
 void csr_host_close(void)
 {
     CloseGameUi();
     ClosePair();
+    csr_host_filesystem_clear();
     csr_xash_engine_clear();
     if (g_surface.surface != nullptr && g_surface.destroy != nullptr)
     {
@@ -283,7 +322,9 @@ void csr_host_close(void)
     }
     g_surface = {};
     g_vgui = {};
+    g_extra_count = 0;
     g_count = 0;
+    std::memset(g_extra, 0, sizeof(g_extra));
     std::memset(g_list, 0, sizeof(g_list));
 }
 
@@ -298,12 +339,13 @@ int csr_host_factory_list(csr_host_factory_fn* extra, int extra_count, csr_host_
         return 0;
     }
 
-    g_list[0] = g_surface.create_interface;
+    g_extra_count = extra_count;
+    std::memset(g_extra, 0, sizeof(g_extra));
     for (int index = 0; index < extra_count; ++index)
     {
-        g_list[index + 1] = extra[index];
+        g_extra[index] = extra[index];
     }
-    g_count = extra_count + 1;
+    RebuildList();
     out->list = g_list;
     out->count = g_count;
     return 1;

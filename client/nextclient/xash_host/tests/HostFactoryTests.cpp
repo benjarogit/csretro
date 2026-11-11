@@ -5,8 +5,15 @@
 #include <gtest/gtest.h>
 #include <vgui/ISurface.h>
 
+#include <FileSystem.h>
+
+#include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
+
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace
 {
@@ -203,4 +210,103 @@ TEST_F(HostFactory, GameUiUsesTheExistingSurfaceFactory)
     csr_host_factories_t factories{};
     ASSERT_EQ(csr_host_factory_list(nullptr, 0, &factories), 1);
     EXPECT_EQ(factories.count, 1);
+}
+
+struct TempRoot
+{
+    std::string root;
+
+    TempRoot()
+    {
+        char name[] = "/tmp/csretro-fs-XXXXXX";
+        if (mkdtemp(name) != nullptr)
+        {
+            root = name;
+        }
+    }
+
+    ~TempRoot()
+    {
+        if (root.empty())
+        {
+            return;
+        }
+        std::remove((root + "/maps/demo.txt").c_str());
+        std::remove((root + "/leak").c_str());
+        rmdir((root + "/maps").c_str());
+        rmdir(root.c_str());
+    }
+};
+
+TEST_F(HostFactory, FilesystemRequiresTheSurfaceFactory)
+{
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    EXPECT_EQ(csr_host_mount_filesystem(temp.root.c_str()), 0);
+    EXPECT_EQ(csr_host_filesystem_mounted(), 0);
+    EXPECT_EQ(csr_host_create_interface("VFileSystem009", nullptr), nullptr);
+
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    char missing[64];
+    std::snprintf(missing, sizeof(missing), "/tmp/csretro-fs-missing-%d", static_cast<int>(getpid()));
+    EXPECT_EQ(csr_host_mount_filesystem(missing), 0);
+    EXPECT_EQ(csr_host_filesystem_mounted(), 0);
+    EXPECT_EQ(csr_host_create_interface("VFileSystem009", nullptr), nullptr);
+    EXPECT_NE(csr_host_create_interface("VGUI_Surface026", nullptr), nullptr);
+
+    csr_host_factories_t factories{};
+    ASSERT_EQ(csr_host_factory_list(nullptr, 0, &factories), 1);
+    EXPECT_EQ(factories.count, 1);
+}
+
+TEST_F(HostFactory, FilesystemServesOnlyTheMountedRoot)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    void* surface = csr_host_create_interface("VGUI_Surface026", nullptr);
+    ASSERT_NE(surface, nullptr);
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/maps").c_str(), 0755), 0);
+    FILE* out = std::fopen((temp.root + "/maps/demo.txt").c_str(), "wb");
+    ASSERT_NE(out, nullptr);
+    ASSERT_EQ(std::fwrite("hello", 1, 5, out), 5u);
+    std::fclose(out);
+    ASSERT_EQ(symlink("/etc/passwd", (temp.root + "/leak").c_str()), 0);
+
+    ASSERT_EQ(csr_host_mount_filesystem(temp.root.c_str()), 1);
+    EXPECT_EQ(csr_host_filesystem_mounted(), 1);
+
+    csr_host_factories_t factories{};
+    ASSERT_EQ(csr_host_factory_list(nullptr, 0, &factories), 1);
+    ASSERT_EQ(factories.count, 2);
+    EXPECT_EQ(factories.list[0]("VGUI_Surface026", nullptr), surface);
+    EXPECT_EQ(factories.list[0]("VFileSystem009", nullptr), nullptr);
+
+    int code = -1;
+    auto* filesystem = static_cast<IFileSystem*>(factories.list[1]("VFileSystem009", &code));
+    ASSERT_NE(filesystem, nullptr);
+    EXPECT_EQ(code, 0);
+    EXPECT_EQ(factories.list[1]("VGUI_Surface026", nullptr), nullptr);
+    EXPECT_EQ(csr_host_create_interface("VFileSystem009", nullptr), filesystem);
+    EXPECT_EQ(csr_host_create_interface("VGUI_Surface026", nullptr), surface);
+
+    EXPECT_TRUE(filesystem->FileExists("maps/demo.txt"));
+    EXPECT_TRUE(filesystem->IsDirectory("maps"));
+    EXPECT_EQ(filesystem->Size("maps/demo.txt"), 5u);
+    FileHandle_t handle = filesystem->Open("maps/demo.txt", "rb", nullptr);
+    ASSERT_NE(handle, nullptr);
+    char bytes[8] = {};
+    EXPECT_EQ(filesystem->Read(bytes, 5, handle), 5);
+    EXPECT_STREQ(bytes, "hello");
+    filesystem->Close(handle);
+
+    EXPECT_FALSE(filesystem->FileExists("maps/missing.txt"));
+    EXPECT_EQ(filesystem->Open("maps/missing.txt", "rb", nullptr), nullptr);
+    EXPECT_EQ(filesystem->Size("maps/missing.txt"), static_cast<unsigned int>(-1));
+    EXPECT_FALSE(filesystem->FileExists("../etc/passwd"));
+    EXPECT_EQ(filesystem->Open("/etc/passwd", "rb", nullptr), nullptr);
+    EXPECT_EQ(filesystem->Open("maps/../../etc/passwd", "rb", nullptr), nullptr);
+    EXPECT_FALSE(filesystem->FileExists("leak"));
+    EXPECT_EQ(filesystem->Open("leak", "rb", nullptr), nullptr);
 }

@@ -687,6 +687,14 @@ steht. Er liest
 Eine fehlende Bibliothek oder ein fehlender Export ist kein Aufruf. Die
 Surface bleibt die einzige Factory. Das Spiel startet er nicht.
 
+**Dateisystem.** Dieselbe Factory-Liste beantwortet `VFileSystem009`, sobald
+der Host eine Wurzel gemountet hat. Die Surface bleibt der erste Eintrag.
+Der Proxy ist eigener Code und öffnet `hw.so` nicht. Er liest nur Dateien
+unter der übergebenen Wurzel. Eine fehlende Datei oder ein Pfad außerhalb
+dieser Wurzel ist ein Fehltreffer und kein erfundener Pfad. Es gibt kein
+zweites Dateisystem und keine zweite Factory. Retail-Daten liegen nicht im
+Repository. Der Host startet das Spiel nicht.
+
 **Ohne Steam-Prozess.** Der portierte Client startet keinen Steam-Client.
 Voraussetzung bleiben die Originaldaten des Besitzers: Maps, Modelle, Sounds
 und `valve/resource` (darunter Marlett). Sie liegen nicht im Repository. Der

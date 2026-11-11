@@ -28,6 +28,11 @@ It carries `GameUI007` and `GameConsole003` and no surface of its own. The
 host opens it after the surface factory, does not call into the game UI, and
 does not add a second factory.
 
+The same factory list answers `VFileSystem009` after the host mounts one root.
+The surface stays the first entry. The proxy reads only files under that root.
+A missing file is a miss. It does not open `hw.so`. The host does not start
+the game.
+
 The build registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 remains the offline record of the public-linux fingerprint. It is not the
 startup path.

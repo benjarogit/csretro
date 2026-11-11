@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-11
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; first product slice is `xash_surface.so`, a host-factory `VGUI_Surface026` with fills, texture quads and placeholder text cells)
 - **Branch:** `main`
-- **Commit:** surface slice on top of `07a7e23` (hash recorded with its CI run)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42987402851 – success (`07a7e23`); the surface slice run is recorded after this push
+- **Commit:** `19f5e0e` (surface adapter) and `c12ed9e` (source diffs stay visible)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43025967312 – success (`c12ed9e`)
 - **Version:** `0.1.0-dev` (`VERSION`)
 
 ## Verified (with evidence)

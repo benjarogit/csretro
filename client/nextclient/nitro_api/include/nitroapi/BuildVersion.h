@@ -9,6 +9,8 @@ namespace nitroapi
         Unknown,
         PublicLinux,
         PublicWindows,
+        // Product process. Xash3D is the engine; retail hw.so is not opened.
+        Xash,
     };
 
     // Identity of the detected game build. It is filled from the build registry

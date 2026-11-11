@@ -1,6 +1,5 @@
 #include "NitroApi.h"
 
-#include <filesystem>
 #include <ranges>
 
 #ifdef _WIN32
@@ -12,11 +11,9 @@
 #include <ncl_perf/profiler.h>
 #include <nitroapi/handler_helper/Handler.h>
 
-#include "build_registry.h"
 #include "FrameLifecycle.h"
 #include "modules/windows/WindowsModule.h"
-#include "modules/client/ClientAddressProviderPublicLinux.h"
-#include "modules/engine/EngineAddressProviderPublicLinux.h"
+#include "modules/engine/EngineAddressProviderXash.h"
 #include "modules/sdl2/SDL2AddressProvider.h"
 #include "modules/sdl2/loaded_sdl_module.h"
 
@@ -86,7 +83,7 @@ namespace nitroapi
 
         if (engine_provider != nullptr)
         {
-            std::string engine_path = IsWindows() ? "hw.dll" : "hw.so";
+            // Xash3D is this process. The retail engine file is not a module here.
             auto engine_module = std::make_unique<EngineModule>(
                 hook_storage_,
                 engine_provider,
@@ -97,7 +94,7 @@ namespace nitroapi
                 FrameLifecycle_GetDefaultService()
             );
             engine_data_ = engine_module->GetEngineData();
-            modules_.emplace_back(engine_path, std::move(engine_module));
+            modules_.emplace_back("<xash>", std::move(engine_module));
         }
         else
         {
@@ -191,6 +188,15 @@ namespace nitroapi
 
     void NitroApi::InvokeLibraryLoaded(const std::string& module_path, ModuleHookData& module_hook_data)
     {
+        if (module_path == "<xash>")
+        {
+            // Do not open, hash, or hook hw.so. Engine calls stay unset until an
+            // Xash adapter supplies them. Missing addresses are not hooks.
+            LOG(INFO) << "Xash3D engine is this process; hw.so is not opened";
+
+            return;
+        }
+
         nitro_utils::SysModule hModule;
 
         if (module_path == "<exe>")
@@ -223,7 +229,8 @@ namespace nitroapi
 
         module_hook_data.module->OnLibraryUnload();
 
-        if (module_path != "<exe>" && !module_hook_data.borrowed)
+        if (module_path != "<exe>" && module_path != "<xash>" && !module_hook_data.borrowed
+            && module_hook_data.module_handle != nullptr)
         {
             nitro_utils::UnloadSysModule(module_hook_data.module_handle);
         }
@@ -243,86 +250,30 @@ namespace nitroapi
 
     void NitroApi::DetectBuildIdentity()
     {
-        const std::string platform = IsWindows() ? "windows" : "linux";
-        const std::string engine_path = IsWindows() ? "hw.dll" : "hw.so";
-        const std::string client_path = IsWindows() ? "cstrike\\cl_dlls\\client.dll" : "cstrike/cl_dlls/client.so";
+        // The product engine is Xash3D. Retail hw.so and client.so are not read.
+        build_version_ = BuildVersion{};
+        build_version_.id = "xash";
+        build_version_.family = BuildFamily::Xash;
 
-        const std::string engine_sha256 = HashFileSha256(engine_path);
-
-        if (engine_sha256.empty())
-        {
-            LOG(INFO) << "Can't read " << engine_path << " to identify the game build";
-
-            return;
-        }
-
-        const std::string client_sha256 = HashFileSha256(client_path);
-
-        if (client_sha256.empty())
-        {
-            LOG(INFO) << "Can't read " << client_path << " to identify the game build";
-
-            return;
-        }
-
-        std::optional<BuildVersion> identity = IdentifyBuild({platform, engine_sha256, client_sha256});
-
-        if (!identity.has_value())
-        {
-            build_version_ = BuildVersion{};
-            build_version_.engine_sha256 = engine_sha256;
-            build_version_.client_sha256 = client_sha256;
-
-            LOG(INFO) << "Unknown game build: " << engine_path << " sha256=" << engine_sha256
-                      << ", " << client_path << " sha256=" << client_sha256;
-
-            return;
-        }
-
-        build_version_ = std::move(identity.value());
-
-        LOG(INFO) << "Game build identified: " << build_version_.id
-                  << " (Steam build " << build_version_.build_number << ")";
+        LOG(INFO) << "Game build identified: xash (Xash3D)";
     }
 
     std::shared_ptr<AddressProviderBase> NitroApi::GetEngineAddressProvider()
     {
-        switch (build_version_.family)
-        {
-            case BuildFamily::PublicLinux:
-                return std::make_shared<EngineAddressProviderPublicLinux>();
+        if (build_version_.family == BuildFamily::Xash)
+            return std::make_shared<EngineAddressProviderXash>();
 
-            case BuildFamily::PublicWindows:
-                LOG(INFO) << "Windows is not a supported CSRETRO target; engine hooks are disabled";
+        LOG(INFO) << "No address provider for this engine build; engine hooks are disabled";
 
-                return nullptr;
-
-            case BuildFamily::Unknown:
-            default:
-                LOG(INFO) << "No address provider for an unidentified engine build; engine hooks are disabled";
-
-                return nullptr;
-        }
+        return nullptr;
     }
 
     std::shared_ptr<AddressProviderBase> NitroApi::GetClientAddressProvider()
     {
-        switch (build_version_.family)
-        {
-            case BuildFamily::PublicLinux:
-                return std::make_shared<ClientAddressProviderPublicLinux>();
+        // Valve's client.so is i386 and is not a module of this process.
+        LOG(INFO) << "No client address provider in the Xash process; client hooks are disabled";
 
-            case BuildFamily::PublicWindows:
-                LOG(INFO) << "Windows is not a supported CSRETRO target; client hooks are disabled";
-
-                return nullptr;
-
-            case BuildFamily::Unknown:
-            default:
-                LOG(INFO) << "No address provider for an unidentified client build; client hooks are disabled";
-
-                return nullptr;
-        }
+        return nullptr;
     }
 
 #ifdef _WIN32

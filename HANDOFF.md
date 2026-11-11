@@ -336,10 +336,14 @@ implementation; the plan is the only source for the gate list.
   process; original maps, models, sounds and `valve/resource` stay required.
   Product process is x86_64 (plan section 3.7). The Linux client preset is
   `linux` with the vcpkg triplet `x64-linux`. There is no second 32-bit client
-  preset. `engine_mini-tests` (555), `nitro_api-tests` (69),
+  preset. `engine_mini-tests` (555), `nitro_api-tests` (70),
   `xash_surface-tests` (18), `xash_host-tests` (3) and `player_identity-tests`
   (6) pass as ELF64 binaries and do not load Valve's i386 `hw.so`, `client.so`
-  or `vgui2.so`. Still open: `engine_mini`/`nitro_api` off `hw.so`.
+  or `vgui2.so`. Product identity is `xash`. `NitroApi::Initialize` does not
+  open, hash, or hook `hw.so`. `nitro_api-tests` 70/70, including
+  `XashIdentity.InitializeDoesNotOpenOrHashTheRetailEngine`. `engine_mini-tests`
+  555/555. Missing engine addresses are not hooks and are not called.
+  Still open: an Xash adapter for the calls `engine_mini` forwards.
   Retail GoldSrc remains the working fallback. The server module, its
   `-m32` doctor probe, the goldsrc fact extractor, `golden_layout.cpp`,
   the Windows presets and the G04 ELF32 size table stay 32-bit records.
@@ -369,7 +373,8 @@ implementation; the plan is the only source for the gate list.
   at `239,201`, `CTeamMenu` hidden on release, `g_iTeamNumber` `0` at paint 30
   and `1` at paint 31, both framebuffer dumps `glerr=0`. The Linux client
   preset is `linux` / `x64-linux`. The test binaries above are ELF64.
-  Next: `engine_mini`/`nitro_api` move off `hw.so`.
+  Product identity is `xash`. Startup does not open `hw.so`.
+  Next: an Xash adapter for the engine calls `engine_mini` still forwards.
   The host factory and the mouse bind are in `xash_host`. `RunFrame` stays unused.
   Local identity is `ResolvePlayerIdentity` (plan section 3.7).
   `player_identity-tests` 6/6, no network. The lookup does not read Steam.
@@ -381,8 +386,8 @@ implementation; the plan is the only source for the gate list.
   promotes `repaint` only when `+0x30` (NEEDS_REPAINT) is set and `allowForce`
   is true; `surface()->PushMakeCurrent`/`PopMakeCurrent` bracket every paint;
   VGUI alpha 0 = opaque (engine 255 = opaque).
-- **Then:** port `engine_mini`/`nitro_api` off the `hw.so` hooks
-  (`vgui2_surface` and friends) onto an Xash3D engine adapter, and build
+- **Then:** add the Xash adapter for the engine calls `engine_mini` still forwards
+  (`vgui2_surface` and friends), and build
   `client_mini` + `vgui2` from the vendored `ncl-hl1-source-sdk` as one matched
   pair.
 - **After the decision:** schedule the server performance backlog above

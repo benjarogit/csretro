@@ -143,6 +143,14 @@ namespace nitroapi
     private:
         TResult InvokeInternal(uintptr_t address, TArgs... args)
         {
+            if (address == 0)
+            {
+                if constexpr (std::is_void_v<TResult>)
+                    return;
+                else
+                    return TResult{};
+            }
+
             return ((FuncTypeCdecl)address)(std::forward<TArgs>(args)...);
         }
 

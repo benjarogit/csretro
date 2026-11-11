@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
 #include <functional>
 #include <unordered_map>
 #include <utility>
@@ -163,6 +164,14 @@ namespace nitroapi
     private:
         TResult InvokeInternal(uintptr_t address, TArgs... args)
         {
+            if (address == 0)
+            {
+                if constexpr (std::is_void_v<TResult>)
+                    return;
+                else
+                    return TResult{};
+            }
+
             if constexpr (TConv == CallingConventions::Cdecl)
                 return ((FuncTypeCdecl)address)(std::forward<TArgs>(args)...);
             else if constexpr (TConv == CallingConventions::Stdcall)

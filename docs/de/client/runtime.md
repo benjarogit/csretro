@@ -1,39 +1,33 @@
 # Client-Laufzeit
 
-CSRETRO läuft nur auf dem **Default-Public-Branch** von Counter-Strike 1.6. Der
-Client erkennt den installierten Build, bevor er Engine- oder Client-Funktionen
-hookt.
+CSRETRO läuft nur auf dem **Default-Public-Branch** von Counter-Strike 1.6.
+Die Engine des Produktprozesses ist Xash3D. Die Entscheidung steht in
+[Plan, Abschnitt 3.7](../../plan/csretro-plan.md).
 
 ## Build-Erkennung
 
-Der Build wird über den Inhalt der beiden retail Binärdateien bestimmt, nicht
-über Dateigröße oder eine Versionszeichenkette:
+Die Produktidentität ist `xash` (`BuildFamily::Xash`). Der Start öffnet,
+hasht und hookt `hw.so` nicht und liest `client.so` nicht. Fehlende
+Engine-Adressen sind keine Hooks. Ein Aufruf springt nicht durch einen
+Null-Trampolin.
 
-| Datei | Rolle |
-|---|---|
-| `hw.so` | Engine (Linux) |
-| `cstrike/cl_dlls/client.so` | Spiel-Client |
+Die Build-Registry in `client/nextclient/nitro_api/src/build_registry.cpp`
+bleibt die Offline-Quelle für den Public-Linux-Fingerabdruck. Sie ist nicht
+der Startpfad.
 
-Beim Start berechnet der Client von beiden Dateien den SHA-256 und vergleicht das
-Paar mit der Build-Registry in `client/nextclient/nitro_api/src/build_registry.cpp`.
-Nur ein exakt passendes Paar ergibt eine Build-Identität. Die Registry enthält
-derzeit:
-
-| ID | Plattform | Steam-Build |
-|---|---|---|
-| `public-linux-1.0.1.4` | Linux | 12934623 |
-
-## Unbekannter Build
-
-Passt das Paar auf keinen Eintrag, protokolliert der Client beide Digests und
-schaltet die Hooks ab. Es gibt keinen Rückfall auf einen anderen Build und keine
-Schätzung über Dateigröße. Ein unbekannter Build bedeutet: CSRETRO funktioniert
-nicht, bis die Digests geprüft und ein Eintrag ergänzt wurde.
+| ID | Plattform | Steam-Build | Rolle |
+|---|---|---|---|
+| `xash` | Linux | – | Produktprozess |
+| `public-linux-1.0.1.4` | Linux | 12934623 | Offline-Fingerabdruck der Retail-Dateien |
 
 ## Adressauflösung
 
-Der Public-Provider liegt in `EngineAddressProviderPublicLinux.cpp` und
-`ClientAddressProviderPublicLinux.cpp`. Jeder Eintrag wird dreistufig aufgelöst:
+Der Produkt-Provider ist `EngineAddressProviderXash`. Er enthält keine
+Retail-Symboltabelle. Die Public-Provider in
+`EngineAddressProviderPublicLinux.cpp` und
+`ClientAddressProviderPublicLinux.cpp` bleiben der Katalog der Retail-Namen
+für die Offline-Prüfung. Der Produktprozess verwendet sie nicht. Jeder
+Retail-Eintrag wird dreistufig aufgelöst:
 
 1. **dynsym** – `dlsym` über den dynamischen Symboltabellen-Eintrag.
 2. **symtab** – vollständige ELF-Symboltabelle der Datei auf der Platte.
@@ -67,9 +61,9 @@ Drei Einträge weichen vom Regelfall ab:
 | `R_ForceCVars.part.3` | Symbol | Compiler-generierter Teil einer Funktion; im Public-Build nur so vorhanden |
 | `GL_ARB_multitexture ` | String | kommt in `hw.so` genau einmal vor |
 
-Die beiden generierten Namen sind an genau diese Binärdatei gebunden. Der Build
-ist über SHA-256 gepinnt; ein anderer Build erhält einen eigenen Provider, und
-das Werkzeug meldet jede Abweichung, bevor der Client startet.
+Die beiden generierten Namen sind an genau diese Binärdatei gebunden. Der
+Retail-Katalog ist über SHA-256 gepinnt. Das Werkzeug meldet jede Abweichung.
+Der Produktprozess lädt diesen Katalog nicht.
 
 `EngineMsgBase` ist die Tabelle `cl_parsefuncs`; ihr Aufbau
 `{opcode, pszname, pfnParse}` ist layoutgleich zu `goldsrc::EngineMsg`.
@@ -83,9 +77,9 @@ das Werkzeug meldet jede Abweichung, bevor der Client startet.
 4. `nitro_api-tests` laufen lassen; die Registry-Tests decken unbekannte,
    unvollständige und plattformfremde Fingerabdrücke ab.
 
-Ein neuer Build braucht außerdem einen eigenen Address-Provider, dessen
+Ein weiterer Retail-Katalog braucht einen eigenen Address-Provider, dessen
 Symbolnamen gegen die neuen Binärdateien geprüft werden. Der Resolver selbst
-bleibt unverändert.
+bleibt unverändert. Der Produktpfad bleibt `EngineAddressProviderXash`.
 
 ## Erster Start
 

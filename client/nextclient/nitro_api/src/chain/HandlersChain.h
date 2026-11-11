@@ -70,6 +70,14 @@ namespace nitroapi
                     }
                 }
 
+                if (chain_->hook_ == nullptr)
+                {
+                    if constexpr (std::is_void_v<TResult>)
+                        return;
+                    else
+                        return TResult{};
+                }
+
                 if constexpr (std::is_void_v<TResult>)
                 {
                     chain_->hook_->InvokeOriginal(std::forward<TArgs>(args)...);

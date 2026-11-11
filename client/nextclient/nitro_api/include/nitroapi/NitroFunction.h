@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits>
+
 #include "chain/HandlersChainInterface.h"
 #include "ChainExtensions.h"
 #include "Concepts.h"
@@ -61,6 +63,22 @@ namespace nitroapi
         }
 
     protected:
+        // No hook object means the address was never resolved. A hook object that
+        // reports address 0 can still be a test double whose Invoke runs the
+        // callback, so only a null hook is skipped here.
+        bool HasHook() const
+        {
+            return hook_ != nullptr;
+        }
+
+        static TResult MissingTarget()
+        {
+            if constexpr (std::is_void_v<TResult>)
+                return;
+            else
+                return TResult{};
+        }
+
         void AttachHookIfNeeded()
         {
             if (hook_ != nullptr && chain_->GetHook() == nullptr && (chain_->GetSubscribersCount() > 0 || chain_->GetHandlersCount() > 0))
@@ -76,11 +94,17 @@ namespace nitroapi
     public:
         TResult operator()(TArgs... args) const
         {
+            if (!this->HasHook())
+                return this->MissingTarget();
+
             return this->hook_->InvokeOriginal(std::forward<TArgs>(args)...);
         }
 
         TResult InvokeChained(TArgs... args) const
         {
+            if (!this->HasHook())
+                return this->MissingTarget();
+
             return this->hook_->Invoke(std::forward<TArgs>(args)...);
         }
 
@@ -109,6 +133,9 @@ namespace nitroapi
     public:
         inline TFunc GetFunc() const
         {
+            if (!this->HasHook())
+                return nullptr;
+
             if (this->hook_->IsHookActive())
                 return (TFunc)this->hook_->GetTrampolineAddress();
 
@@ -117,6 +144,9 @@ namespace nitroapi
 
         inline TFunc GetChainedFunc() const
         {
+            if (!this->HasHook())
+                return nullptr;
+
             return (TFunc)this->hook_->GetOriginalFunctionAddress();
         }
     };
@@ -129,11 +159,17 @@ namespace nitroapi
     public:
         void operator()(TArgs... args) const
         {
+            if (!this->HasHook())
+                return;
+
             this->hook_->InvokeOriginal(std::forward<TArgs>(args)...);
         }
 
         void InvokeChained(TArgs... args) const
         {
+            if (!this->HasHook())
+                return;
+
             this->hook_->Invoke(std::forward<TArgs>(args)...);
         }
 
@@ -162,6 +198,9 @@ namespace nitroapi
     public:
         inline TFunc GetFunc() const
         {
+            if (!this->HasHook())
+                return nullptr;
+
             if (this->hook_->IsHookActive())
                 return (TFunc)this->hook_->GetTrampolineAddress();
 
@@ -170,6 +209,9 @@ namespace nitroapi
 
         inline TFunc GetChainedFunc() const
         {
+            if (!this->HasHook())
+                return nullptr;
+
             return (TFunc)this->hook_->GetOriginalFunctionAddress();
         }
     };

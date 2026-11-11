@@ -350,8 +350,9 @@ Offener Rest daraus: der Push/Pop-Offset. Fonts sind separat in 3.6.4 gemessen
 
 Nebenbefunde:
 
-- `engine_mini`/`nitro_api` haken in `hw.so` (`vgui2_surface` u. a.). Mit Xash3D
-  entfällt `hw.so`; die Hooks brauchen einen Xash3D-Engine-Adapter.
+- `engine_mini` reicht Engine-Aufrufe über `nitro_api` weiter. Der Produktprozess
+  öffnet, hasht und hookt `hw.so` nicht (Abschnitt 3.7). Die Aufrufe haben noch
+  keinen Xash3D-Einsprung; das ist der nächste Adapter.
 - HTML/MOTD verlangt einen ChromeHTML-Controller/Serializer. Ohne CEF wird MOTD
   in CSRETRO deaktiviert oder durch eine einfache Text-Ansicht ersetzt.
 - Ein x86_64-Client setzt quelloffenen 64-Bit-Client-Gamecode voraus. Valves
@@ -645,6 +646,14 @@ und `hw.so` sind i386 und werden nicht in diesen Prozess geladen. Client und
 ist das Preset `linux` mit dem vcpkg-Triplet `x64-linux`. Es gibt kein
 zweites 32-bit-Client-Preset. Das Server-Modul bleibt i386, weil ReHLDS es
 so lädt. Es gibt keine zweite Surface.
+
+**Engine-Identität.** Der Produktprozess ist Xash3D, nicht der Public-Linux-SHA
+von `hw.so`. `NitroApi` öffnet, hasht und hookt diese Datei nicht. Es gibt
+einen Provider, `EngineAddressProviderXash`, und keine zweite Kopie der
+Public-Linux-Tabelle. Fehlende Adressen sind keine Hooks. Ein Aufruf springt
+nicht durch einen Null-Trampolin. `GenericHookJit` bleibt i386 und läuft in
+diesem Prozess nicht. Die Retail-Symboltabelle bleibt die Quelle für die
+Offline-Prüfung und ist nicht der Produktpfad.
 
 **Ohne Steam-Prozess.** Der portierte Client startet keinen Steam-Client.
 Voraussetzung bleiben die Originaldaten des Besitzers: Maps, Modelle, Sounds

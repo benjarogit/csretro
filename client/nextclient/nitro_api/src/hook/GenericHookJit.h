@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
 #include <utility>
 #include <funchook.h>
 #include <xbyak.h>
@@ -208,6 +209,14 @@ namespace nitroapi
     private:
         TResult InvokeInternal(uintptr_t address, TArgs... args)
         {
+            if (address == 0)
+            {
+                if constexpr (std::is_void_v<TResult>)
+                    return;
+                else
+                    return TResult{};
+            }
+
             static_assert(TConv != CallingConventions::Fastcall, "Unsupported CallingConventions::Fastcall");
             static_assert(TConv != CallingConventions::Thiscall, "Unsupported CallingConventions::Thiscall");
 

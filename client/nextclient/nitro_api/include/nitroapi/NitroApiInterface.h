@@ -41,9 +41,7 @@ namespace nitroapi
         virtual void GetVersion(char* buffer, int size) = 0;
     };
 
-#if NITRO_API_STATIC
     NitroApiInterface* GetNitroApi();
-#endif
 
 #define NITROAPI_INTERFACE_VERSION "NITRO_API_001"
 }

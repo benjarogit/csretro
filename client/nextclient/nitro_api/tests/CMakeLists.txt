@@ -51,7 +51,7 @@ target_compile_options(nitro_api-tests PRIVATE
         "$<$<CXX_COMPILER_ID:MSVC>:/fp:precise>"
         "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fno-fast-math;-ffp-contract=off>"
 )
-target_compile_definitions(nitro_api-tests PRIVATE ELPP_THREAD_SAFE ELPP_DISABLE_DEFAULT_CRASH_HANDLING NOMINMAX)
+target_compile_definitions(nitro_api-tests PRIVATE ELPP_THREAD_SAFE ELPP_DISABLE_DEFAULT_CRASH_HANDLING NOMINMAX NITRO_API_STATIC)
 
 if (WIN32)
     add_custom_command(TARGET nitro_api-tests POST_BUILD
@@ -64,7 +64,12 @@ if (NOT WIN32)
     target_compile_options(resolver-test-module PRIVATE -O0 -fno-omit-frame-pointer)
     set_target_properties(resolver-test-module PROPERTIES
             LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
-    target_sources(nitro_api-tests PRIVATE ResolverTests.cpp)
+    target_sources(nitro_api-tests PRIVATE
+            ResolverTests.cpp
+            XashIdentityTests.cpp
+            ../src/NitroApi.cpp
+            ../src/modules/windows/WindowsModule.cpp
+            ../src/modules/engine/EngineAddressProviderXash.cpp)
     add_dependencies(nitro_api-tests resolver-test-module)
     target_compile_definitions(nitro_api-tests PRIVATE RESOLVER_TEST_MODULE_PATH="$<TARGET_FILE:resolver-test-module>")
 endif ()

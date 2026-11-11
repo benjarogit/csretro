@@ -14,9 +14,10 @@ This subtree owns build-specific addresses, stock function signatures and hook r
 - Keep existing public data-member offsets and static hook IDs stable when extending the API.
   Append data members at the current end, not at a historical insertion point from an old session.
   Check enum values when adding a hook because many IDs are implicit increments.
-- Builds are identified by SHA-256 fingerprints of `hw.so`/`hw.dll` and `client.so`/`client.dll` in
-  `src/build_registry.cpp`; each supported build gets its own address provider. Verify each supported
-  path affected by a change; a Windows build cannot validate a Linux signature or address.
+- The product identity is Xash3D (`BuildFamily::Xash`). Startup does not open, hash, or hook
+  `hw.so`. `EngineAddressProviderXash` is the only runtime provider and it has no retail symbol
+  table. `build_registry.cpp` still records the public-linux fingerprint for the offline check;
+  it is not the startup path. Missing addresses are not hooks and must not be called.
 - A chained hook's `next` controls execution of the remaining chain. Call it according to the
   intended replacement/forwarding contract and preserve the return value; duplicate forwarding
   can repeat engine work, while an omitted call can suppress unrelated subscribers.

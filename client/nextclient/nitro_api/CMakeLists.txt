@@ -64,6 +64,8 @@ add_library(nitro_api SHARED
         src/modules/client/ClientAddressProviderPublicLinux.h
         src/modules/engine/EngineAddressProviderPublicLinux.cpp
         src/modules/engine/EngineAddressProviderPublicLinux.h
+        src/modules/engine/EngineAddressProviderXash.cpp
+        src/modules/engine/EngineAddressProviderXash.h
 )
 
 # Built with nitro_api, never linked into it: the layout test is a compile-time check.

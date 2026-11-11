@@ -338,7 +338,8 @@ implementation; the plan is the only source for the gate list.
   `linux` with the vcpkg triplet `x64-linux`. There is no second 32-bit client
   preset. `engine_mini-tests` (555), `nitro_api-tests` (70),
   `xash_surface-tests` (18), `xash_host-tests` (9), `xash_engine-tests` (3),
-  `sdk_pair-tests` (4) and `player_identity-tests` (6) pass as ELF64 binaries
+  `sdk_pair-tests` (4), `player_identity-tests` (6) and `steam_api-tests` (2)
+  pass as ELF64 binaries
   and do not load Valve's
   i386 `hw.so`, `client.so`
   or `vgui2.so`. Product identity is `xash`. `NitroApi::Initialize` does not
@@ -354,7 +355,8 @@ implementation; the plan is the only source for the gate list.
   same SDK as ELF64 and links the host runtime. The host opens it after the
   surface factory and does not call into the game UI. The same factory list
   answers `VFileSystem009` after one root is mounted. A missing file is a miss.
-  The launcher and steam_api proxy stay unbuilt.
+  The ELF64 `libsteam_api.so` reports logged out and does not start Steam.
+  A missing interface is not called. The launcher stays unbuilt.
   Retail GoldSrc remains the working fallback. The server module, its
   `-m32` doctor probe, the goldsrc fact extractor, `golden_layout.cpp`,
   the Windows presets and the G04 ELF32 size table stay 32-bit records.
@@ -392,7 +394,8 @@ implementation; the plan is the only source for the gate list.
   surface factory and does not call into it.
   The filesystem proxy answers `VFileSystem009` on that same list. The surface
   stays first. A missing file is a miss.
-  Next: the steam_api proxy. It does not start Steam. The launcher stays unbuilt.
+  The ELF64 `libsteam_api.so` reports logged out. It does not start Steam.
+  Next: the launcher. It is not executed. The host still does not start the game.
   The host factory and the mouse bind are in `xash_host`. `RunFrame` stays unused.
   Local identity is `ResolvePlayerIdentity` (plan section 3.7).
   `player_identity-tests` 6/6, no network. The lookup does not read Steam.
@@ -404,9 +407,8 @@ implementation; the plan is the only source for the gate list.
   promotes `repaint` only when `+0x30` (NEEDS_REPAINT) is set and `allowForce`
   is true; `surface()->PushMakeCurrent`/`PopMakeCurrent` bracket every paint;
   VGUI alpha 0 = opaque (engine 255 = opaque).
-- **Then:** the steam_api proxy. It does not start Steam. The launcher stays
-  unbuilt. The host still does not start the game. The other `engine_mini`
-  retail forwards stay as they are.
+- **Then:** the launcher. It is not executed. The host still does not start
+  the game. The other `engine_mini` retail forwards stay as they are.
 - **After the decision:** schedule the server performance backlog above
   (measurement first, then hookchain/native/per-frame work). It needs a plan gate
   entry.

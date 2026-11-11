@@ -33,6 +33,11 @@ The surface stays the first entry. The proxy reads only files under that root.
 A missing file is a miss. It does not open `hw.so`. The host does not start
 the game.
 
+The one `libsteam_api.so` is the ELF64 host library. It does not load Valve's
+i386 library and it does not start Steam. When Steam is not already logged in
+it reports logged out. A missing interface name is not called. The name stays
+`ResolvePlayerIdentity` and the `name` setinfo, with no portrait.
+
 The build registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 remains the offline record of the public-linux fingerprint. It is not the
 startup path.

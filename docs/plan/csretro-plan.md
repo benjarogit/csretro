@@ -695,6 +695,16 @@ dieser Wurzel ist ein Fehltreffer und kein erfundener Pfad. Es gibt kein
 zweites Dateisystem und keine zweite Factory. Retail-Daten liegen nicht im
 Repository. Der Host startet das Spiel nicht.
 
+**steam_api.** Die eine Bibliothek ist die ELF64-`libsteam_api.so` des Hosts.
+Sie lädt Valves i386-Bibliothek nicht, startet keinen Steam-Prozess, speichert
+keine Zugangsdaten und spricht VAC nicht an. `SteamAPI_Init` bleibt
+abgemeldet. `SteamUser016` antwortet mit `BLoggedOn` falsch. Ein unbekannter
+Schnittstellenname ist ein Fehlschlag und kein Aufruf. Die Persona geht in
+den bestehenden Slot `ResolvePlayerIdentity`: ohne laufendes, eingeloggtes
+Steam bleibt der `name`-Setinfo und es gibt kein Portrait. Das ist nicht der
+Serverpfad. Ein öffentlicher Server braucht weiter echte Steam-Anbindung.
+Der Host startet das Spiel nicht.
+
 **Ohne Steam-Prozess.** Der portierte Client startet keinen Steam-Client.
 Voraussetzung bleiben die Originaldaten des Besitzers: Maps, Modelle, Sounds
 und `valve/resource` (darunter Marlett). Sie liegen nicht im Repository. Der

@@ -1,13 +1,12 @@
-// Symbols that the Source SDK imports from Valve's i386 libtier0.so, libvstdlib.so
-// and libsteam_api.so. This process does not load those libraries. The functions
-// below exist so the x86_64 unit tests can link. They do not start Steam.
+// Symbols that the Source SDK imports from Valve's i386 libtier0.so. This process
+// does not load that library. The functions below exist so the x86_64 unit tests
+// can link. Steam accessors live in the ELF64 libsteam_api.so.
 
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <ctime>
 
-#include <steam/steam_api.h>
 #include <tier0/dbg.h>
 #include <tier0/icommandline.h>
 #include <tier0/platform.h>
@@ -134,28 +133,3 @@ extern "C" bool DoNewAssertDialog(tchar const*, int, tchar const*)
 extern "C" void _AssertValidReadPtr(void*, int) {}
 extern "C" void _AssertValidWritePtr(void*, int) {}
 extern "C" void AssertValidStringPtr(tchar const*, int) {}
-
-extern "C" ISteamApps* SteamApps()
-{
-    return nullptr;
-}
-
-extern "C" ISteamMatchmaking* SteamMatchmaking()
-{
-    return nullptr;
-}
-
-extern "C" ISteamMatchmakingServers* SteamMatchmakingServers()
-{
-    return nullptr;
-}
-
-extern "C" ISteamUser* SteamUser()
-{
-    return nullptr;
-}
-
-extern "C" ISteamUtils* SteamUtils()
-{
-    return nullptr;
-}

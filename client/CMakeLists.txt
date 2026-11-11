@@ -163,6 +163,12 @@ target_include_directories(vstdlib PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public/tier1")
 target_compile_definitions(vstdlib PRIVATE GNUC LINUX POSIX _LINUX NO_MALLOC_OVERRIDE)
 add_library(steam_api SHARED sdk_host/steam_api_stub.cpp)
+target_include_directories(steam_api PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/sdk_host/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/nextclient/packages/player_identity/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public"
+        "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public/tier0")
+target_compile_definitions(steam_api PRIVATE GNUC LINUX POSIX _LINUX STEAM_API_EXPORTS)
 
 add_subdirectory(dep/ncl-hl1-source-sdk)
 add_subdirectory(dep/nitro_utils)
@@ -175,6 +181,18 @@ add_subdirectory(nextclient/nitro_api)
 unset(CMAKE_CXX_STANDARD)
 
 add_subdirectory(nextclient/packages)
+if (NEXTCLIENT_BUILD_TESTS)
+    find_package(GTest CONFIG REQUIRED)
+    include(GoogleTest)
+    add_executable(steam_api-tests sdk_host/tests/SteamProxyTests.cpp)
+    target_include_directories(steam_api-tests PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/sdk_host/include"
+            "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public"
+            "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public/tier0")
+    target_compile_definitions(steam_api-tests PRIVATE GNUC LINUX POSIX _LINUX)
+    target_link_libraries(steam_api-tests PRIVATE steam_api player_identity::player_identity GTest::gtest_main)
+    gtest_discover_tests(steam_api-tests)
+endif ()
 add_subdirectory(nextclient/xash_engine)
 add_subdirectory(nextclient/engine_mini)
 add_subdirectory(nextclient/xash_surface)

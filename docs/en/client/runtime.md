@@ -10,6 +10,11 @@ The product identity is `xash` (`BuildFamily::Xash`). Startup does not open,
 hash, or hook `hw.so`, and it does not read `client.so`. Missing engine
 addresses are not hooks. A call does not jump through a null trampoline.
 
+`vgui2_surface`, `VGUI2_ResetCurrentTexture` and `VGUI2_Draw_SetTextColor` go
+through `xash_engine` to the one surface. `VGUI2_Draw_Init` has no entry
+there. A missing function pointer is not called. The other `engine_mini`
+forwards stay on the retail hook.
+
 The build registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 remains the offline record of the public-linux fingerprint. It is not the
 startup path.

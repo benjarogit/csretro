@@ -1,22 +1,60 @@
 #include "engine.h"
 
 #include <easylogging++.h>
+#include <xash_engine/xash_engine.h>
 
 #include "text/text_surface.h"
 
+namespace
+{
+
+    template <class Function>
+    bool HasRetailHook(const Function& function)
+    {
+        return function.GetHook() != nullptr;
+    }
+
+} // namespace
+
+void* VGUI2_Surface()
+{
+    nitroapi::EngineData* engine = eng();
+    if (engine != nullptr && engine->vgui2_surface != nullptr && *engine->vgui2_surface != nullptr)
+    {
+        return *engine->vgui2_surface;
+    }
+    const csr_xash_engine_surface_t* bound = csr_xash_engine_surface();
+    return bound != nullptr ? bound->object : nullptr;
+}
+
 void VGUI2_Draw_Init()
 {
-    eng()->VGUI2_Draw_Init();
+    if (HasRetailHook(eng()->VGUI2_Draw_Init))
+    {
+        eng()->VGUI2_Draw_Init();
+        return;
+    }
+    csr_xash_engine_draw_init();
 }
 
 void VGUI2_ResetCurrentTexture()
 {
-    eng()->VGUI2_ResetCurrentTexture();
+    if (HasRetailHook(eng()->VGUI2_ResetCurrentTexture))
+    {
+        eng()->VGUI2_ResetCurrentTexture();
+        return;
+    }
+    csr_xash_engine_reset_texture();
 }
 
 void VGUI2_Draw_SetTextColor(int r, int g, int b)
 {
-    eng()->VGUI2_Draw_SetTextColor(r, g, b);
+    if (HasRetailHook(eng()->VGUI2_Draw_SetTextColor))
+    {
+        eng()->VGUI2_Draw_SetTextColor(r, g, b);
+        return;
+    }
+    csr_xash_engine_set_text_color(r, g, b);
 }
 
 // The engine keeps its own pointer to its surface, and so does stock client.dll, which resolves it by

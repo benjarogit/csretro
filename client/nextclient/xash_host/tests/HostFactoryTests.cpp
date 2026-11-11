@@ -1,5 +1,7 @@
 #include "xash_host/xash_host.h"
 
+#include "xash_engine/xash_engine.h"
+
 #include <gtest/gtest.h>
 #include <vgui/ISurface.h>
 
@@ -85,6 +87,10 @@ TEST_F(HostFactory, SurfaceFactoryIsFirstAndExtrasAreNotAskedForIt)
 
     g_extra_calls = 0;
     EXPECT_EQ(csr_host_create_interface("VGUI_Surface026", nullptr), surface);
+    EXPECT_EQ(csr_xash_engine_surface()->object, surface);
+    csr_xash_engine_set_text_color(1, 2, 3);
+    csr_xash_engine_reset_texture();
+    csr_xash_engine_draw_init();
     EXPECT_EQ(g_extra_calls, 0);
     void* filesystem = csr_host_create_interface("FileSystem", nullptr);
     ASSERT_NE(filesystem, nullptr);

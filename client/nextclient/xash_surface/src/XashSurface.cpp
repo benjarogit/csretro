@@ -1,5 +1,7 @@
 #include "xash_surface/xash_surface.h"
 
+#include "xash_engine/xash_engine.h"
+
 #include "font_atlas.h"
 #include "font_face.h"
 #include "surface_map.h"
@@ -1540,4 +1542,41 @@ void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t
 void* csr_surface_vgui(csr_surface_t* surface)
 {
     return As(surface);
+}
+
+namespace
+{
+
+    void ResetTexture(void* object)
+    {
+        static_cast<vgui2::ISurface*>(object)->DrawSetTexture(0);
+    }
+
+    void SetTextColor(void* object, int r, int g, int b)
+    {
+        // VGUI alpha 0 is opaque on this surface.
+        static_cast<vgui2::ISurface*>(object)->DrawSetTextColor(r, g, b, 0);
+    }
+
+} // namespace
+
+void csr_surface_engine_hooks(csr_surface_t* surface, csr_xash_engine_surface_t* out)
+{
+    if (out == nullptr)
+    {
+        return;
+    }
+    *out = {};
+    if (surface == nullptr)
+    {
+        return;
+    }
+    out->object = csr_surface_vgui(surface);
+    if (out->object == nullptr)
+    {
+        return;
+    }
+    // This surface has no separate draw-init entry. Reset and text color are the calls.
+    out->reset_texture = ResetTexture;
+    out->set_text_color = SetTextColor;
 }

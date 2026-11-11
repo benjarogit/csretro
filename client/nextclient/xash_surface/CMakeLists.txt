@@ -18,6 +18,7 @@ target_include_directories(xash_surface
         PUBLIC include
         PRIVATE
         src
+        "${CMAKE_CURRENT_SOURCE_DIR}/../xash_engine/include"
         "${XASH_SURFACE_SDK}"
         "${XASH_SURFACE_SDK}/tier0"
         "${XASH_SURFACE_SDK}/tier1")

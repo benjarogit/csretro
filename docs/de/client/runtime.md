@@ -11,6 +11,11 @@ hasht und hookt `hw.so` nicht und liest `client.so` nicht. Fehlende
 Engine-Adressen sind keine Hooks. Ein Aufruf springt nicht durch einen
 Null-Trampolin.
 
+`vgui2_surface`, `VGUI2_ResetCurrentTexture` und `VGUI2_Draw_SetTextColor`
+gehen über `xash_engine` an die eine Surface. `VGUI2_Draw_Init` hat dort
+keinen Einstieg. Ein fehlender Funktionszeiger wird nicht aufgerufen. Die
+übrigen `engine_mini`-Weiterleitungen bleiben am Retail-Hook.
+
 Die Build-Registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 bleibt die Offline-Quelle für den Public-Linux-Fingerabdruck. Sie ist nicht
 der Startpfad.

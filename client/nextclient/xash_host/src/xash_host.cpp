@@ -1,5 +1,6 @@
 #include "xash_host/xash_host.h"
 
+#include "xash_engine/xash_engine.h"
 #include "xash_surface/xash_surface.h"
 
 #include <dlfcn.h>
@@ -96,6 +97,14 @@ int csr_host_open(const char* path)
     }
 
     g_surface.surface = g_surface.create(nullptr);
+    using HooksFn = void (*)(csr_surface_t*, csr_xash_engine_surface_t*);
+    HooksFn hooks = LoadSymbol<HooksFn>(module, "csr_surface_engine_hooks");
+    if (hooks != nullptr)
+    {
+        csr_xash_engine_surface_t engine_surface{};
+        hooks(g_surface.surface, &engine_surface);
+        csr_xash_engine_bind(&engine_surface);
+    }
     g_list[0] = g_surface.create_interface;
     g_count = 1;
     return 1;
@@ -103,6 +112,7 @@ int csr_host_open(const char* path)
 
 void csr_host_close(void)
 {
+    csr_xash_engine_clear();
     if (g_surface.surface != nullptr && g_surface.destroy != nullptr)
     {
         g_surface.destroy(g_surface.surface);

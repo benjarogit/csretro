@@ -81,6 +81,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} ${TARGET_LIBRARIES_SCOPE}
         nitro_api::nitro_api
+        xash::engine
         funchook-static
         NextClient::gameui
         NextClient::filesystem_proxy

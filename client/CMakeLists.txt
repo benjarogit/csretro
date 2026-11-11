@@ -164,6 +164,7 @@ add_subdirectory(nextclient/nitro_api)
 unset(CMAKE_CXX_STANDARD)
 
 add_subdirectory(nextclient/packages)
+add_subdirectory(nextclient/xash_engine)
 add_subdirectory(nextclient/engine_mini)
 add_subdirectory(nextclient/xash_surface)
 add_subdirectory(nextclient/xash_host)

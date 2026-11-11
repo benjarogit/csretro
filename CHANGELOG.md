@@ -24,6 +24,9 @@ The authoritative version string is the `VERSION` file.
   persona supplies the shown name and, when pixels are already present, the
   portrait. Otherwise the slot is the in-game name and has no portrait. The
   lookup does not start Steam, store credentials, or download an image.
+- `xash_engine` forwards `vgui2_surface`, texture reset and text color to the
+  one Xash surface. A missing function is not called. Other `engine_mini`
+  forwards stay on the retail hook path.
 - The product engine identity is Xash3D. `nitro_api` does not open, hash, or hook
   `hw.so`. Missing engine addresses are not hooks and are not called.
 - The Linux client preset builds x86_64 and uses the vcpkg triplet `x64-linux`.

@@ -655,6 +655,15 @@ nicht durch einen Null-Trampolin. `GenericHookJit` bleibt i386 und läuft in
 diesem Prozess nicht. Die Retail-Symboltabelle bleibt die Quelle für die
 Offline-Prüfung und ist nicht der Produktpfad.
 
+**Engine-Adapter.** Ein Adapter, `xash_engine`, bedient die Weiterleitung von
+`vgui2_surface`, `VGUI2_Draw_Init`, `VGUI2_ResetCurrentTexture` und
+`VGUI2_Draw_SetTextColor`. Liegt ein Retail-Hook vor, bleibt dieser Aufruf.
+Sonst ruft der Adapter nur gesetzte Funktionszeiger der einen Surface.
+`VGUI2_Draw_Init` hat an dieser Surface keinen eigenen Einstieg und ist dann
+kein Aufruf. Textfarbe geht mit VGUI-Alpha 0 an `DrawSetTextColor`. Ein
+fehlender Zeiger wird nicht aufgerufen. Die übrigen Weiterleitungen von
+`engine_mini` bleiben unverändert.
+
 **Ohne Steam-Prozess.** Der portierte Client startet keinen Steam-Client.
 Voraussetzung bleiben die Originaldaten des Besitzers: Maps, Modelle, Sounds
 und `valve/resource` (darunter Marlett). Sie liegen nicht im Repository. Der

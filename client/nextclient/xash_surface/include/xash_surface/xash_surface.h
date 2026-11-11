@@ -78,6 +78,10 @@ CSR_SURFACE_API int csr_surface_gl_error(const csr_surface_t* surface);
 CSR_SURFACE_API void csr_surface_input_move(csr_surface_t* surface, int x, int y);
 CSR_SURFACE_API void csr_surface_input_button(csr_surface_t* surface, int button, int down);
 CSR_SURFACE_API void* csr_surface_vgui(csr_surface_t* surface);
+
+struct csr_xash_engine_surface;
+/* Fills the one engine adapter. A null slot is not a call. */
+CSR_SURFACE_API void csr_surface_engine_hooks(csr_surface_t* surface, struct csr_xash_engine_surface* out);
 CSR_SURFACE_API void csr_surface_set_panel(csr_surface_t* surface, const csr_surface_panel_fns_t* panel);
 CSR_SURFACE_API void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t* input);
 CSR_SURFACE_API void* csr_surface_create_interface(const char* name, int* code);

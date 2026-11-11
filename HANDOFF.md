@@ -6,7 +6,7 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-11
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
 - **Commit:** `fa4b940` (host publishes the VGUI surface factory; harness note `35a5115`)
 - **CI:** https://github.com/benjarogit/csretro/actions/runs/43067601276 – success (`fa4b940`); https://github.com/benjarogit/csretro/actions/runs/43067680770 – success (`35a5115`)
@@ -366,6 +366,8 @@ implementation; the plan is the only source for the gate list.
   x86_64 product process, one surface, no second build;
   (2) `engine_mini`/`nitro_api` move off `hw.so`.
   The host factory and the mouse bind are in `xash_host`. `RunFrame` stays unused.
+  Local identity is `ResolvePlayerIdentity` (plan section 3.7).
+  `player_identity-tests` 6/6, no network. The lookup does not read Steam.
   Keep the Xvfb screen equal to the game resolution.
 - **Wiki reference gathered:** Tier1, VGUI Documentation, Category:VGUI (54
   pages + 3 subcategories), KeyValues, Panel, RootPanel, VPANEL, Frame. Key
@@ -1156,6 +1158,11 @@ surface name wins, and that `RunFrame` updates mouse focus before dispatch.
 Not in this slice: scheme textures, blur, scanlines, outline, and starting
 Xash from this host. Marlett is resolved by the host. The spike stub is still
 what paints the real VGUI2 tree.
+
+## Player identity (2026-11-11)
+
+`ResolvePlayerIdentity` is the local slot. Evidence: `player_identity-tests`
+6/6 on preset `linux-tests`, ELF32, no network. The rule is plan section 3.7.
 
 ## Gate log
 

@@ -654,6 +654,16 @@ ihn ersetzt.
 **Bildrate.** 60 fps ist die Untergrenze, keine Obergrenze. Counter-Strike 1.6
 lief darüber. Kein 60-Hz-VSync-Lock und kein zweites fps-Cvar.
 
+**Spieleridentität.** Ein Slot, `ResolvePlayerIdentity`. Er bekommt den
+bestehenden Spielnamen aus dem `name`-Setinfo und optional eine Persona.
+Ist die Persona eingeloggt und hat einen Namen, ist das der angezeigte
+Name. Ein Portrait gibt es nur, wenn dieselben Angaben bereits Pixel
+enthalten. Sonst bleibt der Spielname, und es gibt kein Portrait. Die
+Funktion lädt nichts herunter, speichert nichts und startet Steam nicht.
+Die Retail-`steam_api` der Installation ist i386 und wird in den
+x86_64-Prozess nicht geladen. Es gibt kein zweites Namens-Cvar und keinen
+zweiten Avatar-Cache.
+
 Der erste Stand liegt in `client/nextclient/xash_surface/` (Target
 `xash_surface`, Artefakt `xash_surface.so`):
 

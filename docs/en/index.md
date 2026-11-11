@@ -34,6 +34,7 @@ German and English trees cannot drift apart.
 | First client start | [G07](client/first-start.md) |
 | VGUI surface on Xash3D | [G07](client/xash-surface.md) |
 | Surface host factory | [G07](client/xash-host.md) |
+| Player identity | [G07](client/player-identity.md) |
 | Cvar reference (generated) | G11 |
 | Command reference (generated) | G11 |
 | Native reference (generated) | G11 |

@@ -34,6 +34,7 @@ damit die Struktur nicht zwischen Deutsch und Englisch auseinanderläuft.
 | Erster Client-Start | [G07](client/first-start.md) |
 | VGUI-Surface auf Xash3D | [G07](client/xash-surface.md) |
 | Host-Factory der Surface | [G07](client/xash-host.md) |
+| Spieleridentität | [G07](client/player-identity.md) |
 | Cvar-Referenz (generiert) | G11 |
 | Command-Referenz (generiert) | G11 |
 | Native-Referenz (generiert) | G11 |

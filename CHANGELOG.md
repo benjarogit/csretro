@@ -20,7 +20,10 @@ The authoritative version string is the `VERSION` file.
   `VGUI_Surface026` factory. Our `vgui2` exports `csr_vgui_dispatch_messages`
   because the retail library keeps `DispatchMessages` local. The Xash client
   does not start a Steam process; original game content stays required.
-  Tests run from the `linux-tests` preset.
+- `ResolvePlayerIdentity` is the one local player slot. A logged-in Steam
+  persona supplies the shown name and, when pixels are already present, the
+  portrait. Otherwise the slot is the in-game name and has no portrait. The
+  lookup does not start Steam, store credentials, or download an image.
 - Repository harness: `AGENTS.md`, `HANDOFF.md`, `CREDITS.md`, `VERSION`,
   `versions.lock.json`.
 - Repository verification: `scripts/verify.sh`, `scripts/clean.sh`,

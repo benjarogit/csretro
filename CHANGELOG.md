@@ -24,6 +24,8 @@ The authoritative version string is the `VERSION` file.
   persona supplies the shown name and, when pixels are already present, the
   portrait. Otherwise the slot is the in-game name and has no portrait. The
   lookup does not start Steam, store credentials, or download an image.
+- `xash_host` opens `gameui` after the one surface factory and reads
+  `GameUI007` and `GameConsole003`. It does not call into the game UI.
 - `gameui` builds as ELF64 from the same SDK revision and links the host
   runtime. It exposes `GameUI007` and does not carry a second surface.
 - `xash_host` loads the matched `client_mini` and `vgui2` after the one

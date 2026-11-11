@@ -27,7 +27,8 @@ ist ein Fehlschlag und kein Aufruf. Der Host startet das Spiel nicht.
 
 `gameui` ist ELF64 aus derselben SDK-Revision und linkt dieselbe Host-Laufzeit.
 Es trägt `GameUI007` und `GameConsole003` und keine eigene Surface. Der Host
-lädt es noch nicht.
+öffnet es nach der Surface-Factory, ruft die Spieloberfläche nicht auf und
+hängt keine zweite Factory an.
 
 Die Build-Registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 bleibt die Offline-Quelle für den Public-Linux-Fingerabdruck. Sie ist nicht

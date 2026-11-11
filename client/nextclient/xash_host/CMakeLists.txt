@@ -27,7 +27,8 @@ if (NEXTCLIENT_BUILD_TESTS)
     target_compile_definitions(xash_host-tests PRIVATE
             "XASH_SURFACE_FILE=\"$<TARGET_FILE:xash_surface>\""
             "XASH_CLIENT_FILE=\"$<TARGET_FILE:client_mini>\""
-            "XASH_VGUI_FILE=\"$<TARGET_FILE:vgui2>\"")
+            "XASH_VGUI_FILE=\"$<TARGET_FILE:vgui2>\""
+            "XASH_GAMEUI_FILE=\"$<TARGET_FILE:gameui>\"")
     target_include_directories(xash_host-tests PRIVATE
             "${CMAKE_CURRENT_SOURCE_DIR}/../xash_engine/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/../xash_surface/include"
@@ -42,6 +43,6 @@ if (NEXTCLIENT_BUILD_TESTS)
         target_compile_definitions(xash_host-tests PRIVATE GNUC POSIX LINUX _LINUX)
     endif ()
     target_link_libraries(xash_host-tests PRIVATE xash_host xash::engine GTest::gtest_main ${CMAKE_DL_LIBS})
-    add_dependencies(xash_host-tests xash_surface client_mini vgui2)
+    add_dependencies(xash_host-tests xash_surface client_mini vgui2 gameui)
     gtest_discover_tests(xash_host-tests)
 endif ()

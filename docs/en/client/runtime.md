@@ -25,7 +25,8 @@ failure and is not called. The host does not start the game.
 
 `gameui` is ELF64 from the same SDK revision and links the same host runtime.
 It carries `GameUI007` and `GameConsole003` and no surface of its own. The
-host does not load it yet.
+host opens it after the surface factory, does not call into the game UI, and
+does not add a second factory.
 
 The build registry in `client/nextclient/nitro_api/src/build_registry.cpp`
 remains the offline record of the public-linux fingerprint. It is not the

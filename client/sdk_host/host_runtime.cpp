@@ -140,6 +140,11 @@ extern "C" ISteamApps* SteamApps()
     return nullptr;
 }
 
+extern "C" ISteamMatchmaking* SteamMatchmaking()
+{
+    return nullptr;
+}
+
 extern "C" ISteamMatchmakingServers* SteamMatchmakingServers()
 {
     return nullptr;

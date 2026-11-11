@@ -169,3 +169,38 @@ TEST_F(HostFactory, ThePairPublishesTheSurfaceAndTheOneScheme)
     EXPECT_EQ(factories.count, 1);
     EXPECT_EQ(factories.list[0]("VGUI_Surface026", nullptr), surface);
 }
+
+TEST_F(HostFactory, GameUiRequiresTheSurfaceFactory)
+{
+    EXPECT_EQ(csr_host_load_gameui(XASH_GAMEUI_FILE), 0);
+    EXPECT_EQ(csr_host_gameui_loaded(), 0);
+
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    EXPECT_EQ(csr_host_load_gameui("/no/such/gameui.so"), 0);
+    EXPECT_EQ(csr_host_gameui(), nullptr);
+    EXPECT_EQ(csr_host_game_console(), nullptr);
+    EXPECT_NE(csr_host_create_interface("VGUI_Surface026", nullptr), nullptr);
+
+    EXPECT_EQ(csr_host_load_gameui(XASH_SURFACE_FILE), 0);
+    EXPECT_EQ(csr_host_gameui_loaded(), 0);
+}
+
+TEST_F(HostFactory, GameUiUsesTheExistingSurfaceFactory)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    void* surface = csr_host_create_interface("VGUI_Surface026", nullptr);
+    ASSERT_NE(surface, nullptr);
+
+    ASSERT_EQ(csr_host_load_gameui(XASH_GAMEUI_FILE), 1);
+    EXPECT_EQ(csr_host_gameui_loaded(), 1);
+    ASSERT_NE(csr_host_gameui(), nullptr);
+    ASSERT_NE(csr_host_game_console(), nullptr);
+    EXPECT_NE(csr_host_gameui(), surface);
+    EXPECT_NE(csr_host_game_console(), surface);
+    EXPECT_EQ(csr_host_create_interface("GameUI007", nullptr), nullptr);
+    EXPECT_EQ(csr_host_create_interface("VGUI_Surface026", nullptr), surface);
+
+    csr_host_factories_t factories{};
+    ASSERT_EQ(csr_host_factory_list(nullptr, 0, &factories), 1);
+    EXPECT_EQ(factories.count, 1);
+}

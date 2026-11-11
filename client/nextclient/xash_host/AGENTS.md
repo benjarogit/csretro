@@ -10,6 +10,9 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   factory. A missing library or export returns 0 and is not called. The
   dispatch pointer is kept and not invoked. `RunFrame` stays unused. The
   surface factory stays the only factory.
+- `csr_host_load_gameui` opens `gameui` after that factory and reads
+  `GameUI007` and `GameConsole003`. It does not call into the game UI and
+  does not add a factory.
 - Extra factories follow that entry. The surface name is not forwarded to them.
 - `csr_host_bind_input` forwards cursor, press and release, then one dispatch.
   `CVGui::RunFrame` is not called. `SurfaceSetCursorPos` does not dispatch.

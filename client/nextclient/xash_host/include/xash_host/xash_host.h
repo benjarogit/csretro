@@ -59,6 +59,16 @@ CSR_HOST_API int csr_host_pair_loaded(void);
 CSR_HOST_API void (*csr_host_vgui_dispatch(void))(void);
 CSR_HOST_API void* csr_host_scheme(void);
 
+/*
+ * Opens gameui after the surface factory is live. Returns 0 when the library
+ * or GameUI007 / GameConsole003 is missing, and does not call a null pointer.
+ * Does not call into the game UI and does not add a factory.
+ */
+CSR_HOST_API int csr_host_load_gameui(const char* path);
+CSR_HOST_API int csr_host_gameui_loaded(void);
+CSR_HOST_API void* csr_host_gameui(void);
+CSR_HOST_API void* csr_host_game_console(void);
+
 /* list[0] answers VGUI_Surface026. extras follow, up to CSR_HOST_EXTRA_FACTORY_CAP. */
 CSR_HOST_API int csr_host_factory_list(csr_host_factory_fn* extra, int extra_count, csr_host_factories_t* out);
 CSR_HOST_API void* csr_host_create_interface(const char* name, int* code);

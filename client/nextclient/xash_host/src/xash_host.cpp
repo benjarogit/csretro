@@ -37,6 +37,26 @@ namespace
 
     PairApi g_pair;
 
+    struct GameUiApi
+    {
+        void* module = nullptr;
+        void* gameui = nullptr;
+        void* console = nullptr;
+    };
+
+    GameUiApi g_gameui;
+
+    void CloseGameUi()
+    {
+        g_gameui.gameui = nullptr;
+        g_gameui.console = nullptr;
+        if (g_gameui.module != nullptr)
+        {
+            dlclose(g_gameui.module);
+        }
+        g_gameui = {};
+    }
+
     void ClosePair()
     {
         g_pair.dispatch = nullptr;
@@ -197,8 +217,60 @@ void* csr_host_scheme(void)
     return g_pair.scheme;
 }
 
+int csr_host_load_gameui(const char* path)
+{
+    CloseGameUi();
+    if (g_surface.create_interface == nullptr || path == nullptr || path[0] == '\0')
+    {
+        return 0;
+    }
+
+    void* module = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (module == nullptr)
+    {
+        return 0;
+    }
+
+    auto create = LoadSymbol<void* (*)(const char*, int*)>(module, "CreateInterface");
+    if (create == nullptr)
+    {
+        dlclose(module);
+        return 0;
+    }
+
+    int code = 1;
+    void* gameui = create("GameUI007", &code);
+    void* console = create("GameConsole003", &code);
+    if (gameui == nullptr || console == nullptr)
+    {
+        dlclose(module);
+        return 0;
+    }
+
+    g_gameui.module = module;
+    g_gameui.gameui = gameui;
+    g_gameui.console = console;
+    return 1;
+}
+
+int csr_host_gameui_loaded(void)
+{
+    return g_gameui.module != nullptr ? 1 : 0;
+}
+
+void* csr_host_gameui(void)
+{
+    return g_gameui.gameui;
+}
+
+void* csr_host_game_console(void)
+{
+    return g_gameui.console;
+}
+
 void csr_host_close(void)
 {
+    CloseGameUi();
     ClosePair();
     csr_xash_engine_clear();
     if (g_surface.surface != nullptr && g_surface.destroy != nullptr)

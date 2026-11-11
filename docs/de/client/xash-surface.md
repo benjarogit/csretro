@@ -26,8 +26,11 @@ Tahoma hat: Arial wird Liberation Sans, Verdana und Tahoma werden DejaVu Sans.
 Das ändert Glyphenform und Breite gegenüber Retail. Marlett liegt nur im
 Retail-`valve/resource` und wird nicht mitgeliefert; der Host reicht den Pfad
 über `resolve_font`. Unschärfe, Scanlines und Umriss sind noch offen.
-`PaintTraverse` läuft den Panelbaum nicht ab, und Mausereignisse werden nur
-gespeichert.
+`SolveTraverse` läuft den sichtbaren Baum über die Panel-Funktionen des Hosts.
+`PaintTraverse` ruft die Paint-Methode des Panels einmal mit Repaint und
+Allow-Force auf; die Kinder läuft VGUI2 selbst. Popups lässt
+`ShouldPaintChildPanel` aus und die Surface malt sie danach. Ohne die
+Funktionstabelle passiert nichts. Mausereignisse werden nur gespeichert.
 
 ## Bauen und Testen
 

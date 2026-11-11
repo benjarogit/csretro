@@ -13,7 +13,8 @@ The authoritative version string is the `VERSION` file.
 - `xash_surface.so`, a `VGUI_Surface026` the host factory can hand to `vgui2`:
   fills, texture quads and a FreeType glyph atlas, with panel offset, clip and
   GL state restored after each draw. Shipped substitutes stand in for Arial,
-  Verdana and Tahoma. Panel traversal and mouse dispatch are still open.
+  Verdana and Tahoma. `PaintTraverse` enters the embedded panel and popups.
+  Mouse dispatch is still open.
   Tests run from the `linux-tests` preset.
 - Repository harness: `AGENTS.md`, `HANDOFF.md`, `CREDITS.md`, `VERSION`,
   `versions.lock.json`.

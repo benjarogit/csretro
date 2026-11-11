@@ -650,9 +650,11 @@ Der erste Stand liegt in `client/nextclient/xash_surface/` (Target
   Tahoma als DejaVu Sans. Das ist die in 3.6.6 beschriebene Abweichung zum
   Retail-Client. Marlett wird nicht mitgeliefert; der Host gibt den Pfad
   über `resolve_font`. Unschärfe, Scanlines und Umriss fehlen noch.
-  `PaintTraverse` läuft den Panelbaum nicht; der Host stößt den Walk an.
-  Eingabe speichert nur Cursor und Taste, sie erreicht `CInputWin32` noch
-  nicht.
+  `SolveTraverse` läuft den sichtbaren Baum über `csr_surface_panel_fns_t`.
+  `PaintTraverse` ruft die Panel-Paint-Methode mit Repaint und Allow-Force
+  auf; den Kind-Durchlauf macht VGUI2. Popups schließt
+  `ShouldPaintChildPanel` aus, die Surface malt sie danach. Eingabe
+  speichert nur Cursor und Taste, sie erreicht `CInputWin32` noch nicht.
 - Tests: `xash_surface-tests` über das Preset `linux-tests`. Der
   Offscreen-Lauf nutzt einen EGL-Pbuffer und `LIBGL_ALWAYS_SOFTWARE=1`.
   Das Spiel wird dabei nicht gestartet.

@@ -25,8 +25,11 @@ Tahoma: Arial is Liberation Sans, and Verdana and Tahoma are DejaVu Sans.
 That changes glyph shapes and widths relative to retail. Marlett exists only
 in retail `valve/resource` and is not shipped; the host passes its path
 through `resolve_font`. Blur, scanlines and outline are still open.
-`PaintTraverse` does not walk the panel tree, and mouse events are only
-stored.
+`SolveTraverse` walks the visible tree through the host panel functions.
+`PaintTraverse` calls the panel paint once with repaint and allow-force set;
+vgui2 walks the children itself. `ShouldPaintChildPanel` skips popups and the
+surface paints them afterwards. Without the function table neither call does
+anything. Mouse events are only stored.
 
 ## Build and tests
 

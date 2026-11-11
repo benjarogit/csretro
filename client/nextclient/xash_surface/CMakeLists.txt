@@ -54,6 +54,7 @@ if (NEXTCLIENT_BUILD_TESTS)
             tests/SurfaceMapTests.cpp
             tests/FontAtlasTests.cpp
             tests/SurfaceApiTests.cpp
+            tests/SurfaceWalkTests.cpp
             tests/SurfaceGlTests.cpp)
     target_include_directories(xash_surface-tests PRIVATE
             src

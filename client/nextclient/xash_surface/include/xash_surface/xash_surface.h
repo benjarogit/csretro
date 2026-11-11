@@ -13,6 +13,11 @@
  * handle fixes the height. Arial, Verdana and Tahoma use the shipped
  * substitutes beside this library. Marlett and any other face come from
  * resolve_font. A draw restores the GL state it touches before it returns.
+ *
+ * SolveTraverse walks the embedded tree through csr_surface_panel_fns_t.
+ * PaintTraverse calls the panel paint once with repaint and allow-force set,
+ * then paints popups. Child traversal stays in vgui2. Without the function
+ * table both calls do nothing.
  */
 
 #ifdef __cplusplus
@@ -34,6 +39,18 @@ typedef struct csr_surface_host
     void* user;
 } csr_surface_host_t;
 
+typedef struct csr_surface_panel_fns
+{
+    int (*is_visible)(void* panel, void* user);
+    int (*is_popup)(void* panel, void* user);
+    int (*child_count)(void* panel, void* user);
+    void* (*child_at)(void* panel, int index, void* user);
+    void (*solve)(void* panel, void* user);
+    void (*apply_scheme)(void* panel, void* user);
+    void (*paint)(void* panel, int repaint, int allow_force, void* user);
+    void* user;
+} csr_surface_panel_fns_t;
+
 #if defined(_WIN32)
 #define CSR_SURFACE_API __declspec(dllexport)
 #else
@@ -48,6 +65,7 @@ CSR_SURFACE_API int csr_surface_gl_error(const csr_surface_t* surface);
 CSR_SURFACE_API void csr_surface_input_move(csr_surface_t* surface, int x, int y);
 CSR_SURFACE_API void csr_surface_input_button(csr_surface_t* surface, int button, int down);
 CSR_SURFACE_API void* csr_surface_vgui(csr_surface_t* surface);
+CSR_SURFACE_API void csr_surface_set_panel(csr_surface_t* surface, const csr_surface_panel_fns_t* panel);
 
 #ifdef __cplusplus
 }

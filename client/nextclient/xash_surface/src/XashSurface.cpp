@@ -615,17 +615,25 @@ namespace xash
 
         int GetPopupCount() override
         {
-            return 0;
+            return static_cast<int>(popups_.size());
         }
 
-        vgui2::VPANEL GetPopup(int) override
+        vgui2::VPANEL GetPopup(int index) override
         {
-            return 0;
+            if (index < 0 || index >= static_cast<int>(popups_.size()))
+            {
+                return 0;
+            }
+            return popups_[static_cast<size_t>(index)];
         }
 
-        bool ShouldPaintChildPanel(vgui2::VPANEL) override
+        bool ShouldPaintChildPanel(vgui2::VPANEL child) override
         {
-            return true;
+            if (panel_.is_popup == nullptr || child == 0)
+            {
+                return true;
+            }
+            return panel_.is_popup(PanelKey(child), panel_.user) == 0;
         }
 
         bool RecreateContext(vgui2::VPANEL) override
@@ -634,13 +642,76 @@ namespace xash
         }
 
         void AddPanel(vgui2::VPANEL) override {}
-        void ReleasePanel(vgui2::VPANEL) override {}
-        void MovePopupToFront(vgui2::VPANEL) override {}
-        void MovePopupToBack(vgui2::VPANEL) override {}
-        void SolveTraverse(vgui2::VPANEL, bool) override {}
 
-        // The host starts the panel walk. This object only draws what the walk emits.
-        void PaintTraverse(vgui2::VPANEL) override {}
+        void ReleasePanel(vgui2::VPANEL panel) override
+        {
+            ErasePopup(panel);
+        }
+
+        void MovePopupToFront(vgui2::VPANEL panel) override
+        {
+            if (!IsPopup(panel))
+            {
+                ErasePopup(panel);
+                return;
+            }
+            ErasePopup(panel);
+            popups_.push_back(panel);
+        }
+
+        void MovePopupToBack(vgui2::VPANEL panel) override
+        {
+            if (!IsPopup(panel))
+            {
+                ErasePopup(panel);
+                return;
+            }
+            ErasePopup(panel);
+            popups_.insert(popups_.begin(), panel);
+        }
+
+        void SolveTraverse(vgui2::VPANEL panel, bool forceApplySchemeSettings) override
+        {
+            SolveNode(panel, forceApplySchemeSettings, 0);
+            if (panel != 0 && panel == embedded_)
+            {
+                for (const vgui2::VPANEL popup : popups_)
+                {
+                    if (popup != panel)
+                    {
+                        SolveNode(popup, forceApplySchemeSettings, 0);
+                    }
+                }
+            }
+        }
+
+        // One entry into the panel. vgui2 walks children from there and calls
+        // back into PushMakeCurrent. Popups were excluded by ShouldPaintChildPanel.
+        void PaintTraverse(vgui2::VPANEL panel) override
+        {
+            if (!PaintNode(panel))
+            {
+                return;
+            }
+            for (const vgui2::VPANEL popup : popups_)
+            {
+                if (popup == panel || !IsPopup(popup))
+                {
+                    continue;
+                }
+                PaintNode(popup);
+            }
+        }
+
+        void SetPanelFns(const csr_surface_panel_fns_t* panel)
+        {
+            if (panel == nullptr)
+            {
+                panel_ = {};
+                return;
+            }
+            panel_ = *panel;
+        }
 
         void EnableMouseCapture(vgui2::VPANEL, bool) override {}
 
@@ -1193,9 +1264,91 @@ namespace xash
             }
         }
 
+        static constexpr int kWalkDepthCap = 64;
+        static constexpr int kChildCap = 4096;
+
+        bool IsVisible(vgui2::VPANEL panel) const
+        {
+            if (panel == 0 || panel_.is_visible == nullptr)
+            {
+                return panel != 0;
+            }
+            return panel_.is_visible(PanelKey(panel), panel_.user) != 0;
+        }
+
+        bool IsPopup(vgui2::VPANEL panel) const
+        {
+            if (panel == 0 || panel_.is_popup == nullptr)
+            {
+                return false;
+            }
+            return panel_.is_popup(PanelKey(panel), panel_.user) != 0;
+        }
+
+        bool PaintNode(vgui2::VPANEL panel) const
+        {
+            if (panel == 0 || panel_.paint == nullptr || !IsVisible(panel))
+            {
+                return false;
+            }
+            panel_.paint(PanelKey(panel), 1, 1, panel_.user);
+            return true;
+        }
+
+        void SolveNode(vgui2::VPANEL panel, bool force, int depth)
+        {
+            if (panel == 0 || depth > kWalkDepthCap || !IsVisible(panel))
+            {
+                return;
+            }
+            if (force && panel_.apply_scheme != nullptr)
+            {
+                panel_.apply_scheme(PanelKey(panel), panel_.user);
+            }
+            if (panel_.solve != nullptr)
+            {
+                panel_.solve(PanelKey(panel), panel_.user);
+            }
+            if (panel_.child_count == nullptr || panel_.child_at == nullptr)
+            {
+                return;
+            }
+            int count = panel_.child_count(PanelKey(panel), panel_.user);
+            if (count < 0)
+            {
+                count = 0;
+            }
+            if (count > kChildCap)
+            {
+                count = kChildCap;
+            }
+            for (int index = 0; index < count; ++index)
+            {
+                void* child = panel_.child_at(PanelKey(panel), index, panel_.user);
+                if (child == nullptr)
+                {
+                    continue;
+                }
+                SolveNode(static_cast<vgui2::VPANEL>(reinterpret_cast<uintptr_t>(child)), force, depth + 1);
+            }
+        }
+
+        void ErasePopup(vgui2::VPANEL panel)
+        {
+            for (auto it = popups_.begin(); it != popups_.end(); ++it)
+            {
+                if (*it == panel)
+                {
+                    popups_.erase(it);
+                    return;
+                }
+            }
+        }
+
         static XashSurface* current_;
 
         csr_surface_host_t host_{};
+        csr_surface_panel_fns_t panel_{};
         std::vector<SurfaceFrame> stack_;
         std::vector<Texture> textures_;
         // Faces close before FreeType shuts down: fonts_ is declared after faces_.
@@ -1224,6 +1377,7 @@ namespace xash
         vgui2::HFont text_font_{};
         vgui2::HCursor cursor_{};
         vgui2::VPANEL embedded_{};
+        std::vector<vgui2::VPANEL> popups_;
         vgui2::VPANEL modal_{};
         vgui2::VPANEL restricted_{};
         bool button_down_{};
@@ -1317,6 +1471,14 @@ void csr_surface_input_button(csr_surface_t* surface, int button, int down)
     if (surface != nullptr)
     {
         As(surface)->SetButton(button, down);
+    }
+}
+
+void csr_surface_set_panel(csr_surface_t* surface, const csr_surface_panel_fns_t* panel)
+{
+    if (surface != nullptr)
+    {
+        As(surface)->SetPanelFns(panel);
     }
 }
 

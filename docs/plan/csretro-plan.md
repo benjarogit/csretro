@@ -68,8 +68,8 @@ Deshalb wird `main` gepinnt.
 | Python | 3.14.9 | ≥ 3.12 |
 | uv | 0.12.0 | optional |
 | Docker | 29.9.3 | für Testserver |
-| Multilib | `-m32` funktioniert | erforderlich |
-| 32-bit GL/X11/SDL2 | vorhanden | erforderlich |
+| Multilib | `-m32` funktioniert | Server-Modul |
+| 32-bit GL/X11/SDL2 | vorhanden | Server-Modul |
 | Steam | läuft | erforderlich |
 
 ### 3.3 CS-1.6-Installation
@@ -641,9 +641,10 @@ C++-Schnittstelle. Die erste Factory, die `VGUI_Surface026` liefert, wird
 
 **Prozess.** Der Produktprozess ist x86_64. Valves `client.so`, `vgui2.so`
 und `hw.so` sind i386 und werden nicht in diesen Prozess geladen. Client und
-`vgui2` kommen aus dem vendorten SDK, die Engine ist Xash3D. Der Baum baut
-bis zum Migrations-Slice noch `-m32` und das vcpkg-Triplet `x86-linux`. Es
-gibt keine zweite Surface für 32-bit.
+`vgui2` kommen aus dem vendorten SDK, die Engine ist Xash3D. Der Client-Build
+ist das Preset `linux` mit dem vcpkg-Triplet `x64-linux`. Es gibt kein
+zweites 32-bit-Client-Preset. Das Server-Modul bleibt i386, weil ReHLDS es
+so lädt. Es gibt keine zweite Surface.
 
 **Ohne Steam-Prozess.** Der portierte Client startet keinen Steam-Client.
 Voraussetzung bleiben die Originaldaten des Besitzers: Maps, Modelle, Sounds

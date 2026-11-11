@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Build the CSRETRO client.
 #
-# The GoldSrc engine is 32-bit, so every artifact is built with -m32. vcpkg
-# builds the dependencies through client/custom-vcpkg-triplets/x86-linux.cmake.
+# The product client is x86_64. vcpkg uses its x64-linux triplet. The server
+# module stays i386 because ReHLDS loads it that way.
 #
 # Paths with spaces break OpenSSL's Configure and several other port builds.
 # When the repository lives under such a path, the script builds through a
@@ -105,11 +105,11 @@ commit="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
         done
 } >"$manifest"
 
-# Every artifact must be a 32-bit ELF. A 64-bit object here means the triplet or
-# the -m32 flags were overridden and the client would not load into the engine.
-bad="$(awk -F'\t' '!/^#/ && $3 != "ELF32" { print $4 }' "$manifest")"
+# Every artifact must be a 64-bit ELF. A 32-bit object here means the client
+# was built for the old host ABI.
+bad="$(awk -F'\t' '!/^#/ && $3 != "ELF64" { print $4 }' "$manifest")"
 if [[ -n "$bad" ]]; then
-    printf '\nERROR: not a 32-bit ELF:\n%s\n' "$bad" >&2
+    printf '\nERROR: not a 64-bit ELF:\n%s\n' "$bad" >&2
     exit 1
 fi
 

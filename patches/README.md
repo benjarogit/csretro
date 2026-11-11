@@ -18,6 +18,8 @@ corresponding change together.
 | Patch | Files | Reason | Gate |
 |---|---|---|---|
 | `0001-export-vgui-dispatch.patch` | `client/dep/ncl-hl1-source-sdk/vgui2/src/vgui.cpp` | Retail `vgui2` keeps `CVGui::DispatchMessages` local. The product library exports `csr_vgui_dispatch_messages` so the host can pump messages without `CVGui::RunFrame`. The submodule pin does not move; configure applies this patch inside the checkout. | G07 |
+| `0002-lp64-tier1.patch` | tier0, tier1, vgui controls | The product process is x86_64. On-disk integers stay their existing widths. Pointer-sized fields inside this process follow LP64. The submodule pin does not move. | G07 |
+| `0003-lp64-host-libs.patch` | `CMakeLists.txt` | The parent build supplies `tier0`, `vstdlib` and `steam_api`. The prebuilt i386 libraries in `lib/public` are not loaded. | G07 |
 
 Apply from the repository root when the checkout does not already contain it:
 
@@ -25,7 +27,7 @@ Apply from the repository root when the checkout does not already contain it:
 git -C client/dep/ncl-hl1-source-sdk apply "$PWD/patches/sdk/0001-export-vgui-dispatch.patch"
 ```
 
-`client/CMakeLists.txt` applies it on configure when `git apply --check` succeeds.
+`client/CMakeLists.txt` applies each sdk patch on configure when `git apply --check` succeeds.
 
 ## server-api
 

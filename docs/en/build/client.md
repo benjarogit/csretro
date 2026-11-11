@@ -1,7 +1,8 @@
 # Building the client
 
-The client is a set of 32-bit shared libraries that ship next to the retail game
-and patch the engine at runtime. Nothing here touches the Steam installation.
+The client build is x86_64. Valve's i386 `hw.so` is not loaded. The decision
+is in [plan section 3.7](../../plan/csretro-plan.md). Nothing here touches the
+Steam installation.
 
 Prerequisites: [build prerequisites](prerequisites.md).
 
@@ -39,8 +40,8 @@ The `linux` preset is a Ninja Multi-Config preset:
 | Setting | Value |
 |---|---|
 | Generator | Ninja Multi-Config |
-| Triplet | `x86-linux` (`client/custom-vcpkg-triplets/x86-linux.cmake`) |
-| C/C++ flags | `-m32 -march=pentium4 -mfpmath=sse` |
+| Triplet | `x64-linux` (`client/vcpkg/triplets/x64-linux.cmake`) |
+| C/C++ flags | host default, no `-m32` |
 | Build directory | `client/build/linux` |
 | Output | `client/build/linux/out/bin/<config>/` |
 
@@ -66,7 +67,10 @@ scripts/build-client.sh --target client_mini
 Other options: `--config Debug`, `--jobs 8`, `--reconfigure`, `--clean`,
 `--install-dir <dir>`, `--manifest <file>`.
 
-## Reference build (G04, 2026-11-08, Release)
+## Reference build (G04, 2026-11-08, the 32-bit record)
+
+The table is the closed G04 evidence. The product build is ELF64 since the
+x86_64 switch.
 
 | Artifact | Size | Type |
 |---|---:|---|
@@ -98,10 +102,10 @@ one line per artifact:
 
 ```text
 # size_bytes  sha256  elf  path
-5482420  <sha256>  ELF32  client_mini.dll
+5482420  <sha256>  ELF64  client_mini.dll
 ```
 
-The build fails if any artifact is not `ELF32`.
+The build fails if any artifact is not `ELF64`.
 
 ## Known warnings
 
@@ -119,6 +123,6 @@ None of these change the output.
 | `is a Git LFS pointer file` during configure | LFS objects not pulled | `git lfs pull` |
 | `could not find baseline version` from vcpkg | vcpkg submodule is a shallow clone | `git -C client/vcpkg fetch --unshallow` |
 | OpenSSL `Configure` fails with paths containing spaces | build path has spaces | use `scripts/build-client.sh`, which builds through a space-free symlink |
-| artifact is `ELF64` | triplet or `-m32` flags overridden | keep the `linux` preset and `x86-linux` triplet |
-| CMake picks up 64-bit libraries | multilib missing | run `scripts/doctor.sh` |
+| artifact is `ELF32` | an old triplet or `-m32` is still active | keep the `linux` preset and the `x64-linux` triplet |
+| CMake finds no library | vcpkg cache from the old triplet | `scripts/build-client.sh --clean` |
 | vcpkg install fails after a toolchain change | stale binary cache or build trees | `scripts/build-client.sh --clean` |

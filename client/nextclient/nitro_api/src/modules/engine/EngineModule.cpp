@@ -13,8 +13,8 @@ namespace nitroapi
     void EngineModule::OnLibraryLoaded(nitro_utils::SysModule module)
     {
         ModuleBase::OnLibraryLoaded(module);
-        uint32_t address = addr_provider_->FindAddress(module, "Host_EndGame");
-        abort_adapter_.Install(reinterpret_cast<void*>(static_cast<uintptr_t>(address)));
+        const uintptr_t address = addr_provider_->FindAddress(module, "Host_EndGame");
+        abort_adapter_.Install(reinterpret_cast<void*>(address));
     }
 
     void EngineModule::OnLibraryUnload()
@@ -402,23 +402,23 @@ namespace nitroapi
         RegisterFuncCdecl<StaticHookId::NET_ErrorString>(&engine_data_->NET_ErrorString);
         RegisterFuncCdecl<StaticHookId::Sys_LoadModule>(&engine_data_->Sys_LoadModule);
 
-        RegisterFuncCdecl<StaticHookId::SVC_Nop>(&engine_data_->SVC_Nop, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_nop")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_Disconnect>(&engine_data_->SVC_Disconnect, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_disconnect")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_Event>(&engine_data_->SVC_Event, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_event")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_Version>(&engine_data_->SVC_Version, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_version")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_SetView>(&engine_data_->SVC_SetView, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_setview")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_Sound>(&engine_data_->SVC_Sound, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_sound")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_Time>(&engine_data_->SVC_Time, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_time")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_Print>(&engine_data_->SVC_Print, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_print")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_StuffText>(&engine_data_->SVC_StuffText, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_stufftext")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_SetAngle>(&engine_data_->SVC_SetAngle, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_setangle")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_ResourceList>(&engine_data_->SVC_ResourceList, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase,"svc_resourcelist")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_ResourceLocation>(&engine_data_->SVC_ResourceLocation, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase,"svc_resourcelocation")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_Director>(&engine_data_->SVC_Director, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_director")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_SignOnNum>(&engine_data_->SVC_SignOnNum, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_signonnum")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_NewUserMsg>(&engine_data_->SVC_NewUserMsg, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_newusermsg")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_SendCvarValue>(&engine_data_->SVC_SendCvarValue, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_sendcvarvalue")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_UpdateUserInfo>(&engine_data_->SVC_UpdateUserInfo, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_updateuserinfo")->pfn;});
-        RegisterFuncCdecl<StaticHookId::SVC_TimeScale>(&engine_data_->SVC_TimeScale, [this](nitro_utils::SysModule hModule){return (uint32_t)FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_timescale")->pfn;});
+        RegisterFuncCdecl<StaticHookId::SVC_Nop>(&engine_data_->SVC_Nop, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_nop")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_Disconnect>(&engine_data_->SVC_Disconnect, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_disconnect")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_Event>(&engine_data_->SVC_Event, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_event")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_Version>(&engine_data_->SVC_Version, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_version")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_SetView>(&engine_data_->SVC_SetView, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_setview")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_Sound>(&engine_data_->SVC_Sound, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_sound")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_Time>(&engine_data_->SVC_Time, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_time")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_Print>(&engine_data_->SVC_Print, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_print")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_StuffText>(&engine_data_->SVC_StuffText, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_stufftext")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_SetAngle>(&engine_data_->SVC_SetAngle, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_setangle")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_ResourceList>(&engine_data_->SVC_ResourceList, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase,"svc_resourcelist")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_ResourceLocation>(&engine_data_->SVC_ResourceLocation, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase,"svc_resourcelocation")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_Director>(&engine_data_->SVC_Director, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_director")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_SignOnNum>(&engine_data_->SVC_SignOnNum, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_signonnum")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_NewUserMsg>(&engine_data_->SVC_NewUserMsg, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_newusermsg")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_SendCvarValue>(&engine_data_->SVC_SendCvarValue, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_sendcvarvalue")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_UpdateUserInfo>(&engine_data_->SVC_UpdateUserInfo, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_updateuserinfo")->pfn);});
+        RegisterFuncCdecl<StaticHookId::SVC_TimeScale>(&engine_data_->SVC_TimeScale, [this](nitro_utils::SysModule hModule){return reinterpret_cast<uintptr_t>(FindEngineMsgByName(engine_data_->EngineMsgBase, "svc_timescale")->pfn);});
     }
 }

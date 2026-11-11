@@ -8,7 +8,7 @@ game itself.
 
 - Counter-Strike 1.6 from the user's own Steam installation (App 10)
 - Steam is installed; the starter starts it when needed and waits for it
-- The 32-bit runtime libraries are present (`scripts/doctor.sh`)
+- The client build is x86_64 (`scripts/doctor.sh`) and is not loaded into the i386 `hw.so`
 
 ## Steps
 

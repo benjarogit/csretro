@@ -334,10 +334,16 @@ implementation; the plan is the only source for the gate list.
   keeps `DispatchMessages` local, so our `vgui2` exports
   `csr_vgui_dispatch_messages`. The Xash client does not start a Steam
   process; original maps, models, sounds and `valve/resource` stay required.
-  Product process is x86_64 (plan section 3.7). This tree still builds
-  `-m32` / `x86-linux`. Still open: that migration, then
-  `engine_mini`/`nitro_api` off `hw.so`.
-  Retail GoldSrc remains the working fallback.
+  Product process is x86_64 (plan section 3.7). The Linux client preset is
+  `linux` with the vcpkg triplet `x64-linux`. There is no second 32-bit client
+  preset. `engine_mini-tests` (555), `nitro_api-tests` (69),
+  `xash_surface-tests` (18), `xash_host-tests` (3) and `player_identity-tests`
+  (6) pass as ELF64 binaries and do not load Valve's i386 `hw.so`, `client.so`
+  or `vgui2.so`. Still open: `engine_mini`/`nitro_api` off `hw.so`.
+  Retail GoldSrc remains the working fallback. The server module, its
+  `-m32` doctor probe, the goldsrc fact extractor, `golden_layout.cpp`,
+  the Windows presets and the G04 ELF32 size table stay 32-bit records.
+  `GenericHookJit` does not install on this process.
 - **Steam stub is test-only.** It authenticates nobody and must never be used
   for a public server. A production server needs real Steam connectivity.
 - **E2E is not in CI yet.** The Docker job arrives with G10; the test needs
@@ -361,10 +367,9 @@ implementation; the plan is the only source for the gate list.
   texture quads and FreeType glyphs from a packed atlas (plan section 3.7).
   The spike team-click was reproduced on 2026-11-11: exit 137, `Button/terbutton`
   at `239,201`, `CTeamMenu` hidden on release, `g_iTeamNumber` `0` at paint 30
-  and `1` at paint 31, both framebuffer dumps `glerr=0`. Open work, in order:
-  (1) switch CMake, vcpkg and `engine_mini` from `-m32` / `x86-linux` to the
-  x86_64 product process, one surface, no second build;
-  (2) `engine_mini`/`nitro_api` move off `hw.so`.
+  and `1` at paint 31, both framebuffer dumps `glerr=0`. The Linux client
+  preset is `linux` / `x64-linux`. The test binaries above are ELF64.
+  Next: `engine_mini`/`nitro_api` move off `hw.so`.
   The host factory and the mouse bind are in `xash_host`. `RunFrame` stays unused.
   Local identity is `ResolvePlayerIdentity` (plan section 3.7).
   `player_identity-tests` 6/6, no network. The lookup does not read Steam.
@@ -376,7 +381,7 @@ implementation; the plan is the only source for the gate list.
   promotes `repaint` only when `+0x30` (NEEDS_REPAINT) is set and `allowForce`
   is true; `surface()->PushMakeCurrent`/`PopMakeCurrent` bracket every paint;
   VGUI alpha 0 = opaque (engine 255 = opaque).
-- **Then:** the x86_64 migration above, then port `engine_mini`/`nitro_api` off the `hw.so` hooks
+- **Then:** port `engine_mini`/`nitro_api` off the `hw.so` hooks
   (`vgui2_surface` and friends) onto an Xash3D engine adapter, and build
   `client_mini` + `vgui2` from the vendored `ncl-hl1-source-sdk` as one matched
   pair.

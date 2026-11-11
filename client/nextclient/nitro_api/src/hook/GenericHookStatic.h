@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <unordered_map>
 #include <utility>
@@ -32,8 +33,8 @@ namespace nitroapi
 
         funchook_t* funchook_;
 
-        uint32_t hook_address_ = 0;
-        uint32_t trampoline_address_ = 0;
+        uintptr_t hook_address_ = 0;
+        uintptr_t trampoline_address_ = 0;
         bool hook_created_ = false;
         bool hook_active_ = false;
 
@@ -42,7 +43,7 @@ namespace nitroapi
         static CallbackFunc s_callback_;
 
     public:
-        explicit GenericHookStatic(uint32_t hook_address, CallbackWrapperFunc callback_wrapper = {}) :
+        explicit GenericHookStatic(uintptr_t hook_address, CallbackWrapperFunc callback_wrapper = {}) :
             hook_address_(hook_address),
             callback_wrapper_(std::move(callback_wrapper))
         {
@@ -134,7 +135,7 @@ namespace nitroapi
 
         TResult InvokeOriginal(TArgs... args) override
         {
-            uint32_t address = hook_active_ ? trampoline_address_ : hook_address_;
+            uintptr_t address = hook_active_ ? trampoline_address_ : hook_address_;
 
 #if USE_PROFILER
             if (hook_active_)
@@ -153,14 +154,14 @@ namespace nitroapi
             return InvokeInternal(hook_address_, std::forward<TArgs>(args)...);
         }
 
-        [[nodiscard]] uint32_t GetTrampolineAddress() const override { return trampoline_address_; }
+        [[nodiscard]] uintptr_t GetTrampolineAddress() const override { return trampoline_address_; }
 
-        [[nodiscard]] uint32_t GetOriginalFunctionAddress() const override { return hook_address_; }
+        [[nodiscard]] uintptr_t GetOriginalFunctionAddress() const override { return hook_address_; }
 
         [[nodiscard]] bool IsHookActive() const override { return hook_active_; }
 
     private:
-        TResult InvokeInternal(uint32_t address, TArgs... args)
+        TResult InvokeInternal(uintptr_t address, TArgs... args)
         {
             if constexpr (TConv == CallingConventions::Cdecl)
                 return ((FuncTypeCdecl)address)(std::forward<TArgs>(args)...);

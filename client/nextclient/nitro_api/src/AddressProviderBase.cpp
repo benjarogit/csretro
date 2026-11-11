@@ -3,7 +3,7 @@
 
 namespace nitroapi
 {
-    uint32_t AddressProviderBase::FindAddress(nitro_utils::SysModule hModule, const std::string& key)
+    uintptr_t AddressProviderBase::FindAddress(nitro_utils::SysModule hModule, const std::string& key)
     {
         InitScanner(hModule);
 
@@ -14,14 +14,14 @@ namespace nitroapi
             return 0;
         }
 
-        uint32_t addr = it->second.FindAddress(memory_scanner_);
+        uintptr_t addr = it->second.FindAddress(memory_scanner_);
         if (addr == 0)
             LOG(INFO) << "MemoryScanner: Not found address for " << key;
 
         return addr;
     }
 
-    uint32_t AddressProviderBase::FindAddress(nitro_utils::SysModule hModule, StaticHookId key)
+    uintptr_t AddressProviderBase::FindAddress(nitro_utils::SysModule hModule, StaticHookId key)
     {
         InitScanner(hModule);
 
@@ -32,7 +32,7 @@ namespace nitroapi
             return 0;
         }
 
-        uint32_t addr = it->second.FindAddress(memory_scanner_);
+        uintptr_t addr = it->second.FindAddress(memory_scanner_);
         if (addr == 0)
             LOG(INFO) << "MemoryScanner: Not found address for " << magic_enum::enum_name(key);
 

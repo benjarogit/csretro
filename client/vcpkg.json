@@ -5,9 +5,6 @@
   "vcpkg-configuration": {
     "overlay-ports": [
       "./custom-vcpkg-ports"
-    ],
-    "overlay-triplets": [
-      "./custom-vcpkg-triplets"
     ]
   },
   "dependencies" : [ {

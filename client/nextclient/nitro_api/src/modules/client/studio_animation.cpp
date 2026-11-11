@@ -113,7 +113,6 @@ namespace nitroapi
 
     void StudioAnimation_InitializeAccess(StudioAnimationData& data)
     {
-        static_assert(sizeof(void*) == 4);
         data.GetRendererView = GetRendererView;
         data.GetGameRendererView = GetGameRendererView;
         data.StudioFxTransform = StudioFxTransform;

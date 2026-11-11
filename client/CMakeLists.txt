@@ -106,9 +106,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 set(CMAKE_CXX_STANDARD 23)
 
 if (UNIX)
-    add_compile_options(-m32 -march=pentium4 -Wno-narrowing)
-    add_link_options(-m32 -static-libstdc++ -static-libgcc)
-    set(CMAKE_LIBRARY_ARCHITECTURE i386-linux-gnu)
+    add_compile_options(-Wno-narrowing)
+    add_link_options(-static-libstdc++ -static-libgcc)
 endif ()
 
 # funchook options. Its cmake_minimum_required is 3.11, which leaves CMP0077 unset, so the policy
@@ -118,25 +117,41 @@ set(FUNCHOOK_BUILD_TESTS OFF)
 set(FUNCHOOK_INSTALL OFF)
 set(FUNCHOOK_CPU "x86")
 
-# The SDK pin stays on the upstream commit. This patch is applied in the
-# checkout so vgui2 exports csr_vgui_dispatch_messages. A configure that finds
-# the patch already applied leaves the file alone.
-set(CSR_VGUI_DISPATCH_PATCH "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0001-export-vgui-dispatch.patch")
-if (NOT EXISTS "${CSR_VGUI_DISPATCH_PATCH}")
-    message(FATAL_ERROR "Missing ${CSR_VGUI_DISPATCH_PATCH}")
-endif ()
-execute_process(
-        COMMAND git apply --check "${CSR_VGUI_DISPATCH_PATCH}"
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk"
-        RESULT_VARIABLE CSR_VGUI_DISPATCH_PATCH_NEEDED
-        OUTPUT_QUIET
-        ERROR_QUIET)
-if (CSR_VGUI_DISPATCH_PATCH_NEEDED EQUAL 0)
+# The SDK pin stays on the upstream commit. These patches are applied in the
+# checkout. A configure that finds a patch already applied leaves that file alone.
+set(CSR_SDK_PATCHES
+        "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0001-export-vgui-dispatch.patch"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0002-lp64-tier1.patch"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0003-lp64-host-libs.patch")
+foreach (CSR_SDK_PATCH IN LISTS CSR_SDK_PATCHES)
+    if (NOT EXISTS "${CSR_SDK_PATCH}")
+        message(FATAL_ERROR "Missing ${CSR_SDK_PATCH}")
+    endif ()
     execute_process(
-            COMMAND git apply "${CSR_VGUI_DISPATCH_PATCH}"
+            COMMAND git apply --check "${CSR_SDK_PATCH}"
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk"
-            COMMAND_ERROR_IS_FATAL ANY)
-endif ()
+            RESULT_VARIABLE CSR_SDK_PATCH_NEEDED
+            OUTPUT_QUIET
+            ERROR_QUIET)
+    if (CSR_SDK_PATCH_NEEDED EQUAL 0)
+        execute_process(
+                COMMAND git apply "${CSR_SDK_PATCH}"
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk"
+                COMMAND_ERROR_IS_FATAL ANY)
+    endif ()
+endforeach ()
+
+# The prebuilt libtier0.so, libvstdlib.so and libsteam_api.so under the SDK are
+# i386. The product process does not load them. These shared libraries satisfy
+# the SDK link and the factory probe, which asks for the built file.
+add_library(tier0 SHARED sdk_host/host_runtime.cpp)
+target_include_directories(tier0 PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public"
+        "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public/tier0"
+        "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk/public/tier1")
+target_compile_definitions(tier0 PRIVATE GNUC LINUX POSIX _LINUX NO_MALLOC_OVERRIDE)
+add_library(vstdlib SHARED sdk_host/vstdlib_stub.cpp)
+add_library(steam_api SHARED sdk_host/steam_api_stub.cpp)
 
 add_subdirectory(dep/ncl-hl1-source-sdk)
 add_subdirectory(dep/nitro_utils)

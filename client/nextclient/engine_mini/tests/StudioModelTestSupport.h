@@ -114,11 +114,11 @@ namespace studio_test
     public:
         std::function<Result(Args...)> callback;
         void UnsetCallbackAndDisableHook() override {}
-        uint32_t GetTrampolineAddress() const override
+        uintptr_t GetTrampolineAddress() const override
         {
             return 0;
         }
-        uint32_t GetOriginalFunctionAddress() const override
+        uintptr_t GetOriginalFunctionAddress() const override
         {
             return 0;
         }

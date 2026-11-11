@@ -79,13 +79,13 @@ namespace nitroapi
         }
 
         template<StaticHookId HookId, class TResult, class... TArgs>
-        void RegisterFuncCdecl(NitroFunctionBase<TResult, TArgs...>* nitro_function, std::function<uint32_t(nitro_utils::SysModule)>&& pointer_getter)
+        void RegisterFuncCdecl(NitroFunctionBase<TResult, TArgs...>* nitro_function, std::function<uintptr_t(nitro_utils::SysModule)>&& pointer_getter)
         {
             RegisterFunc<HookId, CallingConventions::Cdecl>(nitro_function, std::move(pointer_getter));
         }
 
         template<StaticHookId HookId, class TResult, class... TArgs>
-        void RegisterFuncStdcall(NitroFunctionBase<TResult, TArgs...>* nitro_function, std::function<uint32_t(nitro_utils::SysModule)>&& pointer_getter)
+        void RegisterFuncStdcall(NitroFunctionBase<TResult, TArgs...>* nitro_function, std::function<uintptr_t(nitro_utils::SysModule)>&& pointer_getter)
         {
             RegisterFunc<HookId, CallingConventions::Stdcall>(nitro_function, std::move(pointer_getter));
         }
@@ -94,7 +94,7 @@ namespace nitroapi
         void RegisterFuncCdecl(NitroFunctionBase<TResult, TArgs...>* nitro_function, TFunc* pointer_getter)
         {
             auto on_lib_loaded = [this, pointer_getter, nitro_function](nitro_utils::SysModule hModule) {
-                auto* hook = hook_storage_->GetStaticHook<HookId, Convention, TResult, TArgs...>((uint32_t)*pointer_getter);
+                auto* hook = hook_storage_->GetStaticHook<HookId, Convention, TResult, TArgs...>(reinterpret_cast<uintptr_t>(*pointer_getter));
                 nitro_function->SetHook(hook);
             };
 
@@ -102,10 +102,10 @@ namespace nitroapi
         }
 
         template<StaticHookId HookId, CallingConventions Convention, class TResult, class... TArgs>
-        void RegisterFunc(NitroFunctionBase<TResult, TArgs...>* nitro_function, std::function<uint32_t(nitro_utils::SysModule)>&& pointer_getter)
+        void RegisterFunc(NitroFunctionBase<TResult, TArgs...>* nitro_function, std::function<uintptr_t(nitro_utils::SysModule)>&& pointer_getter)
         {
             auto on_lib_loaded = [this, pointer_getter = std::move(pointer_getter), nitro_function](nitro_utils::SysModule hModule) {
-                auto* hook = hook_storage_->GetStaticHook<HookId, Convention, TResult, TArgs...>((uint32_t)pointer_getter(hModule));
+                auto* hook = hook_storage_->GetStaticHook<HookId, Convention, TResult, TArgs...>(pointer_getter(hModule));
                 nitro_function->SetHook(hook);
             };
 
@@ -128,16 +128,16 @@ namespace nitroapi
 
 // region JIT HOOKS
         template<class TResult, class... TArgs>
-        void RegisterFuncStdcall(NitroFunctionBase<TResult, TArgs...>* nitro_function, std::function<uint32_t(nitro_utils::SysModule)>&& pointer_getter)
+        void RegisterFuncStdcall(NitroFunctionBase<TResult, TArgs...>* nitro_function, std::function<uintptr_t(nitro_utils::SysModule)>&& pointer_getter)
         {
             RegisterFunc<CallingConventions::Stdcall>(nitro_function, std::move(pointer_getter), std::string("[JIT] ") + typeid(nitro_function).name());
         }
 
         template<CallingConventions Convention, class TResult, class... TArgs>
-        void RegisterFunc(NitroFunctionBase<TResult, TArgs...>* nitro_function, std::function<uint32_t(nitro_utils::SysModule)>&& pointer_getter)
+        void RegisterFunc(NitroFunctionBase<TResult, TArgs...>* nitro_function, std::function<uintptr_t(nitro_utils::SysModule)>&& pointer_getter)
         {
             auto on_lib_loaded = [this, pointer_getter = std::move(pointer_getter), nitro_function](nitro_utils::SysModule hModule) {
-                auto* hook = hook_storage_->GetJitHook<Convention, TResult, TArgs...>((uint32_t)pointer_getter(hModule));
+                auto* hook = hook_storage_->GetJitHook<Convention, TResult, TArgs...>(pointer_getter(hModule));
                 nitro_function->SetHook(hook);
             };
 

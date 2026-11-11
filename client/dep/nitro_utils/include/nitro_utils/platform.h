@@ -14,7 +14,7 @@ namespace nitro_utils
     };
 
     SysModule GetSysModule(const char* name);
-    bool GetSysModuleInfo(SysModule module, uint32_t* start_address, uint32_t* size);
+    bool GetSysModuleInfo(SysModule module, uintptr_t* start_address, uintptr_t* size);
     SysModule LoadSysModule(const char* name);
     void UnloadSysModule(SysModule module);
     void* GetProcAddress(SysModule module, const char* func_name);

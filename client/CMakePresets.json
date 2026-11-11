@@ -85,9 +85,7 @@
       "inherits": "base",
       "generator": "Ninja Multi-Config",
       "cacheVariables": {
-        "VCPKG_TARGET_TRIPLET": "x86-linux",
-        "CMAKE_C_FLAGS": "-m32 -march=pentium4 -mfpmath=sse",
-        "CMAKE_CXX_FLAGS": "-m32 -march=pentium4 -mfpmath=sse"
+        "VCPKG_TARGET_TRIPLET": "x64-linux"
       }
     },
 

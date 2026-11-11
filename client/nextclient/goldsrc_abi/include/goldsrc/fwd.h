@@ -1,10 +1,11 @@
 #pragma once
 
 #if defined(_WIN32) == defined(__linux__)
-#error "GoldSrc ABI requires Windows x86 or Linux x86."
+#error "GoldSrc ABI requires Windows or Linux."
 #endif
 
-static_assert(sizeof(void*) == 4);
+// On-disk records use int and fixed-width integers. Pointer fields follow this
+// process. Valve's i386 libraries are not loaded here.
 
 struct tagPOINT;
 

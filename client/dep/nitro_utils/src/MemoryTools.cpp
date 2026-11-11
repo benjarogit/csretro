@@ -55,12 +55,12 @@ vector<string> split(string s, string delimiter) {
 
 namespace utils
 {
-    static uint32_t RelativeToAbsolute(uint32_t dwAddress)
+    static uintptr_t RelativeToAbsolute(uintptr_t dwAddress)
     {
-        ptrdiff_t dwOffset = *(uint32_t*)dwAddress;
-        return (dwAddress + dwOffset + sizeof(uint32_t));
+        uint32_t dwOffset = *reinterpret_cast<uint32_t*>(dwAddress);
+        return dwAddress + dwOffset + sizeof(uint32_t);
     }
-    static uint32_t AbsoluteToRelative(uint32_t dwAddress, uint32_t dwAbsRef)
+    static uintptr_t AbsoluteToRelative(uintptr_t dwAddress, uintptr_t dwAbsRef)
     {
         return dwAbsRef - dwAddress - sizeof(uint32_t);
     }
@@ -88,17 +88,17 @@ bool MemScanner::SetContext(const MemoryModule &memModule)
     return false;
 }
 
-uint32_t MemScanner::ModuleStart() const
+uintptr_t MemScanner::ModuleStart() const
 {
     return m_dwFindStart;
 }
 
-uint32_t MemScanner::ModuleEnd() const
+uintptr_t MemScanner::ModuleEnd() const
 {
     return m_dwFindEnd;
 }
 
-bool MemScanner::AddrInRange(uint32_t dwAddress, uint32_t dwLB, uint32_t dwHB) const
+bool MemScanner::AddrInRange(uintptr_t dwAddress, uintptr_t dwLB, uintptr_t dwHB) const
 {
     if (!dwLB) dwLB = ModuleStart();
     if (!dwHB) dwHB = ModuleEnd();
@@ -157,7 +157,7 @@ size_t MemScanner::StringToMaskedPattern(const char* pszString, memorypattern_t*
     return ulPatternLen;
 }
 
-uint32_t MemScanner::FindString(const char* pszString, bool bEOS, uint32_t dwStart, int32_t iRange)
+uintptr_t MemScanner::FindString(const char* pszString, bool bEOS, uintptr_t dwStart, int32_t iRange)
 {
     memorypattern_t mempPattern;
     if (!StringToMaskedPattern(pszString, &mempPattern, bEOS)) return 0;
@@ -165,7 +165,7 @@ uint32_t MemScanner::FindString(const char* pszString, bool bEOS, uint32_t dwSta
     return FindPattern(&mempPattern, dwStart, iRange);
 }
 
-uint32_t MemScanner::FindPattern(const char* pszPattern, uint32_t dwStart, int32_t iRange)
+uintptr_t MemScanner::FindPattern(const char* pszPattern, uintptr_t dwStart, int32_t iRange)
 {
     memorypattern_t mempPattern;
     if(!AOBToMaskedPattern(pszPattern, &mempPattern)) return 0;
@@ -173,16 +173,16 @@ uint32_t MemScanner::FindPattern(const char* pszPattern, uint32_t dwStart, int32
     return FindPattern(&mempPattern, dwStart, iRange);
 }
 
-uint32_t MemScanner::FindPattern(memorypattern_t* pPattern, uint32_t dwStart, int32_t iRange) const
+uintptr_t MemScanner::FindPattern(memorypattern_t* pPattern, uintptr_t dwStart, int32_t iRange) const
 {
     if (dwStart == 0) dwStart = ModuleStart();
     if (!AddrInRange(dwStart) || !AddrInRange(dwStart + iRange)) return 0;
 
-    uint32_t dwResult = 0;
+    uintptr_t dwResult = 0;
     int8_t bDir = iRange >= 0 ? 1 : -1;
     size_t ulPatternLength = pPattern->m_vecMask.size();
 
-    for (uint32_t dwAddr = dwStart; AddrInRange(dwAddr + ulPatternLength * bDir); dwAddr += bDir)
+    for (uintptr_t dwAddr = dwStart; AddrInRange(dwAddr + ulPatternLength * bDir); dwAddr += bDir)
     {
         bool bFound = true;
         int iSize = (int)pPattern->m_vecMask.size();
@@ -225,7 +225,7 @@ uint32_t MemScanner::FindPattern(memorypattern_t* pPattern, uint32_t dwStart, in
     return dwResult;
 }
 
-uint32_t MemScanner::FindPattern2(string sPattern, uint32_t dwStart) const
+uintptr_t MemScanner::FindPattern2(string sPattern, uintptr_t dwStart) const
 {
     uint8_t pszBuffer[512] = { 0 }, pszMask[512] = { 0 };
     int32_t lRange = 0, lOffset = 0;

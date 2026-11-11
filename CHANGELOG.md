@@ -24,6 +24,9 @@ The authoritative version string is the `VERSION` file.
   persona supplies the shown name and, when pixels are already present, the
   portrait. Otherwise the slot is the in-game name and has no portrait. The
   lookup does not start Steam, store credentials, or download an image.
+- The Linux client preset builds x86_64 and uses the vcpkg triplet `x64-linux`.
+  There is no second 32-bit client preset. Valve's i386 `hw.so`, `client.so`
+  and `vgui2.so` are not loaded. The server module stays i386.
 - Repository harness: `AGENTS.md`, `HANDOFF.md`, `CREDITS.md`, `VERSION`,
   `versions.lock.json`.
 - Repository verification: `scripts/verify.sh`, `scripts/clean.sh`,

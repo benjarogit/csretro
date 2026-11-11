@@ -23,12 +23,6 @@ if (MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif ()
 
-if (UNIX)
-    add_compile_options(-m32 -march=pentium4 -Wno-narrowing)
-    add_link_options(-m32 -static-libstdc++ -static-libgcc)
-    set(CMAKE_LIBRARY_ARCHITECTURE i386-linux-gnu)
-endif()
-
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/config/library_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/config/library_config.h)
 
 file(GLOB_RECURSE GAMEUI_SOURCES

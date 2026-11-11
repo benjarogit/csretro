@@ -9,12 +9,12 @@ namespace nitro_utils
         return GetModuleHandleA(name);
     }
 
-    bool GetSysModuleInfo(SysModule module, uint32_t* start_address, uint32_t* size)
+    bool GetSysModuleInfo(SysModule module, uintptr_t* start_address, uintptr_t* size)
     {
         MODULEINFO module_info;
         if (GetModuleInformation(GetCurrentProcess(), (HMODULE)module, &module_info, sizeof(module_info)))
         {
-            *start_address = (uint32_t)module_info.lpBaseOfDll;
+            *start_address = reinterpret_cast<uintptr_t>(module_info.lpBaseOfDll);
             *size = module_info.SizeOfImage;
 
             return true;

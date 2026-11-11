@@ -1,3 +1,4 @@
+#include <cstdint>
 #include "SearchConfig.h"
 
 #include <utility>
@@ -18,10 +19,11 @@ namespace nitroapi
 #ifndef _WIN32
     namespace
     {
-        using SymbolTable = std::unordered_map<std::string, uint32_t>;
+        using SymbolTable = std::unordered_map<std::string, uintptr_t>;
 
         // Reads the full .symtab from the file on disk - unlike dlsym, this also
-        // sees static (file-local) symbols, which Valve's hw.so keeps unstripped.
+        // sees static (file-local) symbols. The records are the ELF class of this
+        // process. On-disk GoldSrc files are not parsed here.
         SymbolTable ReadElfSymbolTable(const char* path)
         {
             SymbolTable table;
@@ -30,27 +32,28 @@ namespace nitroapi
             if (!file)
                 return table;
 
-            Elf32_Ehdr header{};
+            ElfW(Ehdr) header{};
             file.read(reinterpret_cast<char*>(&header), sizeof(header));
-            if (!file || memcmp(header.e_ident, ELFMAG, SELFMAG) != 0 || header.e_ident[EI_CLASS] != ELFCLASS32)
+            const unsigned char native_class = sizeof(void*) == 8 ? ELFCLASS64 : ELFCLASS32;
+            if (!file || memcmp(header.e_ident, ELFMAG, SELFMAG) != 0 || header.e_ident[EI_CLASS] != native_class)
                 return table;
 
-            std::vector<Elf32_Shdr> sections(header.e_shnum);
+            std::vector<ElfW(Shdr)> sections(header.e_shnum);
             file.seekg(header.e_shoff);
-            file.read(reinterpret_cast<char*>(sections.data()), sections.size() * sizeof(Elf32_Shdr));
+            file.read(reinterpret_cast<char*>(sections.data()), sections.size() * sizeof(ElfW(Shdr)));
             if (!file)
                 return table;
 
-            for (const Elf32_Shdr& section : sections)
+            for (const ElfW(Shdr)& section : sections)
             {
                 if (section.sh_type != SHT_SYMTAB || section.sh_link >= sections.size())
                     continue;
 
-                std::vector<Elf32_Sym> symbols(section.sh_size / sizeof(Elf32_Sym));
+                std::vector<ElfW(Sym)> symbols(section.sh_size / sizeof(ElfW(Sym)));
                 file.seekg(section.sh_offset);
-                file.read(reinterpret_cast<char*>(symbols.data()), symbols.size() * sizeof(Elf32_Sym));
+                file.read(reinterpret_cast<char*>(symbols.data()), symbols.size() * sizeof(ElfW(Sym)));
 
-                const Elf32_Shdr& strtab_section = sections[section.sh_link];
+                const ElfW(Shdr)& strtab_section = sections[section.sh_link];
                 std::vector<char> strtab(strtab_section.sh_size + 1, '\0');
                 file.seekg(strtab_section.sh_offset);
                 file.read(strtab.data(), strtab_section.sh_size);
@@ -58,19 +61,19 @@ namespace nitroapi
                 if (!file)
                     return table;
 
-                for (const Elf32_Sym& symbol : symbols)
+                for (const ElfW(Sym)& symbol : symbols)
                 {
                     if (symbol.st_value == 0 || symbol.st_shndx == SHN_UNDEF || symbol.st_name >= strtab_section.sh_size)
                         continue;
 
-                    table.try_emplace(&strtab[symbol.st_name], symbol.st_value);
+                    table.try_emplace(&strtab[symbol.st_name], static_cast<uintptr_t>(symbol.st_value));
                 }
             }
 
             return table;
         }
 
-        uint32_t FindSymbolAddress(nitro_utils::SysModule module, const std::string& name)
+        uintptr_t FindSymbolAddress(nitro_utils::SysModule module, const std::string& name)
         {
             link_map* linkmap = nullptr;
             if (module == nullptr || dlinfo(module, RTLD_DI_LINKMAP, &linkmap) != 0 || linkmap == nullptr)
@@ -85,7 +88,7 @@ namespace nitroapi
             if (symbol == it->second.end())
                 return 0;
 
-            return static_cast<uint32_t>(linkmap->l_addr) + symbol->second;
+            return static_cast<uintptr_t>(linkmap->l_addr) + symbol->second;
         }
     }
 #endif
@@ -96,26 +99,26 @@ namespace nitroapi
         offset(0)
     { }
 
-    SearchConfig::SearchConfig(uint32_t offset) :
+    SearchConfig::SearchConfig(uintptr_t offset) :
         search_string(),
         search_type(SearchType::Offset),
         offset(offset)
     { }
 
-    SearchConfig::SearchConfig(std::string search_string, uint32_t offset, SearchType search_type) :
+    SearchConfig::SearchConfig(std::string search_string, uintptr_t offset, SearchType search_type) :
         search_string(std::move(search_string)),
         offset(offset),
         search_type(search_type)
     { }
 
-    SearchConfig::SearchConfig(std::string search_string, SearchType search_type, std::string fallback_pattern, uint32_t offset) :
+    SearchConfig::SearchConfig(std::string search_string, SearchType search_type, std::string fallback_pattern, uintptr_t offset) :
         search_string(std::move(search_string)),
         fallback_pattern(std::move(fallback_pattern)),
         offset(offset),
         search_type(search_type)
     { }
 
-    uint32_t SearchConfig::FindAddress(MemScanner& mem_scanner) const
+    uintptr_t SearchConfig::FindAddress(MemScanner& mem_scanner) const
     {
         switch (search_type)
         {
@@ -127,7 +130,7 @@ namespace nitroapi
                 return mem_scanner.FindPattern2(search_string);
 
             case SearchType::ExportFunc:
-                return (uint32_t)nitro_utils::GetProcAddress(mem_scanner.Module(), search_string.c_str());
+                return reinterpret_cast<uintptr_t>(nitro_utils::GetProcAddress(mem_scanner.Module(), search_string.c_str()));
 
             case SearchType::Symbol:
 #ifdef _WIN32
@@ -138,8 +141,8 @@ namespace nitroapi
 
             case SearchType::SymbolOrPattern:
             {
-                uint32_t address = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
-                    nitro_utils::GetProcAddress(mem_scanner.Module(), search_string.c_str())));
+                uintptr_t address = reinterpret_cast<uintptr_t>(
+                    nitro_utils::GetProcAddress(mem_scanner.Module(), search_string.c_str()));
 
                 if (address != 0)
                     return address;
@@ -154,7 +157,7 @@ namespace nitroapi
                 if (fallback_pattern.empty())
                     return 0;
 
-                const uint32_t pattern_address = mem_scanner.FindPattern(fallback_pattern.c_str());
+                const uintptr_t pattern_address = mem_scanner.FindPattern(fallback_pattern.c_str());
 
                 if (pattern_address == 0)
                     return 0;

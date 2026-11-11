@@ -4,7 +4,6 @@
 #include <goldsrc/entity.h>
 #include <goldsrc/format/studio.h>
 
-static_assert(sizeof(void*) == 4);
 static_assert(goldsrc::ET_NORMAL == 0);
 static_assert(goldsrc::MAXSTUDIOBONES == 128);
 

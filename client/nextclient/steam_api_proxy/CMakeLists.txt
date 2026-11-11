@@ -11,12 +11,6 @@ set(CMAKE_CXX_STANDARD 23)
 # common options
 set(BUILD_SHARED_LIBS OFF)
 
-if (UNIX)
-    add_compile_options(-m32 -march=pentium4 -Wno-narrowing)
-    add_link_options(-m32 -static-libstdc++ -static-libgcc)
-    set(CMAKE_LIBRARY_ARCHITECTURE i386-linux-gnu)
-endif ()
-
 add_library(${PROJECT_NAME} SHARED
         src/api_impl/SteamAPI.cpp
         src/public/steam/isteamapps.h

@@ -34,7 +34,7 @@ namespace
                 nitro_utils::UnloadSysModule(module_);
         }
 
-        uint32_t Resolve(const nitroapi::SearchConfig& config)
+        uintptr_t Resolve(const nitroapi::SearchConfig& config)
         {
             return config.FindAddress(*scanner_);
         }
@@ -76,7 +76,7 @@ TEST_F(ResolverTest, FallsBackToPatternWhenSymbolIsMissing)
 
     const auto target = reinterpret_cast<uintptr_t>(get_pattern_address());
 
-    const uint32_t resolved = Resolve(nitroapi::SearchConfig(
+    const uintptr_t resolved = Resolve(nitroapi::SearchConfig(
         "ResolverTest_NoSuchSymbol",
         nitroapi::SearchType::SymbolOrPattern,
         "23 A1 E7 C5"));

@@ -1,5 +1,8 @@
+#include "hook/GenericHookJit.h"
+
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <cstdarg>
 #include <csetjmp>
 #include <string>
@@ -78,6 +81,7 @@ namespace
     };
 } // namespace
 
+#if UINTPTR_MAX == UINT32_MAX
 TEST(HostAbortAdapterTest, RepeatedInternalJumpsPreserveVariadicArgumentsAndNextFrame)
 {
     nitroapi::FrameLifecycleService service;
@@ -180,3 +184,45 @@ TEST(HostAbortAdapterTest, ReportsOnlyBoundOwnerAndCurrentNestedInvocation)
     first.Clear();
     second.Clear();
 }
+#else
+TEST(HostAbortAdapterTest, DoesNotReplaceTheTargetInThisProcess)
+{
+    nitroapi::FrameLifecycleService service;
+    nitroapi::HostAbortAdapter adapter(service);
+    g_ShouldAbort = false;
+    g_Format = nullptr;
+    g_Integer = 0;
+
+    adapter.Install(reinterpret_cast<void*>(&EndGame));
+    EndGame("still-local %d", 3, &g_Integer, 1.5);
+    EXPECT_STREQ(g_Format, "still-local %d");
+    EXPECT_EQ(g_Integer, 3);
+
+    adapter.Uninstall();
+    EndGame("after-uninstall %d", 4, &g_Integer, 1.5);
+    EXPECT_STREQ(g_Format, "after-uninstall %d");
+    EXPECT_EQ(g_Integer, 4);
+}
+#endif
+
+#if UINTPTR_MAX > UINT32_MAX
+namespace
+{
+    int g_JitCalls = 0;
+
+    void JitTarget()
+    {
+        g_JitCalls += 1;
+    }
+}
+
+TEST(GenericHookJitTest, DoesNotReplaceTheTargetInThisProcess)
+{
+    g_JitCalls = 0;
+    nitroapi::GenericCdeclJitHook<void> hook(reinterpret_cast<uintptr_t>(&JitTarget));
+    hook.SetCallbackAndEnableHook([] { g_JitCalls += 100; });
+    JitTarget();
+    EXPECT_EQ(g_JitCalls, 1);
+    EXPECT_FALSE(hook.IsHookActive());
+}
+#endif

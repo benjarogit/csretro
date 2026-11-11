@@ -1,8 +1,8 @@
 # Build-Voraussetzungen
 
-CSRETRO baut auf einem **Linux-x86_64-Host** und erzeugt **32-Bit-x86-Binaries**.
-CachyOS/Arch ist die Referenzdistribution; die Prüfungen sind generisch und
-funktionieren auf jeder Distribution mit 32-Bit-Toolchain und X11-Bibliotheken.
+CSRETRO baut auf einem **Linux-x86_64-Host**. Der Client ist **x86_64**.
+Das Server-Modul bleibt **i386**, weil ReHLDS es so lädt. CachyOS/Arch ist die
+Referenzdistribution.
 
 Das Retail-Spiel wird **nicht** zum Bauen benötigt. Es wird nur zum Ausführen des
 Clients gebraucht und bleibt unangetastet in der Steam-Bibliothek.
@@ -31,7 +31,9 @@ sudo pacman -S --needed \
   curl zip unzip tar patch pkgconf perl nasm \
   lib32-glibc lib32-gcc-libs lib32-mesa lib32-libglvnd \
   lib32-libx11 lib32-libxext lib32-libxcursor lib32-libxi \
-  lib32-libxrandr lib32-libxinerama lib32-libxss lib32-libxfixes lib32-libxrender
+  lib32-libxrandr lib32-libxinerama lib32-libxss lib32-libxfixes lib32-libxrender \
+  mesa libglvnd libx11 libxext libxcursor libxi libxrandr libxinerama \
+  libxss libxfixes libxrender
 ```
 
 Oder das Bootstrap genau diese Menge installieren lassen:
@@ -40,12 +42,12 @@ Oder das Bootstrap genau diese Menge installieren lassen:
 scripts/bootstrap.sh --install-deps
 ```
 
-## Warum 32 Bit
+## Warum x86_64
 
-GoldSrc ist eine 32-Bit-Engine. Jedes Client-Modul muss zu ihrer ABI passen, deshalb
-kompiliert das Projekt mit `-m32 -march=pentium4` und vcpkg nutzt das eigene
-Triplet `client/custom-vcpkg-triplets/x86-linux.cmake`. Ohne Multilib lässt sich
-der Client nicht linken, egal wie modern der Host ist.
+Der Produktprozess ist x86_64. Die Entscheidung steht in
+[Plan, Abschnitt 3.7](../../plan/csretro-plan.md). Der Client nutzt das
+vcpkg-Triplet `x64-linux`. Das Server-Modul bleibt i386 und braucht dafür
+weiter die 32-Bit-Toolchain.
 
 ## Was der Doctor prüft
 
@@ -54,11 +56,12 @@ Voraussetzung fehlt. Geprüft wird:
 
 - Host-Architektur, Distribution, glibc, GCC, CMake, Ninja, Python, Git, Git LFS
 - Build-Helfer: `curl`, `zip`, `unzip`, `tar`, `patch`, `make`, `pkg-config`, `perl`
-- ein echter 32-Bit-Compile-and-Link-Probe für C und C++ mit `-m32 -march=pentium4`
-- 32-Bit-`libGL` und die X11-Bibliotheken `X11`, `Xext`, `Xcursor`, `Xi`, `Xrandr`,
+- einen echten x86_64-Compile-and-Link-Probe für C und C++
+- natives `libGL` und die X11-Bibliotheken `X11`, `Xext`, `Xcursor`, `Xi`, `Xrandr`,
   `Xinerama`, `Xss`, `Xfixes`, `Xrender`
-- ein 32-Bit-Mesa-`swrast`-Treiber für Offscreen-Rendering-Tests
-- vcpkg-Submodul, vcpkg-Binary und das Triplet `x86-linux`
+- einen Mesa-`swrast`-Treiber für Offscreen-Rendering-Tests
+- vcpkg-Submodul, vcpkg-Binary und das Triplet `x64-linux`
+- die 32-Bit-Toolchain für das Server-Modul (`-m32`, ELF32)
 - initialisierte Submodule und mindestens 20 GB freien Speicherplatz
 
 Die Steam-Runtime erscheint nur als Warnung: Sie wird zum Ausführen des
@@ -66,9 +69,8 @@ Retail-Spiels gebraucht, nicht zum Bauen.
 
 ## Bewusst nicht erforderlich
 
-- **System-SDL2 für 32 Bit.** vcpkg baut SDL2 aus dem Quellcode und linkt es
-  dynamisch gegen die SONAME der Engine. Die Header kommen aus der vendorten Kopie
-  in `client/dep/SDL2/include`.
+- **System-SDL2.** vcpkg baut SDL2 und der Client linkt diese Kopie. Die
+  Retail-`hw.so` teilt ihre SDL nicht mehr mit dem Prozess.
 - **Windows-Werkzeuge.** Windows ist kein Ziel.
 - **CEF.** Die Browser-Oberfläche bleibt unter Linux deaktiviert.
 
@@ -86,13 +88,13 @@ erneut ausführen.
 
 | Symptom | Ursache | Lösung |
 |---|---|---|
-| `cannot find -lX11` im Probe | 32-Bit-X11-Entwicklungsdateien fehlen | `lib32-libx11` installieren |
-| `-m32` scheitert vor dem Linken | 32-Bit-libc oder libstdc++ fehlt | `lib32-glibc lib32-gcc-libs` installieren |
-| `GL/gl.h` nicht gefunden | 32-Bit-OpenGL-Header oder -Libs fehlen | `lib32-mesa lib32-libglvnd` installieren |
-| `no 32-bit swrast driver` | 32-Bit-Mesa-Runtime fehlt | `lib32-mesa` installieren |
+| `cannot find -lX11` im Probe | native X11-Entwicklungsdateien fehlen | `libx11` installieren |
+| Server-Probe `-m32` scheitert | 32-Bit-libc oder libstdc++ fehlt | `lib32-glibc lib32-gcc-libs` installieren |
+| `GL/gl.h` nicht gefunden | native OpenGL-Header oder -Libs fehlen | `mesa libglvnd` installieren |
+| `no swrast driver` | Mesa-Runtime fehlt | `mesa` installieren |
 | `vcpkg binary: not bootstrapped` | Submodul da, Tool nicht gebaut | `scripts/bootstrap.sh` ausführen |
 | `glibc ... is too old` | Distribution älter als das Minimum | neuere Distribution oder Container |
-| CMake konfiguriert 64-Bit-Bibliotheken | Multilib nicht aktiv oder Triplet überschrieben | Multilib aktivieren, `x86-linux`-Triplet behalten |
+| CMake bleibt auf dem alten Triplet | Cache aus `x86-linux` | `scripts/build-client.sh --clean` |
 
 CSRETRO niemals in den Steam-Spielordner installieren. Siehe
 [Sicherheitsregeln](../../../AGENTS.md#10-security).

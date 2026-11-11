@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include <nitroapi/hook/StaticHookId.h>
@@ -79,22 +80,34 @@ TEST(PresentationBoundaryTest, ExistingAbiOffsetsAndHookIdsStayStable)
     EXPECT_EQ(int(nitroapi::StaticHookId::SDL_GL_GetProcAddress), 1503);
     EXPECT_EQ(int(nitroapi::StaticHookId::VGui_InitInterfacesList), 1504);
     EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_DestroyWindowFunc), 0u);
-    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_CreateWindowFunc), 8u);
-    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GetErrorFunc), 16u);
-    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_GetProcAddress), 24u);
-    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_SwapWindow), 32u);
-    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_GetDrawableSize), 40u);
-    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_GetCurrentWindow), 48u);
-    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GetWindowSize), 56u);
-    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GetVersion), 64u);
+    constexpr auto slot = sizeof(nitroapi::SDL2Data::SDL_DestroyWindowFunc);
+    static_assert(sizeof(nitroapi::SDL2Data::SDL_CreateWindowFunc) == slot);
+    static_assert(sizeof(nitroapi::SDL2Data::SDL_GetErrorFunc) == slot);
+    static_assert(sizeof(nitroapi::SDL2Data::SDL_GL_GetProcAddress) == slot);
+    static_assert(sizeof(nitroapi::SDL2Data::SDL_GL_SwapWindow) == slot);
+    static_assert(sizeof(nitroapi::SDL2Data::SDL_GL_GetDrawableSize) == slot);
+    static_assert(sizeof(nitroapi::SDL2Data::SDL_GL_GetCurrentWindow) == slot);
+    static_assert(sizeof(nitroapi::SDL2Data::SDL_GetWindowSize) == slot);
+    static_assert(sizeof(nitroapi::SDL2Data::SDL_GetVersion) == slot);
+    static_assert(sizeof(nitroapi::SDL2Data::SDL_GL_CreateContext) == slot);
+    static_assert(sizeof(nitroapi::SDL2Data::SDL_GL_DeleteContext) == slot);
+    static_assert(sizeof(nitroapi::SDL2Data::SDL_GL_GetCurrentContext) == slot);
+    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_CreateWindowFunc), slot);
+    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GetErrorFunc), slot * 2);
+    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_GetProcAddress), slot * 3);
+    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_SwapWindow), slot * 4);
+    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_GetDrawableSize), slot * 5);
+    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_GetCurrentWindow), slot * 6);
+    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GetWindowSize), slot * 7);
+    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GetVersion), slot * 8);
     EXPECT_EQ(int(nitroapi::StaticHookId::SDL_GL_SwapWindow), 1505);
     EXPECT_EQ(int(nitroapi::StaticHookId::SDL_GetWindowSize), 1508);
     EXPECT_EQ(int(nitroapi::StaticHookId::SDL_GetVersion), 1509);
-    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_CreateContext), 72u);
-    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_DeleteContext), 80u);
+    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_CreateContext), slot * 9);
+    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_DeleteContext), slot * 10);
     EXPECT_EQ(int(nitroapi::StaticHookId::SDL_GL_CreateContext), 1510);
     EXPECT_EQ(int(nitroapi::StaticHookId::SDL_GL_DeleteContext), 1511);
-    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_GetCurrentContext), 88u);
+    EXPECT_EQ(offsetof(nitroapi::SDL2Data, SDL_GL_GetCurrentContext), slot * 11);
     EXPECT_EQ(int(nitroapi::StaticHookId::SDL_GL_GetCurrentContext), 1512);
 }
 

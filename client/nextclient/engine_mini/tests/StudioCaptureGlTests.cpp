@@ -464,11 +464,11 @@ namespace
     {
     public:
         void UnsetCallbackAndDisableHook() override {}
-        uint32_t GetTrampolineAddress() const override
+        uintptr_t GetTrampolineAddress() const override
         {
             return 0;
         }
-        uint32_t GetOriginalFunctionAddress() const override
+        uintptr_t GetOriginalFunctionAddress() const override
         {
             return 0;
         }
@@ -518,11 +518,11 @@ namespace
     {
     public:
         void UnsetCallbackAndDisableHook() override {}
-        uint32_t GetTrampolineAddress() const override
+        uintptr_t GetTrampolineAddress() const override
         {
             return GetOriginalFunctionAddress();
         }
-        uint32_t GetOriginalFunctionAddress() const override
+        uintptr_t GetOriginalFunctionAddress() const override
         {
             return reinterpret_cast<uint32_t>(CapturePrint);
         }

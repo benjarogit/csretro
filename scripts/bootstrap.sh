@@ -75,6 +75,17 @@ if ((install_deps)); then
         lib32-libxss
         lib32-libxfixes
         lib32-libxrender
+        mesa
+        libglvnd
+        libx11
+        libxext
+        libxcursor
+        libxi
+        libxrandr
+        libxinerama
+        libxss
+        libxfixes
+        libxrender
     )
 
     sudo pacman -S --needed --noconfirm "${packages[@]}"

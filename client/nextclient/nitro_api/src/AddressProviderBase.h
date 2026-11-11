@@ -17,8 +17,8 @@ namespace nitroapi
     public:
         virtual ~AddressProviderBase() = default;
 
-        uint32_t FindAddress(nitro_utils::SysModule hModule, StaticHookId key);
-        uint32_t FindAddress(nitro_utils::SysModule hModule, const std::string &key);
+        uintptr_t FindAddress(nitro_utils::SysModule hModule, StaticHookId key);
+        uintptr_t FindAddress(nitro_utils::SysModule hModule, const std::string &key);
 
     protected:
         virtual const std::unordered_map<StaticHookId, SearchConfig>& get_addresses_id() = 0;

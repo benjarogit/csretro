@@ -21,7 +21,7 @@ A modification of the Counter-Strike 1.6 client. It ships replacement libraries 
 | `test_support/plugins/` | test server plugins | AMX Mod X test fixtures: `nextclient_testlab`, `nextclient_materials_test` |
 | `test_support/runtime/` | test runtime dependencies | DLLs copied to test output directories by CMake |
 
-All native client modules are 32-bit (`x86-windows-static` on Windows, `x86-linux` on Linux), because the engine they load into is. Third-party dependencies come from the vendored `vcpkg/`, wired in by the `base` configure preset.
+All native client modules on the Linux product preset are x86_64 (plan section 3.7). Windows presets in `CMakePresets.json` are not the product. Third-party dependencies come from the vendored `vcpkg/`, wired in by the `base` configure preset. The Linux triplet is `x64-linux`.
 
 ## Build
 

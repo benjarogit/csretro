@@ -1,5 +1,6 @@
 #include "HostAbortAdapter.h"
 
+#include <cstdint>
 #include <cstdio>
 #include <exception>
 #include <new>
@@ -30,6 +31,7 @@ namespace nitroapi
         }
     } // namespace
 
+#if UINTPTR_MAX == UINT32_MAX
     class HostAbortAdapter::Entry final : public Xbyak::CodeGenerator
     {
     private:
@@ -83,6 +85,13 @@ namespace nitroapi
             RequireSuccess(funchook_destroy(hook_), "destroy");
         }
     };
+#else
+    class HostAbortAdapter::Entry final
+    {
+    public:
+        Entry(FrameLifecycleService&, void*) = delete;
+    };
+#endif
 
     HostAbortAdapter::HostAbortAdapter(FrameLifecycleService& service) :
         service_(service)
@@ -92,12 +101,18 @@ namespace nitroapi
 
     void HostAbortAdapter::Install(void* target)
     {
+#if UINTPTR_MAX > UINT32_MAX
+        // Retail hw.so is i386 and is not loaded into this process.
+        (void)target;
+        return;
+#else
         if (entry_ || !target)
         {
             throw std::logic_error("Host abort adapter requires an uninstalled, resolved target");
         }
 
         entry_ = std::make_unique<Entry>(service_, target);
+#endif
     }
 
     void HostAbortAdapter::Uninstall()

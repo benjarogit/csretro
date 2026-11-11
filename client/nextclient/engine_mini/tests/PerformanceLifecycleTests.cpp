@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <array>
 #include <csetjmp>
 #include <string>
@@ -762,6 +763,7 @@ namespace
     };
 } // namespace
 
+#if UINTPTR_MAX == UINT32_MAX
 TEST_F(PerformanceLifecycleTest, InternalAbortAdapterDiscardsPartialMonitorFrameAndRetriesDump)
 {
     nitroapi::FrameLifecycleService service;
@@ -839,3 +841,4 @@ TEST_F(PerformanceLifecycleTest, InternalAbortAdapterDiscardsPartialMonitorFrame
     monitor.SetTraceBackend(nullptr);
     g_InternalMonitorFrame = nullptr;
 }
+#endif

@@ -13,8 +13,8 @@ CSRETRO is a fully vendored Counter-Strike 1.6 client plus an AMXX server API.
 - Target is the **Default Public branch** of the retail game only.
 - No `steam_legacy`, no 8684 fallback, no legacy address providers.
 - No backward compatibility with NextClient. CSRETRO servers accept CSRETRO clients.
-- Product process is x86_64, decided in the plan, section 3.7. The tree still
-  builds 32-bit until that migration slice. Windows is not a target.
+- Product process is x86_64, decided in the plan, section 3.7. The Linux
+  client preset builds that process. Windows is not a target.
 - Reference projects under GPL are read for ideas and procedures, never vendored.
 
 The authoritative plan is [`docs/plan/csretro-plan.md`](docs/plan/csretro-plan.md).
@@ -242,7 +242,7 @@ CMakeUserPresets.json  vcpkg_installed/  __pycache__/
 | Item | Value |
 |---|---|
 | Host | Linux x86_64 |
-| Target | x86_64 product process (plan 3.7); current build still `-m32` |
+| Target | x86_64 product process (plan 3.7) |
 | Reference OS | CachyOS / Arch, multilib enabled |
 | Build system | CMake presets + Ninja |
 | Python | 3.12 or newer, `uv` for tool environments |

@@ -153,12 +153,12 @@ namespace studio::testing
             callback = {};
         }
 
-        uint32_t GetTrampolineAddress() const override
+        uintptr_t GetTrampolineAddress() const override
         {
             return 0;
         }
 
-        uint32_t GetOriginalFunctionAddress() const override
+        uintptr_t GetOriginalFunctionAddress() const override
         {
             return 0;
         }

@@ -115,9 +115,9 @@ else
     warn "uv" "not found" "optional, used by the Python tool environments"
 fi
 
-section "32-bit target (i386)"
+section "client target (x86_64)"
 if ! have gcc; then
-    fail "32-bit probe" "gcc is missing"
+    fail "client probe" "gcc is missing"
 else
     tmp="$(mktemp -d)"
     trap 'rm -rf "$tmp"' EXIT
@@ -137,41 +137,42 @@ else
 int main(void) { return 0; }
 EOF
 
-    if gcc -m32 -march=pentium4 "$tmp/probe.c" -o "$tmp/probe" \
+    if gcc "$tmp/probe.c" -o "$tmp/probe" \
         -lGL -lX11 -lXext -lXcursor -lXi -lXrandr -lXss -lXfixes -lXrender -lXinerama 2>"$tmp/link.log"; then
-        pass "C compile and link" "-m32 -march=pentium4"
+        pass "C compile and link" "x86_64"
     else
-        fail "C compile and link" "-m32 -march=pentium4 failed" "$(head -n 3 "$tmp/link.log")"
+        fail "C compile and link" "x86_64 link failed" "$(head -n 3 "$tmp/link.log")"
     fi
 
-    if [[ -f "$tmp/probe" ]] && readelf -h "$tmp/probe" 2>/dev/null | grep -q 'ELF32'; then
-        pass "probe binary" "ELF32"
+    if [[ -f "$tmp/probe" ]] && readelf -h "$tmp/probe" 2>/dev/null | grep -q 'ELF64'; then
+        pass "probe binary" "ELF64"
+    elif [[ -f "$tmp/probe" ]]; then
+        fail "probe binary" "not ELF64"
     fi
 
     cat >"$tmp/probe.cpp" <<'EOF'
 #include <string>
 int main() { std::string s = "csretro"; return s.size() == 7 ? 0 : 1; }
 EOF
-    if g++ -m32 "$tmp/probe.cpp" -o "$tmp/probe_cpp" 2>"$tmp/link_cpp.log"; then
-        pass "C++ compile and link" "-m32 with libstdc++"
+    if g++ "$tmp/probe.cpp" -o "$tmp/probe_cpp" 2>"$tmp/link_cpp.log"; then
+        pass "C++ compile and link" "x86_64 libstdc++"
     else
-        fail "C++ compile and link" "-m32 failed" "$(head -n 3 "$tmp/link_cpp.log")"
+        fail "C++ compile and link" "x86_64 failed" "$(head -n 3 "$tmp/link_cpp.log")"
     fi
 
     for lib in GL X11 Xext Xcursor Xi Xrandr Xinerama Xss Xfixes Xrender; do
-        resolved="$(gcc -m32 -print-file-name="lib${lib}.so" 2>/dev/null)"
+        resolved="$(gcc -print-file-name="lib${lib}.so" 2>/dev/null)"
         if [[ "$resolved" == /* && -e "$resolved" ]]; then
-            pass "lib${lib}.so (32-bit)" "$resolved"
+            pass "lib${lib}.so" "$resolved"
         else
-            fail "lib${lib}.so (32-bit)" "not found" "install: lib32-${lib,,}"
-            MISSING+=("lib32-${lib,,}")
+            fail "lib${lib}.so" "not found" "install the native ${lib} package"
         fi
     done
 fi
 
-section "32-bit runtime (offscreen rendering)"
+section "client runtime (offscreen rendering)"
 swrast=""
-for dir in /usr/lib32/dri /usr/lib/i386-linux-gnu/dri /usr/lib32; do
+for dir in /usr/lib/dri /usr/lib/x86_64-linux-gnu/dri; do
     [[ -d "$dir" ]] || continue
     candidate="$(find "$dir" -maxdepth 1 -name 'swrast_dri.so' -print -quit 2>/dev/null)"
     if [[ -n "$candidate" ]]; then
@@ -182,9 +183,18 @@ done
 if [[ -n "$swrast" ]]; then
     pass "Mesa swrast (llvmpipe)" "$swrast"
 else
-    fail "Mesa swrast (llvmpipe)" "no 32-bit swrast driver" "install: lib32-mesa"
-    MISSING+=("lib32-mesa")
+    fail "Mesa swrast (llvmpipe)" "no swrast driver" "install: mesa"
 fi
+
+section "server module toolchain (i386)"
+server_tmp="$(mktemp -d)"
+if g++ -m32 -x c++ -o "$server_tmp/probe" - <<<"int main(){return 0;}" >/dev/null 2>&1 \
+    && readelf -h "$server_tmp/probe" 2>/dev/null | grep -q 'ELF32'; then
+    pass "server module" "ELF32"
+else
+    fail "server module" "-m32 failed" "the AMXX module is still i386"
+fi
+rm -rf "$server_tmp"
 
 steam_runtime=""
 for dir in "$HOME/.steam/steam/ubuntu12_32/steam-runtime" "$HOME/.local/share/Steam/ubuntu12_32/steam-runtime"; do
@@ -215,10 +225,10 @@ else
     warn "vcpkg binary" "not bootstrapped" "run: scripts/bootstrap.sh"
 fi
 
-if [[ -f client/custom-vcpkg-triplets/x86-linux.cmake ]]; then
-    pass "vcpkg triplet" "x86-linux"
+if [[ -f client/vcpkg/triplets/x64-linux.cmake ]]; then
+    pass "vcpkg triplet" "x64-linux"
 else
-    fail "vcpkg triplet" "client/custom-vcpkg-triplets/x86-linux.cmake is missing"
+    fail "vcpkg triplet" "client/vcpkg/triplets/x64-linux.cmake is missing"
 fi
 
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then

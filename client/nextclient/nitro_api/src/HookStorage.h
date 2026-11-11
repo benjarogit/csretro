@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "hook/GenericHookJit.h"
 #include "hook/GenericHookStatic.h"
 #include "hook/GenericHookVaformatStatic.h"
@@ -14,7 +15,7 @@ namespace nitroapi
         // Keyed by address. A function that wasn't found gets no hook: every one of them has
         // address 0, and those of the same signature would share a single hook object, which the
         // first of them to unload deletes from under the others.
-        std::unordered_map<uint32_t, HookInterface*> hooks_;
+        std::unordered_map<uintptr_t, HookInterface*> hooks_;
 
     public:
         ~HookStorage()
@@ -31,7 +32,7 @@ namespace nitroapi
 
         template <StaticHookId HookId, CallingConventions TConv, class TResult, class... TArgs>
         GenericHookInterface<TResult, TArgs...>* GetStaticHook(
-            uint32_t address,
+            uintptr_t address,
             typename GenericHookStatic<HookId, TConv, TResult, TArgs...>::CallbackWrapperFunc callback_wrapper = {}
         )
         {
@@ -52,7 +53,7 @@ namespace nitroapi
         }
 
         template<StaticHookId HookId, class TResult, class... TArgs>
-        GenericHookInterface<TResult, TArgs...>* GetStaticVaformatHook(uint32_t address)
+        GenericHookInterface<TResult, TArgs...>* GetStaticVaformatHook(uintptr_t address)
         {
             if (address == 0)
                 return nullptr;
@@ -71,7 +72,7 @@ namespace nitroapi
         }
 
         template<CallingConventions TConv, class TResult, class... TArgs>
-        GenericHookInterface<TResult, TArgs...>* GetJitHook(uint32_t address)
+        GenericHookInterface<TResult, TArgs...>* GetJitHook(uintptr_t address)
         {
             if (address == 0)
                 return nullptr;
@@ -89,7 +90,7 @@ namespace nitroapi
             return hook;
         }
 
-        void RemoveHook(uint32_t address)
+        void RemoveHook(uintptr_t address)
         {
             auto result = hooks_.find(address);
             if (result == hooks_.end())

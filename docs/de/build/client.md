@@ -1,7 +1,8 @@
 # Client bauen
 
-Der Client besteht aus 32-Bit-Shared-Libraries, die neben dem Retail-Spiel liegen
-und die Engine zur Laufzeit patchen. Nichts davon berührt die Steam-Installation.
+Der Client ist ein x86_64-Build. Valves i386-`hw.so` wird nicht geladen.
+Die Entscheidung steht in [Plan, Abschnitt 3.7](../../plan/csretro-plan.md).
+Nichts davon berührt die Steam-Installation.
 
 Voraussetzungen: [Build-Voraussetzungen](prerequisites.md).
 
@@ -41,8 +42,8 @@ Das Preset `linux` ist ein Ninja-Multi-Config-Preset:
 | Einstellung | Wert |
 |---|---|
 | Generator | Ninja Multi-Config |
-| Triplet | `x86-linux` (`client/custom-vcpkg-triplets/x86-linux.cmake`) |
-| C/C++-Flags | `-m32 -march=pentium4 -mfpmath=sse` |
+| Triplet | `x64-linux` (`client/vcpkg/triplets/x64-linux.cmake`) |
+| C/C++-Flags | Host-Standard, ohne `-m32` |
 | Build-Verzeichnis | `client/build/linux` |
 | Ausgabe | `client/build/linux/out/bin/<config>/` |
 
@@ -68,7 +69,10 @@ scripts/build-client.sh --target client_mini
 Weitere Optionen: `--config Debug`, `--jobs 8`, `--reconfigure`, `--clean`,
 `--install-dir <dir>`, `--manifest <file>`.
 
-## Referenzbuild (G04, 8. November 2026, Release)
+## Referenzbuild (G04, 8. November 2026, damaliger 32-Bit-Stand)
+
+Die Tabelle ist der abgeschlossene G04-Nachweis. Der Produkt-Build ist seit
+dem x86_64-Wechsel ELF64.
 
 | Artefakt | Größe | Typ |
 |---|---:|---|
@@ -100,10 +104,10 @@ einer Zeile pro Artefakt:
 
 ```text
 # size_bytes  sha256  elf  path
-5482420  <sha256>  ELF32  client_mini.dll
+5482420  <sha256>  ELF64  client_mini.dll
 ```
 
-Der Build bricht ab, wenn ein Artefakt nicht `ELF32` ist.
+Der Build bricht ab, wenn ein Artefakt nicht `ELF64` ist.
 
 ## Bekannte Warnungen
 
@@ -121,6 +125,6 @@ Keine davon verändert das Ergebnis.
 | `is a Git LFS pointer file` beim Konfigurieren | LFS-Objekte nicht geladen | `git lfs pull` |
 | `could not find baseline version` von vcpkg | vcpkg-Submodul ist ein Shallow-Clone | `git -C client/vcpkg fetch --unshallow` |
 | OpenSSLs `Configure` scheitert an Leerzeichen | Build-Pfad enthält Leerzeichen | `scripts/build-client.sh` verwenden, es baut über einen space-freien Symlink |
-| Artefakt ist `ELF64` | Triplet oder `-m32`-Flags überschrieben | `linux`-Preset und `x86-linux`-Triplet behalten |
-| CMake findet 64-Bit-Bibliotheken | Multilib fehlt | `scripts/doctor.sh` ausführen |
+| Artefakt ist `ELF32` | altes Triplet oder `-m32` noch aktiv | Preset `linux` und Triplet `x64-linux` behalten |
+| CMake findet keine Bibliothek | vcpkg-Cache vom alten Triplet | `scripts/build-client.sh --clean` |
 | vcpkg-Install scheitert nach Toolchain-Wechsel | veralteter Cache oder Build-Trees | `scripts/build-client.sh --clean` |

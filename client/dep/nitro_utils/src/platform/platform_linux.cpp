@@ -3,6 +3,7 @@
 #include <cstring>
 #include <link.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <pmparser.h>
 
 namespace nitro_utils
@@ -19,7 +20,7 @@ namespace nitro_utils
         return handle;
     }
 
-    bool GetSysModuleInfo(SysModule module, uint32_t* start_address, uint32_t* size)
+    bool GetSysModuleInfo(SysModule module, uintptr_t* start_address, uintptr_t* size)
     {
         link_map* linkmap = nullptr;
         if (dlinfo((void*) module, RTLD_DI_LINKMAP, &linkmap))
@@ -32,18 +33,28 @@ namespace nitro_utils
         // A shared object is mapped in several segments (r--, r-x, r--, rw-).
         // The span must cover all of them; the first entry alone is only the
         // ELF header page, so a pattern search over it never matches code.
-        uint32_t span_start = 0;
-        uint32_t span_end = 0;
+        uintptr_t span_start = 0;
+        uintptr_t span_end = 0;
         bool found = false;
 
         procmaps_struct* maps_tmp = nullptr;
+        struct stat module_stat {};
+        if (stat(linkmap->l_name, &module_stat) != 0)
+        {
+            pmparser_free(maps);
+            return false;
+        }
+
         while ((maps_tmp = pmparser_next(maps)) != nullptr)
         {
-            if (std::strcmp(linkmap->l_name, maps_tmp->pathname) != 0)
+            struct stat mapping_stat {};
+            if (stat(maps_tmp->pathname, &mapping_stat) != 0)
+                continue;
+            if (mapping_stat.st_dev != module_stat.st_dev || mapping_stat.st_ino != module_stat.st_ino)
                 continue;
 
-            const uint32_t mapping_start = (uint32_t)maps_tmp->addr_start;
-            const uint32_t mapping_end = (uint32_t)maps_tmp->addr_end;
+            const uintptr_t mapping_start = reinterpret_cast<uintptr_t>(maps_tmp->addr_start);
+            const uintptr_t mapping_end = reinterpret_cast<uintptr_t>(maps_tmp->addr_end);
 
             if (!found)
             {

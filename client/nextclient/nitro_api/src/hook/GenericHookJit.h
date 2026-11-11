@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <utility>
 #include <funchook.h>
 #include <xbyak.h>
@@ -14,9 +15,10 @@ namespace nitroapi
     // !!! PROBABLY HIGH RATE OF DETECTION BY ANTIVIRUS!
     // Supports only cdecl and stdcall conventions
     template<CallingConventions TConv, class TResult, class... TArgs>
-    class GenericHookJit : public GenericHookInterface<TResult, TArgs...>
-    {
-        class Jit : public Xbyak::CodeGenerator
+        class GenericHookJit : public GenericHookInterface<TResult, TArgs...>
+        {
+#if UINTPTR_MAX == UINT32_MAX
+            class Jit : public Xbyak::CodeGenerator
         {
         public:
             uint32_t original_return_address_[8]{};
@@ -73,15 +75,26 @@ namespace nitroapi
                 mov(dword [&recursion_depth_], edx);
             }
         };
+#else
+        // The trampoline emits i386 instructions. This process does not load the
+        // i386 libraries those hooks target, so the hook stays inactive.
+        class Jit
+        {
+        public:
+            explicit Jit(GenericHookJit<TConv, TResult, TArgs...>*) {}
+            template<class T>
+            T getCode() { return nullptr; }
+        };
+#endif
 
         typedef TResult (__cdecl *FuncTypeCdecl)(TArgs...);
         typedef TResult (__stdcall *FuncTypeStdcall)(TArgs...);
 
         Jit jit_;
-        funchook_t* funchook_;
+        funchook_t* funchook_ = nullptr;
 
-        uint32_t hook_address_ = 0;
-        uint32_t trampoline_address_ = 0;
+        uintptr_t hook_address_ = 0;
+        uintptr_t trampoline_address_ = 0;
         bool hook_created_ = false;
         bool hook_active_ = false;
 
@@ -99,10 +112,11 @@ namespace nitroapi
         #pragma warning(default:4715)
 
     public:
-        explicit GenericHookJit(uint32_t hook_address) :
+        explicit GenericHookJit(uintptr_t hook_address) :
             hook_address_(hook_address),
             jit_(this)
         {
+#if UINTPTR_MAX == UINT32_MAX
             int status;
 
             if (hook_address != 0)
@@ -129,6 +143,10 @@ namespace nitroapi
 
             hook_created_ = status == FUNCHOOK_ERROR_SUCCESS;
             LOG_IF(!hook_created_, WARNING) << "[jit hook] Can't create hook for address: " << hook_address_ << ". Status: " << status;
+#else
+            hook_created_ = false;
+            (void)hook_address;
+#endif
         }
 
         ~GenericHookJit() override
@@ -171,7 +189,7 @@ namespace nitroapi
 
         TResult InvokeOriginal(TArgs... args) override
         {
-            uint32_t address = hook_active_ ? trampoline_address_ : hook_address_;
+            uintptr_t address = hook_active_ ? trampoline_address_ : hook_address_;
 
             return InvokeInternal(address, std::forward<TArgs>(args)...);
         }
@@ -181,14 +199,14 @@ namespace nitroapi
             return InvokeInternal(hook_address_, std::forward<TArgs>(args)...);
         }
 
-        [[nodiscard]] uint32_t GetTrampolineAddress() const override { return trampoline_address_; }
+        [[nodiscard]] uintptr_t GetTrampolineAddress() const override { return trampoline_address_; }
 
-        [[nodiscard]] uint32_t GetOriginalFunctionAddress() const override { return hook_address_; }
+        [[nodiscard]] uintptr_t GetOriginalFunctionAddress() const override { return hook_address_; }
 
         [[nodiscard]] bool IsHookActive() const override { return hook_active_; }
 
     private:
-        TResult InvokeInternal(uint32_t address, TArgs... args)
+        TResult InvokeInternal(uintptr_t address, TArgs... args)
         {
             static_assert(TConv != CallingConventions::Fastcall, "Unsupported CallingConventions::Fastcall");
             static_assert(TConv != CallingConventions::Thiscall, "Unsupported CallingConventions::Thiscall");
@@ -230,7 +248,7 @@ namespace nitroapi
     class GenericCdeclJitHook : public GenericHookJit<CallingConventions::Cdecl, TResult, TArgs...>
     {
     public:
-        explicit GenericCdeclJitHook(uint32_t hook_address) :
+        explicit GenericCdeclJitHook(uintptr_t hook_address) :
             GenericHookJit<CallingConventions::Cdecl, TResult, TArgs...>(hook_address)
         { }
     };
@@ -239,7 +257,7 @@ namespace nitroapi
     class GenericStdcallJitHook : public GenericHookJit<CallingConventions::Stdcall, TResult, TArgs...>
     {
     public:
-        explicit GenericStdcallJitHook(uint32_t hook_address) :
+        explicit GenericStdcallJitHook(uintptr_t hook_address) :
             GenericHookJit<CallingConventions::Stdcall, TResult, TArgs...>(hook_address)
         { }
     };

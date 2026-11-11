@@ -1,0 +1,32 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a841b7c..a320303 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -84,6 +84,12 @@ if( SOURCE_SDK_NO_STEAM )
+ 	set( STEAM_API_DEFINES
+ 		NO_STEAM
+ 	)
++elseif( TARGET steam_api )
++	# The product process is x86_64. The prebuilt libsteam_api.so is i386 and is
++	# not loaded. The parent build provides the steam_api target.
++	set( STEAM_API_LIBRARIES
++		steam_api
++	)
+ else()
+ 	find_package( steam_api MODULE REQUIRED )
+ 	set( STEAM_API_LIBRARIES
+@@ -136,8 +142,12 @@ set( SOURCE_SDK_WARNING_LEVEL "")
+ #-----------------------------------------------------------------
+ # Dynamic libraries from the engine
+ #-----------------------------------------------------------------
+-find_package( tier0 MODULE REQUIRED )
+-find_package( vstdlib MODULE REQUIRED )
++if( NOT TARGET tier0 )
++	find_package( tier0 MODULE REQUIRED )
++endif()
++if( NOT TARGET vstdlib )
++	find_package( vstdlib MODULE REQUIRED )
++endif()
+ 
+ #-----------------------------------------------------------------
+ # Static libraries

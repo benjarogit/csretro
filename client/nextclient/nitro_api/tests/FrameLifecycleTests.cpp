@@ -79,11 +79,11 @@ namespace
         {
             callback = {};
         }
-        uint32_t GetTrampolineAddress() const override
+        uintptr_t GetTrampolineAddress() const override
         {
             return 0;
         }
-        uint32_t GetOriginalFunctionAddress() const override
+        uintptr_t GetOriginalFunctionAddress() const override
         {
             return 0;
         }
@@ -207,7 +207,7 @@ TEST_F(FrameLifecycleTest, NestedInvocationPreservesOuterState)
 TEST_F(FrameLifecycleTest, GenericHostHookDoesNotEmitLifecycleEvents)
 {
     nitroapi::GenericHookStatic<nitroapi::StaticHookId::Host_Frame, nitroapi::CallingConventions::Cdecl, int, float, int, int*> hook(
-        uint32_t(reinterpret_cast<uintptr_t>(&ClientHost))
+        reinterpret_cast<uintptr_t>(&ClientHost)
     );
     hook.SetCallbackAndEnableHook([](float, int state, int* state_info) {
         *state_info = 42;

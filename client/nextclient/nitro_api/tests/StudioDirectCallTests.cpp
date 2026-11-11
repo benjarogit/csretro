@@ -36,12 +36,12 @@ namespace
             callback_(args...);
         }
 
-        uint32_t GetTrampolineAddress() const override
+        uintptr_t GetTrampolineAddress() const override
         {
             return 2;
         }
 
-        uint32_t GetOriginalFunctionAddress() const override
+        uintptr_t GetOriginalFunctionAddress() const override
         {
             return 1;
         }

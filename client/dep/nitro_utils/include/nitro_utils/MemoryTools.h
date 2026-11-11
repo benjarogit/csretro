@@ -9,7 +9,7 @@
 struct MemoryModule
 {
 private:
-    uint32_t m_dwStart = 0, m_dwEnd = 0, m_dwSize = 0;
+    uintptr_t m_dwStart = 0, m_dwEnd = 0, m_dwSize = 0;
     nitro_utils::SysModule m_hModule = nullptr;
 public:
     explicit MemoryModule() { }
@@ -39,17 +39,17 @@ public:
         }
     }
 
-    uint32_t Start() const
+    uintptr_t Start() const
     {
         return m_dwStart;
     }
 
-    uint32_t End() const
+    uintptr_t End() const
     {
         return m_dwEnd;
     }
 
-    uint32_t Size() const
+    uintptr_t Size() const
     {
         return m_dwSize;
     }
@@ -69,15 +69,15 @@ struct memorypattern_t
 
 namespace utils
 {
-    static uint32_t RelativeToAbsolute(uint32_t dwAddress);
-    static uint32_t AbsoluteToRelative(uint32_t dwAddress, uint32_t dwAbsRef);
+    static uintptr_t RelativeToAbsolute(uintptr_t dwAddress);
+    static uintptr_t AbsoluteToRelative(uintptr_t dwAddress, uintptr_t dwAbsRef);
 };
 
 class MemScanner
 {
     size_t AOBToMaskedPattern(const char* pszPattern, memorypattern_t* pPattern);
     size_t StringToMaskedPattern(const char* pszString, memorypattern_t* pPattern, bool bEOS = true);
-    uint32_t m_dwFindStart = 0, m_dwFindEnd = 0;
+    uintptr_t m_dwFindStart = 0, m_dwFindEnd = 0;
     nitro_utils::SysModule m_hModule = nullptr;
 
 public:
@@ -85,13 +85,13 @@ public:
     MemScanner(const MemoryModule &memModule);
 
     bool SetContext(const MemoryModule &memModule);
-    bool AddrInRange(uint32_t dwAddress, uint32_t dwLB = 0, uint32_t dwHB = 0) const;
-    uint32_t ModuleStart() const;
-    uint32_t ModuleEnd() const;
+    bool AddrInRange(uintptr_t dwAddress, uintptr_t dwLB = 0, uintptr_t dwHB = 0) const;
+    uintptr_t ModuleStart() const;
+    uintptr_t ModuleEnd() const;
     nitro_utils::SysModule Module() const { return m_hModule; };
 
-    uint32_t FindPattern(const char* pszPattern, uint32_t dwStart = 0, int32_t iRange = 0);
-    uint32_t FindString(const char* pszString, bool bEOS = true, uint32_t dwStart = 0, int32_t iRange = 0);
-    uint32_t FindPattern(memorypattern_t* pPattern, uint32_t dwStart = 0, int32_t iRange = 0) const;
-    uint32_t FindPattern2(std::string sPattern, uint32_t dwStart = 0) const;
+    uintptr_t FindPattern(const char* pszPattern, uintptr_t dwStart = 0, int32_t iRange = 0);
+    uintptr_t FindString(const char* pszString, bool bEOS = true, uintptr_t dwStart = 0, int32_t iRange = 0);
+    uintptr_t FindPattern(memorypattern_t* pPattern, uintptr_t dwStart = 0, int32_t iRange = 0) const;
+    uintptr_t FindPattern2(std::string sPattern, uintptr_t dwStart = 0) const;
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <cstdarg>
 #include <type_traits>
 #include <utility>
@@ -27,15 +28,15 @@ namespace nitroapi
 
         funchook_t* funchook_;
 
-        uint32_t hook_address_ = 0;
-        uint32_t trampoline_address_ = 0;
+        uintptr_t hook_address_ = 0;
+        uintptr_t trampoline_address_ = 0;
         bool hook_created_ = false;
         bool hook_active_ = false;
 
         static std::function<TResult(const char*)> s_callback_;
 
     public:
-        explicit GenericHookVaformatStatic(uint32_t hook_address) :
+        explicit GenericHookVaformatStatic(uintptr_t hook_address) :
                 hook_address_(hook_address)
         {
             int status;
@@ -114,7 +115,7 @@ namespace nitroapi
 
         TResult InvokeOriginal(TArgs... args) override
         {
-            uint32_t address = hook_active_ ? trampoline_address_ : hook_address_;
+            uintptr_t address = hook_active_ ? trampoline_address_ : hook_address_;
 
 #if USE_PROFILER
             if (hook_active_)
@@ -133,14 +134,14 @@ namespace nitroapi
             return InvokeInternal(hook_address_, std::forward<TArgs>(args)...);
         }
 
-        [[nodiscard]] uint32_t GetTrampolineAddress() const override { return trampoline_address_; }
+        [[nodiscard]] uintptr_t GetTrampolineAddress() const override { return trampoline_address_; }
 
-        [[nodiscard]] uint32_t GetOriginalFunctionAddress() const override { return hook_address_; }
+        [[nodiscard]] uintptr_t GetOriginalFunctionAddress() const override { return hook_address_; }
 
         [[nodiscard]] bool IsHookActive() const override { return hook_active_; }
 
     private:
-        TResult InvokeInternal(uint32_t address, TArgs... args)
+        TResult InvokeInternal(uintptr_t address, TArgs... args)
         {
             return ((FuncTypeCdecl)address)(std::forward<TArgs>(args)...);
         }

@@ -259,7 +259,7 @@ namespace
     class FileReadConsoleHook : public studio_test::Hook<char*, const char*>
     {
     public:
-        uint32_t GetOriginalFunctionAddress() const override
+        uintptr_t GetOriginalFunctionAddress() const override
         {
             return reinterpret_cast<uint32_t>(FileReadPrint);
         }

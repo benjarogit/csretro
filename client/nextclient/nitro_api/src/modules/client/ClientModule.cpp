@@ -1,5 +1,6 @@
 #include "ClientModule.h"
 
+#include <cstdint>
 #include <utility>
 
 #include <goldsrc/client_api.h>
@@ -29,10 +30,12 @@ namespace nitroapi
         }
 
 #ifndef _WIN32
+#if UINTPTR_MAX == UINT32_MAX
         // the HUD elements are used through our own copies of their classes, which have to match
         static_assert(sizeof(goldsrc::cstrike::CHudAmmo) == 112);
         static_assert(sizeof(goldsrc::cstrike::CHudHealth) == 352);
         static_assert(sizeof(goldsrc::cstrike::CHudNightVision) == 32);
+#endif
 #endif
     } // namespace
 

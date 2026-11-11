@@ -13,40 +13,32 @@ int* R_StudioReloadSkin(goldsrc::model_t* pModel, int index, goldsrc::skin_t* ps
 {
     NCL_PROFILE_SCOPE();
 
-    int v3; // edx
-    int* v5; // ebx
-    int v6; // eax
-    int* v7; // esi
-    int v8; // edi
-    int* v9; // ebx
-    void* pModela; // [esp+Ch] [ebp+8h]
-
-    v3 = pModel - mod_known;
-    if (v3 < 0 || v3 >= goldsrc::MAX_KNOWN_MODELS)
+    const int model_index = static_cast<int>(pModel - mod_known);
+    if (model_index < 0 || model_index >= goldsrc::MAX_KNOWN_MODELS)
         return nullptr;
 
-    v5 = (int*) ((char*) &model_texture_cache + 4 * (index + 32 * v3));
-    if (Cache_Check((goldsrc::cache_user_t*)v5) != nullptr)
+    goldsrc::cache_user_t* slot = &model_texture_cache[model_index][index];
+    int* pixels = nullptr;
+    if (Cache_Check(slot) != nullptr)
     {
-        v9 = (int*) *v5;
+        pixels = static_cast<int*>(slot->data);
     }
     else
     {
-        v6 = reinterpret_cast<int>(COM_LoadFileForMe(pModel->name, nullptr));
-        v7 = (int*) (v6 + 80 * index + *(int*) (v6 + 184));
-        pModela = (void*) v6;
-        v8 = v7[17] * v7[18] + 776;
-        Cache_Alloc(reinterpret_cast<goldsrc::cache_user_t*>(v5), v8, (char*)(pskin + 16));
-        v9 = (int*) *v5;
-        *v9 = v7[17];
-        v9[1] = v7[18];
-        Q_memcpy((void*) (v9 + 2), (void*) ((unsigned int) pModela + v7[19]), v8 - 8);
-        Mem_Free(pModela);
+        auto* file = static_cast<unsigned char*>(COM_LoadFileForMe(pModel->name, nullptr));
+        auto* texture = reinterpret_cast<int*>(file + 80 * index + *reinterpret_cast<int*>(file + 184));
+        const int bytes = texture[17] * texture[18] + 776;
+        Cache_Alloc(slot, bytes, reinterpret_cast<char*>(pskin + 16));
+        pixels = static_cast<int*>(slot->data);
+        pixels[0] = texture[17];
+        pixels[1] = texture[18];
+        Q_memcpy(pixels + 2, file + texture[19], static_cast<size_t>(bytes - 8));
+        Mem_Free(file);
     }
 
     pskin->index = index;
-    pskin->width = *v9;
-    pskin->height = v9[1];
+    pskin->width = pixels[0];
+    pskin->height = pixels[1];
 
-    return v9 + 2;
+    return pixels + 2;
 }

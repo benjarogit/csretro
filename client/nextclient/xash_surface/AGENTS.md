@@ -7,7 +7,7 @@
 - Coordinates passed to draw calls are parent-relative. `PushMakeCurrent` replaces the origin with the host's absolute panel position. `useInsets` adds the host inset. `PopMakeCurrent` restores the previous origin. Clip rectangles from the host are absolute screen pixels.
 - VGUI alpha 0 is opaque. Convert with `VguiAlphaToGl` at the GL call. Stored colors stay in VGUI space.
 - Each draw saves and restores the GL state it changes, including `GL_TEXTURE_2D` and the texture binding. Leaving texturing disabled makes Xash3D's following 2D batch draw untextured white quads.
-- Text cells are a stand-in. Advance and color are real; glyph shapes arrive with the font atlas. Draws happen in call order, not in a deferred queue.
+- Text is a FreeType glyph in a packed atlas. The first glyph set fixes the height. Advance and ascent come from that face. Arial, Verdana and Tahoma map to the shipped Liberation Sans and DejaVu Sans files copied next to the library. Marlett and any other name come from `resolve_font`. Draws happen in call order, not in a deferred queue.
 - `CreateInterface("VGUI_Surface026")` returns the live `csr_surface_create` instance and nothing else.
 
 ## Verification

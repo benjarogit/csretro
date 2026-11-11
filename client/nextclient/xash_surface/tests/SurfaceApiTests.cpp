@@ -4,6 +4,13 @@
 #include <gtest/gtest.h>
 #include <vgui/ISurface.h>
 
+#include <cstdio>
+#include <string>
+
+#if defined(__linux__)
+#include <dlfcn.h>
+#endif
+
 extern "C" IBaseInterface* CreateInterface(const char* name, int* code);
 
 namespace
@@ -97,18 +104,21 @@ namespace
         EXPECT_TRUE(vgui->AddGlyphSetToFont(font, "Tahoma", 26, 800, 0, 0, 0, 0, 0));
         EXPECT_TRUE(vgui->AddGlyphSetToFont(font, "Arial", 40, 700, 0, 0, 0, 0, 0));
         EXPECT_EQ(vgui->GetFontTall(font), 26);
-        EXPECT_EQ(vgui->GetCharacterWidth(font, L'A'), 13);
+        const int width_a = vgui->GetCharacterWidth(font, L'A');
+        EXPECT_GT(width_a, 0);
         int a = -1;
         int b = -1;
         int c = -1;
         vgui->GetCharABCwide(font, L'A', a, b, c);
         EXPECT_EQ(a, 0);
-        EXPECT_EQ(b, 13);
+        EXPECT_EQ(b, width_a);
         EXPECT_EQ(c, 0);
         vgui->GetTextSize(font, L"AB", wide, tall);
-        EXPECT_EQ(wide, 26);
+        EXPECT_EQ(wide, width_a + vgui->GetCharacterWidth(font, L'B'));
         EXPECT_EQ(tall, 26);
-        EXPECT_EQ(vgui->GetFontAscent(font, L'A'), 19);
+        const int ascent = vgui->GetFontAscent(font, L'A');
+        EXPECT_GT(ascent, 0);
+        EXPECT_LT(ascent, 40);
 
         vgui->DrawSetTextFont(font);
         vgui->DrawSetTextPos(4, 5);
@@ -117,7 +127,7 @@ namespace
         EXPECT_EQ(y, 5);
         vgui->DrawPrintText(L"A", 1);
         vgui->DrawGetTextPos(x, y);
-        EXPECT_EQ(x, 17);
+        EXPECT_EQ(x, 4 + width_a);
         EXPECT_EQ(y, 5);
 
         Panel panel{96, 84, 2, 3, 90, 80, 200, 180};
@@ -163,6 +173,74 @@ namespace
         EXPECT_TRUE(vgui->IsTextureIDValid(1));
         EXPECT_TRUE(vgui->DeleteTextureByID(1));
         EXPECT_FALSE(vgui->IsTextureIDValid(1));
+        csr_surface_destroy(surface);
+    }
+
+    std::string FontBesideModule(const char* file)
+    {
+#if defined(__linux__)
+        Dl_info info{};
+        if (dladdr(reinterpret_cast<void*>(csr_surface_create), &info) == 0 || info.dli_fname == nullptr)
+        {
+            return {};
+        }
+        std::string path = info.dli_fname;
+        const auto slash = path.find_last_of('/');
+        if (slash == std::string::npos)
+        {
+            return {};
+        }
+        path.resize(slash);
+        path += "/fonts/";
+        path += file;
+        return path;
+#else
+        (void)file;
+        return {};
+#endif
+    }
+
+    int CopyFontPath(const char*, int, char* path, int path_size, void* user)
+    {
+        const auto* source = static_cast<const char*>(user);
+        if (source == nullptr || path == nullptr || path_size <= 0)
+        {
+            return 0;
+        }
+        std::snprintf(path, static_cast<size_t>(path_size), "%s", source);
+        return 1;
+    }
+
+    TEST(SurfaceApi, WeightChangesAdvanceAndTheHostSuppliesUnshippedFaces)
+    {
+        csr_surface_t* surface = csr_surface_create(nullptr);
+        vgui2::ISurface* vgui = AsSurface(surface);
+        const vgui2::HFont regular = vgui->CreateFont();
+        const vgui2::HFont heavy = vgui->CreateFont();
+        ASSERT_TRUE(vgui->AddGlyphSetToFont(regular, "Verdana", 20, 0, 0, 0, 0, 0, 0));
+        ASSERT_TRUE(vgui->AddGlyphSetToFont(heavy, "Verdana Bold", 20, 500, 0, 0, 0, 0, 0));
+        EXPECT_EQ(vgui->GetFontTall(regular), 20);
+        EXPECT_EQ(vgui->GetFontTall(heavy), 20);
+        EXPECT_NE(vgui->GetCharacterWidth(regular, L'W'), vgui->GetCharacterWidth(heavy, L'W'));
+
+        const vgui2::HFont missing = vgui->CreateFont();
+        EXPECT_FALSE(vgui->AddGlyphSetToFont(missing, "NotAFont", 12, 0, 0, 0, 0, 0, 0));
+        EXPECT_EQ(vgui->GetFontTall(missing), 0);
+        const vgui2::HFont marlett = vgui->CreateFont();
+        EXPECT_FALSE(vgui->AddGlyphSetToFont(marlett, "Marlett", 18, 0, 0, 0, 0, 0, 0));
+        csr_surface_destroy(surface);
+
+        const std::string face = FontBesideModule("DejaVuSans.ttf");
+        ASSERT_FALSE(face.empty());
+        csr_surface_host_t host{};
+        host.resolve_font = CopyFontPath;
+        host.user = const_cast<char*>(face.c_str());
+        surface = csr_surface_create(&host);
+        vgui = AsSurface(surface);
+        const vgui2::HFont supplied = vgui->CreateFont();
+        ASSERT_TRUE(vgui->AddGlyphSetToFont(supplied, "Marlett", 18, 0, 0, 0, 0, 0, 0));
+        EXPECT_EQ(vgui->GetFontTall(supplied), 18);
+        EXPECT_GT(vgui->GetCharacterWidth(supplied, L'A'), 0);
         csr_surface_destroy(surface);
     }
 

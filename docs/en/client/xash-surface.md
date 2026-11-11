@@ -15,9 +15,18 @@ insets and the absolute clip rectangle. Draw coordinates stay parent-relative.
 VGUI alpha 0 is opaque; the conversion happens at the OpenGL call. Each draw
 restores the OpenGL state it touched.
 
-Text in this slice is one cell per character. That covers position, colour and
-advance. Glyph shapes arrive with the font atlas. `PaintTraverse` does not
-walk the panel tree, and mouse events are only stored.
+Text comes from FreeType. The first glyph set on a handle fixes the height.
+Later sets only cover characters the earlier faces do not have. Advance and
+ascent come from the font file. Glyphs are drawn immediately, in call order,
+from one shared atlas (white RGB, coverage in alpha).
+
+The substitutes are shipped because Linux has neither Arial nor Verdana nor
+Tahoma: Arial is Liberation Sans, and Verdana and Tahoma are DejaVu Sans.
+That changes glyph shapes and widths relative to retail. Marlett exists only
+in retail `valve/resource` and is not shipped; the host passes its path
+through `resolve_font`. Blur, scanlines and outline are still open.
+`PaintTraverse` does not walk the panel tree, and mouse events are only
+stored.
 
 ## Build and tests
 

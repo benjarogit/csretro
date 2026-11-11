@@ -1,10 +1,14 @@
 #include "xash_surface/xash_surface.h"
 
+#include "font_atlas.h"
+#include "font_face.h"
 #include "surface_map.h"
 
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #ifdef _WIN32
@@ -529,19 +533,33 @@ namespace xash
             return static_cast<vgui2::HFont>(fonts_.size() - 1);
         }
 
-        bool AddGlyphSetToFont(vgui2::HFont font, const char*, int tall, int, int, int, int, int, int) override
+        bool AddGlyphSetToFont(vgui2::HFont font, const char* windows_name, int tall, int weight, int, int, int, int low, int high) override
         {
             Font* slot = FindFont(font);
-            if (slot == nullptr)
+            if (slot == nullptr || tall <= 0)
+            {
+                return false;
+            }
+            const int pixel_tall = slot->has_set ? slot->tall : tall;
+            const std::string path = ResolveFontPath(windows_name, weight);
+            Face face = faces_.Open(path, pixel_tall);
+            if (!face)
             {
                 return false;
             }
             // The first set defines the face and the height. Later sets only extend coverage.
             if (!slot->has_set)
             {
-                slot->tall = tall;
+                slot->tall = pixel_tall;
+                slot->ascent = face.ascent();
                 slot->has_set = true;
             }
+            FaceUse use;
+            use.face = std::move(face);
+            use.full = low == 0 && high == 0;
+            use.low = low;
+            use.high = high;
+            slot->uses.push_back(std::move(use));
             return true;
         }
 
@@ -560,16 +578,16 @@ namespace xash
             return slot->tall;
         }
 
-        void GetCharABCwide(vgui2::HFont font, int, int& a, int& b, int& c) override
+        void GetCharABCwide(vgui2::HFont font, int ch, int& a, int& b, int& c) override
         {
             a = 0;
             c = 0;
-            b = CharacterWidth(font);
+            b = CharacterWidth(font, static_cast<unsigned>(ch));
         }
 
-        int GetCharacterWidth(vgui2::HFont font, int) override
+        int GetCharacterWidth(vgui2::HFont font, int ch) override
         {
-            return CharacterWidth(font);
+            return CharacterWidth(font, static_cast<unsigned>(ch));
         }
 
         void GetTextSize(vgui2::HFont font, const wchar_t* text, int& wide, int& tall) override
@@ -580,10 +598,9 @@ namespace xash
             {
                 return;
             }
-            const int advance = CharacterWidth(font);
             for (const wchar_t* cursor = text; *cursor != 0; ++cursor)
             {
-                wide += advance;
+                wide += CharacterWidth(font, static_cast<unsigned>(*cursor));
             }
         }
 
@@ -705,12 +722,12 @@ namespace xash
 
         int GetFontAscent(vgui2::HFont font, wchar_t) override
         {
-            const int tall = GetFontTall(font);
-            if (tall <= 0)
+            const Font* slot = FindFont(font);
+            if (slot == nullptr || !slot->has_set)
             {
                 return 0;
             }
-            return (tall * 3) / 4;
+            return slot->ascent;
         }
 
         void SetAllowHTMLJavaScript(bool) override {}
@@ -765,10 +782,40 @@ namespace xash
             std::vector<unsigned char> rgba;
         };
 
+        struct Glyph
+        {
+            int advance{};
+            int left{};
+            int top{};
+            int width{};
+            int height{};
+            AtlasGlyph atlas{};
+        };
+
+        struct FaceUse
+        {
+            Face face;
+            int low{};
+            int high{};
+            bool full{};
+
+            bool Covers(unsigned codepoint) const
+            {
+                if (full)
+                {
+                    return true;
+                }
+                return codepoint >= static_cast<unsigned>(low) && codepoint <= static_cast<unsigned>(high);
+            }
+        };
+
         struct Font
         {
             bool has_set{};
             int tall{};
+            int ascent{};
+            std::vector<FaceUse> uses;
+            std::unordered_map<unsigned, Glyph> glyphs;
         };
 
         SurfaceFrame CurrentFrame() const
@@ -780,7 +827,23 @@ namespace xash
             return stack_.back();
         }
 
-        void DrawQuad(int x0, int y0, int x1, int y1, int r, int g, int b, int a, unsigned texture, bool textured, bool additive)
+        void DrawQuad(
+            int x0,
+            int y0,
+            int x1,
+            int y1,
+            int r,
+            int g,
+            int b,
+            int a,
+            unsigned texture,
+            bool textured,
+            bool additive,
+            float u0 = 0.0f,
+            float v0 = 0.0f,
+            float u1 = 1.0f,
+            float v1 = 1.0f
+        )
         {
             if (!HasGlContext() || screen_wide_ <= 0 || screen_tall_ <= 0)
             {
@@ -788,7 +851,7 @@ namespace xash
             }
             MappedQuad quad;
             const SurfaceFrame frame = CurrentFrame();
-            if (!MapQuad(frame, x0, y0, x1, y1, &quad))
+            if (!MapQuad(frame, x0, y0, x1, y1, &quad, u0, v0, u1, v1))
             {
                 return;
             }
@@ -830,23 +893,160 @@ namespace xash
 
         void DrawCharacter(wchar_t wch, bool additive)
         {
-            const int advance = CharacterWidth(text_font_);
-            const int tall = GetFontTall(text_font_);
-            if (advance > 0 && tall > 0 && wch > 32)
+            Font* slot = FindFont(text_font_);
+            if (slot == nullptr || !slot->has_set)
             {
-                DrawQuad(text_x_, text_y_, text_x_ + advance, text_y_ + tall, text_r_, text_g_, text_b_, text_a_, 0, false, additive);
+                return;
             }
-            text_x_ += advance;
+            const Glyph& glyph = EnsureGlyph(*slot, static_cast<unsigned>(wch));
+            if (glyph.width > 0 && glyph.height > 0 && glyph.atlas.placed && wch >= 32)
+            {
+                const unsigned texture = UploadPage(glyph.atlas.page);
+                const int x = text_x_ + glyph.left;
+                const int y = text_y_ + slot->ascent - glyph.top;
+                DrawQuad(
+                    x,
+                    y,
+                    x + glyph.width,
+                    y + glyph.height,
+                    text_r_,
+                    text_g_,
+                    text_b_,
+                    text_a_,
+                    texture,
+                    true,
+                    additive,
+                    glyph.atlas.u0,
+                    glyph.atlas.v0,
+                    glyph.atlas.u1,
+                    glyph.atlas.v1
+                );
+            }
+            text_x_ += glyph.advance;
         }
 
-        int CharacterWidth(vgui2::HFont font) const
+        int CharacterWidth(vgui2::HFont font, unsigned codepoint)
         {
-            const Font* slot = FindFont(font);
-            if (slot == nullptr || !slot->has_set || slot->tall <= 0)
+            Font* slot = FindFont(font);
+            if (slot == nullptr || !slot->has_set)
             {
                 return 0;
             }
-            return std::max(1, slot->tall / 2);
+            return EnsureGlyph(*slot, codepoint).advance;
+        }
+
+        const Glyph& EnsureGlyph(Font& slot, unsigned codepoint)
+        {
+            const auto found = slot.glyphs.find(codepoint);
+            if (found != slot.glyphs.end())
+            {
+                return found->second;
+            }
+            Glyph glyph;
+            FaceUse* chosen = nullptr;
+            for (FaceUse& use : slot.uses)
+            {
+                if (!use.Covers(codepoint))
+                {
+                    continue;
+                }
+                if (chosen == nullptr)
+                {
+                    chosen = &use;
+                }
+                if (use.face.HasChar(codepoint))
+                {
+                    chosen = &use;
+                    break;
+                }
+            }
+            if (chosen != nullptr)
+            {
+                GlyphInk ink;
+                if (chosen->face.Load(codepoint, &ink))
+                {
+                    glyph.advance = ink.advance;
+                    glyph.left = ink.left;
+                    glyph.top = ink.top;
+                    glyph.width = ink.width;
+                    glyph.height = ink.height;
+                    if (ink.alpha != nullptr && ink.width > 0 && ink.height > 0)
+                    {
+                        atlas_.Pack(ink.width, ink.height, ink.alpha, &glyph.atlas);
+                    }
+                }
+            }
+            return slot.glyphs.emplace(codepoint, glyph).first->second;
+        }
+
+        std::string ResolveFontPath(const char* windows_name, int weight) const
+        {
+            if (const char* shipped = FontFaces::ShippedFile(windows_name, weight))
+            {
+                const std::string directory = FontFaces::DirectoryBesideModule();
+                if (!directory.empty())
+                {
+                    const std::string path = directory + "/fonts/" + shipped;
+                    if (FontFileReadable(path))
+                    {
+                        return path;
+                    }
+                }
+            }
+            if (host_.resolve_font != nullptr && windows_name != nullptr)
+            {
+                char path[4096];
+                path[0] = '\0';
+                if (host_.resolve_font(windows_name, weight, path, static_cast<int>(sizeof path), host_.user) != 0 && path[0] != '\0' &&
+                    FontFileReadable(path))
+                {
+                    return path;
+                }
+            }
+            return {};
+        }
+
+        unsigned UploadPage(int page)
+        {
+            if (page < 0 || !HasGlContext())
+            {
+                return 0;
+            }
+            if (static_cast<int>(page_gl_.size()) < atlas_.pages())
+            {
+                page_gl_.resize(static_cast<size_t>(atlas_.pages()));
+            }
+            if (page >= static_cast<int>(page_gl_.size()))
+            {
+                return 0;
+            }
+            const unsigned char* pixels = atlas_.page_pixels(page);
+            if (pixels == nullptr)
+            {
+                return 0;
+            }
+            GLint previous = 0;
+            glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
+            const bool created = page_gl_[static_cast<size_t>(page)] == 0;
+            if (created)
+            {
+                GLuint name = 0;
+                glGenTextures(1, &name);
+                page_gl_[static_cast<size_t>(page)] = name;
+            }
+            const GLuint name = page_gl_[static_cast<size_t>(page)];
+            glBindTexture(GL_TEXTURE_2D, name);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+            if (created || atlas_.page_dirty(page))
+            {
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, GlyphAtlas::kPageSize, GlyphAtlas::kPageSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+                atlas_.clear_dirty(page);
+            }
+            glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous));
+            return name;
         }
 
         Font* FindFont(vgui2::HFont font)
@@ -979,6 +1179,18 @@ namespace xash
                     texture.gl_name = 0;
                 }
             }
+            if (HasGlContext())
+            {
+                for (unsigned& name : page_gl_)
+                {
+                    if (name != 0)
+                    {
+                        const GLuint gl_name = name;
+                        glDeleteTextures(1, &gl_name);
+                        name = 0;
+                    }
+                }
+            }
         }
 
         static XashSurface* current_;
@@ -986,7 +1198,11 @@ namespace xash
         csr_surface_host_t host_{};
         std::vector<SurfaceFrame> stack_;
         std::vector<Texture> textures_;
+        // Faces close before FreeType shuts down: fonts_ is declared after faces_.
+        FontFaces faces_;
         std::vector<Font> fonts_;
+        GlyphAtlas atlas_;
+        std::vector<unsigned> page_gl_;
         std::string language_;
         int screen_wide_{};
         int screen_tall_{};

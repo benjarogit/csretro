@@ -43,6 +43,9 @@ is still undecided; see `HANDOFF.md`.
 | [YaPB](https://github.com/jeefo/yapb) | jeefo and contributors | GPL-3.0 | Bot reference used by the upstream client |
 | [csldr](https://github.com/mikkokko/csldr) | mikkokko | – | Loader reference used by the upstream client |
 | [cm2network/steamcmd](https://github.com/CM2Walki/steamcmd) | CM2Walki and contributors | MIT | SteamCMD base image that downloads HLDS App 90 for the test server build |
+| [FreeType](https://freetype.org/) | The FreeType Project | FTL or GPL-2.0-or-later | Glyph rasterizer inside `xash_surface` |
+| [DejaVu fonts](https://dejavu-fonts.github.io/) 2.37 | Bitstream, Tavmjong Bah and contributors | Bitstream Vera | Shipped substitute for Verdana and Tahoma |
+| [Liberation fonts](https://github.com/liberationfonts/liberation-fonts) 2.1.5 | Red Hat and contributors | SIL OFL 1.1 | Shipped substitute for Arial |
 
 ## People
 

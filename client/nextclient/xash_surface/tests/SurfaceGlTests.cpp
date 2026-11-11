@@ -255,11 +255,13 @@ TEST(SurfaceGl, FillTextAndTextureLandAndRestoreState)
     vgui->PopMakeCurrent(key);
 
     const vgui2::HFont font = vgui->CreateFont();
-    ASSERT_TRUE(vgui->AddGlyphSetToFont(font, "Tahoma", 8, 0, 0, 0, 0, 0, 0));
+    ASSERT_TRUE(vgui->AddGlyphSetToFont(font, "Tahoma", 20, 0, 0, 0, 0, 0, 0));
     vgui->DrawSetTextFont(font);
     vgui->DrawSetTextColor(0, 255, 0, 0);
     vgui->DrawSetTextPos(0, 40);
     vgui->DrawPrintText(L"A", 1);
+    const int letter_wide = vgui->GetCharacterWidth(font, L'A');
+    const int letter_tall = vgui->GetFontTall(font);
 
     csr_surface_end_frame(surface);
     EXPECT_EQ(csr_surface_gl_error(surface), 0);
@@ -296,9 +298,23 @@ TEST(SurfaceGl, FillTextAndTextureLandAndRestoreState)
     EXPECT_EQ(kept[1], 255);
     EXPECT_EQ(kept[2], 255);
 
-    const unsigned char* letter = Pixel(pixels, kWide, kTall, 1, 41);
-    EXPECT_EQ(letter[1], 255);
-    EXPECT_EQ(letter[0], 0);
+    int ink = 0;
+    int box = 0;
+    for (int y = 40; y < 40 + letter_tall && y < kTall; ++y)
+    {
+        for (int x = 0; x < letter_wide && x < kWide; ++x)
+        {
+            const unsigned char* sample = Pixel(pixels, kWide, kTall, x, y);
+            ++box;
+            if (sample[1] > sample[0] + 40 && sample[1] > 40)
+            {
+                ++ink;
+            }
+        }
+    }
+    EXPECT_GT(box, 0);
+    EXPECT_GT(ink, 8);
+    EXPECT_LT(ink, box);
 
     float color[4] = {};
     glGetFloatv(GL_CURRENT_COLOR, color);

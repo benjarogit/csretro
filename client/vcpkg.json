@@ -68,6 +68,9 @@
   }, {
     "name": "curl",
     "platform": "!windows"
+  }, {
+    "name": "freetype",
+    "default-features": false
   }],
   "features": {
     "profiler": {

@@ -16,9 +16,18 @@ Insets und das absolute Clip-Rechteck. Zeichenkoordinaten bleiben relativ zum
 Panel. VGUI-Alpha 0 ist opak; die Umrechnung passiert erst am OpenGL-Aufruf.
 Jeder Draw stellt den OpenGL-Zustand wieder her, den er angefasst hat.
 
-Text ist in diesem Stand eine Zelle pro Zeichen. Sie belegt Position, Farbe
-und Laufweite. Die Glyphenformen kommen mit dem Font-Atlas. `PaintTraverse`
-läuft den Panelbaum nicht ab, und Mausereignisse werden nur gespeichert.
+Text kommt aus FreeType. Der erste Glyph-Set eines Handles legt die Höhe fest,
+weitere Sets decken nur fehlende Zeichen ab. Laufweite und Ascent stammen aus
+der Schriftdatei, nicht aus einer festen Zelle. Gezeichnet wird sofort, in
+Aufrufreihenfolge, aus einem gemeinsamen Atlas (weißes RGB, Deckung im Alpha).
+
+Mitgeliefert werden Ersatzschriften, weil Linux weder Arial noch Verdana noch
+Tahoma hat: Arial wird Liberation Sans, Verdana und Tahoma werden DejaVu Sans.
+Das ändert Glyphenform und Breite gegenüber Retail. Marlett liegt nur im
+Retail-`valve/resource` und wird nicht mitgeliefert; der Host reicht den Pfad
+über `resolve_font`. Unschärfe, Scanlines und Umriss sind noch offen.
+`PaintTraverse` läuft den Panelbaum nicht ab, und Mausereignisse werden nur
+gespeichert.
 
 ## Bauen und Testen
 

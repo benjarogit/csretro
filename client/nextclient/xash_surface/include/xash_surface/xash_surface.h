@@ -9,8 +9,10 @@
  *
  * VGUI alpha 0 is opaque. GL alpha 0 is transparent. Draws invert alpha.
  * Panel callbacks may be null. Clip rectangles are absolute screen pixels.
- * Text is a placeholder cell per character until the font atlas exists.
- * A draw restores the GL state it touches before it returns.
+ * Text is a FreeType glyph from the packed atlas. The first glyph set on a
+ * handle fixes the height. Arial, Verdana and Tahoma use the shipped
+ * substitutes beside this library. Marlett and any other face come from
+ * resolve_font. A draw restores the GL state it touches before it returns.
  */
 
 #ifdef __cplusplus
@@ -26,6 +28,9 @@ typedef struct csr_surface_host
     void (*panel_abs_pos)(void* panel, int* x, int* y, void* user);
     void (*panel_insets)(void* panel, int* left, int* top, int* right, int* bottom, void* user);
     void (*panel_clip_rect)(void* panel, int* x0, int* y0, int* x1, int* y1, void* user);
+    // Writes a filesystem path for a face this library does not ship.
+    // Returns non-zero when path holds a readable file.
+    int (*resolve_font)(const char* name, int weight, char* path, int path_size, void* user);
     void* user;
 } csr_surface_host_t;
 

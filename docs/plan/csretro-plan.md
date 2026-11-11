@@ -639,14 +639,20 @@ Der erste Stand liegt in `client/nextclient/xash_surface/` (Target
 - `PushMakeCurrent` setzt den Ursprung auf die absolute Panelposition des
   Hosts, optional plus Inset, und schneidet an das absolute Clip-Rechteck.
   Die Abbildung inklusive UV-Kürzung ist engine-frei getestet.
-- Füllungen, Textur-Quads und Textzellen zeichnen sofort in Aufrufreihenfolge,
+- Füllungen, Textur-Quads und Glyphen zeichnen sofort in Aufrufreihenfolge,
   mit eigener Ortho-Projektion. VGUI-Alpha 0 ist opak und wird erst am
   GL-Aufruf invertiert. Jeder Draw stellt den GL-Zustand wieder her,
   einschließlich `GL_TEXTURE_2D` und der Texturbindung.
-- Textzellen belegen Position, Farbe und Laufweite. Glyphenformen und der
-  Atlas fehlen noch. `PaintTraverse` läuft den Panelbaum nicht; der Host
-  stößt den Walk an. Eingabe speichert nur Cursor und Taste, sie erreicht
-  `CInputWin32` noch nicht.
+- Glyphen kommen aus FreeType in einen gemeinsamen Atlas. Der erste
+  Glyph-Set legt Höhe und Schnitt fest, weitere Sets nur die Abdeckung.
+  `GetFontTall` bleibt die angeforderte Höhe. Laufweite und Ascent kommen
+  aus der Datei. Arial wird als Liberation Sans mitgeliefert, Verdana und
+  Tahoma als DejaVu Sans. Das ist die in 3.6.6 beschriebene Abweichung zum
+  Retail-Client. Marlett wird nicht mitgeliefert; der Host gibt den Pfad
+  über `resolve_font`. Unschärfe, Scanlines und Umriss fehlen noch.
+  `PaintTraverse` läuft den Panelbaum nicht; der Host stößt den Walk an.
+  Eingabe speichert nur Cursor und Taste, sie erreicht `CInputWin32` noch
+  nicht.
 - Tests: `xash_surface-tests` über das Preset `linux-tests`. Der
   Offscreen-Lauf nutzt einen EGL-Pbuffer und `LIBGL_ALWAYS_SOFTWARE=1`.
   Das Spiel wird dabei nicht gestartet.

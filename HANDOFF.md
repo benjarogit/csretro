@@ -6,7 +6,7 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-11
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; first product slice is `xash_surface.so`, a host-factory `VGUI_Surface026` with fills, texture quads and placeholder text cells)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads and a FreeType glyph atlas)
 - **Branch:** `main`
 - **Commit:** `19f5e0e` (surface adapter) and `c12ed9e` (source diffs stay visible)
 - **CI:** https://github.com/benjarogit/csretro/actions/runs/43025967312 – success (`c12ed9e`)
@@ -322,9 +322,11 @@ implementation; the plan is the only source for the gate list.
 - **Client engine decided (Option A):** Xash3D runs Valve's `client.so` through
   `HUD_Init` with a stub surface. The product surface is now `xash_surface.so`
   (plan section 3.7): the host factory exposes one `VGUI_Surface026`, and it is
-  not linked into `vgui2.so`. Still open: the font atlas, `PaintTraverse`
-  walking the panel tree, mouse dispatch into `CInputWin32`, and the launcher
-  registering the factory. `engine_mini`/`nitro_api` still hook `hw.so`.
+  not linked into `vgui2.so`. The font atlas is in: FreeType metrics, one packed
+  atlas, Liberation Sans for Arial and DejaVu Sans for Verdana and Tahoma.
+  Marlett is not shipped; the host passes it through `resolve_font`. Still open:
+  `PaintTraverse` walking the panel tree, mouse dispatch into `CInputWin32`,
+  and the launcher registering the factory. `engine_mini`/`nitro_api` still hook `hw.so`.
   Retail GoldSrc remains the working fallback.
 - **Steam stub is test-only.** It authenticates nobody and must never be used
   for a public server. A production server needs real Steam connectivity.
@@ -346,17 +348,16 @@ implementation; the plan is the only source for the gate list.
 - **Gate:** G07 – Default Public runtime, in progress.
 - **Engine decided:** Option A from `docs/plan/csretro-plan.md` section 3.6.
 - **Next step:** `xash_surface` answers `VGUI_Surface026` and draws fills,
-  texture quads and placeholder text cells (plan section 3.7, tests below).
+  texture quads and FreeType glyphs from a packed atlas (plan section 3.7).
   The spike team-click was reproduced on 2026-11-11: exit 137, `Button/terbutton`
   at `239,201`, `CTeamMenu` hidden on release, `g_iTeamNumber` `0` at paint 30
   and `1` at paint 31, both framebuffer dumps `glerr=0`. Open work, in order:
-  (1) font atlas and shipped faces, replacing the text cells;
-  (2) `PaintTraverse` must walk the panel tree the host embeds, otherwise the
+  (1) `PaintTraverse` must walk the panel tree the host embeds, otherwise the
   library never receives the VGUI2 draw calls;
-  (3) mouse dispatch into `CInputWin32` plus `DispatchMessages`, without
+  (2) mouse dispatch into `CInputWin32` plus `DispatchMessages`, without
   `CVGui::RunFrame`;
-  (4) the launcher registers the `xash_surface` factory;
-  (5) `engine_mini`/`nitro_api` move off `hw.so`.
+  (3) the launcher registers the `xash_surface` factory;
+  (4) `engine_mini`/`nitro_api` move off `hw.so`.
   Keep the Xvfb screen equal to the game resolution.
 - **Wiki reference gathered:** Tier1, VGUI Documentation, Category:VGUI (54
   pages + 3 subcategories), KeyValues, Panel, RootPanel, VPANEL, Frame. Key
@@ -1112,18 +1113,19 @@ What the tests cover (`xash_surface-tests`, preset `linux-tests`, software GL):
 |---|---|
 | VGUI alpha 0 / 255 / 128 | GL alpha 255 / 0 / 127 |
 | Push origin and clip | parent rect moves by the host position; a clip shrinks the quad and its UVs; an empty intersection draws nothing |
-| Font handle | first glyph set keeps height 26 when a later set asks for 40; advance is `tall / 2` |
+| Font handle | first glyph set keeps height 26 when a later set asks for 40; advance is the FreeType advance, and bold is wider than regular |
 | Opaque fill | red cell on the pbuffer, VGUI alpha 0 |
 | Transparent fill | VGUI alpha 255 leaves the cleared pixel |
 | Texture | nearest 2×2 RGBA quad samples the yellow texel |
 | Offset | a rect at `0,0` with host position `8,4` lands on pixel `8,4` |
 | Clip | an 8×8 rect clipped to 2×2 leaves the outside pixel untouched |
-| Text cell | one character paints its colour and advances the cursor |
+| Glyph | one character paints ink from the atlas and leaves part of its cell clear; the cursor advances by the FreeType width |
 | GL state | current colour, `GL_TEXTURE_2D`, matrix mode and viewport match the values from before the frame; `glGetError()` is 0 |
 
-Not in this slice: FreeType glyphs, a panel walk inside `PaintTraverse`, mouse
-dispatch, scheme textures, and loading the library from the launcher. The
-spike stub is still what paints the real VGUI2 tree.
+Not in this slice: a panel walk inside `PaintTraverse`, mouse dispatch, scheme
+textures, blur, scanlines, outline, and loading the library from the launcher.
+Marlett is resolved by the host. The spike stub is still what paints the real
+VGUI2 tree.
 
 ## Gate log
 

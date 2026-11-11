@@ -45,12 +45,19 @@ namespace xash
 
     // Parent-relative rect plus the push origin, clipped to absolute pixels.
     // UVs shrink with the clip so a partial quad samples the visible texels.
-    inline bool MapQuad(const SurfaceFrame& frame, int x0, int y0, int x1, int y1, MappedQuad* out)
+    inline bool MapQuad(
+        const SurfaceFrame& frame,
+        int x0,
+        int y0,
+        int x1,
+        int y1,
+        MappedQuad* out,
+        float u0 = 0.0f,
+        float v0 = 0.0f,
+        float u1 = 1.0f,
+        float v1 = 1.0f
+    )
     {
-        float u0 = 0.0f;
-        float v0 = 0.0f;
-        float u1 = 1.0f;
-        float v1 = 1.0f;
         if (x0 > x1)
         {
             std::swap(x0, x1);

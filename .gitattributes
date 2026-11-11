@@ -63,6 +63,8 @@ Bot*.db -text
 # CSRETRO-owned surface sources stay reviewable. The blanket rule above keeps
 # vendored binaries out of LFS; it also suppresses every diff under client/.
 /client/nextclient/xash_surface/** text diff merge eol=lf
+# Shipped face files are binaries. The rule above would otherwise force a text diff.
+/client/nextclient/xash_surface/fonts/** -text -diff
 # The server API is vendored as source, so it stays diffable: -filter keeps the
 # prebuilt .a archives out of LFS, -merge still forces binary merges.
 /server/api/** -filter -merge

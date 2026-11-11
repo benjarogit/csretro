@@ -1,0 +1,49 @@
+#pragma once
+
+/*
+ * Host contract for the one VGUI_Surface026 object.
+ *
+ * vgui2 asks the host factory for "VGUI_Surface026" and stores the result as
+ * the surface every control draws through. This library is that object.
+ * CreateInterface returns the instance created by csr_surface_create.
+ *
+ * VGUI alpha 0 is opaque. GL alpha 0 is transparent. Draws invert alpha.
+ * Panel callbacks may be null. Clip rectangles are absolute screen pixels.
+ * Text is a placeholder cell per character until the font atlas exists.
+ * A draw restores the GL state it touches before it returns.
+ */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct csr_surface csr_surface_t;
+
+typedef struct csr_surface_host
+{
+    int screen_wide;
+    int screen_tall;
+    void (*panel_abs_pos)(void* panel, int* x, int* y, void* user);
+    void (*panel_insets)(void* panel, int* left, int* top, int* right, int* bottom, void* user);
+    void (*panel_clip_rect)(void* panel, int* x0, int* y0, int* x1, int* y1, void* user);
+    void* user;
+} csr_surface_host_t;
+
+#if defined(_WIN32)
+#define CSR_SURFACE_API __declspec(dllexport)
+#else
+#define CSR_SURFACE_API __attribute__((visibility("default")))
+#endif
+
+CSR_SURFACE_API csr_surface_t* csr_surface_create(const csr_surface_host_t* host);
+CSR_SURFACE_API void csr_surface_destroy(csr_surface_t* surface);
+CSR_SURFACE_API void csr_surface_begin_frame(csr_surface_t* surface, int wide, int tall);
+CSR_SURFACE_API void csr_surface_end_frame(csr_surface_t* surface);
+CSR_SURFACE_API int csr_surface_gl_error(const csr_surface_t* surface);
+CSR_SURFACE_API void csr_surface_input_move(csr_surface_t* surface, int x, int y);
+CSR_SURFACE_API void csr_surface_input_button(csr_surface_t* surface, int button, int down);
+CSR_SURFACE_API void* csr_surface_vgui(csr_surface_t* surface);
+
+#ifdef __cplusplus
+}
+#endif

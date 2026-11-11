@@ -10,6 +10,10 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- `xash_surface.so`, a `VGUI_Surface026` the host factory can hand to `vgui2`:
+  fills, texture quads and placeholder text cells, with panel offset, clip and
+  GL state restored after each draw. Glyphs, panel traversal and mouse
+  dispatch are still open. Tests run from the `linux-tests` preset.
 - Repository harness: `AGENTS.md`, `HANDOFF.md`, `CREDITS.md`, `VERSION`,
   `versions.lock.json`.
 - Repository verification: `scripts/verify.sh`, `scripts/clean.sh`,

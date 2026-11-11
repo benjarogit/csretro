@@ -6,10 +6,10 @@ Project state for the next session. Personal context belongs in
 ## State
 
 - **Date:** 2026-11-11
-- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D client spike completes `HUD_Init`, paints real VGUI2 text, panel fills and textured quads in every frame, places the scoreboard at its real layout position, draws its own text with real per-handle TTF fonts, and now routes mouse input through `CInputWin32`/`DispatchMessages` up to a proven team switch on a clicked `Button`; engine direction decided: Option A)
+- **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; first product slice is `xash_surface.so`, a host-factory `VGUI_Surface026` with fills, texture quads and placeholder text cells)
 - **Branch:** `main`
-- **Commit:** `5e5254a` (input proof evidence) plus this handoff update on top
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/42987243071 – success (`5e5254a`)
+- **Commit:** surface slice on top of `07a7e23` (hash recorded with its CI run)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/42987402851 – success (`07a7e23`); the surface slice run is recorded after this push
 - **Version:** `0.1.0-dev` (`VERSION`)
 
 ## Verified (with evidence)
@@ -320,10 +320,12 @@ implementation; the plan is the only source for the gate list.
   `ISteamGameServer011` to the 015 interface or write a dedicated query
   responder.
 - **Client engine decided (Option A):** Xash3D runs Valve's `client.so` through
-  `HUD_Init` with a stub surface; the open work is a real `VGUI_Surface026`
-  backend (drawing, texture-coordinate translation, mouse) and the
-  `engine_mini`/`nitro_api` hooks ported off `hw.so`. Retail GoldSrc remains the
-  working fallback.
+  `HUD_Init` with a stub surface. The product surface is now `xash_surface.so`
+  (plan section 3.7): the host factory exposes one `VGUI_Surface026`, and it is
+  not linked into `vgui2.so`. Still open: the font atlas, `PaintTraverse`
+  walking the panel tree, mouse dispatch into `CInputWin32`, and the launcher
+  registering the factory. `engine_mini`/`nitro_api` still hook `hw.so`.
+  Retail GoldSrc remains the working fallback.
 - **Steam stub is test-only.** It authenticates nobody and must never be used
   for a public server. A production server needs real Steam connectivity.
 - **E2E is not in CI yet.** The Docker job arrives with G10; the test needs
@@ -343,26 +345,19 @@ implementation; the plan is the only source for the gate list.
 
 - **Gate:** G07 – Default Public runtime, in progress.
 - **Engine decided:** Option A from `docs/plan/csretro-plan.md` section 3.6.
-- **Next step:** the stub `VGUI_Surface026` backend traverses and paints the
-  real VGUI2 panel tree, draws real VGUI2 text in every frame, fills the panel
-  backgrounds with the scheme colour, draws VGUI2's TGAs as textured quads and
-  places the whole scoreboard at its real position (evidence above). The
-  earlier `fill_rect` colour/alpha suspicion is disproved: marshalling and
-  alpha inversion are correct, the "38-row band" was an artefact of dumping
-  only paint 1 (scheme not yet applied, VGUI alpha 0 = transparent). Open work,
-  in order:
-  (1) font backend: done in the spike - 36 distinct handles, 15 real heights,
-  FreeType metrics and glyph quads with 0 engine fallbacks (evidence above);
-  the adapter still needs the glyph atlas instead of one texture per glyph and
-  shipped font files;
-  (2) mouse/cursor and `VGUI_Input004`: input, hover and click are done in the
-  spike (evidence above); the adapter still needs a visible rollover and a
-  cursor, which both depend on the scheme textures;
-  (3) `engine_mini`/`nitro_api` port onto
-  an Xash3D adapter. Re-run the spike after each step and record the first
-  thing that is actually visible. Keep the Xvfb screen equal to the game
-  resolution; a larger desktop makes VGUI report the larger screen size and
-  lays the panels out for it.
+- **Next step:** `xash_surface` answers `VGUI_Surface026` and draws fills,
+  texture quads and placeholder text cells (plan section 3.7, tests below).
+  The spike team-click was reproduced on 2026-11-11: exit 137, `Button/terbutton`
+  at `239,201`, `CTeamMenu` hidden on release, `g_iTeamNumber` `0` at paint 30
+  and `1` at paint 31, both framebuffer dumps `glerr=0`. Open work, in order:
+  (1) font atlas and shipped faces, replacing the text cells;
+  (2) `PaintTraverse` must walk the panel tree the host embeds, otherwise the
+  library never receives the VGUI2 draw calls;
+  (3) mouse dispatch into `CInputWin32` plus `DispatchMessages`, without
+  `CVGui::RunFrame`;
+  (4) the launcher registers the `xash_surface` factory;
+  (5) `engine_mini`/`nitro_api` move off `hw.so`.
+  Keep the Xvfb screen equal to the game resolution.
 - **Wiki reference gathered:** Tier1, VGUI Documentation, Category:VGUI (54
   pages + 3 subcategories), KeyValues, Panel, RootPanel, VPANEL, Frame. Key
   findings: `PaintBackground()`/`Paint()` are on by default; `IsFullyVisible()`
@@ -1101,6 +1096,34 @@ Known spike limitations (all adapter work, not VGUI2 findings):
 The `g_iTeamNumber` probe reads `client.so+0x1e54ec` (team ids: `0`
 unassigned, `1` Terrorist, `2` CT, `3` spectator) and logs every change; it is
 spike-only instrumentation.
+
+## Xash surface library (2026-11-11)
+
+**Result: the first product slice of Option A is a host-owned `VGUI_Surface026`,
+not a spike shim.** `client/nextclient/xash_surface/` builds `xash_surface.so`.
+`CreateInterface("VGUI_Surface026")` returns the live `csr_surface_create`
+instance and rejects every other name. `vgui2` already loads that name from
+the host factory into `g_pSurface`; the surface is therefore not linked into
+`vgui2.so`, and Xash3D is not patched.
+
+What the tests cover (`xash_surface-tests`, preset `linux-tests`, software GL):
+
+| Check | Result |
+|---|---|
+| VGUI alpha 0 / 255 / 128 | GL alpha 255 / 0 / 127 |
+| Push origin and clip | parent rect moves by the host position; a clip shrinks the quad and its UVs; an empty intersection draws nothing |
+| Font handle | first glyph set keeps height 26 when a later set asks for 40; advance is `tall / 2` |
+| Opaque fill | red cell on the pbuffer, VGUI alpha 0 |
+| Transparent fill | VGUI alpha 255 leaves the cleared pixel |
+| Texture | nearest 2×2 RGBA quad samples the yellow texel |
+| Offset | a rect at `0,0` with host position `8,4` lands on pixel `8,4` |
+| Clip | an 8×8 rect clipped to 2×2 leaves the outside pixel untouched |
+| Text cell | one character paints its colour and advances the cursor |
+| GL state | current colour, `GL_TEXTURE_2D`, matrix mode and viewport match the values from before the frame; `glGetError()` is 0 |
+
+Not in this slice: FreeType glyphs, a panel walk inside `PaintTraverse`, mouse
+dispatch, scheme textures, and loading the library from the launcher. The
+spike stub is still what paints the real VGUI2 tree.
 
 ## Gate log
 

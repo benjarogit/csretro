@@ -616,6 +616,46 @@ VGUI2-Befunde:
 
 ---
 
+### 3.7 Surface-Adapter (Slice A, 11. November 2026)
+
+Der erste Produkt-Slice ist **A, Surface-Adapter**. Ein `nitro_api`-Provider
+(Slice B) oder ein Launcher (Slice D) liefern ohne diese Surface kein Bild:
+`engine_mini` erzeugt auf Linux kein `VGUI_Surface026`, und `vgui2` zeichnet
+nicht selbst.
+
+**Host-Naht.** Die Surface wird **nicht** in `vgui2.so` eingebunden.
+`VGui_InternalLoadInterfaces` holt `VGUI_Surface026` aus der Factory-Liste des
+Hosts und legt sie in `g_pSurface`; `SurfaceNext` reicht jeden Aufruf dorthin
+weiter. Eine zweite Surface in der Control-Bibliothek würde diese eine
+Identität aufspalten. Xash3D bleibt unverändert (GPL, nicht vendoren). Der
+CSRETRO-Launcher registriert später die Factory von `xash_surface.so`.
+`LD_PRELOAD` bleibt ein Spike-Werkzeug.
+
+Der erste Stand liegt in `client/nextclient/xash_surface/` (Target
+`xash_surface`, Artefakt `xash_surface.so`):
+
+- Die Klasse beantwortet `VGUI_Surface026` vollständig. `CreateInterface`
+  liefert nur die lebende Instanz aus `csr_surface_create`.
+- `PushMakeCurrent` setzt den Ursprung auf die absolute Panelposition des
+  Hosts, optional plus Inset, und schneidet an das absolute Clip-Rechteck.
+  Die Abbildung inklusive UV-Kürzung ist engine-frei getestet.
+- Füllungen, Textur-Quads und Textzellen zeichnen sofort in Aufrufreihenfolge,
+  mit eigener Ortho-Projektion. VGUI-Alpha 0 ist opak und wird erst am
+  GL-Aufruf invertiert. Jeder Draw stellt den GL-Zustand wieder her,
+  einschließlich `GL_TEXTURE_2D` und der Texturbindung.
+- Textzellen belegen Position, Farbe und Laufweite. Glyphenformen und der
+  Atlas fehlen noch. `PaintTraverse` läuft den Panelbaum nicht; der Host
+  stößt den Walk an. Eingabe speichert nur Cursor und Taste, sie erreicht
+  `CInputWin32` noch nicht.
+- Tests: `xash_surface-tests` über das Preset `linux-tests`. Der
+  Offscreen-Lauf nutzt einen EGL-Pbuffer und `LIBGL_ALWAYS_SOFTWARE=1`.
+  Das Spiel wird dabei nicht gestartet.
+
+Der Spike mit dem Stub bleibt der Beweis für den echten VGUI2-Baum. Die
+Bibliothek hängt noch nicht an Xash3D.
+
+---
+
 ## 4. Repo-Struktur
 
 ```

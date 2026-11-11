@@ -1,0 +1,1110 @@
+#include "xash_surface/xash_surface.h"
+
+#include "surface_map.h"
+
+#include <algorithm>
+#include <cstring>
+#include <string>
+#include <vector>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+#include <GL/gl.h>
+
+#include "Color.h"
+#include <vgui/ISurface.h>
+
+#if defined(__linux__)
+#include <dlfcn.h>
+#endif
+
+namespace
+{
+
+    constexpr int kTextureCap = 4096;
+    constexpr int kFontCap = 256;
+    constexpr int kProportionalWide = 640;
+    constexpr int kProportionalTall = 480;
+
+    bool HasGlContext()
+    {
+#if defined(__linux__)
+        using CurrentFn = void* (*)();
+        static CurrentFn egl_current = nullptr;
+        static CurrentFn glx_current = nullptr;
+        static bool resolved = false;
+        if (!resolved)
+        {
+            resolved = true;
+            if (void* egl = dlopen("libEGL.so.1", RTLD_LAZY | RTLD_LOCAL))
+            {
+                egl_current = reinterpret_cast<CurrentFn>(dlsym(egl, "eglGetCurrentContext"));
+            }
+            if (void* gl = dlopen("libGL.so.1", RTLD_LAZY | RTLD_LOCAL))
+            {
+                glx_current = reinterpret_cast<CurrentFn>(dlsym(gl, "glXGetCurrentContext"));
+            }
+        }
+        if (egl_current != nullptr && egl_current() != nullptr)
+        {
+            return true;
+        }
+        if (glx_current != nullptr && glx_current() != nullptr)
+        {
+            return true;
+        }
+        return false;
+#elif defined(_WIN32)
+        return wglGetCurrentContext() != nullptr;
+#else
+        return false;
+#endif
+    }
+
+    void DrainGlErrors()
+    {
+        if (!HasGlContext())
+        {
+            return;
+        }
+        for (int i = 0; i < 8 && glGetError() != GL_NO_ERROR; ++i)
+        {
+        }
+    }
+
+    // Restores the attributes a draw changes. Leaving GL_TEXTURE_2D disabled
+    // makes the engine's next 2D batch draw white quads over the frame.
+    struct GlScope
+    {
+        int matrix_mode{};
+
+        GlScope(int wide, int tall, const xash::SurfaceFrame& frame)
+        {
+            glPushAttrib(GL_ALL_ATTRIB_BITS);
+            glGetIntegerv(GL_MATRIX_MODE, &matrix_mode);
+            glMatrixMode(GL_PROJECTION);
+            glPushMatrix();
+            glLoadIdentity();
+            glOrtho(0.0, static_cast<double>(wide), static_cast<double>(tall), 0.0, -1.0, 1.0);
+            glMatrixMode(GL_MODELVIEW);
+            glPushMatrix();
+            glLoadIdentity();
+            glViewport(0, 0, wide, tall);
+            glDisable(GL_DEPTH_TEST);
+            glDisable(GL_CULL_FACE);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            if (frame.clip)
+            {
+                const int clip_wide = frame.clip_x1 - frame.clip_x0;
+                const int clip_tall = frame.clip_y1 - frame.clip_y0;
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(frame.clip_x0, tall - frame.clip_y1, clip_wide, clip_tall);
+            }
+            else
+            {
+                glDisable(GL_SCISSOR_TEST);
+            }
+        }
+
+        ~GlScope()
+        {
+            glMatrixMode(GL_MODELVIEW);
+            glPopMatrix();
+            glMatrixMode(GL_PROJECTION);
+            glPopMatrix();
+            glMatrixMode(matrix_mode);
+            glPopAttrib();
+        }
+    };
+
+    void* PanelKey(vgui2::VPANEL panel)
+    {
+        return reinterpret_cast<void*>(static_cast<uintptr_t>(panel));
+    }
+
+} // namespace
+
+namespace xash
+{
+
+    class XashSurface : public vgui2::ISurface
+    {
+    public:
+        explicit XashSurface(const csr_surface_host_t* host)
+        {
+            language_ = "english";
+            if (host != nullptr)
+            {
+                host_ = *host;
+                screen_wide_ = host->screen_wide;
+                screen_tall_ = host->screen_tall;
+            }
+            textures_.resize(1);
+            fonts_.resize(1);
+        }
+
+        ~XashSurface() override
+        {
+            if (current_ == this)
+            {
+                current_ = nullptr;
+            }
+            ReleaseGlTextures();
+        }
+
+        static XashSurface* current()
+        {
+            return current_;
+        }
+
+        static void set_current(XashSurface* surface)
+        {
+            current_ = surface;
+        }
+
+        int gl_error() const
+        {
+            return gl_error_;
+        }
+
+        void MoveCursor(int x, int y)
+        {
+            cursor_x_ = x;
+            cursor_y_ = y;
+        }
+
+        void SetButton(int button, int down)
+        {
+            button_ = button;
+            button_down_ = down != 0;
+        }
+
+        void BeginFrame(int wide, int tall)
+        {
+            screen_wide_ = wide;
+            screen_tall_ = tall;
+            gl_error_ = 0;
+            DrainGlErrors();
+        }
+
+        void EndFrame()
+        {
+            if (!HasGlContext())
+            {
+                gl_error_ = 0;
+                return;
+            }
+            gl_error_ = static_cast<int>(glGetError());
+        }
+
+        void Shutdown() override
+        {
+            ReleaseGlTextures();
+            stack_.clear();
+        }
+
+        void RunFrame() override {}
+
+        vgui2::VPANEL GetEmbeddedPanel() override
+        {
+            return embedded_;
+        }
+
+        void SetEmbeddedPanel(vgui2::VPANEL panel) override
+        {
+            embedded_ = panel;
+        }
+
+        void PushMakeCurrent(vgui2::VPANEL panel, bool useInsets) override
+        {
+            SurfaceFrame frame;
+            int x = 0;
+            int y = 0;
+            if (panel != 0 && host_.panel_abs_pos != nullptr)
+            {
+                host_.panel_abs_pos(PanelKey(panel), &x, &y, host_.user);
+            }
+            if (useInsets && panel != 0 && host_.panel_insets != nullptr)
+            {
+                int left = 0;
+                int top = 0;
+                int right = 0;
+                int bottom = 0;
+                host_.panel_insets(PanelKey(panel), &left, &top, &right, &bottom, host_.user);
+                x += left;
+                y += top;
+            }
+            frame.origin_x = x;
+            frame.origin_y = y;
+            if (panel != 0 && host_.panel_clip_rect != nullptr)
+            {
+                frame.clip = true;
+                host_.panel_clip_rect(PanelKey(panel), &frame.clip_x0, &frame.clip_y0, &frame.clip_x1, &frame.clip_y1, host_.user);
+            }
+            stack_.push_back(frame);
+        }
+
+        void PopMakeCurrent(vgui2::VPANEL) override
+        {
+            if (!stack_.empty())
+            {
+                stack_.pop_back();
+            }
+        }
+
+        void DrawSetColor(int r, int g, int b, int a) override
+        {
+            draw_r_ = r;
+            draw_g_ = g;
+            draw_b_ = b;
+            draw_a_ = a;
+        }
+
+        void DrawSetColor(Color col) override
+        {
+            DrawSetColor(col.r(), col.g(), col.b(), col.a());
+        }
+
+        void DrawFilledRect(int x0, int y0, int x1, int y1) override
+        {
+            DrawQuad(x0, y0, x1, y1, draw_r_, draw_g_, draw_b_, draw_a_, 0, false, false);
+        }
+
+        void DrawOutlinedRect(int x0, int y0, int x1, int y1) override
+        {
+            DrawFilledRect(x0, y0, x1, y0 + 1);
+            DrawFilledRect(x0, y1 - 1, x1, y1);
+            DrawFilledRect(x0, y0, x0 + 1, y1);
+            DrawFilledRect(x1 - 1, y0, x1, y1);
+        }
+
+        void DrawLine(int x0, int y0, int x1, int y1) override
+        {
+            if (!HasGlContext() || screen_wide_ <= 0 || screen_tall_ <= 0)
+            {
+                return;
+            }
+            const SurfaceFrame frame = CurrentFrame();
+            GlScope scope(screen_wide_, screen_tall_, frame);
+            glDisable(GL_TEXTURE_2D);
+            glColor4ub(
+                static_cast<unsigned char>(draw_r_),
+                static_cast<unsigned char>(draw_g_),
+                static_cast<unsigned char>(draw_b_),
+                static_cast<unsigned char>(VguiAlphaToGl(draw_a_))
+            );
+            glBegin(GL_LINES);
+            glVertex2i(x0 + frame.origin_x, y0 + frame.origin_y);
+            glVertex2i(x1 + frame.origin_x, y1 + frame.origin_y);
+            glEnd();
+        }
+
+        void DrawPolyLine(int* px, int* py, int numPoints) override
+        {
+            if (px == nullptr || py == nullptr || numPoints < 2)
+            {
+                return;
+            }
+            for (int i = 0; i < numPoints - 1; ++i)
+            {
+                DrawLine(px[i], py[i], px[i + 1], py[i + 1]);
+            }
+        }
+
+        void DrawSetTextFont(vgui2::HFont font) override
+        {
+            text_font_ = font;
+        }
+
+        void DrawSetTextColor(int r, int g, int b, int a) override
+        {
+            text_r_ = r;
+            text_g_ = g;
+            text_b_ = b;
+            text_a_ = a;
+        }
+
+        void DrawSetTextColor(Color col) override
+        {
+            DrawSetTextColor(col.r(), col.g(), col.b(), col.a());
+        }
+
+        void DrawSetTextPos(int x, int y) override
+        {
+            text_x_ = x;
+            text_y_ = y;
+        }
+
+        void DrawGetTextPos(int& x, int& y) override
+        {
+            x = text_x_;
+            y = text_y_;
+        }
+
+        void DrawPrintText(const wchar_t* text, int textLen) override
+        {
+            if (text == nullptr || textLen <= 0)
+            {
+                return;
+            }
+            for (int i = 0; i < textLen; ++i)
+            {
+                DrawUnicodeChar(text[i]);
+            }
+        }
+
+        void DrawUnicodeChar(wchar_t wch) override
+        {
+            DrawCharacter(wch, false);
+        }
+
+        void DrawUnicodeCharAdd(wchar_t wch) override
+        {
+            DrawCharacter(wch, true);
+        }
+
+        void DrawFlushText() override {}
+
+        vgui2::IHTML* CreateHTMLWindow(vgui2::IHTMLEvents*, vgui2::VPANEL) override
+        {
+            return nullptr;
+        }
+
+        void PaintHTMLWindow(vgui2::IHTML*) override {}
+
+        void DeleteHTMLWindow(vgui2::IHTML*) override {}
+
+        void DrawSetTextureFile(int id, const char*, int, bool) override
+        {
+            // File bytes come from the host filesystem, which this slice does not own.
+            EnsureTexture(id);
+        }
+
+        void DrawSetTextureRGBA(int id, const unsigned char* rgba, int wide, int tall, int hardwareFilter, bool) override
+        {
+            StoreTexture(id, rgba, wide, tall, hardwareFilter != 0, false);
+        }
+
+        void DrawSetTexture(int id) override
+        {
+            current_texture_ = id;
+        }
+
+        void DrawGetTextureSize(int id, int& wide, int& tall) override
+        {
+            wide = 0;
+            tall = 0;
+            if (id > 0 && id < static_cast<int>(textures_.size()) && textures_[static_cast<size_t>(id)].valid)
+            {
+                wide = textures_[static_cast<size_t>(id)].wide;
+                tall = textures_[static_cast<size_t>(id)].tall;
+            }
+        }
+
+        void DrawTexturedRect(int x0, int y0, int x1, int y1) override
+        {
+            const Texture* texture = FindTexture(current_texture_);
+            if (texture == nullptr)
+            {
+                return;
+            }
+            DrawQuad(x0, y0, x1, y1, draw_r_, draw_g_, draw_b_, draw_a_, texture->gl_name, true, false);
+        }
+
+        bool IsTextureIDValid(int id) override
+        {
+            return id > 0 && id < static_cast<int>(textures_.size()) && textures_[static_cast<size_t>(id)].valid;
+        }
+
+        int CreateNewTextureID(bool) override
+        {
+            const int id = static_cast<int>(textures_.size());
+            if (id >= kTextureCap)
+            {
+                return 0;
+            }
+            textures_.emplace_back();
+            return id;
+        }
+
+        void GetScreenSize(int& wide, int& tall) override
+        {
+            wide = screen_wide_;
+            tall = screen_tall_;
+        }
+
+        void SetAsTopMost(vgui2::VPANEL, bool) override {}
+        void BringToFront(vgui2::VPANEL) override {}
+        void SetForegroundWindow(vgui2::VPANEL) override {}
+        void SetPanelVisible(vgui2::VPANEL, bool) override {}
+        void SetMinimized(vgui2::VPANEL, bool) override {}
+
+        bool IsMinimized(vgui2::VPANEL) override
+        {
+            return false;
+        }
+
+        void FlashWindow(vgui2::VPANEL, bool) override {}
+        void SetTitle(vgui2::VPANEL, const wchar_t*) override {}
+        void SetAsToolBar(vgui2::VPANEL, bool) override {}
+        void CreatePopup(vgui2::VPANEL, bool, bool, bool, bool, bool) override {}
+        void SwapBuffers(vgui2::VPANEL) override {}
+        void Invalidate(vgui2::VPANEL) override {}
+
+        void SetCursor(vgui2::HCursor cursor) override
+        {
+            cursor_ = cursor;
+        }
+
+        bool IsCursorVisible() override
+        {
+            return cursor_ != 0;
+        }
+
+        void ApplyChanges() override {}
+
+        bool IsWithin(int x, int y) override
+        {
+            return x >= 0 && y >= 0 && x < screen_wide_ && y < screen_tall_;
+        }
+
+        // A headless host has no OS window focus. VGUI drops keyboard input when this is false.
+        bool HasFocus() override
+        {
+            return true;
+        }
+
+        bool SupportsFeature(SurfaceFeature_e) override
+        {
+            return false;
+        }
+
+        void RestrictPaintToSinglePanel(vgui2::VPANEL panel) override
+        {
+            restricted_ = panel;
+        }
+
+        void SetModalPanel(vgui2::VPANEL panel) override
+        {
+            modal_ = panel;
+        }
+
+        vgui2::VPANEL GetModalPanel() override
+        {
+            return modal_;
+        }
+
+        void UnlockCursor() override
+        {
+            cursor_locked_ = false;
+        }
+
+        void LockCursor() override
+        {
+            cursor_locked_ = true;
+        }
+
+        void SetTranslateExtendedKeys(bool state) override
+        {
+            translate_keys_ = state;
+        }
+
+        vgui2::VPANEL GetTopmostPopup() override
+        {
+            return 0;
+        }
+
+        void SetTopLevelFocus(vgui2::VPANEL) override {}
+
+        vgui2::HFont CreateFont() override
+        {
+            if (static_cast<int>(fonts_.size()) >= kFontCap)
+            {
+                return 0;
+            }
+            fonts_.emplace_back();
+            return static_cast<vgui2::HFont>(fonts_.size() - 1);
+        }
+
+        bool AddGlyphSetToFont(vgui2::HFont font, const char*, int tall, int, int, int, int, int, int) override
+        {
+            Font* slot = FindFont(font);
+            if (slot == nullptr)
+            {
+                return false;
+            }
+            // The first set defines the face and the height. Later sets only extend coverage.
+            if (!slot->has_set)
+            {
+                slot->tall = tall;
+                slot->has_set = true;
+            }
+            return true;
+        }
+
+        bool AddCustomFontFile(const char*) override
+        {
+            return false;
+        }
+
+        int GetFontTall(vgui2::HFont font) override
+        {
+            const Font* slot = FindFont(font);
+            if (slot == nullptr || !slot->has_set)
+            {
+                return 0;
+            }
+            return slot->tall;
+        }
+
+        void GetCharABCwide(vgui2::HFont font, int, int& a, int& b, int& c) override
+        {
+            a = 0;
+            c = 0;
+            b = CharacterWidth(font);
+        }
+
+        int GetCharacterWidth(vgui2::HFont font, int) override
+        {
+            return CharacterWidth(font);
+        }
+
+        void GetTextSize(vgui2::HFont font, const wchar_t* text, int& wide, int& tall) override
+        {
+            wide = 0;
+            tall = GetFontTall(font);
+            if (text == nullptr)
+            {
+                return;
+            }
+            const int advance = CharacterWidth(font);
+            for (const wchar_t* cursor = text; *cursor != 0; ++cursor)
+            {
+                wide += advance;
+            }
+        }
+
+        vgui2::VPANEL GetNotifyPanel() override
+        {
+            return 0;
+        }
+
+        void SetNotifyIcon(vgui2::VPANEL, vgui2::HTexture, vgui2::VPANEL, const char*) override {}
+
+        void PlaySound(const char*) override {}
+
+        int GetPopupCount() override
+        {
+            return 0;
+        }
+
+        vgui2::VPANEL GetPopup(int) override
+        {
+            return 0;
+        }
+
+        bool ShouldPaintChildPanel(vgui2::VPANEL) override
+        {
+            return true;
+        }
+
+        bool RecreateContext(vgui2::VPANEL) override
+        {
+            return true;
+        }
+
+        void AddPanel(vgui2::VPANEL) override {}
+        void ReleasePanel(vgui2::VPANEL) override {}
+        void MovePopupToFront(vgui2::VPANEL) override {}
+        void MovePopupToBack(vgui2::VPANEL) override {}
+        void SolveTraverse(vgui2::VPANEL, bool) override {}
+
+        // The host starts the panel walk. This object only draws what the walk emits.
+        void PaintTraverse(vgui2::VPANEL) override {}
+
+        void EnableMouseCapture(vgui2::VPANEL, bool) override {}
+
+        void GetWorkspaceBounds(int& x, int& y, int& wide, int& tall) override
+        {
+            x = 0;
+            y = 0;
+            wide = screen_wide_;
+            tall = screen_tall_;
+        }
+
+        void GetAbsoluteWindowBounds(int& x, int& y, int& wide, int& tall) override
+        {
+            GetWorkspaceBounds(x, y, wide, tall);
+        }
+
+        void GetProportionalBase(int& width, int& height) override
+        {
+            width = kProportionalWide;
+            height = kProportionalTall;
+        }
+
+        void CalculateMouseVisible() override {}
+
+        bool NeedKBInput() override
+        {
+            return false;
+        }
+
+        bool HasCursorPosFunctions() override
+        {
+            return true;
+        }
+
+        void SurfaceGetCursorPos(int& x, int& y) override
+        {
+            x = cursor_x_;
+            y = cursor_y_;
+        }
+
+        void SurfaceSetCursorPos(int x, int y) override
+        {
+            cursor_x_ = x;
+            cursor_y_ = y;
+        }
+
+        void DrawTexturedPolygon(vgui2::VGuiVertex* vertices, int count) override
+        {
+            if (vertices == nullptr || count < 3 || !HasGlContext() || screen_wide_ <= 0 || screen_tall_ <= 0)
+            {
+                return;
+            }
+            const Texture* texture = FindTexture(current_texture_);
+            const SurfaceFrame frame = CurrentFrame();
+            GlScope scope(screen_wide_, screen_tall_, frame);
+            if (texture != nullptr && texture->gl_name != 0)
+            {
+                glEnable(GL_TEXTURE_2D);
+                glBindTexture(GL_TEXTURE_2D, texture->gl_name);
+            }
+            else
+            {
+                glDisable(GL_TEXTURE_2D);
+            }
+            glColor4ub(
+                static_cast<unsigned char>(draw_r_),
+                static_cast<unsigned char>(draw_g_),
+                static_cast<unsigned char>(draw_b_),
+                static_cast<unsigned char>(VguiAlphaToGl(draw_a_))
+            );
+            glBegin(GL_TRIANGLE_FAN);
+            for (int i = 0; i < count; ++i)
+            {
+                glTexCoord2f(vertices[i].u, vertices[i].v);
+                glVertex2i(vertices[i].x + frame.origin_x, vertices[i].y + frame.origin_y);
+            }
+            glEnd();
+        }
+
+        int GetFontAscent(vgui2::HFont font, wchar_t) override
+        {
+            const int tall = GetFontTall(font);
+            if (tall <= 0)
+            {
+                return 0;
+            }
+            return (tall * 3) / 4;
+        }
+
+        void SetAllowHTMLJavaScript(bool) override {}
+
+        void SetLanguage(const char* language) override
+        {
+            language_ = language != nullptr ? language : "";
+        }
+
+        const char* GetLanguage() override
+        {
+            return language_.c_str();
+        }
+
+        bool DeleteTextureByID(int id) override
+        {
+            if (id <= 0 || id >= static_cast<int>(textures_.size()))
+            {
+                return false;
+            }
+            ReleaseTexture(textures_[static_cast<size_t>(id)]);
+            return true;
+        }
+
+        void DrawUpdateRegionTextureBGRA(int id, int, int, const unsigned char* data, int wide, int tall) override
+        {
+            DrawSetTextureBGRA(id, data, wide, tall);
+        }
+
+        void DrawSetTextureBGRA(int id, const unsigned char* data, int wide, int tall) override
+        {
+            StoreTexture(id, data, wide, tall, false, true);
+        }
+
+        void CreateBrowser(vgui2::VPANEL, IHTMLResponses*, bool, const char*) override {}
+
+        void RemoveBrowser(vgui2::VPANEL, IHTMLResponses*) override {}
+
+        IHTMLChromeController* AccessChromeHTMLController() override
+        {
+            return nullptr;
+        }
+
+    private:
+        struct Texture
+        {
+            bool valid{};
+            bool filter{};
+            int wide{};
+            int tall{};
+            unsigned gl_name{};
+            std::vector<unsigned char> rgba;
+        };
+
+        struct Font
+        {
+            bool has_set{};
+            int tall{};
+        };
+
+        SurfaceFrame CurrentFrame() const
+        {
+            if (stack_.empty())
+            {
+                return {};
+            }
+            return stack_.back();
+        }
+
+        void DrawQuad(int x0, int y0, int x1, int y1, int r, int g, int b, int a, unsigned texture, bool textured, bool additive)
+        {
+            if (!HasGlContext() || screen_wide_ <= 0 || screen_tall_ <= 0)
+            {
+                return;
+            }
+            MappedQuad quad;
+            const SurfaceFrame frame = CurrentFrame();
+            if (!MapQuad(frame, x0, y0, x1, y1, &quad))
+            {
+                return;
+            }
+            if (textured && texture == 0)
+            {
+                return;
+            }
+            GlScope scope(screen_wide_, screen_tall_, frame);
+            if (additive)
+            {
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+            }
+            if (textured)
+            {
+                glEnable(GL_TEXTURE_2D);
+                glBindTexture(GL_TEXTURE_2D, texture);
+            }
+            else
+            {
+                glDisable(GL_TEXTURE_2D);
+            }
+            glColor4ub(
+                static_cast<unsigned char>(r),
+                static_cast<unsigned char>(g),
+                static_cast<unsigned char>(b),
+                static_cast<unsigned char>(VguiAlphaToGl(a))
+            );
+            glBegin(GL_QUADS);
+            glTexCoord2f(quad.u0, quad.v0);
+            glVertex2f(quad.x0, quad.y0);
+            glTexCoord2f(quad.u1, quad.v0);
+            glVertex2f(quad.x1, quad.y0);
+            glTexCoord2f(quad.u1, quad.v1);
+            glVertex2f(quad.x1, quad.y1);
+            glTexCoord2f(quad.u0, quad.v1);
+            glVertex2f(quad.x0, quad.y1);
+            glEnd();
+        }
+
+        void DrawCharacter(wchar_t wch, bool additive)
+        {
+            const int advance = CharacterWidth(text_font_);
+            const int tall = GetFontTall(text_font_);
+            if (advance > 0 && tall > 0 && wch > 32)
+            {
+                DrawQuad(text_x_, text_y_, text_x_ + advance, text_y_ + tall, text_r_, text_g_, text_b_, text_a_, 0, false, additive);
+            }
+            text_x_ += advance;
+        }
+
+        int CharacterWidth(vgui2::HFont font) const
+        {
+            const Font* slot = FindFont(font);
+            if (slot == nullptr || !slot->has_set || slot->tall <= 0)
+            {
+                return 0;
+            }
+            return std::max(1, slot->tall / 2);
+        }
+
+        Font* FindFont(vgui2::HFont font)
+        {
+            const auto index = static_cast<size_t>(font);
+            if (font == 0 || index >= fonts_.size())
+            {
+                return nullptr;
+            }
+            return &fonts_[index];
+        }
+
+        const Font* FindFont(vgui2::HFont font) const
+        {
+            const auto index = static_cast<size_t>(font);
+            if (font == 0 || index >= fonts_.size())
+            {
+                return nullptr;
+            }
+            return &fonts_[index];
+        }
+
+        void EnsureTexture(int id)
+        {
+            if (id <= 0 || id >= kTextureCap)
+            {
+                return;
+            }
+            if (static_cast<int>(textures_.size()) <= id)
+            {
+                textures_.resize(static_cast<size_t>(id) + 1);
+            }
+        }
+
+        void StoreTexture(int id, const unsigned char* data, int wide, int tall, bool filter, bool bgra)
+        {
+            if (data == nullptr || wide <= 0 || tall <= 0)
+            {
+                return;
+            }
+            EnsureTexture(id);
+            if (id <= 0 || id >= static_cast<int>(textures_.size()))
+            {
+                return;
+            }
+            Texture& texture = textures_[static_cast<size_t>(id)];
+            texture.valid = true;
+            texture.filter = filter;
+            texture.wide = wide;
+            texture.tall = tall;
+            texture.rgba.resize(static_cast<size_t>(wide) * static_cast<size_t>(tall) * 4);
+            if (!bgra)
+            {
+                std::memcpy(texture.rgba.data(), data, texture.rgba.size());
+            }
+            else
+            {
+                for (size_t i = 0; i < texture.rgba.size(); i += 4)
+                {
+                    texture.rgba[i] = data[i + 2];
+                    texture.rgba[i + 1] = data[i + 1];
+                    texture.rgba[i + 2] = data[i];
+                    texture.rgba[i + 3] = data[i + 3];
+                }
+            }
+            UploadTexture(texture);
+        }
+
+        void UploadTexture(Texture& texture)
+        {
+            if (!HasGlContext())
+            {
+                return;
+            }
+            int previous = 0;
+            glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
+            if (texture.gl_name == 0)
+            {
+                GLuint name = 0;
+                glGenTextures(1, &name);
+                texture.gl_name = name;
+            }
+            glBindTexture(GL_TEXTURE_2D, texture.gl_name);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            const int filter = texture.filter ? GL_LINEAR : GL_NEAREST;
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texture.wide, texture.tall, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture.rgba.data());
+            glBindTexture(GL_TEXTURE_2D, static_cast<unsigned>(previous));
+        }
+
+        Texture* FindTexture(int id)
+        {
+            if (id <= 0 || id >= static_cast<int>(textures_.size()) || !textures_[static_cast<size_t>(id)].valid)
+            {
+                return nullptr;
+            }
+            Texture& texture = textures_[static_cast<size_t>(id)];
+            if (texture.gl_name == 0)
+            {
+                UploadTexture(texture);
+            }
+            if (texture.gl_name == 0)
+            {
+                return nullptr;
+            }
+            return &texture;
+        }
+
+        void ReleaseTexture(Texture& texture)
+        {
+            if (texture.gl_name != 0 && HasGlContext())
+            {
+                const GLuint name = texture.gl_name;
+                glDeleteTextures(1, &name);
+            }
+            texture = {};
+        }
+
+        void ReleaseGlTextures()
+        {
+            for (Texture& texture : textures_)
+            {
+                if (texture.gl_name != 0 && HasGlContext())
+                {
+                    const GLuint name = texture.gl_name;
+                    glDeleteTextures(1, &name);
+                    texture.gl_name = 0;
+                }
+            }
+        }
+
+        static XashSurface* current_;
+
+        csr_surface_host_t host_{};
+        std::vector<SurfaceFrame> stack_;
+        std::vector<Texture> textures_;
+        std::vector<Font> fonts_;
+        std::string language_;
+        int screen_wide_{};
+        int screen_tall_{};
+        int draw_r_{255};
+        int draw_g_{255};
+        int draw_b_{255};
+        int draw_a_{};
+        int text_r_{255};
+        int text_g_{255};
+        int text_b_{255};
+        int text_a_{};
+        int text_x_{};
+        int text_y_{};
+        int cursor_x_{};
+        int cursor_y_{};
+        int button_{};
+        int gl_error_{};
+        int current_texture_{};
+        vgui2::HFont text_font_{};
+        vgui2::HCursor cursor_{};
+        vgui2::VPANEL embedded_{};
+        vgui2::VPANEL modal_{};
+        vgui2::VPANEL restricted_{};
+        bool button_down_{};
+        bool cursor_locked_{};
+        bool translate_keys_{};
+    };
+
+    XashSurface* XashSurface::current_ = nullptr;
+
+} // namespace xash
+
+namespace
+{
+
+    xash::XashSurface* As(csr_surface_t* surface)
+    {
+        return reinterpret_cast<xash::XashSurface*>(surface);
+    }
+
+    const xash::XashSurface* As(const csr_surface_t* surface)
+    {
+        return reinterpret_cast<const xash::XashSurface*>(surface);
+    }
+
+} // namespace
+
+extern "C" IBaseInterface* CreateInterface(const char* name, int* code)
+{
+    if (name != nullptr && std::strcmp(name, VGUI_SURFACE_INTERFACE_VERSION_GS) == 0 && xash::XashSurface::current() != nullptr)
+    {
+        if (code != nullptr)
+        {
+            *code = IFACE_OK;
+        }
+        return xash::XashSurface::current();
+    }
+    if (code != nullptr)
+    {
+        *code = IFACE_FAILED;
+    }
+    return nullptr;
+}
+
+csr_surface_t* csr_surface_create(const csr_surface_host_t* host)
+{
+    auto* surface = new xash::XashSurface(host);
+    xash::XashSurface::set_current(surface);
+    return reinterpret_cast<csr_surface_t*>(surface);
+}
+
+void csr_surface_destroy(csr_surface_t* surface)
+{
+    delete As(surface);
+}
+
+void csr_surface_begin_frame(csr_surface_t* surface, int wide, int tall)
+{
+    if (surface != nullptr)
+    {
+        As(surface)->BeginFrame(wide, tall);
+    }
+}
+
+void csr_surface_end_frame(csr_surface_t* surface)
+{
+    if (surface != nullptr)
+    {
+        As(surface)->EndFrame();
+    }
+}
+
+int csr_surface_gl_error(const csr_surface_t* surface)
+{
+    if (surface == nullptr)
+    {
+        return 0;
+    }
+    return As(surface)->gl_error();
+}
+
+void csr_surface_input_move(csr_surface_t* surface, int x, int y)
+{
+    if (surface != nullptr)
+    {
+        As(surface)->MoveCursor(x, y);
+    }
+}
+
+void csr_surface_input_button(csr_surface_t* surface, int button, int down)
+{
+    if (surface != nullptr)
+    {
+        As(surface)->SetButton(button, down);
+    }
+}
+
+void* csr_surface_vgui(csr_surface_t* surface)
+{
+    return As(surface);
+}

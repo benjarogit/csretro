@@ -32,6 +32,7 @@ German and English trees cannot drift apart.
 | Test server | [G06](server/testserver.md) |
 | Client runtime | [G07](client/runtime.md) |
 | First client start | [G07](client/first-start.md) |
+| VGUI surface on Xash3D | [G07](client/xash-surface.md) |
 | Cvar reference (generated) | G11 |
 | Command reference (generated) | G11 |
 | Native reference (generated) | G11 |

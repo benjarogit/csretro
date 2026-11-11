@@ -89,6 +89,14 @@
         "CMAKE_C_FLAGS": "-m32 -march=pentium4 -mfpmath=sse",
         "CMAKE_CXX_FLAGS": "-m32 -march=pentium4 -mfpmath=sse"
       }
+    },
+
+    {
+      "name": "linux-tests",
+      "inherits": "linux",
+      "cacheVariables": {
+        "NEXTCLIENT_BUILD_TESTS": "ON"
+      }
     }
   ],
 
@@ -163,6 +171,12 @@
       "name": "linux-debug",
       "configurePreset": "linux",
       "configuration": "Debug"
+    },
+
+    {
+      "name": "linux-tests-release",
+      "configurePreset": "linux-tests",
+      "configuration": "Release"
     }
   ]
 }

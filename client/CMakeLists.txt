@@ -130,6 +130,7 @@ unset(CMAKE_CXX_STANDARD)
 
 add_subdirectory(nextclient/packages)
 add_subdirectory(nextclient/engine_mini)
+add_subdirectory(nextclient/xash_surface)
 add_subdirectory(nextclient/gameui)
 add_subdirectory(nextclient/client_mini)
 add_subdirectory(tools/matgen)
@@ -191,6 +192,7 @@ if (NOT NEXTCLIENT_BUILD_TESTS)
             steam_api_proxy
             nitro_api
             vgui2
+            xash_surface
     )
 
     if (NEXTCLIENT_INSTALL_DIR AND (WIN32 OR UNIX))

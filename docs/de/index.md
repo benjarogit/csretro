@@ -32,6 +32,7 @@ damit die Struktur nicht zwischen Deutsch und Englisch auseinanderläuft.
 | Testserver | [G06](server/testserver.md) |
 | Client-Laufzeit | [G07](client/runtime.md) |
 | Erster Client-Start | [G07](client/first-start.md) |
+| VGUI-Surface auf Xash3D | [G07](client/xash-surface.md) |
 | Cvar-Referenz (generiert) | G11 |
 | Command-Referenz (generiert) | G11 |
 | Native-Referenz (generiert) | G11 |

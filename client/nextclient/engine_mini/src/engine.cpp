@@ -399,6 +399,7 @@ namespace
     void RecordXashModNeedCRC();
     void RecordXashModLoadModel();
     void RecordXashModForName();
+    void RecordXashModExtradata();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -463,7 +464,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // Mod_ForName is then the process function when that hook is absent.
     // This init stores the pointer and does not look up a model. The process
     // body searches the known list and can load a model, so a real call does
-    // not run. The next retail hook is Mod_Extradata. This path returns before it.
+    // not run.
+    // Mod_Extradata is then the process function when that hook is absent.
+    // This init stores the pointer and does not read extradata. The process
+    // body can Sys_Error on a brush model and can load a model, so a real call
+    // does not run. The next retail hook is SPR_Init. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -493,6 +498,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashModNeedCRC();
             RecordXashModLoadModel();
             RecordXashModForName();
+            RecordXashModExtradata();
         }
         return;
     }
@@ -931,6 +937,7 @@ EngineMiniModValidateCRCFn g_EngineMiniModValidateCRC = Mod_ValidateCRC;
 EngineMiniModNeedCRCFn g_EngineMiniModNeedCRC = Mod_NeedCRC;
 EngineMiniModLoadModelFn g_EngineMiniModLoadModel = Mod_LoadModel;
 EngineMiniModForNameFn g_EngineMiniModForName = Mod_ForName;
+EngineMiniModExtradataFn g_EngineMiniModExtradata = Mod_Extradata;
 
 namespace
 {
@@ -1270,6 +1277,23 @@ namespace
         g_xash_startup.mod_forname = g_EngineMiniModForName;
     }
 
+    void RecordXashModExtradata()
+    {
+        // The retail site installs a replacement. It does not read extradata during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body can Sys_Error on a brush model and can load a model, so this path does not call it.
+        g_xash_startup.mod_extradata = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->Mod_Extradata.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniModExtradata == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.mod_extradata = g_EngineMiniModExtradata;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -1561,6 +1585,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniModNeedCRC = Mod_NeedCRC;
     g_EngineMiniModLoadModel = Mod_LoadModel;
     g_EngineMiniModForName = Mod_ForName;
+    g_EngineMiniModExtradata = Mod_Extradata;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -1726,6 +1751,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
         {
             ++count;
         }
+        if (g_xash_startup.mod_extradata != nullptr)
+        {
+            ++count;
+        }
         *stored_functions = count;
     }
     if (nitro_hooks != nullptr)
@@ -1759,6 +1788,7 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             count_hook(g_xash_engine->Mod_NeedCRC);
             count_hook(g_xash_engine->Mod_LoadModel);
             count_hook(g_xash_engine->Mod_ForName);
+            count_hook(g_xash_engine->Mod_Extradata);
         }
         *nitro_hooks = count;
     }

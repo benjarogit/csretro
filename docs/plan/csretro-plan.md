@@ -456,8 +456,14 @@ Nebenbefunde:
   dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht
   auf, daher wird kein Modell gesucht oder geladen, keine Modelldatei gelesen,
   kein Modellslot belegt, keine CRC berechnet und needload bleibt unverändert.
-  Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-  Retail-Hook ist `Mod_Extradata`. Dieser Pfad kehrt davor zurück.
+  Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+  `Mod_Extradata` ist danach die Funktion in diesem Prozess, wenn dieser
+  Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
+  daher werden keine Extradaten gelesen, kein Modell geladen, keine
+  Modelldatei gelesen, keine CRC berechnet, needload bleibt unverändert und
+  `Sys_Error` läuft nicht. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook
+  ist kein Aufruf. Der nächste Retail-Hook ist `SPR_Init`. Dieser Pfad kehrt
+  davor zurück.
   `OnGameInitialized` wird nicht betreten. Die Retail-Hook-Kette läuft dabei nicht.
   Der Xash-Frame ist der spätere direkte Aufruf `csr_host_frame` und verlängert diese Liste nicht.
   `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen haben weiter
@@ -871,8 +877,14 @@ Aufruf. Ein Null-Hook ist kein Aufruf. `Mod_ForName` ist danach die Funktion in 
 dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht
 auf, daher wird kein Modell gesucht oder geladen, keine Modelldatei gelesen,
 kein Modellslot belegt, keine CRC berechnet und needload bleibt unverändert.
-Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-Retail-Hook ist `Mod_Extradata`. Dieser Pfad kehrt davor zurück.
+Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+`Mod_Extradata` ist danach die Funktion in diesem Prozess, wenn dieser
+Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
+daher werden keine Extradaten gelesen, kein Modell geladen, keine
+Modelldatei gelesen, keine CRC berechnet, needload bleibt unverändert und
+`Sys_Error` läuft nicht. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook
+ist kein Aufruf. Der nächste Retail-Hook ist `SPR_Init`. Dieser Pfad kehrt
+davor zurück.
 `OnGameInitialized` wird nicht betreten. Die
 Retail-Hook-Kette läuft bei diesem Init nicht. `csr_host_frame` ist hier kein
 Aufruf. Der Frame ist der spätere direkte Aufruf und verlängert die Hook-Liste
@@ -1003,7 +1015,7 @@ ist die Swap-Zahl N, und die Host-Zeit ist um N mal das Delta vorgerückt.
 Die X11-Verbindung ist der Socket des Fensters. Ein
 Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
 Surface-Tests behalten ihr EGL-Pbuffer. Die Retail-Hook-Liste wird nicht
-verlängert. Der nächste Retail-Hook bleibt `Mod_Extradata`.
+verlängert. Der nächste Retail-Hook bleibt `SPR_Init`.
 `OnGameInitialized` bleibt außen: der Einstieg lädt Materialdateien, löst
 `vgui2` auf und geht in die übrige Retail-Initialisierung, daher kehrt er
 nicht ohne `hw.so` zurück.

@@ -105,8 +105,12 @@ Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
 daher werden keine Extradaten gelesen, kein Modell geladen, keine
 Modelldatei gelesen, keine CRC berechnet, needload bleibt unverändert und
 `Sys_Error` läuft nicht. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook
-ist kein Aufruf. Der nächste Retail-Hook ist `SPR_Init`. Dieser Pfad kehrt
-davor zurück.
+ist kein Aufruf. `SPR_Init` ist danach die Funktion in diesem Prozess, wenn
+dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht
+auf, daher bleibt eine leere Sprite-Liste unalloziert, kein Sprite wird
+geladen, keine Datei gelesen und kein Socket geöffnet. Ein Null-Zeiger ist
+kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
+`SPR_Shutdown`. Dieser Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie

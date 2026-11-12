@@ -415,6 +415,7 @@ namespace
     void RecordXashSprHeight();
     void RecordXashSprFrames();
     void RecordXashSprGetModelPointer();
+    void RecordXashRStudioReloadSkin();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -544,7 +545,10 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // SPR_GetModelPointer is then the process function when that hook is absent.
     // This init stores the pointer and does not resolve a model pointer. The process body
     // looks up a sprite and can return its model pointer, so a real call does not run.
-    // The next retail hook is R_StudioReloadSkin. This path returns before it.
+    // R_StudioReloadSkin is then the process function when that hook is absent.
+    // This init stores the pointer and does not reload a studio skin. The process body
+    // can load a model texture and write skin fields, so a real call does not run.
+    // The next retail hook is SetCrosshair. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -590,6 +594,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSprHeight();
             RecordXashSprFrames();
             RecordXashSprGetModelPointer();
+            RecordXashRStudioReloadSkin();
         }
         return;
     }
@@ -1044,6 +1049,7 @@ EngineMiniSprWidthFn g_EngineMiniSprWidth = SPR_Width;
 EngineMiniSprHeightFn g_EngineMiniSprHeight = SPR_Height;
 EngineMiniSprFramesFn g_EngineMiniSprFrames = SPR_Frames;
 EngineMiniSprGetModelPointerFn g_EngineMiniSprGetModelPointer = SPR_GetModelPointer;
+EngineMiniRStudioReloadSkinFn g_EngineMiniRStudioReloadSkin = R_StudioReloadSkin;
 
 namespace
 {
@@ -1672,6 +1678,24 @@ namespace
         g_xash_startup.spr_get_model_pointer = g_EngineMiniSprGetModelPointer;
     }
 
+    void RecordXashRStudioReloadSkin()
+    {
+        // The retail site installs a replacement. It does not reload a studio skin during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body can load a model texture and write skin fields,
+        // so this path does not call it.
+        g_xash_startup.studio_reload_skin = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->R_StudioReloadSkin.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniRStudioReloadSkin == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.studio_reload_skin = g_EngineMiniRStudioReloadSkin;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -1979,6 +2003,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSprHeight = SPR_Height;
     g_EngineMiniSprFrames = SPR_Frames;
     g_EngineMiniSprGetModelPointer = SPR_GetModelPointer;
+    g_EngineMiniRStudioReloadSkin = R_StudioReloadSkin;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -2343,6 +2368,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             ++count;
         }
         if (g_xash_startup.spr_get_model_pointer != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.studio_reload_skin != nullptr)
         {
             ++count;
         }

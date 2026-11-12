@@ -870,6 +870,44 @@ returned no error and `eglCreateWindowSurface` succeeded. The window was
 not mapped, focus was not taken, and the window was destroyed. The game was
 not started. The automated test stays on Xvfb and does not require NVIDIA.
 
+Process `Mod_LoadModel` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ engine_mini-tests --gtest_filter=XashStartup.*
+24/24 passed
+ModLoadModelUsesTheProcessFunction
+
+$ engine_mini-tests
+579/579 passed
+
+$ xash_host-tests
+20/20 passed
+
+$ xash_launcher-tests
+7/7 passed
+```
+
+`OnGameInitializing` stores `Mod_LoadModel` from this process when that
+retail hook is absent and does not call it. `mod_load_calls` stays 0. A
+null pointer leaves the recorded pointer null and is not a call. A null
+hook is not a call. A real `Mod_LoadModel` reads a model file and can write
+a CRC and `needload`. It was not called. No model was loaded, no model file
+was read, no model slot was allocated and no CRC was computed. A planted
+brush CRC stays `shouldCRC` 1, `firstCRCDone` 1, `initialCRC` `0xC5C5C5C5`,
+and a planted sprite CRC stays `shouldCRC` 0, `firstCRCDone` 0, `initialCRC`
+`0x11111111`. Brush `maps/csretro_keep.bsp` stays `NL_PRESENT` and sprite
+`sprites/csretro_keep.spr` stays `NL_NEEDS_LOADED`, each with the same cache
+pointer. `levelname` stays `csretro-keep`. Host time stays `9.25` and the
+frame interval stays `0.05`. `/proc/self/fd` stays unchanged. The next retail
+hook is `eng()->Mod_ForName` (`Mod_ForName`). That hook stays null. The Xash
+path returns before it. `OnGameInitialized` is not entered. `Sys_Error` does
+not run. `csr_host_frame` is not this init. The game was not started. The
+client is not playable.
+
+CI: https://github.com/benjarogit/csretro/actions/runs/43225899556 success (`974a190`).
+
+`scripts/verify.sh`: 68 checks passed.
+
 Process `Mod_NeedCRC` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 
 ```text

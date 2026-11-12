@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `acf3481` (install copy searches Steam and copies the mounted content outside the library)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43193924471 – success (`acf3481`)
+- **Commit:** `b052069` (shipped files overlay the cleaned Steam copy; the same relative path keeps the shipped file)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43195336643 – success (`b052069`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -275,8 +275,10 @@ or replaced by a simple text view. Details: `.local/xash-spike.md` (ignored).
   into Steam and never asks for credentials. `scripts/install-content.sh`
   discovers the local Steam libraries (`steamapps/libraryfolders.vdf`,
   `appmanifest_10.acf`) and copies the allowlist in `tools/install_content.py`
-  into a directory outside that library. A missing Steam install or a missing
-  game fails. Tests use a fake library. The vendored NextClient installer
+  into a directory outside that library. Files shipped in `client/assets`
+  overlay that copy: the same relative path keeps the shipped file, and a
+  retail file with no shipped replacement stays. A missing Steam install or a
+  missing game fails. Tests use a fake library. The vendored NextClient installer
   `client/installer/import_game.py` is not this copy.
 - **Manual copy stays possible.** `scripts/install.sh` (G09) is a convenience
   around copy, hashes and backups; a user who already has a valid game folder can
@@ -447,9 +449,12 @@ the Security overview switches in the browser.
   `platform/resource` files, and refuses a destination inside that library.
   Missing Steam is `steam_missing`. Missing App 10 is `game_missing`.
   `hw.so`, Steam binaries, personal configs, demos, screenshots and caches
-  stay behind. `tests/install_content` 13/13 on a fake library. The game was
-  not started. CI https://github.com/benjarogit/csretro/actions/runs/43193924471
-  success (`acf3481`).
+  stay behind. Shipped files in `client/assets` overlay that copy. The same
+  relative path keeps the shipped file (maps, weapons, models, sounds, sprites,
+  resources, and any other shipped asset). A retail file with no shipped
+  replacement stays. `tests/install_content` 15/15 on a fake library. The game
+  was not started. CI https://github.com/benjarogit/csretro/actions/runs/43195336643
+  success (`b052069`).
 - **Next step:** `xash_surface` answers `VGUI_Surface026` and draws fills,
   texture quads and FreeType glyphs from a packed atlas (plan section 3.7).
   The spike team-click was reproduced on 2026-11-11: exit 137, `Button/terbutton`
@@ -554,16 +559,20 @@ Install copy (2026-11-12, fake library, game not started):
 
 ```text
 $ uv run --with pytest pytest tests/install_content/test_install_content.py -q
-13 passed
+15 passed
 ```
 
 `scripts/install-content.sh` reads `libraryfolders.vdf` and
 `appmanifest_10.acf`, copies the allowlist, and refuses a destination inside
-the source library. Missing Steam is `steam_missing`. Missing App 10 is
-`game_missing`. `hw.so`, Steam binaries, personal configs, demos, screenshots
-and caches are not copied. The game was not started.
+the source library. A fake shipped tree at the same relative path replaces the
+retail bytes for a map, a model, a weapon sound, a sprite and a resource. A
+retail-only map text, a retail-only weapon event and a retail-only valve sound
+stay. `hw.so` stays in the source library. Missing Steam is `steam_missing`.
+Missing App 10 is `game_missing`. An overlay inside the library is
+`overlay_inside_source`. Personal configs, demos, screenshots and caches are
+not copied. The game was not started.
 
-CI: https://github.com/benjarogit/csretro/actions/runs/43193924471 success (`acf3481`).
+CI: https://github.com/benjarogit/csretro/actions/runs/43195336643 success (`b052069`).
 
 Host calls the Xash startup entries (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

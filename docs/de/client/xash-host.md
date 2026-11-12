@@ -171,8 +171,13 @@ ist kein Aufruf. `SPR_Width` ist danach die Funktion in diesem Prozess, wenn
 dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht
 auf, daher bleiben gesetzte Sprite-Abmessungen unverändert, keine Sprite-Breite
 wird gelesen, kein Sprite wird geladen und kein Socket wird geöffnet. Ein
-Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-Retail-Hook ist `SPR_Height`. Dieser Pfad kehrt davor zurück.
+Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. `SPR_Height` ist
+danach die Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init
+speichert den Zeiger und ruft ihn nicht auf, daher bleiben gesetzte
+Sprite-Abmessungen unverändert, keine Sprite-Höhe wird gelesen, kein Sprite
+wird geladen und kein Socket wird geöffnet. Ein Null-Zeiger ist kein Aufruf.
+Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist `SPR_Frames`.
+Dieser Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie

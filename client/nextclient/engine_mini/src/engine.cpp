@@ -421,6 +421,7 @@ namespace
     void RecordXashRRenderView();
     void RecordXashGLInit();
     void RecordXashGLConfig();
+    void RecordXashGLSelectTexture();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -569,7 +570,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not configure GL. The process body
     // writes GL cvar pointers and can insert vendor cfg text, so a real call
     // does not run.
-    // The next retail hook is GL_SelectTexture. This path returns before it.
+    // GL_SelectTexture is then the process function when that hook is absent.
+    // This init stores the pointer and does not select a texture unit. The
+    // process body requires a GL context and changes the active texture unit,
+    // so a real call does not run.
+    // The next retail hook is CL_ConnectClient. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -621,6 +626,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashRRenderView();
             RecordXashGLInit();
             RecordXashGLConfig();
+            RecordXashGLSelectTexture();
         }
         return;
     }
@@ -1081,6 +1087,8 @@ EngineMiniDrawCrosshairFn g_EngineMiniDrawCrosshair = DrawCrosshair;
 EngineMiniRRenderViewFn g_EngineMiniRRenderView = R_RenderView;
 EngineMiniGLInitFn g_EngineMiniGLInit = GL_Init;
 EngineMiniGLConfigFn g_EngineMiniGLConfig = GL_Config;
+EngineMiniGLSelectTextureFn g_EngineMiniGLSelectTexture =
+    reinterpret_cast<EngineMiniGLSelectTextureFn>(GL_SelectTexture);
 
 namespace
 {
@@ -1817,6 +1825,24 @@ namespace
         g_xash_startup.gl_config = g_EngineMiniGLConfig;
     }
 
+    void RecordXashGLSelectTexture()
+    {
+        // The retail site installs a replacement. It does not select a texture unit during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body requires a GL context and changes the active texture unit,
+        // so this path does not call it.
+        g_xash_startup.gl_select_texture = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->GL_SelectTexture.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniGLSelectTexture == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.gl_select_texture = g_EngineMiniGLSelectTexture;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2130,6 +2156,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniRRenderView = R_RenderView;
     g_EngineMiniGLInit = GL_Init;
     g_EngineMiniGLConfig = GL_Config;
+    g_EngineMiniGLSelectTexture = reinterpret_cast<EngineMiniGLSelectTextureFn>(GL_SelectTexture);
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

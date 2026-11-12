@@ -243,6 +243,10 @@ CMakeUserPresets.json  vcpkg_installed/  __pycache__/
 - `scripts/clean.sh` is the only sanctioned way to remove generated state.
 - No dead code, no commented-out blocks, no unused assets, no stale patches.
 - No temporary directories inside the repository. Use `/tmp/opencode/`.
+- Spent Cursor or agent work plans for a closed gate are deleted or archived.
+  They must not pile up as a second backlog next to `docs/plan/csretro-plan.md`
+  and `HANDOFF.md`. A finished plan is waste; keep only an active staging plan
+  while a gate is open.
 
 ---
 

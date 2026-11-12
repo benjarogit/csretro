@@ -10,6 +10,11 @@ The authoritative version string is the `VERSION` file.
 
 ### Changed
 
+- GitHub Actions pins: `checkout`/`setup-python` v7, Pages deploy/upload v5.
+  Dependabot groups Action updates into one weekly PR. `main` requires the
+  `repository verification` check and rejects force-pushes. Spent Cursor work
+  plans are deleted after a gate; the harness forbids stacking them as a second
+  backlog.
 - Version line is `1.0.0-dev` (pre-release of 1.0.0). First release tag remains
   `v1.0.0` at gate G14 when the client is playable. Repository visibility in
   `versions.lock.json` is `public`. Authoritative plan section 11 records public

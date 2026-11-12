@@ -943,6 +943,9 @@ Arbeit darf nicht nur in einem separaten Arbeitsplan liegen.
 - Ignoriert und nach jedem Gate entfernt: `build/`, `out/`, `install/`, `.cache/`, Logs, `.env`, `CMakeUserPresets.json`, `vcpkg_installed/`
 - `scripts/clean.sh` ist der einzige erlaubte Weg
 - Keine Secrets, keine Steam-Dateien im Repo
+- Erledigte Cursor-/Agent-Arbeitspläne nach Gate-Abschluss löschen oder
+  archivieren. Sie dürfen sich nicht als zweiter Backlog neben diesem Plan und
+  `HANDOFF.md` stapeln. Nur ein aktiver Staging-Plan, solange ein Gate offen ist.
 
 ---
 

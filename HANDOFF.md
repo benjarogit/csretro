@@ -411,8 +411,11 @@ Public collaboration, SemVer from `1.0.0`, and upstream policy are in
 The public docs site is live: Zensical + vgui.css skins, audience hubs,
 `SECURITY.md`, Pages after green `ci` on `main`, Dependabot for Actions,
 weekly upstream-watch. Site: https://benjarogit.github.io/csretro/
-Pages source is GitHub Actions. Benny still flips Security overview switches
-and branch protection in the browser.
+Pages source is GitHub Actions. Site: https://benjarogit.github.io/csretro/
+(and `/de/`, `/en/`). `main` branch protection requires
+`repository verification` and blocks force-push. Dependabot Action bumps are
+grouped; the four one-Action PRs were closed as superseded. Benny still flips
+the Security overview switches in the browser.
 
 ## Next task
 

@@ -410,6 +410,7 @@ namespace
     void RecordXashSprDrawGeneric();
     void RecordXashSprEnableScissor();
     void RecordXashSprDisableScissor();
+    void RecordXashSprSet();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -522,7 +523,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // SPR_DisableScissor is then the process function when that hook is absent.
     // This init stores the pointer and does not clear a scissor rectangle. The process
     // body disables the scissor and can call DisableScissorTest, so a real call does
-    // not run. The next retail hook is SPR_Set. This path returns before it.
+    // not run.
+    // SPR_Set is then the process function when that hook is absent.
+    // This init stores the pointer and does not set the current sprite or its color.
+    // The process body looks up a sprite and can call qglColor4f, so a real call does
+    // not run. The next retail hook is SPR_Width. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -563,6 +568,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSprDrawGeneric();
             RecordXashSprEnableScissor();
             RecordXashSprDisableScissor();
+            RecordXashSprSet();
         }
         return;
     }
@@ -1012,6 +1018,7 @@ EngineMiniSprDrawHolesFn g_EngineMiniSprDrawHoles = SPR_DrawHoles;
 EngineMiniSprDrawGenericFn g_EngineMiniSprDrawGeneric = SPR_DrawGeneric;
 EngineMiniSprEnableScissorFn g_EngineMiniSprEnableScissor = SPR_EnableScissor;
 EngineMiniSprDisableScissorFn g_EngineMiniSprDisableScissor = SPR_DisableScissor;
+EngineMiniSprSetFn g_EngineMiniSprSet = SPR_Set;
 
 namespace
 {
@@ -1550,6 +1557,24 @@ namespace
         g_xash_startup.spr_disable_scissor = g_EngineMiniSprDisableScissor;
     }
 
+    void RecordXashSprSet()
+    {
+        // The retail site installs a replacement. It does not set a sprite during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body looks up a sprite and can call qglColor4f,
+        // so this path does not call it.
+        g_xash_startup.spr_set = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->SPR_Set.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniSprSet == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.spr_set = g_EngineMiniSprSet;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -1852,6 +1877,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSprDrawGeneric = SPR_DrawGeneric;
     g_EngineMiniSprEnableScissor = SPR_EnableScissor;
     g_EngineMiniSprDisableScissor = SPR_DisableScissor;
+    g_EngineMiniSprSet = SPR_Set;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -2196,6 +2222,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             ++count;
         }
         if (g_xash_startup.spr_disable_scissor != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.spr_set != nullptr)
         {
             ++count;
         }

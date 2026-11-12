@@ -9,12 +9,14 @@
 
 #include <dlfcn.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
 #include <unistd.h>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -30,6 +32,8 @@ extern bool g_bIsTerrorStrike;
 extern bool g_bIsTFC;
 extern bool g_bIsHL1;
 extern goldsrc::enginefuncs_t g_engfuncs;
+
+void NET_SendPacket(goldsrc::netsrc_t sock, int length, void* data, goldsrc::netadr_t to);
 
 namespace
 {
@@ -48,6 +52,33 @@ namespace
         }
 
         return false;
+    }
+
+    bool ReadOpenSockets(std::vector<std::string>* links)
+    {
+        links->clear();
+        std::error_code error;
+        std::filesystem::directory_iterator it("/proc/self/fd", error);
+        if (error)
+        {
+            return false;
+        }
+        const std::filesystem::directory_iterator end;
+        for (; !error && it != end; it.increment(error))
+        {
+            std::error_code link_error;
+            const std::filesystem::path target = std::filesystem::read_symlink(it->path(), link_error);
+            if (!link_error && target.string().rfind("socket:", 0) == 0)
+            {
+                links->push_back(target.string());
+            }
+        }
+        if (error)
+        {
+            return false;
+        }
+        std::sort(links->begin(), links->end());
+        return true;
     }
 
     class WorkingDirectory
@@ -412,5 +443,86 @@ TEST_F(XashStartup, SetCStrikeFlagsReadsTheMountedDirectory)
         ASSERT_EQ(setenv("LD_LIBRARY_PATH", saved_path.c_str(), 1), 0);
     }
     csr_host_filesystem_clear();
+    std::filesystem::remove_all(root);
+}
+
+TEST_F(XashStartup, NetSendPacketUsesTheProcessFunction)
+{
+    Dl_info info{};
+    ASSERT_NE(dladdr(reinterpret_cast<void*>(csr_xash_engine_argv), &info), 0);
+    ASSERT_NE(info.dli_fname, nullptr);
+
+    const std::filesystem::path root = std::filesystem::temp_directory_path() / "csretro-xash-net-send";
+    std::filesystem::remove_all(root);
+    std::filesystem::create_directories(root);
+    std::filesystem::copy_file(info.dli_fname, root / "hw.so");
+
+    const char* previous_path = std::getenv("LD_LIBRARY_PATH");
+    const std::string saved_path = previous_path != nullptr ? previous_path : "";
+    ASSERT_EQ(setenv("LD_LIBRARY_PATH", root.c_str(), 1), 0);
+
+    auto engine = std::make_unique<nitroapi::EngineData>();
+    EngineMini_BindXashStartup(engine.get(), true);
+
+    {
+        const WorkingDirectory directory(root);
+        char arg0[] = "xash";
+        char arg1[] = "-console";
+        char* argv[] = {arg0, arg1, nullptr};
+        int window = 0;
+        std::vector<std::string> sockets_before;
+        ASSERT_TRUE(ReadOpenSockets(&sockets_before));
+
+        csr_xash_engine_argv(2, argv);
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+
+        const EngineMiniXashStartup* record = EngineMini_XashStartup();
+        ASSERT_NE(record->net_send_packet, nullptr);
+        EXPECT_EQ(record->net_send_packet, &NET_SendPacket);
+        EXPECT_EQ(g_EngineMiniNetSendPacket, &NET_SendPacket);
+        EXPECT_EQ(record->net_send_calls, 0);
+        EXPECT_EQ(engine->NET_SendPacket.GetHook(), nullptr);
+        EXPECT_EQ(engine->Netchan_CopyFileFragments.GetHook(), nullptr);
+        EXPECT_EQ(engine->Sys_InitGame.GetHook(), nullptr);
+        EXPECT_EQ(engine->Sys_Error.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_Init.GetHook(), nullptr);
+        EXPECT_EQ(record->initializing_calls, 1);
+        EXPECT_EQ(record->shutdown_calls, 0);
+        EXPECT_EQ(record->error_calls, 0);
+        EXPECT_FALSE(MapsContain(root / "hw.so"));
+
+        Dl_info send_info{};
+        ASSERT_NE(dladdr(reinterpret_cast<void*>(record->net_send_packet), &send_info), 0);
+        ASSERT_NE(send_info.dli_fname, nullptr);
+        EXPECT_EQ(std::string(send_info.dli_fname).find("hw.so"), std::string::npos);
+
+        std::vector<std::string> sockets_after;
+        ASSERT_TRUE(ReadOpenSockets(&sockets_after));
+        EXPECT_EQ(sockets_before, sockets_after);
+
+        g_EngineMiniNetSendPacket = nullptr;
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+
+        record = EngineMini_XashStartup();
+        EXPECT_EQ(record->net_send_packet, nullptr);
+        EXPECT_EQ(record->net_send_calls, 0);
+        EXPECT_EQ(engine->NET_SendPacket.GetHook(), nullptr);
+        EXPECT_EQ(record->shutdown_calls, 0);
+        EXPECT_EQ(record->error_calls, 0);
+        EXPECT_FALSE(MapsContain(root / "hw.so"));
+
+        std::vector<std::string> sockets_null;
+        ASSERT_TRUE(ReadOpenSockets(&sockets_null));
+        EXPECT_EQ(sockets_before, sockets_null);
+    }
+
+    if (previous_path == nullptr)
+    {
+        ASSERT_EQ(unsetenv("LD_LIBRARY_PATH"), 0);
+    }
+    else
+    {
+        ASSERT_EQ(setenv("LD_LIBRARY_PATH", saved_path.c_str(), 1), 0);
+    }
     std::filesystem::remove_all(root);
 }

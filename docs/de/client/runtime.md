@@ -30,6 +30,11 @@ und `Sys_Error` wird nicht gerufen. `Con_Init` läuft danach. Es liest
 `pfnGetGameDir` schreibt danach den Namen des gemounteten Verzeichnisses.
 Ein leeres Mount lässt diesen Zeiger null, und `SetCStrikeFlags` wird nicht
 aufgerufen. Ein vorhandener Name lässt `SetCStrikeFlags` laufen.
+`NET_SendPacket` ist die Funktion in diesem Prozess, wenn dieser Retail-Hook
+fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf, daher wird kein
+Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein
+Aufruf. Der nächste Retail-Hook ist `Netchan_CopyFileFragments`. Dieser Pfad
+kehrt davor zurück. `OnGameInitialized` wird nicht betreten.
 Die Retail-Hook-Kette läuft dabei nicht. `hw.so` wird nicht geöffnet. `RunFrame` wird
 nicht gerufen. Die übrigen `engine_mini`-Weiterleitungen bleiben am
 Retail-Hook.

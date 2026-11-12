@@ -24,7 +24,11 @@ loads `engine_mini`, calls `EngineMini::Init`, then argv, mode and init_game.
 process, runs `Con_Init`, and does not call `Sys_Error`. `-condebug` does not
 call a null filesystem. `pfnGetGameDir` writes the mounted directory name.
 An empty mount leaves that pointer null, and `SetCStrikeFlags` is not called.
-A mounted name runs `SetCStrikeFlags`. Shutdown and the fatal error stay
+A mounted name runs `SetCStrikeFlags`. `NET_SendPacket` is the function in this
+process when that retail hook is absent. Init stores the pointer and does not
+call it, so no socket is opened. A null pointer is not a call. A null hook is
+not a call. The next retail hook is `Netchan_CopyFileFragments`. This path
+returns before it. `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and are not called. A missing library or export fails the open and is
 not called.
 The planned command is not executed. The launcher does not start the game, does not exec Xash3D,

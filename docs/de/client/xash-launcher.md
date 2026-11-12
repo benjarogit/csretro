@@ -25,7 +25,12 @@ diesem Prozess, ruft `Con_Init` und ruft `Sys_Error` nicht. `-condebug` ruft
 ein Null-Dateisystem nicht auf. `pfnGetGameDir` schreibt den Namen des
 gemounteten Verzeichnisses. Ein leeres Mount lässt diesen Zeiger null, und
 `SetCStrikeFlags` wird nicht aufgerufen. Ein vorhandener Name lässt
-`SetCStrikeFlags` laufen. Shutdown und der fatale Fehler
+`SetCStrikeFlags` laufen. `NET_SendPacket` ist die Funktion in diesem Prozess,
+wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn
+nicht auf, daher wird kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf.
+Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
+`Netchan_CopyFileFragments`. Dieser Pfad kehrt davor zurück.
+`OnGameInitialized` wird nicht betreten. Shutdown und der fatale Fehler
 bleiben gebunden und werden nicht gerufen. Eine fehlende Bibliothek oder ein
 fehlender
 Export lässt das Öffnen scheitern und ist kein Aufruf. Der geplante

@@ -41,7 +41,12 @@ The authoritative version string is the `VERSION` file.
   `-condebug` through `COM_CheckParm` and does not call a null filesystem, so
   `qconsole.log` stays. `pfnGetGameDir` then writes the mounted directory
   name. An empty mount leaves that pointer null, and `SetCStrikeFlags` is
-  not called. A mounted name runs `SetCStrikeFlags`. The retail hook chain
+  not called. A mounted name runs `SetCStrikeFlags`. `NET_SendPacket` is the
+  function in this process when that retail hook is absent. Init stores the
+  pointer and does not call it, so no socket is opened. A null pointer is not
+  a call. A null hook is not a call. The next retail hook is
+  `Netchan_CopyFileFragments`. This path returns before it.
+  `OnGameInitialized` is not entered. The retail hook chain
   does not run. `hw.so` stays
   unmapped. The game is not started.
 - `scripts/install-content.sh` searches a Steam library (`libraryfolders.vdf`,

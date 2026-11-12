@@ -27,7 +27,11 @@ table from this process. A null function pointer is not a call, and
 `COM_CheckParm` and does not call a null filesystem. `pfnGetGameDir` then
 writes the name of the mounted directory. An empty mount leaves that pointer
 null, and `SetCStrikeFlags` is not called. A mounted name runs
-`SetCStrikeFlags`. The retail hook chain
+`SetCStrikeFlags`. `NET_SendPacket` is the function in this process when that
+retail hook is absent. Init stores the pointer and does not call it, so no
+socket is opened. A null pointer is not a call. A null hook is not a call.
+The next retail hook is `Netchan_CopyFileFragments`. This path returns before
+it. `OnGameInitialized` is not entered. The retail hook chain
 does not run. `hw.so` is not opened.
 `RunFrame` is not called. The other `engine_mini` forwards stay on the retail
 hook.

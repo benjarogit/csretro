@@ -2,6 +2,9 @@
 
 #include <nitroapi/modules/engine/EngineData.h>
 
+// Process replacement for the retail NET_SendPacket hook. A null value is not a call.
+using EngineMiniNetSendPacketFn = void (*)(goldsrc::netsrc_t sock, int length, void* data, goldsrc::netadr_t to);
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -15,6 +18,7 @@ struct EngineMiniXashStartup
     int initializing_calls{};
     int shutdown_calls{};
     int error_calls{};
+    int net_send_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -27,7 +31,11 @@ struct EngineMiniXashStartup
     char init_cmdline[256]{};
     char basedir[256]{};
     char error[256]{};
+    EngineMiniNetSendPacketFn net_send_packet{};
 };
+
+// Defaults to NET_SendPacket. Init stores the pointer and does not call it.
+extern EngineMiniNetSendPacketFn g_EngineMiniNetSendPacket;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

@@ -379,6 +379,7 @@ namespace
 {
     bool XashStartupIsActive();
     bool SupplyXashEngineTable();
+    void RecordXashNetSendPacket();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -386,7 +387,9 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // The Xash table is storage in this process. Null function pointers in it
     // are not calls, and a missing pointer is not Sys_Error. Con_Init runs
     // once that table is stored. SetCStrikeFlags runs only when pfnGetGameDir
-    // is set. The retail hook chain stays after this return.
+    // is set. NET_SendPacket is then the process function when that hook is
+    // absent. This init stores the pointer and does not send. The remaining
+    // retail hooks stay after this return.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -396,6 +399,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             {
                 SetCStrikeFlags();
             }
+            RecordXashNetSendPacket();
         }
         return;
     }
@@ -814,11 +818,29 @@ static void OnGameInitialized()
     DiscordPresence_Init();
 }
 
+EngineMiniNetSendPacketFn g_EngineMiniNetSendPacket = NET_SendPacket;
+
 namespace
 {
 
     EngineMiniXashStartup g_xash_startup{};
     nitroapi::EngineData* g_xash_engine = nullptr;
+
+    void RecordXashNetSendPacket()
+    {
+        // The retail site installs a replacement. It does not send during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        g_xash_startup.net_send_packet = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->NET_SendPacket.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniNetSendPacket == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.net_send_packet = g_EngineMiniNetSendPacket;
+    }
 
     bool XashStartupIsActive()
     {
@@ -1073,6 +1095,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_xash_engine = engine;
     g_xash_startup = {};
     g_xash_startup.engine_is_xash = engine_is_xash;
+    g_EngineMiniNetSendPacket = NET_SendPacket;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

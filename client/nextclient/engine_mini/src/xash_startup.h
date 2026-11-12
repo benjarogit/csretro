@@ -112,6 +112,9 @@ using EngineMiniSprWidthFn = int (*)(goldsrc::HSPRITE_t hsprite, int frame);
 // Process replacement for the retail SPR_Height hook. A null value is not a call.
 using EngineMiniSprHeightFn = int (*)(goldsrc::HSPRITE_t hsprite, int frame);
 
+// Process replacement for the retail SPR_Frames hook. A null value is not a call.
+using EngineMiniSprFramesFn = int (*)(goldsrc::HSPRITE_t hsprite);
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -159,6 +162,7 @@ struct EngineMiniXashStartup
     int spr_set_calls{};
     int spr_width_calls{};
     int spr_height_calls{};
+    int spr_frames_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -205,6 +209,7 @@ struct EngineMiniXashStartup
     EngineMiniSprSetFn spr_set{};
     EngineMiniSprWidthFn spr_width{};
     EngineMiniSprHeightFn spr_height{};
+    EngineMiniSprFramesFn spr_frames{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -308,6 +313,9 @@ extern EngineMiniSprWidthFn g_EngineMiniSprWidth;
 
 // Defaults to SPR_Height. Init stores the pointer and does not call it.
 extern EngineMiniSprHeightFn g_EngineMiniSprHeight;
+
+// Defaults to SPR_Frames. Init stores the pointer and does not call it.
+extern EngineMiniSprFramesFn g_EngineMiniSprFrames;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

@@ -413,6 +413,7 @@ namespace
     void RecordXashSprSet();
     void RecordXashSprWidth();
     void RecordXashSprHeight();
+    void RecordXashSprFrames();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -536,7 +537,10 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // SPR_Height is then the process function when that hook is absent.
     // This init stores the pointer and does not read a sprite height. The process body
     // looks up a sprite frame and can return its height, so a real call does not run.
-    // The next retail hook is SPR_Frames. This path returns before it.
+    // SPR_Frames is then the process function when that hook is absent.
+    // This init stores the pointer and does not read a sprite frame count. The process
+    // body looks up a sprite and can return its frame count, so a real call does not run.
+    // The next retail hook is SPR_GetModelPointer. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -580,6 +584,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSprSet();
             RecordXashSprWidth();
             RecordXashSprHeight();
+            RecordXashSprFrames();
         }
         return;
     }
@@ -1032,6 +1037,7 @@ EngineMiniSprDisableScissorFn g_EngineMiniSprDisableScissor = SPR_DisableScissor
 EngineMiniSprSetFn g_EngineMiniSprSet = SPR_Set;
 EngineMiniSprWidthFn g_EngineMiniSprWidth = SPR_Width;
 EngineMiniSprHeightFn g_EngineMiniSprHeight = SPR_Height;
+EngineMiniSprFramesFn g_EngineMiniSprFrames = SPR_Frames;
 
 namespace
 {
@@ -1624,6 +1630,24 @@ namespace
         g_xash_startup.spr_height = g_EngineMiniSprHeight;
     }
 
+    void RecordXashSprFrames()
+    {
+        // The retail site installs a replacement. It does not read a frame count during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body looks up a sprite and can return its frame count,
+        // so this path does not call it.
+        g_xash_startup.spr_frames = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->SPR_Frames.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniSprFrames == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.spr_frames = g_EngineMiniSprFrames;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -1929,6 +1953,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSprSet = SPR_Set;
     g_EngineMiniSprWidth = SPR_Width;
     g_EngineMiniSprHeight = SPR_Height;
+    g_EngineMiniSprFrames = SPR_Frames;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -2285,6 +2310,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             ++count;
         }
         if (g_xash_startup.spr_height != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.spr_frames != nullptr)
         {
             ++count;
         }

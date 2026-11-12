@@ -423,6 +423,7 @@ namespace
     void RecordXashGLConfig();
     void RecordXashGLSelectTexture();
     void RecordXashCLConnectClient();
+    void RecordXashCLClearClientState();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -579,7 +580,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not connect the client. The
     // process body can open a network path and change connection state, so a
     // real call does not run.
-    // The next retail hook is CL_ClearClientState. This path returns before it.
+    // CL_ClearClientState is then the process function when that hook is absent.
+    // This init stores the pointer and does not clear client state. The
+    // process body can clear client and connection state, so a real call
+    // does not run.
+    // The next retail hook is GL_LoadTexture. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -633,6 +638,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashGLConfig();
             RecordXashGLSelectTexture();
             RecordXashCLConnectClient();
+            RecordXashCLClearClientState();
         }
         return;
     }
@@ -1096,6 +1102,7 @@ EngineMiniGLConfigFn g_EngineMiniGLConfig = GL_Config;
 EngineMiniGLSelectTextureFn g_EngineMiniGLSelectTexture =
     reinterpret_cast<EngineMiniGLSelectTextureFn>(GL_SelectTexture);
 EngineMiniCLConnectClientFn g_EngineMiniCLConnectClient = CL_ConnectClient;
+EngineMiniCLClearClientStateFn g_EngineMiniCLClearClientState = CL_ClearClientState;
 
 namespace
 {
@@ -1868,6 +1875,24 @@ namespace
         g_xash_startup.connect_client = g_EngineMiniCLConnectClient;
     }
 
+    void RecordXashCLClearClientState()
+    {
+        // The retail site installs a replacement. It does not clear client state during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body can clear client and connection state,
+        // so this path does not call it.
+        g_xash_startup.clear_client_state = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->CL_ClearClientState.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniCLClearClientState == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.clear_client_state = g_EngineMiniCLClearClientState;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2183,6 +2208,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniGLConfig = GL_Config;
     g_EngineMiniGLSelectTexture = reinterpret_cast<EngineMiniGLSelectTextureFn>(GL_SelectTexture);
     g_EngineMiniCLConnectClient = CL_ConnectClient;
+    g_EngineMiniCLClearClientState = CL_ClearClientState;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

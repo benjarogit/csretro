@@ -26,6 +26,9 @@ using EngineMiniStartResourceDownloadingFn = void (*)(const char* message, bool 
 // Process replacement for the retail CL_ReadPackets hook. A null value is not a call.
 using EngineMiniReadPacketsFn = void (*)();
 
+// Process replacement for the retail CL_RequestMissingResources hook. A null value is not a call.
+using EngineMiniRequestMissingResourcesFn = goldsrc::qboolean (*)();
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -47,6 +50,7 @@ struct EngineMiniXashStartup
     int http_stop_calls{};
     int start_resource_calls{};
     int read_packets_calls{};
+    int request_missing_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -67,6 +71,7 @@ struct EngineMiniXashStartup
     EngineMiniHttpStopFn http_stop{};
     EngineMiniStartResourceDownloadingFn start_resource{};
     EngineMiniReadPacketsFn read_packets{};
+    EngineMiniRequestMissingResourcesFn request_missing{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -92,6 +97,9 @@ extern EngineMiniStartResourceDownloadingFn g_EngineMiniStartResourceDownloading
 
 // Defaults to CL_ReadPackets. Init stores the pointer and does not call it.
 extern EngineMiniReadPacketsFn g_EngineMiniReadPackets;
+
+// Defaults to CL_RequestMissingResources. Init stores the pointer and does not call it.
+extern EngineMiniRequestMissingResourcesFn g_EngineMiniRequestMissingResources;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

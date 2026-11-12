@@ -56,8 +56,12 @@ Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
 `CL_ReadPackets` ist danach die Funktion in diesem Prozess, wenn dieser
 Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
 daher wird kein Paket gelesen und kein Socket geöffnet. Ein Null-Zeiger
-ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook
-ist `CL_RequestMissingResources`. Dieser Pfad kehrt davor zurück.
+ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+`CL_RequestMissingResources` ist danach die Funktion in diesem Prozess,
+wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn
+nicht auf, daher wird keine Ressource angefordert und kein Socket geöffnet.
+Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
+Retail-Hook ist `CL_Disconnect`. Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler
 bleiben gebunden und werden nicht gerufen. Eine fehlende Bibliothek oder ein

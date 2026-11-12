@@ -166,8 +166,13 @@ The authoritative version string is the `VERSION` file.
   this process when that retail hook is absent. Init stores the pointer and
   does not call it, so a planted scissor rectangle stays the same,
   `EnableScissorTest` does not run, no sprite is loaded and no socket is
-  opened. A null pointer is not a call. A null hook is not a call. The next
-  retail hook is `SPR_DisableScissor`. This path returns before it.
+  opened. A null pointer is not a call. A null hook is not a call.
+  `SPR_DisableScissor` is then the function in this process when that retail
+  hook is absent. Init stores the pointer and does not call it, so a planted
+  scissor rectangle stays the same, `DisableScissorTest` does not run, no
+  sprite is loaded and no socket is opened. A null pointer is not a call. A
+  null hook is not a call. The next retail hook is `SPR_Set`. This path
+  returns before it.
   `csr_host_frame` is a later direct call. One call opens the X11 display,
   chooses an EGL config whose native visual can be a child of the root window,
   creates that window, calls `eglCreateWindowSurface`, paints one GameUI frame

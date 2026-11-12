@@ -85,7 +85,11 @@ ist kein Aufruf. `Mod_ClearAll` ist danach die Funktion in diesem Prozess,
 wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn
 nicht auf, daher bleibt die Modellliste unverändert und kein Socket wird
 geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
-Der nächste Retail-Hook ist `Mod_FindName`. Dieser Pfad kehrt davor zurück.
+`Mod_FindName` ist danach die Funktion in diesem Prozess, wenn dieser
+Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
+daher wird kein Modell gesucht oder geladen und kein Socket geöffnet.
+Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der
+nächste Retail-Hook ist `Mod_Print`. Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten.
 Die Retail-Hook-Kette läuft dabei nicht. `hw.so` wird nicht geöffnet. `RunFrame` wird
 nicht gerufen. Die übrigen `engine_mini`-Weiterleitungen bleiben am

@@ -393,6 +393,7 @@ namespace
     void RecordXashHostMap();
     void RecordXashHostFilterTime();
     void RecordXashModClearAll();
+    void RecordXashModFindName();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -433,7 +434,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // Mod_ClearAll is then the process function when that hook is absent.
     // This init stores the pointer and does not clear models. The process body
     // marks known models unreferenced and drops sprite cache, so a real call
-    // does not run. The next retail hook is Mod_FindName. This path returns
+    // does not run.
+    // Mod_FindName is then the process function when that hook is absent.
+    // This init stores the pointer and does not look up a model. The process
+    // body searches the known list and can allocate a slot, so a real call
+    // does not run. The next retail hook is Mod_Print. This path returns
     // before it.
     if (XashStartupIsActive())
     {
@@ -458,6 +463,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashHostMap();
             RecordXashHostFilterTime();
             RecordXashModClearAll();
+            RecordXashModFindName();
         }
         return;
     }
@@ -890,6 +896,7 @@ EngineMiniClearStateFn g_EngineMiniClearState = CL_ClearState;
 EngineMiniHostMapFn g_EngineMiniHostMap = Host_Map_f;
 EngineMiniHostFilterTimeFn g_EngineMiniHostFilterTime = Host_FilterTime;
 EngineMiniModClearAllFn g_EngineMiniModClearAll = Mod_ClearAll;
+EngineMiniModFindNameFn g_EngineMiniModFindName = Mod_FindName;
 
 namespace
 {
@@ -1125,6 +1132,23 @@ namespace
             return;
         }
         g_xash_startup.mod_clear = g_EngineMiniModClearAll;
+    }
+
+    void RecordXashModFindName()
+    {
+        // The retail site installs a replacement. It does not find a model during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body searches the known list and can allocate a slot, so this path does not call it.
+        g_xash_startup.mod_find = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->Mod_FindName.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniModFindName == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.mod_find = g_EngineMiniModFindName;
     }
 
     bool XashStartupIsActive()
@@ -1394,6 +1418,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniHostMap = Host_Map_f;
     g_EngineMiniHostFilterTime = Host_FilterTime;
     g_EngineMiniModClearAll = Mod_ClearAll;
+    g_EngineMiniModFindName = Mod_FindName;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

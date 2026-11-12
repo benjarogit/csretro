@@ -437,6 +437,7 @@ namespace
     void RecordXashBuildGammaTable();
     void RecordXashDTSetRenderState();
     void RecordXashDTLoadDetailTexture();
+    void RecordXashRForceCVars();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -645,7 +646,10 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // absent. This init stores the pointer and does not load a detail
     // texture. The process body loads a detail texture, so a real call does
     // not run.
-    // The next retail hook is R_ForceCVars. This path returns before it.
+    // R_ForceCVars is then the process function when that hook is absent.
+    // This init stores the pointer and does not force cvars. The process
+    // body forces cvars for multiplayer, so a real call does not run.
+    // The next retail hook is R_ForceCVars_part. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -713,6 +717,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashBuildGammaTable();
             RecordXashDTSetRenderState();
             RecordXashDTLoadDetailTexture();
+            RecordXashRForceCVars();
         }
         return;
     }
@@ -1192,6 +1197,7 @@ EngineMiniCheckGammaFn g_EngineMiniCheckGamma = V_CheckGamma;
 EngineMiniBuildGammaTableFn g_EngineMiniBuildGammaTable = BuildGammaTable;
 EngineMiniDTSetRenderStateFn g_EngineMiniDTSetRenderState = DT_SetRenderState;
 EngineMiniDTLoadDetailTextureFn g_EngineMiniDTLoadDetailTexture = DT_LoadDetailTexture;
+EngineMiniRForceCVarsFn g_EngineMiniRForceCVars = R_ForceCVars;
 
 namespace
 {
@@ -2212,6 +2218,24 @@ namespace
         g_xash_startup.load_detail_texture = g_EngineMiniDTLoadDetailTexture;
     }
 
+    void RecordXashRForceCVars()
+    {
+        // The retail site installs a replacement. It does not force cvars
+        // during init. A null function pointer is not a call. A null hook is
+        // not a call. The process body forces cvars for multiplayer, so this
+        // path does not call it.
+        g_xash_startup.force_cvars = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->R_ForceCVars.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniRForceCVars == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.force_cvars = g_EngineMiniRForceCVars;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2541,6 +2565,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniBuildGammaTable = BuildGammaTable;
     g_EngineMiniDTSetRenderState = DT_SetRenderState;
     g_EngineMiniDTLoadDetailTexture = DT_LoadDetailTexture;
+    g_EngineMiniRForceCVars = R_ForceCVars;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

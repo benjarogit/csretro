@@ -5,11 +5,11 @@ Project state for the next session. Personal context belongs in
 
 ## State
 
-- **Date:** 2026-11-11
+- **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `98bff30` (libsteam_api reports logged out)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43094757230 – success (`98bff30`)
+- **Commit:** `52b3e2e` (CI group moved off the stuck run)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43160802936 – success (`52b3e2e`)
 - **Version:** `0.1.0-dev` (`VERSION`)
 
 ## Verified (with evidence)
@@ -320,8 +320,8 @@ implementation; the plan is the only source for the gate list.
 - **Actions run 43095634906 never started.** The push of `dfe17cc` created a run
   that stays `queued` with no job. The API refuses to cancel it. That run holds
   concurrency group `ci-refs/heads/main`. The workflow group is now `verify-`
-  plus the ref, so a later push can be scheduled. The last green run remains
-  https://github.com/benjarogit/csretro/actions/runs/43094757230 for `98bff30`.
+  plus the ref. That change is `52b3e2e`, and its run is
+  https://github.com/benjarogit/csretro/actions/runs/43160802936.
 - **A2S under Default Public:** open decision for G07. Either adapt
   `ISteamGameServer011` to the 015 interface or write a dedicated query
   responder.

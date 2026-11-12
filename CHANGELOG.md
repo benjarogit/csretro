@@ -35,6 +35,14 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- The host loads `next_engine_mini.dll` and `nitro_api2.dll` after the
+  other host pieces, calls `EngineMini::Init`, then `csr_xash_engine_argv`,
+  `csr_xash_engine_mode` and
+  `csr_xash_engine_init_game`. `COM_InitArgv` runs. A successful open does
+  not call shutdown or the fatal error. A missing library or export is a
+  failure and is not called. The open does not exec Xash3D, does not call
+  `RunFrame` and does not start Steam. `OnGameInitializing` still needs an
+  engine table that is not retail `hw.so`.
 - `xash_engine` takes the startup sequence through `csr_xash_engine_argv`,
   `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
   `csr_xash_engine_shutdown` and `csr_xash_engine_error`. A present retail

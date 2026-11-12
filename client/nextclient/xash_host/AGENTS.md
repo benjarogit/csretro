@@ -33,6 +33,12 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   It does not open `hw.so`. Cvar reads are empty, the clock stays at 0, and
   recorded commands are not executed. A missing scheme file does not call the
   server browser. `RunFrame` stays unused.
+- `csr_host_load_engine` opens `next_engine_mini.dll` and `nitro_api2.dll`
+  after the surface factory is live. It calls `EngineMini::Init`, then argv,
+  mode and init_game. `COM_InitArgv` runs. A missing library or export
+  returns 0 and is not called. A successful load does not call shutdown or
+  the fatal error. `OnGameInitializing` is not entered. `hw.so` stays closed.
+  `RunFrame` stays unused.
 - `csr_host_paint_gameui` sizes the root and its non-popup children, solves
   the tree and paints it. A paint calls `PushMakeCurrent`. When
   `resource/schemes/TrackerScheme_ClassicPlus.res` is on the root, that paint

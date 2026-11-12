@@ -39,9 +39,15 @@ if (NOT WIN32)
     list(FILTER ENGINE_MINI_SOURCES EXCLUDE REGEX "/graphics/text/")
 endif ()
 
-add_library(${PROJECT_NAME} ${LIBRARY_BUILD_TYPE}
+# One PIC object set. Test builds keep a static archive for in-process
+# symbols and also ship next_engine_mini.dll so the host can dlopen it.
+add_library(engine_mini_objects OBJECT
         ${ENGINE_MINI_SOURCES}
 )
+set_target_properties(engine_mini_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+add_library(${PROJECT_NAME} ${LIBRARY_BUILD_TYPE})
+target_link_libraries(${PROJECT_NAME} ${TARGET_LIBRARIES_SCOPE} engine_mini_objects)
 
 cmrc_add_resource_library(
         ${PROJECT_NAME}_rc
@@ -73,13 +79,13 @@ cmrc_add_resource_library(
         assets/shaders/weapon_finish.json
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE
+target_include_directories(engine_mini_objects PRIVATE
         include
         src
         ${NEXTCLIENT_ROOT}/dep/nextclientapi_amxx/include
 )
 
-target_link_libraries(${PROJECT_NAME} ${TARGET_LIBRARIES_SCOPE}
+target_link_libraries(engine_mini_objects PUBLIC
         nitro_api::nitro_api
         xash::engine
         funchook-static
@@ -93,7 +99,6 @@ target_link_libraries(${PROJECT_NAME} ${TARGET_LIBRARIES_SCOPE}
         cvars::cvars
         ncl_math::ncl_math
         ncl_perf::ncl_perf
-        easyloggingpp::easyloggingpp
         cpr::cpr
         NextClient::profiling
         concurrencpp::concurrencpp
@@ -113,7 +118,7 @@ target_link_libraries(${PROJECT_NAME} ${TARGET_LIBRARIES_SCOPE}
 )
 
 if (WIN32)
-    target_link_libraries(${PROJECT_NAME} ${TARGET_LIBRARIES_SCOPE}
+    target_link_libraries(engine_mini_objects PUBLIC
             crypt32
             advapi32
             wbemuuid
@@ -123,7 +128,7 @@ if (WIN32)
 endif ()
 
 if (MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE
+    target_compile_options(engine_mini_objects PRIVATE
             /GR- # disable rtti to reduce the library size
             /WX  # treat all warnings as error
             /EHsc # NEVER catch SEH exceptions; c functions cannot throw exceptions
@@ -131,15 +136,23 @@ if (MSVC)
 
 endif()
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE
+target_compile_definitions(engine_mini_objects PRIVATE
         LOG_TAG="game"
         _HAS_STATIC_RTTI=0 #disable rtti things in stl
         BREADCRUMBS_TAG="[${PROJECT_NAME}]"
 )
 
-# easyloggingpp options, public in a test build: the library's source is compiled into every target that links
-# it, and each copy has to see the same options
-target_compile_definitions(${PROJECT_NAME} ${TARGET_LIBRARIES_SCOPE}
+# Compiled once into the object set. A public link would inject this
+# translation unit into next_engine_mini.dll as well. Headers and the
+# options stay public so every target that includes them matches that copy.
+target_link_libraries(engine_mini_objects PRIVATE
+        easyloggingpp::easyloggingpp
+)
+target_include_directories(engine_mini_objects PUBLIC
+        $<TARGET_PROPERTY:easyloggingpp::easyloggingpp,INTERFACE_INCLUDE_DIRECTORIES>
+)
+
+target_compile_definitions(engine_mini_objects PUBLIC
         ELPP_THREAD_SAFE
         ELPP_WINSOCK2
         ELPP_DISABLE_DEFAULT_CRASH_HANDLING
@@ -148,7 +161,7 @@ target_compile_definitions(${PROJECT_NAME} ${TARGET_LIBRARIES_SCOPE}
 )
 
 if (WIN32)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE
+    target_compile_definitions(engine_mini_objects PRIVATE
             _WIN32
             WIN32
             _WIN32_WINNT=0x0600
@@ -161,6 +174,15 @@ endif()
 
 if (NOT NEXTCLIENT_BUILD_TESTS)
     set_target_properties(${PROJECT_NAME} PROPERTIES
+            PREFIX ""
+            OUTPUT_NAME ${OUTPUT_NAME}
+            SUFFIX ".dll"
+            PDB_NAME ${OUTPUT_NAME}
+    )
+else ()
+    add_library(next_engine_mini SHARED)
+    target_link_libraries(next_engine_mini PRIVATE engine_mini_objects)
+    set_target_properties(next_engine_mini PROPERTIES
             PREFIX ""
             OUTPUT_NAME ${OUTPUT_NAME}
             SUFFIX ".dll"

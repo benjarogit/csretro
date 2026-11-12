@@ -2,7 +2,8 @@
 
 The Xash launcher assembles the pieces that are already built: `xash_host`,
 the one `VGUI_Surface026`, `client_mini`, `vgui2`, `gameui`, the
-`VFileSystem009` root and the ELF64 `libsteam_api.so`. It does not add a
+`VFileSystem009` root, the ELF64 `libsteam_api.so`, `next_engine_mini.dll`
+and `nitro_api2.dll`. It does not add a
 second surface, a second factory or a second identity slot.
 
 The caller passes the content root. A missing directory is a failure. The
@@ -15,7 +16,11 @@ The same process opens that list through the host: the one surface, then
 `IVGui::Init` on that list. A scheme file in the root is loaded there. A
 missing scheme file leaves the host open. `IGameUI::Initialize` follows.
 Then `libsteam_api.so`.
-`SteamAPI_IsSteamRunning` stays false. The planned command is not executed. The launcher does not start the game, does not exec Xash3D,
+`SteamAPI_IsSteamRunning` stays false. After `IGameUI::Start` the same open
+loads `engine_mini`, calls `EngineMini::Init`, then argv, mode and init_game.
+`COM_InitArgv` runs. Shutdown and the fatal error stay bound and are not
+called. A missing library or export fails the open and is not called.
+The planned command is not executed. The launcher does not start the game, does not exec Xash3D,
 does not call `RunFrame` and does not start Steam. A failed open leaves the
 host closed. `PresentXashLauncher` then calls `ActivateGameUI` and paints
 that menu at the given size. `Quit` is not run. `setpause` is only recorded.

@@ -4,6 +4,10 @@
 #include "xash_surface/xash_surface.h"
 #include "xash_engine/xash_engine.h"
 
+#include <tier1/interface.h>
+
+#include <next_engine_mini/engine_mini.h>
+
 #include <goldsrc/client_api.h>
 
 #include <FileSystem.h>
@@ -442,6 +446,69 @@ namespace
     };
 
     GameUiApi g_gameui;
+
+    struct EngineApi
+    {
+        void* nitro_module = nullptr;
+        void* engine_module = nullptr;
+        void* nitro = nullptr;
+        EngineMiniInterface* engine = nullptr;
+        int (*check_parm)(const char*) = nullptr;
+        void (*read_startup)(int*, int*, int*, int*, int*) = nullptr;
+        bool nitro_ready = false;
+    };
+
+    // Itanium: two destructor slots, then NitroApiInterface methods.
+    // Initialize is the fourth method, UnInitialize the fifth.
+    bool NitroInitialize(void* nitro)
+    {
+        auto** vtable = *reinterpret_cast<void***>(nitro);
+        auto initialize = reinterpret_cast<bool (*)(void*, void*, void*, void*)>(vtable[5]);
+        return initialize(nitro, nullptr, nullptr, nullptr);
+    }
+
+    void NitroUninitialize(void* nitro)
+    {
+        auto** vtable = *reinterpret_cast<void***>(nitro);
+        auto uninitialize = reinterpret_cast<bool (*)(void*)>(vtable[6]);
+        uninitialize(nitro);
+    }
+
+    EngineApi g_engine_api;
+    int g_engine_loaded = 0;
+    char g_engine_arg0[] = "xash";
+    char g_engine_arg1[] = "-console";
+    char g_engine_mode_line[] = "-windowed";
+    char g_engine_init_line[] = "-game cstrike";
+    int g_engine_window = 0;
+
+    void CloseEngine()
+    {
+        if (g_engine_api.engine != nullptr)
+        {
+            g_engine_api.engine->Uninitialize();
+        }
+        if (g_engine_api.nitro_ready && g_engine_api.nitro != nullptr)
+        {
+            NitroUninitialize(g_engine_api.nitro);
+        }
+        g_engine_api.engine = nullptr;
+        g_engine_api.nitro = nullptr;
+        g_engine_api.nitro_ready = false;
+        g_engine_api.check_parm = nullptr;
+        g_engine_api.read_startup = nullptr;
+        g_engine_loaded = 0;
+        if (g_engine_api.engine_module != nullptr)
+        {
+            dlclose(g_engine_api.engine_module);
+            g_engine_api.engine_module = nullptr;
+        }
+        if (g_engine_api.nitro_module != nullptr)
+        {
+            dlclose(g_engine_api.nitro_module);
+            g_engine_api.nitro_module = nullptr;
+        }
+    }
 
     void CloseGameUi()
     {
@@ -1098,6 +1165,106 @@ int csr_host_gameui_started(void)
     return g_gameui_started;
 }
 
+int csr_host_load_engine(const char* engine_path, const char* nitro_path, const char* basedir)
+{
+    CloseEngine();
+    if (g_surface.create_interface == nullptr || engine_path == nullptr || engine_path[0] == '\0' || nitro_path == nullptr ||
+        nitro_path[0] == '\0')
+    {
+        return 0;
+    }
+
+    void* nitro_module = dlopen(nitro_path, RTLD_NOW | RTLD_LOCAL);
+    if (nitro_module == nullptr)
+    {
+        return 0;
+    }
+    auto nitro_create = LoadSymbol<void* (*)(const char*, int*)>(nitro_module, "CreateInterface");
+    if (nitro_create == nullptr)
+    {
+        dlclose(nitro_module);
+        return 0;
+    }
+    int code = 1;
+    void* nitro = nitro_create("NITRO_API_001", &code);
+    if (nitro == nullptr || !NitroInitialize(nitro))
+    {
+        dlclose(nitro_module);
+        return 0;
+    }
+
+    void* engine_module = dlopen(engine_path, RTLD_NOW | RTLD_LOCAL);
+    if (engine_module == nullptr)
+    {
+        NitroUninitialize(nitro);
+        dlclose(nitro_module);
+        return 0;
+    }
+    auto engine_create = LoadSymbol<void* (*)(const char*, int*)>(engine_module, "CreateInterface");
+    auto check_parm = LoadSymbol<int (*)(const char*)>(engine_module, "EngineMini_CheckParm");
+    auto read_startup = LoadSymbol<void (*)(int*, int*, int*, int*, int*)>(engine_module, "EngineMini_ReadXashStartup");
+    if (engine_create == nullptr || check_parm == nullptr || read_startup == nullptr)
+    {
+        dlclose(engine_module);
+        NitroUninitialize(nitro);
+        dlclose(nitro_module);
+        return 0;
+    }
+    code = 1;
+    auto* engine = static_cast<EngineMiniInterface*>(engine_create(ENGINE_MINI_INTERFACE_VERSION, &code));
+    if (engine == nullptr)
+    {
+        dlclose(engine_module);
+        NitroUninitialize(nitro);
+        dlclose(nitro_module);
+        return 0;
+    }
+
+    NextClientVersion version{};
+    engine->Init(nitro, version, nullptr);
+
+    g_engine_api.nitro_module = nitro_module;
+    g_engine_api.engine_module = engine_module;
+    g_engine_api.nitro = nitro;
+    g_engine_api.nitro_ready = true;
+    g_engine_api.engine = engine;
+    g_engine_api.check_parm = check_parm;
+    g_engine_api.read_startup = read_startup;
+    g_engine_loaded = 1;
+
+    // Pointers stay in this process for COM_CheckParm. Shutdown and the fatal
+    // error stay bound and are not called here. OnGameInitializing is not entered.
+    char* argv[] = {g_engine_arg0, g_engine_arg1};
+    csr_xash_engine_argv(2, argv);
+    csr_xash_engine_mode(&g_engine_window, nullptr, nullptr, "gl", g_engine_mode_line, 1);
+    csr_xash_engine_init_game(g_engine_init_line, const_cast<char*>(basedir), &g_engine_window, 0, 1);
+    return 1;
+}
+
+int csr_host_engine_loaded(void)
+{
+    return g_engine_loaded;
+}
+
+int csr_host_engine_check_parm(const char* parm)
+{
+    if (g_engine_api.check_parm == nullptr)
+    {
+        return 0;
+    }
+    return g_engine_api.check_parm(parm);
+}
+
+int csr_host_engine_startup_calls(int* argv_calls, int* mode_calls, int* init_calls, int* shutdown_calls, int* error_calls)
+{
+    if (g_engine_api.read_startup == nullptr)
+    {
+        return 0;
+    }
+    g_engine_api.read_startup(argv_calls, mode_calls, init_calls, shutdown_calls, error_calls);
+    return 1;
+}
+
 int csr_host_engine_command_count(void)
 {
     return g_engine_commands;
@@ -1182,6 +1349,7 @@ int csr_host_textured_quad_count(void)
 
 void csr_host_close(void)
 {
+    CloseEngine();
     CloseGameUi();
     ClosePair();
     csr_host_filesystem_clear();

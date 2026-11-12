@@ -884,6 +884,44 @@ const EngineMiniXashStartup* EngineMini_XashStartup()
     return &g_xash_startup;
 }
 
+extern "C" void EngineMini_ReadXashStartup(
+    int* argv_calls,
+    int* mode_calls,
+    int* init_calls,
+    int* shutdown_calls,
+    int* error_calls)
+{
+    if (argv_calls != nullptr)
+    {
+        *argv_calls = g_xash_startup.argv_calls;
+    }
+    if (mode_calls != nullptr)
+    {
+        *mode_calls = g_xash_startup.mode_calls;
+    }
+    if (init_calls != nullptr)
+    {
+        *init_calls = g_xash_startup.init_calls;
+    }
+    if (shutdown_calls != nullptr)
+    {
+        *shutdown_calls = g_xash_startup.shutdown_calls;
+    }
+    if (error_calls != nullptr)
+    {
+        *error_calls = g_xash_startup.error_calls;
+    }
+}
+
+extern "C" int EngineMini_CheckParm(const char* parm)
+{
+    if (parm == nullptr)
+    {
+        return 0;
+    }
+    return COM_CheckParm(parm);
+}
+
 class EngineMini : public EngineMiniInterface
 {
     std::vector<std::shared_ptr<nitroapi::Unsubscriber>> unsubs_{};

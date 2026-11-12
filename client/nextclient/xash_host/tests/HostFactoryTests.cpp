@@ -16,6 +16,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -61,6 +63,63 @@ namespace
     {
         static_cast<InputLog*>(vgui)->events.push_back("dispatch");
     }
+
+    bool MapsContain(const std::filesystem::path& fragment)
+    {
+        std::ifstream maps("/proc/self/maps");
+        std::string line;
+        while (std::getline(maps, line))
+        {
+            if (line.find(fragment.string()) != std::string::npos)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    class LibraryPath
+    {
+        bool had_;
+        std::string saved_;
+
+    public:
+        explicit LibraryPath(const char* next) :
+            had_(std::getenv("LD_LIBRARY_PATH") != nullptr),
+            saved_(had_ ? std::getenv("LD_LIBRARY_PATH") : "")
+        {
+            setenv("LD_LIBRARY_PATH", next, 1);
+        }
+
+        ~LibraryPath()
+        {
+            if (had_)
+            {
+                setenv("LD_LIBRARY_PATH", saved_.c_str(), 1);
+            }
+            else
+            {
+                unsetenv("LD_LIBRARY_PATH");
+            }
+        }
+    };
+
+    class WorkingDirectory
+    {
+        std::filesystem::path previous_;
+
+    public:
+        explicit WorkingDirectory(const std::filesystem::path& next) :
+            previous_(std::filesystem::current_path())
+        {
+            std::filesystem::current_path(next);
+        }
+
+        ~WorkingDirectory()
+        {
+            std::filesystem::current_path(previous_);
+        }
+    };
 
     class HostFactory : public testing::Test
     {
@@ -842,4 +901,52 @@ TEST_F(HostFactory, GameMenuClickSendsTheCommandWithoutRunFrame)
     rmdir((temp.root + "/resource/schemes").c_str());
     rmdir((temp.root + "/resource").c_str());
     rmdir((temp.root + "/Resource").c_str());
+}
+
+TEST_F(HostFactory, EngineStartupRunsArgvWithoutHwSo)
+{
+    EXPECT_EQ(csr_host_load_engine(XASH_ENGINE_MINI_FILE, XASH_NITRO_API_FILE, "/tmp"), 0);
+    EXPECT_EQ(csr_host_engine_loaded(), 0);
+
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    EXPECT_EQ(csr_host_load_engine("/no/such/next_engine_mini.dll", XASH_NITRO_API_FILE, "/tmp"), 0);
+    EXPECT_EQ(csr_host_engine_loaded(), 0);
+    EXPECT_EQ(csr_host_load_engine(XASH_SURFACE_FILE, XASH_NITRO_API_FILE, "/tmp"), 0);
+    EXPECT_EQ(csr_host_engine_loaded(), 0);
+    EXPECT_EQ(csr_host_engine_check_parm("-console"), 0);
+
+    char name[] = "/tmp/csretro-host-engine-XXXXXX";
+    ASSERT_NE(mkdtemp(name), nullptr);
+    const std::filesystem::path root(name);
+    const std::filesystem::path planted = root / "hw.so";
+    std::filesystem::copy_file(XASH_SURFACE_FILE, planted);
+
+    const LibraryPath library_path(root.c_str());
+    {
+        const WorkingDirectory directory(root);
+        ASSERT_EQ(csr_host_load_engine(XASH_ENGINE_MINI_FILE, XASH_NITRO_API_FILE, root.c_str()), 1);
+    }
+
+    EXPECT_EQ(csr_host_engine_loaded(), 1);
+    EXPECT_NE(csr_host_engine_check_parm("-console"), 0);
+    int argv_calls = 0;
+    int mode_calls = 0;
+    int init_calls = 0;
+    int shutdown_calls = 0;
+    int error_calls = 0;
+    ASSERT_EQ(csr_host_engine_startup_calls(&argv_calls, &mode_calls, &init_calls, &shutdown_calls, &error_calls), 1);
+    EXPECT_EQ(argv_calls, 1);
+    EXPECT_EQ(mode_calls, 1);
+    EXPECT_EQ(init_calls, 1);
+    EXPECT_EQ(shutdown_calls, 0);
+    EXPECT_EQ(error_calls, 0);
+    EXPECT_FALSE(MapsContain(planted));
+
+    csr_xash_engine_shutdown();
+    csr_xash_engine_error("fatal");
+    ASSERT_EQ(csr_host_engine_startup_calls(&argv_calls, &mode_calls, &init_calls, &shutdown_calls, &error_calls), 1);
+    EXPECT_EQ(shutdown_calls, 1);
+    EXPECT_EQ(error_calls, 1);
+    EXPECT_EQ(argv_calls, 1);
+    std::filesystem::remove_all(root);
 }

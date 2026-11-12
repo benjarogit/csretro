@@ -22,7 +22,9 @@ LauncherPlan PlanXashLauncher(
     const char* client_path,
     const char* vgui_path,
     const char* gameui_path,
-    const char* steam_api_path);
+    const char* steam_api_path,
+    const char* engine_mini_path,
+    const char* nitro_api_path);
 
 // Opens that plan in this process and calls IGameUI::Start. Does not exec the
 // command, does not start the game or Steam, and does not call RunFrame. A
@@ -42,6 +44,8 @@ int OpenXashLauncher(
     const char* vgui_path,
     const char* gameui_path,
     const char* steam_api_path,
+    const char* engine_mini_path,
+    const char* nitro_api_path,
     LauncherProcess* session);
 
 // One frame of the opened session: ActivateGameUI, then paint at wide x tall.

@@ -67,6 +67,13 @@ namespace performance
 
     void runtime::Bind(nitroapi::NitroApiInterface* nitro_api)
     {
+        // The Xash process has no client module. Building the monitor would
+        // dereference that null table. Retail frame hooks are absent too.
+        if (nitro_api == nullptr || nitro_api->GetEngineData() == nullptr || nitro_api->GetClientData() == nullptr)
+        {
+            return;
+        }
+
         CreateInterfaceFn factory = Sys_GetFactory("nitro_api2.dll");
         nitroapi::FrameLifecycleInterface* lifecycle =
             factory ? reinterpret_cast<nitroapi::FrameLifecycleInterface*>(factory(NITRO_FRAME_LIFECYCLE_INTERFACE_VERSION, nullptr))

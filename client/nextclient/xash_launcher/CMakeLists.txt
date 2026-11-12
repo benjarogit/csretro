@@ -20,8 +20,10 @@ if (NEXTCLIENT_BUILD_TESTS)
             "XASH_CLIENT_FILE=\"$<TARGET_FILE:client_mini>\""
             "XASH_VGUI_FILE=\"$<TARGET_FILE:vgui2>\""
             "XASH_GAMEUI_FILE=\"$<TARGET_FILE:gameui>\""
-            "XASH_STEAM_API_FILE=\"$<TARGET_FILE:steam_api>\"")
+            "XASH_STEAM_API_FILE=\"$<TARGET_FILE:steam_api>\""
+            "XASH_ENGINE_MINI_FILE=\"$<TARGET_FILE:next_engine_mini>\""
+            "XASH_NITRO_API_FILE=\"$<TARGET_FILE:nitro_api>\"")
     target_link_libraries(xash_launcher-tests PRIVATE xash_launcher GTest::gtest_main)
-    add_dependencies(xash_launcher-tests xash_host xash_surface client_mini vgui2 gameui steam_api)
+    add_dependencies(xash_launcher-tests xash_host xash_surface client_mini vgui2 gameui steam_api next_engine_mini nitro_api)
     gtest_discover_tests(xash_launcher-tests)
 endif ()

@@ -687,12 +687,17 @@ Startfolge entgegen: `csr_xash_engine_argv`, `csr_xash_engine_mode`,
 `csr_xash_engine_init_game`, `csr_xash_engine_shutdown` und
 `csr_xash_engine_error`. `EngineMini::Init` bindet jeden Zeiger nur, wenn der
 passende Retail-Hook fehlt, und merkt sich dabei, dass die Engine Xash ist.
-Der Host kann die Folge danach aufrufen. `COM_InitArgv` läuft. Modus, Init,
-Shutdown und der fatale Fehler werden aufgezeichnet. `OnGameInitializing`
-läuft nicht, weil die Retail-Zeigertabelle fehlt und ein Aufruf mit
-Nullzeigern in `Sys_Error` endet. `hw.so` wird nicht geöffnet. `RunFrame`
-wird nicht gerufen. Die übrigen Weiterleitungen von `engine_mini` bleiben am
-Retail-Hook.
+Der Host lädt `next_engine_mini.dll` und `nitro_api2.dll`, nachdem die
+übrigen Host-Stücke stehen, ruft `EngineMini::Init` und danach
+`csr_xash_engine_argv`, `csr_xash_engine_mode` und
+`csr_xash_engine_init_game`. Eine fehlende Bibliothek oder ein fehlender
+Export ist ein Fehlschlag und kein Aufruf. Ein erfolgreiches Öffnen ruft
+Shutdown und den fatalen Fehler nicht; beide bleiben gebunden.
+`COM_InitArgv` läuft. Modus und Init werden aufgezeichnet.
+`OnGameInitializing` läuft nicht, weil die Retail-Zeigertabelle fehlt und ein
+Aufruf mit Nullzeigern in `Sys_Error` endet. `hw.so` wird nicht geöffnet.
+`RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen von `engine_mini`
+bleiben am Retail-Hook.
 
 **Client-Paar.** `client_mini` und `vgui2` werden aus derselben vendorten
 SDK-Revision als ELF64 gebaut. Beide linken die Host-Laufzeit
@@ -764,12 +769,16 @@ Der Host startet das Spiel nicht.
 
 **Launcher.** Der Xash-Launcher setzt die vorhandenen Stücke zu einem Befehl
 zusammen: `xash_host`, die eine `VGUI_Surface026`, `client_mini`, `vgui2`,
-`gameui`, die `VFileSystem009`-Wurzel und die ELF64-`libsteam_api.so`. Er
+`gameui`, die `VFileSystem009`-Wurzel, die ELF64-`libsteam_api.so`,
+`next_engine_mini.dll` und `nitro_api2.dll`. Er
 fügt keine zweite Surface, keine zweite Factory und keinen zweiten
 Identitätsslot hinzu. Der Aufrufer übergibt die Inhaltswurzel. Fehlt sie,
 ist das ein Fehlschlag. Der Launcher sucht die Steam-Bibliothek nicht und
 erfindet keinen Pfad. Derselbe Prozess öffnet diese Liste über den Host
-und führt den Befehl nicht aus. Dasselbe Öffnen ruft `IGameUI::Start`.
+und führt den Befehl nicht aus. Dasselbe Öffnen ruft `IGameUI::Start` und
+lädt danach `engine_mini`. `EngineMini::Init` bindet die Startfolge, dann
+laufen argv, Modus und Init. Shutdown und der fatale Fehler werden dabei
+nicht gerufen.
 `PresentXashLauncher` zeigt danach das Menü (`ActivateGameUI`) und zeichnet
 es. `RunFrame` ist dieser Aufruf nicht. Aufgezeichnete Befehle werden nicht
 ausgeführt. Fehlt das Scheme, bleiben die Optionsseiten ungebaut.

@@ -55,19 +55,30 @@ LauncherPlan PlanXashLauncher(
     const char* client_path,
     const char* vgui_path,
     const char* gameui_path,
-    const char* steam_api_path)
+    const char* steam_api_path,
+    const char* engine_mini_path,
+    const char* nitro_api_path)
 {
     LauncherPlan plan;
     if (!IsDirectory(content_root) || !IsRegularFile(host_path) || !IsRegularFile(surface_path) ||
         !IsRegularFile(client_path) || !IsRegularFile(vgui_path) || !IsRegularFile(gameui_path) ||
-        !IsRegularFile(steam_api_path))
+        !IsRegularFile(steam_api_path) || !IsRegularFile(engine_mini_path) || !IsRegularFile(nitro_api_path))
     {
         return plan;
     }
 
-    const char* paths[] = {host_path, surface_path, client_path, vgui_path, gameui_path, content_root, steam_api_path};
-    std::string quoted[7];
-    for (int index = 0; index < 7; ++index)
+    const char* paths[] = {
+        host_path,
+        surface_path,
+        client_path,
+        vgui_path,
+        gameui_path,
+        content_root,
+        steam_api_path,
+        engine_mini_path,
+        nitro_api_path};
+    std::string quoted[9];
+    for (int index = 0; index < 9; ++index)
     {
         if (!Quote(paths[index], &quoted[index]))
         {
@@ -76,7 +87,8 @@ LauncherPlan PlanXashLauncher(
     }
 
     plan.command = quoted[0] + " --surface " + quoted[1] + " --client " + quoted[2] + " --vgui " + quoted[3] + " --gameui " +
-        quoted[4] + " --filesystem-root " + quoted[5] + " --steam-api " + quoted[6];
+        quoted[4] + " --filesystem-root " + quoted[5] + " --steam-api " + quoted[6] + " --engine " + quoted[7] + " --nitro-api " +
+        quoted[8];
     plan.ready = true;
     return plan;
 }
@@ -107,6 +119,8 @@ int OpenXashLauncher(
     const char* vgui_path,
     const char* gameui_path,
     const char* steam_api_path,
+    const char* engine_mini_path,
+    const char* nitro_api_path,
     LauncherProcess* session)
 {
     if (session == nullptr)
@@ -116,7 +130,15 @@ int OpenXashLauncher(
     CloseXashLauncher(session);
 
     const LauncherPlan plan = PlanXashLauncher(
-        content_root, host_path, surface_path, client_path, vgui_path, gameui_path, steam_api_path);
+        content_root,
+        host_path,
+        surface_path,
+        client_path,
+        vgui_path,
+        gameui_path,
+        steam_api_path,
+        engine_mini_path,
+        nitro_api_path);
     if (!plan.ready)
     {
         return 0;
@@ -149,9 +171,11 @@ int OpenXashLauncher(
     }
 
     session->steam = steam;
-    if (csr_host_init_gameui() == 0 || csr_host_start_gameui() == 0)
+    if (csr_host_init_gameui() == 0 || csr_host_start_gameui() == 0 ||
+        csr_host_load_engine(engine_mini_path, nitro_api_path, content_root) == 0)
     {
         dlclose(steam);
+        session->steam = nullptr;
         csr_host_close();
         return 0;
     }

@@ -115,6 +115,25 @@ CSR_HOST_API int csr_host_gameui_initialized(void);
  */
 CSR_HOST_API int csr_host_start_gameui(void);
 CSR_HOST_API int csr_host_gameui_started(void);
+
+/*
+ * Loads next_engine_mini and nitro_api after the surface factory is live.
+ * Calls EngineMini::Init, then argv, mode and init_game. A missing library
+ * or export returns 0 and is not called. A successful load does not call
+ * shutdown or the fatal error, does not open hw.so, does not call RunFrame
+ * and does not start Steam. basedir is copied into the init record.
+ */
+CSR_HOST_API int csr_host_load_engine(const char* engine_path, const char* nitro_path, const char* basedir);
+CSR_HOST_API int csr_host_engine_loaded(void);
+/* COM_CheckParm inside the loaded engine_mini. 0 when the engine is down. */
+CSR_HOST_API int csr_host_engine_check_parm(const char* parm);
+/* Reads the engine_mini startup record. Returns 0 when the engine is down. */
+CSR_HOST_API int csr_host_engine_startup_calls(
+    int* argv_calls,
+    int* mode_calls,
+    int* init_calls,
+    int* shutdown_calls,
+    int* error_calls);
 CSR_HOST_API int csr_host_engine_command_count(void);
 /* Last string passed to pfnClientCmd. Empty until a command is recorded. Not executed. */
 CSR_HOST_API const char* csr_host_last_client_command(void);

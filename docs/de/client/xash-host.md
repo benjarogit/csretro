@@ -12,7 +12,13 @@ ein Fehltreffer. Sind das Paar geladen und die Wurzel gemountet, nimmt
 `IVGui::Init` diese Liste. `vgui2` hält danach die eine Surface. Eine
 Scheme-Datei unter dieser Wurzel lädt derselbe Manager. Eine fehlende Datei
 lässt den Host offen. Danach ruft der Host `IGameUI::Initialize`. Ein
-fehlendes Engine-Modul wird nicht aufgerufen. Das Basis-Panel ist ein Kind der Host-Wurzel. Liegt
+fehlendes Engine-Modul wird nicht aufgerufen. Nach `IGameUI::Start` lädt der
+Host `next_engine_mini.dll` und `nitro_api2.dll`, ruft `EngineMini::Init`
+und danach argv, Modus und Init. `COM_InitArgv` läuft. Shutdown und der
+fatale Fehler bleiben gebunden und dieses Öffnen ruft sie nicht. Eine
+fehlende Bibliothek oder ein fehlender Export lässt das Laden scheitern und
+ist kein Aufruf. Der Ladevorgang öffnet `hw.so` nicht und ruft `RunFrame`
+nicht. Das Basis-Panel ist ein Kind der Host-Wurzel. Liegt
 `resource/schemes/TrackerScheme_ClassicPlus.res` auf dieser Wurzel, liest der Host das Scheme aus der Quelldatei
 und die Serverliste wird ein Kind des Basis-Panels. Fehlt die Datei, bleibt die Liste ungebaut. `csr_host_paint_gameui` setzt danach die Größe der Wurzel und ihrer Nicht-Popup-Kinder und zeichnet den Baum. Ein Panel, das zeichnet, ruft `PushMakeCurrent`. Liegt diese Scheme-Datei auf der Wurzel, wendet dasselbe Paint die Scheme-Einstellungen an. Das liest `resource/BackgroundLayout.txt`. Ein Texturname ohne Endung ist die `.tga`-Datei daneben. Eine fehlende Datei wird keine Textur. `csr_host_start_gameui` ruft `IGameUI::Start` mit einer Host-Engine-Tabelle. Sie öffnet `hw.so` nicht. Cvar-Lesen bleibt leer, die Uhr bleibt bei 0, und aufgezeichnete Befehle werden nicht ausgeführt. Fehlt die Scheme-Datei, wird der Serverbrowser nicht aufgerufen. Das Hintergrundbild wird davor mit Uhrzeit 0 gezeichnet. Das Paint danach baut die Optionsseiten. `RunFrame` ist dieser Aufruf nicht. Weitere Factories
 werden für den Surface-Namen nicht gefragt.

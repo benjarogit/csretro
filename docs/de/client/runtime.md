@@ -19,7 +19,11 @@ keinen Einstieg. Ein fehlender Funktionszeiger wird nicht aufgerufen.
 Videomodus, Spielstart, Herunterfahren und einen fatalen Fehler entgegen.
 Liegt der passende Retail-Hook vor, bleibt dieser Aufruf. Fehlt er, zeichnet
 `engine_mini` die Angaben auf und merkt sich, dass die Engine Xash ist.
-`COM_InitArgv` läuft dabei. `OnGameInitializing` bleibt aus, weil die
+Der Host lädt danach `next_engine_mini.dll` und `nitro_api2.dll`, ruft
+`EngineMini::Init` und dann argv, Modus und Init. Eine fehlende Bibliothek
+oder ein fehlender Export ist ein Fehlschlag und kein Aufruf. Ein
+erfolgreiches Öffnen ruft Shutdown und den fatalen Fehler nicht; beide
+bleiben gebunden. `COM_InitArgv` läuft dabei. `OnGameInitializing` bleibt aus, weil die
 Retail-Zeigertabelle fehlt. `hw.so` wird nicht geöffnet. `RunFrame` wird
 nicht gerufen. Die übrigen `engine_mini`-Weiterleitungen bleiben am
 Retail-Hook.

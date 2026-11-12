@@ -2,7 +2,8 @@
 
 Der Xash-Launcher setzt die Stücke zusammen, die bereits gebaut sind:
 `xash_host`, die eine `VGUI_Surface026`, `client_mini`, `vgui2`, `gameui`,
-die `VFileSystem009`-Wurzel und die ELF64-`libsteam_api.so`. Er fügt keine
+die `VFileSystem009`-Wurzel, die ELF64-`libsteam_api.so`,
+`next_engine_mini.dll` und `nitro_api2.dll`. Er fügt keine
 zweite Surface, keine zweite Factory und keinen zweiten Identitätsslot hinzu.
 
 Der Aufrufer übergibt die Inhaltswurzel. Fehlt das Verzeichnis, ist das ein
@@ -15,7 +16,11 @@ Derselbe Prozess öffnet diese Liste über den Host: die eine Surface, dann
 `IVGui::Init` auf dieser Liste. Eine Scheme-Datei in der Wurzel wird dort
 geladen. Fehlt sie, bleibt der Host offen. Danach folgt
 `IGameUI::Initialize`. Dann `libsteam_api.so`.
-`SteamAPI_IsSteamRunning` bleibt falsch. Der geplante
+`SteamAPI_IsSteamRunning` bleibt falsch. Nach `IGameUI::Start` lädt dasselbe
+Öffnen `engine_mini`, ruft `EngineMini::Init` und danach argv, Modus und
+Init. `COM_InitArgv` läuft. Shutdown und der fatale Fehler bleiben gebunden
+und werden nicht gerufen. Eine fehlende Bibliothek oder ein fehlender
+Export lässt das Öffnen scheitern und ist kein Aufruf. Der geplante
 Befehl wird nicht ausgeführt. Der Launcher startet das Spiel nicht, führt
 Xash3D nicht aus, ruft `RunFrame` nicht auf und startet Steam nicht. Ein
 fehlgeschlagenes Öffnen lässt den Host geschlossen. `PresentXashLauncher`

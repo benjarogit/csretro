@@ -30,3 +30,11 @@ struct EngineMiniXashStartup
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();
+
+extern "C" void EngineMini_ReadXashStartup(
+    int* argv_calls,
+    int* mode_calls,
+    int* init_calls,
+    int* shutdown_calls,
+    int* error_calls);
+extern "C" int EngineMini_CheckParm(const char* parm);

@@ -83,8 +83,12 @@ The authoritative version string is the `VERSION` file.
   `Host_Map_f` is then the function in this process when that retail hook is
   absent. Init stores the pointer and does not call it, so no map is loaded,
   the level name stays unchanged and no socket is opened. A null pointer is
-  not a call. A null hook is not a call. The next retail hook is
-  `Host_FilterTime`. This path returns before it.
+  not a call. A null hook is not a call. `Host_FilterTime` is then the
+  function in this process when that retail hook is absent. Init stores the
+  pointer and does not call it, so host time and the frame interval stay
+  unchanged and no socket is opened. A null pointer is not a call. A null
+  hook is not a call. The next retail hook is `Mod_ClearAll`. This path
+  returns before it.
   `OnGameInitialized` is not entered. The retail hook chain
   does not run. `hw.so` stays
   unmapped. The game is not started.

@@ -47,6 +47,11 @@ goldsrc::qboolean CL_RequestMissingResources();
 void CL_Disconnect();
 void CL_ClearState(goldsrc::qboolean quiet);
 void Host_Map_f();
+goldsrc::qboolean Host_FilterTime(float time);
+extern double oldrealtime;
+extern double* realtime;
+extern double* host_frametime;
+extern goldsrc::cvar_t* host_framerate;
 extern goldsrc::cvar_t* sys_timescale;
 extern goldsrc::cvar_t** p_cvar_vars;
 
@@ -136,6 +141,32 @@ namespace
         ~WorkingDirectory()
         {
             std::filesystem::current_path(previous_);
+        }
+    };
+
+    // Host_FilterTime writes the process realtime globals. Point them at the planted values.
+    class ProcessHostClock
+    {
+        double* previous_realtime_;
+        double* previous_frametime_;
+        goldsrc::cvar_t* previous_framerate_;
+
+    public:
+        ProcessHostClock(double* host_time, double* frame_time, goldsrc::cvar_t* framerate) :
+            previous_realtime_(realtime),
+            previous_frametime_(host_frametime),
+            previous_framerate_(host_framerate)
+        {
+            realtime = host_time;
+            host_frametime = frame_time;
+            host_framerate = framerate;
+        }
+
+        ~ProcessHostClock()
+        {
+            realtime = previous_realtime_;
+            host_frametime = previous_frametime_;
+            host_framerate = previous_framerate_;
         }
     };
 
@@ -2326,6 +2357,269 @@ TEST_F(XashStartup, HostMapUsesTheProcessFunction)
         EXPECT_EQ(engine->client_static->challenge, 77);
         EXPECT_EQ(engine->Host_Map_f.GetHook(), nullptr);
         EXPECT_EQ(engine->Host_FilterTime.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_ClearState.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_Disconnect.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_RequestMissingResources.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_ReadPackets.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_StartResourceDownloading.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_HTTPStop_f.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_HTTPUpdate.GetHook(), nullptr);
+        EXPECT_EQ(record->shutdown_calls, 0);
+        EXPECT_EQ(record->error_calls, 0);
+        EXPECT_EQ(record->init_calls, 0);
+        EXPECT_EQ(record->initializing_calls, 3);
+        EXPECT_EQ(p_cvar_vars, &cvar_head);
+        EXPECT_EQ(cvar_head, &sensitivity);
+        EXPECT_EQ(sensitivity.next, &timescale);
+        EXPECT_EQ(sensitivity.flags, goldsrc::FCVAR_ARCHIVE);
+        EXPECT_FLOAT_EQ(sensitivity.value, 3.0f);
+        EXPECT_STREQ(sensitivity.string, "3.0");
+        EXPECT_STREQ(sensitivity.name, "sensitivity");
+        EXPECT_EQ(sys_timescale, &timescale);
+        EXPECT_FLOAT_EQ(timescale.value, 3.5f);
+        EXPECT_EQ(timescale.flags, 0);
+        EXPECT_STREQ(timescale.string, "3.5");
+        EXPECT_EQ(timescale.next, nullptr);
+        EXPECT_FALSE(MapsContain(root / "hw.so"));
+
+        std::vector<std::string> sockets_null;
+        ASSERT_TRUE(ReadOpenSockets(&sockets_null));
+        EXPECT_EQ(sockets_before, sockets_null);
+        EXPECT_EQ(RegularFileNames(root), files_before);
+    }
+
+    sys_timescale = nullptr;
+    p_cvar_vars = nullptr;
+    if (previous_path == nullptr)
+    {
+        ASSERT_EQ(unsetenv("LD_LIBRARY_PATH"), 0);
+    }
+    else
+    {
+        ASSERT_EQ(setenv("LD_LIBRARY_PATH", saved_path.c_str(), 1), 0);
+    }
+    std::filesystem::remove_all(root);
+}
+
+TEST_F(XashStartup, HostFilterTimeUsesTheProcessFunction)
+{
+    Dl_info info{};
+    ASSERT_NE(dladdr(reinterpret_cast<void*>(csr_xash_engine_argv), &info), 0);
+    ASSERT_NE(info.dli_fname, nullptr);
+
+    const std::filesystem::path root = std::filesystem::temp_directory_path() / "csretro-xash-host-filter";
+    std::filesystem::remove_all(root);
+    std::filesystem::create_directories(root);
+    std::filesystem::copy_file(info.dli_fname, root / "hw.so");
+    const std::vector<std::string> files_before = RegularFileNames(root);
+
+    goldsrc::cvar_t timescale{};
+    char timescale_text[] = "3.5";
+    timescale.name = "sys_timescale";
+    timescale.string = timescale_text;
+    timescale.flags = 0;
+    timescale.value = 3.5f;
+    timescale.next = nullptr;
+
+    goldsrc::cvar_t sensitivity{};
+    char sensitivity_text[] = "3.0";
+    sensitivity.name = "sensitivity";
+    sensitivity.string = sensitivity_text;
+    sensitivity.flags = goldsrc::FCVAR_ARCHIVE;
+    sensitivity.value = 3.0f;
+    sensitivity.next = &timescale;
+    goldsrc::cvar_t* cvar_head = &sensitivity;
+    sys_timescale = &timescale;
+    p_cvar_vars = &cvar_head;
+
+    const char* previous_path = std::getenv("LD_LIBRARY_PATH");
+    const std::string saved_path = previous_path != nullptr ? previous_path : "";
+    ASSERT_EQ(setenv("LD_LIBRARY_PATH", root.c_str(), 1), 0);
+
+    auto engine = std::make_unique<nitroapi::EngineData>();
+    EngineMini_BindXashStartup(engine.get(), true);
+
+    {
+        const WorkingDirectory directory(root);
+        char arg0[] = "xash";
+        char arg1[] = "-console";
+        char* argv[] = {arg0, arg1, nullptr};
+        int window = 0;
+        std::vector<std::string> sockets_before;
+        ASSERT_TRUE(ReadOpenSockets(&sockets_before));
+        const double oldrealtime_before = oldrealtime;
+        double host_time = 9.25;
+        double frame_time = 0.05;
+        engine->realtime = &host_time;
+        engine->host_frametime = &frame_time;
+        goldsrc::cvar_t framerate{};
+        char framerate_text[] = "0";
+        framerate.name = "host_framerate";
+        framerate.string = framerate_text;
+        framerate.value = 0.0f;
+        const ProcessHostClock clock(&host_time, &frame_time, &framerate);
+
+        csr_xash_engine_argv(2, argv);
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+
+        const EngineMiniXashStartup* record = EngineMini_XashStartup();
+        ASSERT_NE(record->host_filter, nullptr);
+        EXPECT_EQ(record->host_filter, &Host_FilterTime);
+        EXPECT_EQ(g_EngineMiniHostFilterTime, &Host_FilterTime);
+        EXPECT_EQ(record->host_filter_calls, 0);
+        EXPECT_EQ(record->host_map, &Host_Map_f);
+        EXPECT_EQ(record->host_map_calls, 0);
+        EXPECT_EQ(record->clear_state, &CL_ClearState);
+        EXPECT_EQ(record->clear_state_calls, 0);
+        EXPECT_EQ(record->disconnect, &CL_Disconnect);
+        EXPECT_EQ(record->disconnect_calls, 0);
+        EXPECT_EQ(record->request_missing, &CL_RequestMissingResources);
+        EXPECT_EQ(record->request_missing_calls, 0);
+        EXPECT_EQ(record->read_packets, &CL_ReadPackets);
+        EXPECT_EQ(record->read_packets_calls, 0);
+        EXPECT_EQ(record->start_resource, &CL_StartResourceDownloading);
+        EXPECT_EQ(record->start_resource_calls, 0);
+        EXPECT_EQ(record->http_stop, &CL_HTTPStop_f);
+        EXPECT_EQ(record->http_stop_calls, 0);
+        EXPECT_EQ(record->http_update, &CL_HTTPUpdate);
+        EXPECT_EQ(record->http_update_calls, 0);
+        EXPECT_EQ(record->svc_sendcvarvalue, &CL_Send_CvarValue);
+        EXPECT_EQ(record->svc_sendcvarvalue_calls, 0);
+        EXPECT_EQ(record->svc_timescale, &CL_Parse_Timescale);
+        EXPECT_EQ(record->svc_timescale_calls, 0);
+        EXPECT_EQ(record->netchan_copy, &Netchan_CopyFileFragments);
+        EXPECT_EQ(record->netchan_copy_calls, 0);
+        EXPECT_EQ(record->net_send_packet, &NET_SendPacket);
+        EXPECT_EQ(record->net_send_calls, 0);
+        EXPECT_EQ(engine->Host_FilterTime.GetHook(), nullptr);
+        EXPECT_EQ(engine->Mod_ClearAll.GetHook(), nullptr);
+        EXPECT_EQ(engine->Host_Map_f.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_ClearState.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_Disconnect.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_RequestMissingResources.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_ReadPackets.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_StartResourceDownloading.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_HTTPStop_f.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_HTTPUpdate.GetHook(), nullptr);
+        EXPECT_EQ(engine->SVC_SendCvarValue.GetHook(), nullptr);
+        EXPECT_EQ(engine->Sys_InitGame.GetHook(), nullptr);
+        EXPECT_EQ(engine->Sys_Error.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_Init.GetHook(), nullptr);
+        EXPECT_EQ(record->initializing_calls, 1);
+        EXPECT_EQ(record->init_calls, 0);
+        EXPECT_EQ(record->shutdown_calls, 0);
+        EXPECT_EQ(record->error_calls, 0);
+        ASSERT_NE(engine->client_state, nullptr);
+        ASSERT_NE(engine->client_static, nullptr);
+        ASSERT_NE(engine->realtime, nullptr);
+        ASSERT_NE(engine->host_frametime, nullptr);
+        engine->client_state->max_edicts = 42;
+        engine->client_state->servercount = 7;
+        std::memcpy(engine->client_state->levelname, "csretro-keep", sizeof("csretro-keep"));
+        engine->client_static->state = goldsrc::ca_active;
+        engine->client_static->signon = 4;
+        engine->client_static->challenge = 77;
+        EXPECT_EQ(engine->realtime, &host_time);
+        EXPECT_EQ(engine->host_frametime, &frame_time);
+        EXPECT_DOUBLE_EQ(host_time, 9.25);
+        EXPECT_DOUBLE_EQ(frame_time, 0.05);
+        const double realtime_planted = host_time;
+        const double frametime_planted = frame_time;
+        EXPECT_EQ(p_cvar_vars, &cvar_head);
+        EXPECT_EQ(cvar_head, &sensitivity);
+        EXPECT_EQ(sensitivity.next, &timescale);
+        EXPECT_EQ(sensitivity.flags, goldsrc::FCVAR_ARCHIVE);
+        EXPECT_FLOAT_EQ(sensitivity.value, 3.0f);
+        EXPECT_STREQ(sensitivity.string, "3.0");
+        EXPECT_STREQ(sensitivity.name, "sensitivity");
+        EXPECT_EQ(sys_timescale, &timescale);
+        EXPECT_FLOAT_EQ(timescale.value, 3.5f);
+        EXPECT_EQ(timescale.flags, 0);
+        EXPECT_STREQ(timescale.string, "3.5");
+        EXPECT_EQ(timescale.next, nullptr);
+        EXPECT_DOUBLE_EQ(oldrealtime, oldrealtime_before);
+        EXPECT_FALSE(MapsContain(root / "hw.so"));
+
+        Dl_info host_filter_info{};
+        ASSERT_NE(dladdr(reinterpret_cast<void*>(record->host_filter), &host_filter_info), 0);
+        ASSERT_NE(host_filter_info.dli_fname, nullptr);
+        EXPECT_EQ(std::string(host_filter_info.dli_fname).find("hw.so"), std::string::npos);
+
+        std::vector<std::string> sockets_after;
+        ASSERT_TRUE(ReadOpenSockets(&sockets_after));
+        EXPECT_EQ(sockets_before, sockets_after);
+        EXPECT_EQ(RegularFileNames(root), files_before);
+
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+
+        record = EngineMini_XashStartup();
+        EXPECT_EQ(record->host_filter, &Host_FilterTime);
+        EXPECT_EQ(g_EngineMiniHostFilterTime, &Host_FilterTime);
+        EXPECT_EQ(record->host_filter_calls, 0);
+        EXPECT_EQ(record->host_map, &Host_Map_f);
+        EXPECT_EQ(record->host_map_calls, 0);
+        EXPECT_EQ(record->clear_state, &CL_ClearState);
+        EXPECT_EQ(record->clear_state_calls, 0);
+        EXPECT_EQ(record->disconnect, &CL_Disconnect);
+        EXPECT_EQ(record->disconnect_calls, 0);
+        EXPECT_EQ(engine->client_state->max_edicts, 42);
+        EXPECT_EQ(engine->client_state->servercount, 7);
+        EXPECT_STREQ(engine->client_state->levelname, "csretro-keep");
+        EXPECT_EQ(engine->client_static->state, goldsrc::ca_active);
+        EXPECT_EQ(engine->client_static->signon, 4);
+        EXPECT_EQ(engine->client_static->challenge, 77);
+        EXPECT_DOUBLE_EQ(*engine->realtime, realtime_planted);
+        EXPECT_DOUBLE_EQ(*engine->host_frametime, frametime_planted);
+        EXPECT_DOUBLE_EQ(oldrealtime, oldrealtime_before);
+        EXPECT_EQ(engine->Host_FilterTime.GetHook(), nullptr);
+        EXPECT_EQ(engine->Mod_ClearAll.GetHook(), nullptr);
+        EXPECT_EQ(engine->Host_Map_f.GetHook(), nullptr);
+        EXPECT_EQ(record->initializing_calls, 2);
+        EXPECT_EQ(record->shutdown_calls, 0);
+        EXPECT_EQ(record->error_calls, 0);
+
+        g_EngineMiniHostFilterTime = nullptr;
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+
+        record = EngineMini_XashStartup();
+        EXPECT_EQ(record->host_filter, nullptr);
+        EXPECT_EQ(record->host_filter_calls, 0);
+        EXPECT_EQ(record->host_map, &Host_Map_f);
+        EXPECT_EQ(record->host_map_calls, 0);
+        EXPECT_EQ(record->clear_state, &CL_ClearState);
+        EXPECT_EQ(record->clear_state_calls, 0);
+        EXPECT_EQ(record->disconnect, &CL_Disconnect);
+        EXPECT_EQ(record->disconnect_calls, 0);
+        EXPECT_EQ(record->request_missing, &CL_RequestMissingResources);
+        EXPECT_EQ(record->request_missing_calls, 0);
+        EXPECT_EQ(record->read_packets, &CL_ReadPackets);
+        EXPECT_EQ(record->read_packets_calls, 0);
+        EXPECT_EQ(record->start_resource, &CL_StartResourceDownloading);
+        EXPECT_EQ(record->start_resource_calls, 0);
+        EXPECT_EQ(record->http_stop, &CL_HTTPStop_f);
+        EXPECT_EQ(record->http_stop_calls, 0);
+        EXPECT_EQ(record->http_update, &CL_HTTPUpdate);
+        EXPECT_EQ(record->http_update_calls, 0);
+        EXPECT_EQ(record->svc_sendcvarvalue, &CL_Send_CvarValue);
+        EXPECT_EQ(record->svc_sendcvarvalue_calls, 0);
+        EXPECT_EQ(record->svc_timescale, &CL_Parse_Timescale);
+        EXPECT_EQ(record->svc_timescale_calls, 0);
+        EXPECT_EQ(record->netchan_copy, &Netchan_CopyFileFragments);
+        EXPECT_EQ(record->netchan_copy_calls, 0);
+        EXPECT_EQ(record->net_send_packet, &NET_SendPacket);
+        EXPECT_EQ(record->net_send_calls, 0);
+        EXPECT_EQ(engine->client_state->max_edicts, 42);
+        EXPECT_EQ(engine->client_state->servercount, 7);
+        EXPECT_STREQ(engine->client_state->levelname, "csretro-keep");
+        EXPECT_EQ(engine->client_static->state, goldsrc::ca_active);
+        EXPECT_EQ(engine->client_static->signon, 4);
+        EXPECT_EQ(engine->client_static->challenge, 77);
+        EXPECT_DOUBLE_EQ(*engine->realtime, realtime_planted);
+        EXPECT_DOUBLE_EQ(*engine->host_frametime, frametime_planted);
+        EXPECT_DOUBLE_EQ(oldrealtime, oldrealtime_before);
+        EXPECT_EQ(engine->Host_FilterTime.GetHook(), nullptr);
+        EXPECT_EQ(engine->Mod_ClearAll.GetHook(), nullptr);
+        EXPECT_EQ(engine->Host_Map_f.GetHook(), nullptr);
         EXPECT_EQ(engine->CL_ClearState.GetHook(), nullptr);
         EXPECT_EQ(engine->CL_Disconnect.GetHook(), nullptr);
         EXPECT_EQ(engine->CL_RequestMissingResources.GetHook(), nullptr);

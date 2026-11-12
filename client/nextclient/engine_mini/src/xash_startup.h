@@ -38,6 +38,9 @@ using EngineMiniClearStateFn = void (*)(goldsrc::qboolean quiet);
 // Process replacement for the retail Host_Map_f hook. A null value is not a call.
 using EngineMiniHostMapFn = void (*)();
 
+// Process replacement for the retail Host_FilterTime hook. A null value is not a call.
+using EngineMiniHostFilterTimeFn = goldsrc::qboolean (*)(float time);
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -63,6 +66,7 @@ struct EngineMiniXashStartup
     int disconnect_calls{};
     int clear_state_calls{};
     int host_map_calls{};
+    int host_filter_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -87,6 +91,7 @@ struct EngineMiniXashStartup
     EngineMiniDisconnectFn disconnect{};
     EngineMiniClearStateFn clear_state{};
     EngineMiniHostMapFn host_map{};
+    EngineMiniHostFilterTimeFn host_filter{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -124,6 +129,9 @@ extern EngineMiniClearStateFn g_EngineMiniClearState;
 
 // Defaults to Host_Map_f. Init stores the pointer and does not call it.
 extern EngineMiniHostMapFn g_EngineMiniHostMap;
+
+// Defaults to Host_FilterTime. Init stores the pointer and does not call it.
+extern EngineMiniHostFilterTimeFn g_EngineMiniHostFilterTime;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

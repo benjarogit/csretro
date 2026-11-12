@@ -391,6 +391,7 @@ namespace
     void RecordXashDisconnect();
     void RecordXashClearState();
     void RecordXashHostMap();
+    void RecordXashHostFilterTime();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -425,7 +426,10 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // Host_Map_f is then the process function when that hook is absent.
     // This init stores the pointer and does not load a map. The process body
     // disconnects and starts a map, so a real call does not run.
-    // The next retail hook is Host_FilterTime. This path returns before it.
+    // Host_FilterTime is then the process function when that hook is absent.
+    // This init stores the pointer and does not filter time. The process body
+    // advances host time and the frame interval, so a real call does not run.
+    // The next retail hook is Mod_ClearAll. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -447,6 +451,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashDisconnect();
             RecordXashClearState();
             RecordXashHostMap();
+            RecordXashHostFilterTime();
         }
         return;
     }
@@ -877,6 +882,7 @@ EngineMiniRequestMissingResourcesFn g_EngineMiniRequestMissingResources = CL_Req
 EngineMiniDisconnectFn g_EngineMiniDisconnect = CL_Disconnect;
 EngineMiniClearStateFn g_EngineMiniClearState = CL_ClearState;
 EngineMiniHostMapFn g_EngineMiniHostMap = Host_Map_f;
+EngineMiniHostFilterTimeFn g_EngineMiniHostFilterTime = Host_FilterTime;
 
 namespace
 {
@@ -1078,6 +1084,23 @@ namespace
             return;
         }
         g_xash_startup.host_map = g_EngineMiniHostMap;
+    }
+
+    void RecordXashHostFilterTime()
+    {
+        // The retail site installs a replacement. It does not filter time during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body advances host time and the frame interval, so this path does not call it.
+        g_xash_startup.host_filter = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->Host_FilterTime.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniHostFilterTime == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.host_filter = g_EngineMiniHostFilterTime;
     }
 
     bool XashStartupIsActive()
@@ -1345,6 +1368,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniDisconnect = CL_Disconnect;
     g_EngineMiniClearState = CL_ClearState;
     g_EngineMiniHostMap = Host_Map_f;
+    g_EngineMiniHostFilterTime = Host_FilterTime;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

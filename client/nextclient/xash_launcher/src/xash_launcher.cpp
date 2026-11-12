@@ -216,6 +216,15 @@ int LoadAndBindXashMap(const char* content_root, const char* map_name, const cha
         {
             bound = bind();
         }
+        // Records the face in this process. No window, and not the retail hook.
+        if (bound != 0)
+        {
+            auto draw = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_DrawRendererWorld"));
+            if (draw != nullptr)
+            {
+                draw();
+            }
+        }
     }
     if (engine != nullptr)
     {

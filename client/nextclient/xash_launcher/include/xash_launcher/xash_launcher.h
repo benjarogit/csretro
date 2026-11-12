@@ -64,21 +64,27 @@ int PresentXashLauncher(LauncherProcess* session, int wide, int tall);
 // whose lumps sit inside the file records map_name in state->levelname, the
 // checksum of the bytes read in state->mapCRC, and a brush model in
 // state->worldmodel. The model name is map_name. A non-empty entities lump
-// is copied onto that model. A missing file, a short file, or another version
-// leaves state unchanged and returns 0. Host_Map_f is not this call.
+// is copied onto that model. Vertex, edge, surfedge and face lumps are copied
+// too. One disk face becomes one surface. Texinfo and textures are not
+// copied. Lighting bytes are not lightmap surfaces, and GL_BuildLightmaps
+// is not called. A missing file, a short file, or another version leaves
+// state unchanged and returns 0. Host_Map_f is not this call.
 // Mod_LoadBrushModel is not this call.
 int LoadXashMap(const char* content_root, const char* map_name, goldsrc::client_state_t* state);
 
 // Loads the map and, only when that load builds a world model, points
-// r_worldentity->model at it. A failed load returns 0 and does not write
-// that field. eng()->R_NewMap is not installed and not called. The engine
-// module has to already be loaded.
+// r_worldentity->model at it and draws that model once. A failed load
+// returns 0, does not write that field, and does not draw. eng()->R_NewMap
+// and eng()->R_DrawWorld are not installed and not called. The draw does
+// not open a window. The engine module has to already be loaded.
 int LoadAndBindXashMap(const char* content_root, const char* map_name, const char* engine_mini_path);
 
 // Opens the host the way OpenXashLauncher does. A map name loads that file
-// onto the client state, builds its world model, and binds r_worldentity->model
-// to that model before csr_host_run. An empty map name skips the load. A
-// failed load closes the session and does not enter the quit loop.
+// onto the client state, builds its world model, binds r_worldentity->model
+// to that model, and draws that model once before csr_host_run. An empty
+// map name skips the load. A failed load closes the session and does not
+// enter the quit loop. The draw does not open a window. csr_host_run does
+// not call it.
 // The window stays mapped until the recorded client command is quit, and
 // the call then destroys that window. PresentXashLauncher is the one-frame
 // present and is not this call. Does not exec the planned command, does not

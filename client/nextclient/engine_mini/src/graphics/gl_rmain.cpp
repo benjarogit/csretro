@@ -237,14 +237,22 @@ void R_MarkLeaves()
     eng()->R_MarkLeaves.InvokeChained();
 }
 
+static int g_engine_mini_r_drawworld_calls = 0;
+
 void R_DrawWorld()
 {
+    ++g_engine_mini_r_drawworld_calls;
     NCL_PROFILE_SCOPE();
 
     const uint64_t started = render::StudioPhase_BeginWorld();
 
     eng()->R_DrawWorld.InvokeChained();
     render::StudioPhase_EndWorld(started);
+}
+
+extern "C" int EngineMini_RDrawWorldCalls(void)
+{
+    return g_engine_mini_r_drawworld_calls;
 }
 
 void R_RenderFinalFog()

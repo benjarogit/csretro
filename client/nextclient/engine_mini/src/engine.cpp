@@ -406,6 +406,7 @@ namespace
     void RecordXashSprLoad();
     void RecordXashSprDraw();
     void RecordXashSprDrawAdditive();
+    void RecordXashSprDrawHoles();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -500,7 +501,12 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not draw a sprite. The process body draws
     // the current sprite additively when a sprite is current and the point is inside
     // the video image, and can call Draw_SpriteFrameAdditive, so a real call does not
-    // run. The next retail hook is SPR_DrawHoles. This path returns before it.
+    // run.
+    // SPR_DrawHoles is then the process function when that hook is absent.
+    // This init stores the pointer and does not draw a sprite. The process body draws
+    // the current sprite with holes when a sprite is current and the point is inside
+    // the video image, and can call Draw_SpriteFrameHoles, so a real call does not
+    // run. The next retail hook is SPR_DrawGeneric. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -537,6 +543,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSprLoad();
             RecordXashSprDraw();
             RecordXashSprDrawAdditive();
+            RecordXashSprDrawHoles();
         }
         return;
     }
@@ -982,6 +989,7 @@ EngineMiniSprShutdownNoModelFreeFn g_EngineMiniSprShutdownNoModelFree = SPR_Shut
 EngineMiniSprLoadFn g_EngineMiniSprLoad = SPR_Load;
 EngineMiniSprDrawFn g_EngineMiniSprDraw = SPR_Draw;
 EngineMiniSprDrawAdditiveFn g_EngineMiniSprDrawAdditive = SPR_DrawAdditive;
+EngineMiniSprDrawHolesFn g_EngineMiniSprDrawHoles = SPR_DrawHoles;
 
 namespace
 {
@@ -1446,6 +1454,25 @@ namespace
         g_xash_startup.spr_draw_additive = g_EngineMiniSprDrawAdditive;
     }
 
+    void RecordXashSprDrawHoles()
+    {
+        // The retail site installs a replacement. It does not draw a sprite during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body draws the current sprite with holes when a sprite is current
+        // and the point is inside the video image, and can call Draw_SpriteFrameHoles,
+        // so this path does not call it.
+        g_xash_startup.spr_draw_holes = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->SPR_DrawHoles.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniSprDrawHoles == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.spr_draw_holes = g_EngineMiniSprDrawHoles;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -1744,6 +1771,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSprLoad = SPR_Load;
     g_EngineMiniSprDraw = SPR_Draw;
     g_EngineMiniSprDrawAdditive = SPR_DrawAdditive;
+    g_EngineMiniSprDrawHoles = SPR_DrawHoles;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -1846,9 +1874,8 @@ extern "C" int EngineMini_BindRendererWorld(void)
         return 0;
     }
     goldsrc::model_t* world = g_xash_engine->client_state->worldmodel;
-    // Retail R_NewMap writes r_worldentity->model, then builds lightmap
-    // surfaces. Face, texinfo and texture lumps are not on this model, so
-    // there is no surface to build. A null world leaves the previous model.
+    // Assigns the loaded model. A null world leaves the previous pointer.
+    // Does not call R_NewMap or R_DrawWorld.
     if (world == nullptr || g_xash_engine->r_worldentity == nullptr)
     {
         return 0;
@@ -1870,6 +1897,88 @@ extern "C" int EngineMini_RNewMapHooked(void)
         return 0;
     }
     return g_xash_engine->R_NewMap.GetHook() != nullptr ? 1 : 0;
+}
+
+extern "C" int EngineMini_RDrawWorldHooked(void)
+{
+    if (g_xash_engine == nullptr)
+    {
+        return 0;
+    }
+    return g_xash_engine->R_DrawWorld.GetHook() != nullptr ? 1 : 0;
+}
+
+static int g_world_draw_calls = 0;
+static int g_world_draw_vertex_count = 0;
+static float g_world_draw_vertices[64 * 3]{};
+
+extern "C" int EngineMini_DrawRendererWorld(void)
+{
+    ++g_world_draw_calls;
+    g_world_draw_vertex_count = 0;
+    if (p_r_worldentity == nullptr || p_r_worldentity->model == nullptr)
+    {
+        return 0;
+    }
+    const goldsrc::model_t* model = p_r_worldentity->model;
+    if (model->numsurfaces < 1 || model->surfaces == nullptr || model->vertexes == nullptr || model->edges == nullptr ||
+        model->surfedges == nullptr || model->numvertexes < 1 || model->numedges < 1 || model->numsurfedges < 1)
+    {
+        return 0;
+    }
+    for (int face = 0; face < model->numsurfaces; ++face)
+    {
+        const goldsrc::msurface_t& surface = model->surfaces[face];
+        if (surface.numedges <= 0 || surface.firstedge < 0 || surface.firstedge >= model->numsurfedges)
+        {
+            continue;
+        }
+        if (surface.numedges > model->numsurfedges - surface.firstedge)
+        {
+            continue;
+        }
+        for (int edge_index = 0; edge_index < surface.numedges; ++edge_index)
+        {
+            if (g_world_draw_vertex_count >= 64)
+            {
+                break;
+            }
+            const int surfedge = model->surfedges[surface.firstedge + edge_index];
+            const int edge_id = surfedge < 0 ? -surfedge : surfedge;
+            if (edge_id < 0 || edge_id >= model->numedges)
+            {
+                continue;
+            }
+            const goldsrc::medge_t& edge = model->edges[edge_id];
+            const unsigned int vertex_id = surfedge < 0 ? edge.v[1] : edge.v[0];
+            if (vertex_id >= static_cast<unsigned int>(model->numvertexes))
+            {
+                continue;
+            }
+            const float* position = model->vertexes[vertex_id].position;
+            float* dest = g_world_draw_vertices + g_world_draw_vertex_count * 3;
+            dest[0] = position[0];
+            dest[1] = position[1];
+            dest[2] = position[2];
+            ++g_world_draw_vertex_count;
+        }
+    }
+    return g_world_draw_vertex_count;
+}
+
+extern "C" int EngineMini_WorldDrawCalls(void)
+{
+    return g_world_draw_calls;
+}
+
+extern "C" int EngineMini_WorldDrawVertexCount(void)
+{
+    return g_world_draw_vertex_count;
+}
+
+extern "C" const float* EngineMini_WorldDrawVertices(void)
+{
+    return g_world_draw_vertices;
 }
 
 extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_functions, int* nitro_hooks)
@@ -1989,6 +2098,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
         {
             ++count;
         }
+        if (g_xash_startup.spr_draw_holes != nullptr)
+        {
+            ++count;
+        }
         *stored_functions = count;
     }
     if (nitro_hooks != nullptr)
@@ -2029,7 +2142,9 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             count_hook(g_xash_engine->SPR_Load);
             count_hook(g_xash_engine->SPR_Draw);
             count_hook(g_xash_engine->SPR_DrawAdditive);
+            count_hook(g_xash_engine->SPR_DrawHoles);
             count_hook(g_xash_engine->R_NewMap);
+            count_hook(g_xash_engine->R_DrawWorld);
         }
         *nitro_hooks = count;
     }

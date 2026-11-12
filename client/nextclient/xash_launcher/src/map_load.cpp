@@ -117,10 +117,41 @@ bool HeaderFits(const std::vector<unsigned char>& bytes)
 }
 
 constexpr int kLumpEntities = 0;
+constexpr int kLumpVertexes = 3;
 constexpr int kLumpVisibility = 4;
+constexpr int kLumpFaces = 7;
 constexpr int kLumpLighting = 8;
 constexpr int kLumpClipnodes = 9;
+constexpr int kLumpEdges = 12;
+constexpr int kLumpSurfedges = 13;
 constexpr int kLumpModels = 14;
+
+struct DiskVertex
+{
+    float point[3];
+};
+
+struct DiskEdge
+{
+    unsigned short v[2];
+};
+
+struct DiskFace
+{
+    short planenum;
+    short side;
+    int firstedge;
+    short numedges;
+    short texinfo;
+    unsigned char styles[4];
+    int lightofs;
+};
+
+static_assert(sizeof(DiskVertex) == 12);
+static_assert(sizeof(goldsrc::mvertex_t) == sizeof(DiskVertex));
+static_assert(sizeof(DiskEdge) == 4);
+static_assert(sizeof(DiskFace) == 20);
+static_assert(sizeof(int) == 4);
 
 static_assert(sizeof(goldsrc::dclipnode_t) == 8);
 static_assert(sizeof(goldsrc::dmodel_t) == 64);
@@ -136,6 +167,10 @@ void FreeWorld(goldsrc::model_t* model)
     std::free(model->entities);
     std::free(model->visdata);
     std::free(model->lightdata);
+    std::free(model->vertexes);
+    std::free(model->edges);
+    std::free(model->surfedges);
+    std::free(model->surfaces);
     std::free(model->clipnodes);
     std::free(model->submodels);
     std::free(model);
@@ -170,9 +205,112 @@ bool CopyLump(const std::vector<unsigned char>& bytes, const Lump& lump, void** 
     return true;
 }
 
-// Disk faces, texinfo and textures become draw surfaces inside the retail
-// brush loader, and that loader needs a renderer. Those lumps stay unread.
-// eng()->Mod_LoadBrushModel is not called.
+bool CopyGeometry(const std::vector<unsigned char>& bytes, const Header& header, goldsrc::model_t* model)
+{
+    const Lump& vertex_lump = header.lumps[kLumpVertexes];
+    if (vertex_lump.length > 0)
+    {
+        if (static_cast<std::size_t>(vertex_lump.length) % sizeof(DiskVertex) != 0)
+        {
+            return false;
+        }
+        const int count = vertex_lump.length / static_cast<int>(sizeof(DiskVertex));
+        auto* block = static_cast<goldsrc::mvertex_t*>(std::calloc(static_cast<std::size_t>(count), sizeof(goldsrc::mvertex_t)));
+        if (block == nullptr)
+        {
+            return false;
+        }
+        std::memcpy(
+            block,
+            bytes.data() + static_cast<std::size_t>(vertex_lump.offset),
+            static_cast<std::size_t>(vertex_lump.length));
+        model->vertexes = block;
+        model->numvertexes = count;
+    }
+
+    const Lump& edge_lump = header.lumps[kLumpEdges];
+    if (edge_lump.length > 0)
+    {
+        if (static_cast<std::size_t>(edge_lump.length) % sizeof(DiskEdge) != 0)
+        {
+            return false;
+        }
+        const int count = edge_lump.length / static_cast<int>(sizeof(DiskEdge));
+        auto* block = static_cast<goldsrc::medge_t*>(std::calloc(static_cast<std::size_t>(count), sizeof(goldsrc::medge_t)));
+        if (block == nullptr)
+        {
+            return false;
+        }
+        for (int index = 0; index < count; ++index)
+        {
+            DiskEdge disk{};
+            std::memcpy(
+                &disk,
+                bytes.data() + static_cast<std::size_t>(edge_lump.offset) + static_cast<std::size_t>(index) * sizeof(DiskEdge),
+                sizeof(disk));
+            block[index].v[0] = disk.v[0];
+            block[index].v[1] = disk.v[1];
+        }
+        model->edges = block;
+        model->numedges = count;
+    }
+
+    const Lump& surfedge_lump = header.lumps[kLumpSurfedges];
+    if (surfedge_lump.length > 0)
+    {
+        if (static_cast<std::size_t>(surfedge_lump.length) % sizeof(int) != 0)
+        {
+            return false;
+        }
+        const int count = surfedge_lump.length / static_cast<int>(sizeof(int));
+        auto* block = static_cast<int*>(std::calloc(static_cast<std::size_t>(count), sizeof(int)));
+        if (block == nullptr)
+        {
+            return false;
+        }
+        std::memcpy(
+            block,
+            bytes.data() + static_cast<std::size_t>(surfedge_lump.offset),
+            static_cast<std::size_t>(surfedge_lump.length));
+        model->surfedges = block;
+        model->numsurfedges = count;
+    }
+
+    const Lump& face_lump = header.lumps[kLumpFaces];
+    if (face_lump.length > 0)
+    {
+        if (static_cast<std::size_t>(face_lump.length) % sizeof(DiskFace) != 0)
+        {
+            return false;
+        }
+        const int count = face_lump.length / static_cast<int>(sizeof(DiskFace));
+        auto* block = static_cast<goldsrc::msurface_t*>(std::calloc(static_cast<std::size_t>(count), sizeof(goldsrc::msurface_t)));
+        if (block == nullptr)
+        {
+            return false;
+        }
+        for (int index = 0; index < count; ++index)
+        {
+            DiskFace disk{};
+            std::memcpy(
+                &disk,
+                bytes.data() + static_cast<std::size_t>(face_lump.offset) + static_cast<std::size_t>(index) * sizeof(DiskFace),
+                sizeof(disk));
+            block[index].firstedge = disk.firstedge;
+            block[index].numedges = disk.numedges;
+        }
+        model->surfaces = block;
+        model->numsurfaces = count;
+    }
+    return true;
+}
+
+// Vertex, edge, surfedge and face lumps are copied onto the model. A disk
+// edge is two vertex indices in 4 bytes; medge_t is wider, so the indices
+// are copied field by field. One disk face becomes one surface. Texinfo and
+// textures stay unread. Lighting bytes are copied and are not lightmap
+// surfaces. GL_BuildLightmaps does not run. eng()->Mod_LoadBrushModel is not
+// called.
 goldsrc::model_t* BuildWorld(const std::vector<unsigned char>& bytes, const char* map_name)
 {
     Header header{};
@@ -235,6 +373,11 @@ goldsrc::model_t* BuildWorld(const std::vector<unsigned char>& bytes, const char
             model->maxs[1] = model->submodels[0].maxs[1];
             model->maxs[2] = model->submodels[0].maxs[2];
         }
+    }
+    if (!CopyGeometry(bytes, header, model))
+    {
+        FreeWorld(model);
+        return nullptr;
     }
     return model;
 }

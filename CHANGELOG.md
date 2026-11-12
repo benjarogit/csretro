@@ -35,7 +35,7 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
-- `RunXashLauncher` builds a brush world model from the validated map bytes before the quit loop and stores it on `client_state->worldmodel`. The model name is the map name. A non-empty entities lump is copied onto the model. A failed load does not change the client state, so a null `worldmodel` stays null and the previous map name stays. Faces, textures and lightmaps are not built. Face, texinfo, texture and lighting lumps are not turned into surfaces. After a valid load, `r_worldentity->model` is that world model. A failed load does not replace a previous renderer world pointer. `eng()->R_NewMap` is not installed and not called. `eng()->Mod_LoadBrushModel` is not called. `R_DrawWorld` is still required before a surface can draw the world.
+- `RunXashLauncher` builds a brush world model from the validated map bytes before the quit loop and stores it on `client_state->worldmodel`. The model name is the map name. A non-empty entities lump is copied onto the model. A failed load does not change the client state, so a null `worldmodel` stays null and the previous map name stays. Vertex, edge, surfedge and face lumps are copied onto the world model. One face becomes a surface, so `numsurfaces` is at least 1 and that face's vertex bytes match the fixture. Texinfo and textures are not copied. Lighting bytes are not lightmap surfaces, and `GL_BuildLightmaps` does not run. The 128-byte fixture checksum `0xa4ebf95d` still has empty face, texinfo, texture and lighting lumps, so `numsurfaces` stays 0 for that file. After a valid load, `r_worldentity->model` is that world model. A direct draw in this process walks that face through its surfedges and submits those vertices as one primitive. `RunXashLauncher` calls that draw once after a successful bind. The human frame loop `csr_host_run` does not call it, so the menu frame does not show the map. A failed load does not draw and does not replace a previous renderer world pointer. `eng()->R_DrawWorld` is not installed and not called. `eng()->R_NewMap` is not installed and not called. `eng()->Mod_LoadBrushModel` is not called.
 - `RunXashLauncher` reads `cstrike/maps/<name>.bsp` from the content root when a map name is given, records that name and a checksum of the bytes it read on the client state, and does this before the quit loop. A missing file, a short file, or a BSP that is not version 30 fails and leaves the previous map name unchanged. No map name leaves the previous behaviour. `Host_Map_f` is not that call.
 - `OnGameInitializing` reads an engine pointer table from this process when
   the retail hook is absent. Null function pointers are not calls, and
@@ -152,7 +152,12 @@ The authoritative version string is the `VERSION` file.
   not call it, so the current sprite stays at the same pointer, no sprite
   frame is drawn additively, `Draw_SpriteFrameAdditive` does not run, no
   sprite is loaded and no socket is opened. A null pointer is not a call.
-  A null hook is not a call. The next retail hook is `SPR_DrawHoles`.
+  A null hook is not a call. `SPR_DrawHoles` is then the function in this
+  process when that retail hook is absent. Init stores the pointer and does
+  not call it, so the current sprite stays at the same pointer, no sprite
+  frame is drawn with holes, `Draw_SpriteFrameHoles` does not run, no
+  sprite is loaded and no socket is opened. A null pointer is not a call.
+  A null hook is not a call. The next retail hook is `SPR_DrawGeneric`.
   This path returns before it.
   `csr_host_frame` is a later direct call. One call opens the X11 display,
   chooses an EGL config whose native visual can be a child of the root window,

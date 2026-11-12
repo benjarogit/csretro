@@ -1969,6 +1969,55 @@ std::vector<unsigned char> EntitiesBsp()
     return bytes;
 }
 
+std::vector<unsigned char> FaceBsp()
+{
+    constexpr int kLumpCount = 15;
+    constexpr int kHeader = 4 + kLumpCount * 8;
+    const float vertices[] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f};
+    const unsigned short edge_vertices[] = {0, 1, 1, 2, 2, 0};
+    const int surfedges[] = {1, 2, 0};
+    const short planenum = 0;
+    const short side = 0;
+    const int firstedge = 0;
+    const short numedges = 3;
+    const short texinfo = 0;
+    const unsigned char styles[4] = {};
+    const int lightofs = -1;
+    const int vertex_bytes = static_cast<int>(sizeof(vertices));
+    const int edge_bytes = static_cast<int>(sizeof(edge_vertices));
+    const int surfedge_bytes = static_cast<int>(sizeof(surfedges));
+    const int face_bytes = 20;
+    std::vector<unsigned char> bytes(
+        static_cast<std::size_t>(kHeader + vertex_bytes + edge_bytes + surfedge_bytes + face_bytes),
+        0);
+    const int version = 30;
+    std::memcpy(bytes.data(), &version, sizeof(version));
+    auto lump = [&](int index, int offset, int length) {
+        std::memcpy(bytes.data() + 4 + index * 8, &offset, sizeof(offset));
+        std::memcpy(bytes.data() + 4 + index * 8 + 4, &length, sizeof(length));
+    };
+    int cursor = kHeader;
+    lump(3, cursor, vertex_bytes);
+    std::memcpy(bytes.data() + cursor, vertices, sizeof(vertices));
+    cursor += vertex_bytes;
+    lump(12, cursor, edge_bytes);
+    std::memcpy(bytes.data() + cursor, edge_vertices, sizeof(edge_vertices));
+    cursor += edge_bytes;
+    lump(13, cursor, surfedge_bytes);
+    std::memcpy(bytes.data() + cursor, surfedges, sizeof(surfedges));
+    cursor += surfedge_bytes;
+    lump(7, cursor, face_bytes);
+    unsigned char* face = bytes.data() + cursor;
+    std::memcpy(face, &planenum, 2);
+    std::memcpy(face + 2, &side, 2);
+    std::memcpy(face + 4, &firstedge, 4);
+    std::memcpy(face + 8, &numedges, 2);
+    std::memcpy(face + 10, &texinfo, 2);
+    std::memcpy(face + 12, styles, 4);
+    std::memcpy(face + 16, &lightofs, 4);
+    return bytes;
+}
+
 TEST(XashLauncher, LoadReadsTheMapFileOntoClientState)
 {
     const unsigned char known[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9'};
@@ -2303,6 +2352,231 @@ TEST(XashLauncher, RunLoadsTheMapBeforeTheQuitLoop)
     window_after = 1;
     EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window_after, &swaps_after), 0);
     EXPECT_EQ(window_after, 0u);
+
+    std::filesystem::remove(planted_hw);
+    std::remove(map_path.c_str());
+    std::remove(menu.c_str());
+    rmdir((temp.root + "/cstrike/maps").c_str());
+    rmdir((temp.root + "/cstrike").c_str());
+    rmdir((temp.root + "/Resource").c_str());
+}
+
+TEST(XashLauncher, LoadCopiesOneFaceOntoTheWorldModel)
+{
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/cstrike").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/cstrike/maps").c_str(), 0755), 0);
+    const std::string map_path = temp.root + "/cstrike/maps/fixture.bsp";
+    const std::vector<unsigned char> bytes = FaceBsp();
+    ASSERT_TRUE(WriteBytes(map_path, bytes));
+    const std::uint32_t checksum = FileChecksum(bytes.data(), bytes.size());
+    const float vertices[] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f};
+
+    auto state = std::make_unique<goldsrc::client_state_t>();
+    std::memset(state.get(), 0, sizeof(*state));
+    std::memcpy(state->levelname, "csretro-keep", sizeof("csretro-keep"));
+    state->mapCRC = 0x11111111u;
+
+    ASSERT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 1);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->mapCRC, checksum);
+    ASSERT_NE(state->worldmodel, nullptr);
+    EXPECT_STREQ(state->worldmodel->name, "fixture");
+    EXPECT_EQ(state->worldmodel->type, goldsrc::mod_brush);
+    EXPECT_EQ(state->worldmodel->entities, nullptr);
+    EXPECT_EQ(state->worldmodel->lightdata, nullptr);
+    EXPECT_GE(state->worldmodel->numsurfaces, 1);
+    ASSERT_NE(state->worldmodel->surfaces, nullptr);
+    EXPECT_EQ(state->worldmodel->surfaces[0].firstedge, 0);
+    EXPECT_EQ(state->worldmodel->surfaces[0].numedges, 3);
+    EXPECT_EQ(state->worldmodel->numvertexes, 3);
+    ASSERT_NE(state->worldmodel->vertexes, nullptr);
+    EXPECT_EQ(std::memcmp(state->worldmodel->vertexes, vertices, sizeof(vertices)), 0);
+    EXPECT_EQ(std::memcmp(state->worldmodel->vertexes, bytes.data() + 124, sizeof(vertices)), 0);
+    goldsrc::model_t* world = state->worldmodel;
+
+    ASSERT_TRUE(WriteBytes(map_path, FixtureBsp(29)));
+    EXPECT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 0);
+    EXPECT_EQ(state->worldmodel, world);
+    EXPECT_GE(state->worldmodel->numsurfaces, 1);
+    EXPECT_EQ(std::memcmp(state->worldmodel->vertexes, vertices, sizeof(vertices)), 0);
+
+    std::remove(map_path.c_str());
+    rmdir((temp.root + "/cstrike/maps").c_str());
+    rmdir((temp.root + "/cstrike").c_str());
+}
+
+TEST(XashLauncher, RunDrawsTheLoadedFace)
+{
+    if (!RunInFreshProcess("face", "XashLauncher.RunDrawsTheLoadedFace"))
+    {
+        return;
+    }
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/Resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/cstrike").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/cstrike/maps").c_str(), 0755), 0);
+    const std::string menu = temp.root + "/Resource/GameMenu.res";
+    ASSERT_TRUE(WriteTextFile(menu, "\"GameMenu\"\n{\n}\n"));
+    const std::string map_path = temp.root + "/cstrike/maps/fixture.bsp";
+    const std::vector<unsigned char> bytes = FaceBsp();
+    ASSERT_TRUE(WriteBytes(map_path, bytes));
+    const std::uint32_t checksum = FileChecksum(bytes.data(), bytes.size());
+    const float vertices[] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f};
+    // Surfedges 1, 2, 0 walk edge.v[0], so the primitive is not the lump order.
+    const float submitted[] = {4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 1.f, 2.f, 3.f};
+
+    const std::string planted_hw = temp.root + "/hw.so";
+    std::filesystem::copy_file(XASH_HOST_FILE, planted_hw);
+    EXPECT_FALSE(MapsContain(planted_hw));
+
+    std::vector<std::string> sockets_before;
+    ASSERT_TRUE(ReadOpenSockets(&sockets_before));
+    const std::vector<std::string> children_before = ReadChildPids();
+    int swaps = -1;
+    unsigned long window = 1;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window, &swaps), 0);
+
+    const char* saved_display = std::getenv("DISPLAY");
+    const bool had_display = saved_display != nullptr;
+    const std::string previous_display = had_display ? saved_display : "";
+    ASSERT_EQ(setenv("DISPLAY", "csretro-no-display", 1), 0);
+
+    std::atomic<int> finished{0};
+    std::thread watchdog([&finished] {
+        for (int step = 0; step < 50; ++step)
+        {
+            if (finished.load() != 0)
+            {
+                return;
+            }
+            timespec delay{};
+            delay.tv_nsec = 100 * 1000 * 1000;
+            nanosleep(&delay, nullptr);
+        }
+        _exit(87);
+    });
+
+    csr::LauncherProcess session;
+    const int ran = csr::RunXashLauncher(
+        temp.root.c_str(),
+        XASH_HOST_FILE,
+        XASH_SURFACE_FILE,
+        XASH_CLIENT_FILE,
+        XASH_VGUI_FILE,
+        XASH_GAMEUI_FILE,
+        XASH_STEAM_API_FILE,
+        XASH_ENGINE_MINI_FILE,
+        XASH_NITRO_API_FILE,
+        &session,
+        640,
+        480,
+        0.125,
+        "fixture");
+    finished.store(1);
+    watchdog.join();
+    if (had_display)
+    {
+        ASSERT_EQ(setenv("DISPLAY", previous_display.c_str(), 1), 0);
+    }
+    else
+    {
+        unsetenv("DISPLAY");
+    }
+
+    EXPECT_EQ(ran, 0);
+    EXPECT_TRUE(session.open);
+    EXPECT_NE(session.steam, nullptr);
+    auto steam_running = reinterpret_cast<bool (*)()>(dlsym(session.steam, "SteamAPI_IsSteamRunning"));
+    ASSERT_NE(steam_running, nullptr);
+    EXPECT_FALSE(steam_running());
+
+    void* engine = dlopen(XASH_ENGINE_MINI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(engine, nullptr);
+    auto client_state = reinterpret_cast<goldsrc::client_state_t* (*)()>(dlsym(engine, "EngineMini_ClientState"));
+    auto host_map_calls = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_HostMapCalls"));
+    auto renderer_world = reinterpret_cast<goldsrc::cl_entity_t* (*)()>(dlsym(engine, "EngineMini_RendererWorldEntity"));
+    auto r_newmap_calls = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_RNewMapCalls"));
+    auto r_newmap_hooked = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_RNewMapHooked"));
+    auto r_drawworld_calls = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_RDrawWorldCalls"));
+    auto r_drawworld_hooked = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_RDrawWorldHooked"));
+    auto draw_calls = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_WorldDrawCalls"));
+    auto draw_count = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_WorldDrawVertexCount"));
+    auto draw_vertices = reinterpret_cast<const float* (*)()>(dlsym(engine, "EngineMini_WorldDrawVertices"));
+    ASSERT_NE(client_state, nullptr);
+    ASSERT_NE(host_map_calls, nullptr);
+    ASSERT_NE(renderer_world, nullptr);
+    ASSERT_NE(r_newmap_calls, nullptr);
+    ASSERT_NE(r_newmap_hooked, nullptr);
+    ASSERT_NE(r_drawworld_calls, nullptr);
+    ASSERT_NE(r_drawworld_hooked, nullptr);
+    ASSERT_NE(draw_calls, nullptr);
+    ASSERT_NE(draw_count, nullptr);
+    ASSERT_NE(draw_vertices, nullptr);
+
+    goldsrc::client_state_t* state = client_state();
+    ASSERT_NE(state, nullptr);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->mapCRC, checksum);
+    ASSERT_NE(state->worldmodel, nullptr);
+    EXPECT_GE(state->worldmodel->numsurfaces, 1);
+    ASSERT_NE(state->worldmodel->vertexes, nullptr);
+    EXPECT_EQ(std::memcmp(state->worldmodel->vertexes, vertices, sizeof(vertices)), 0);
+    EXPECT_EQ(std::memcmp(state->worldmodel->vertexes, bytes.data() + 124, sizeof(vertices)), 0);
+    EXPECT_EQ(state->worldmodel->lightdata, nullptr);
+    goldsrc::cl_entity_t* world_entity = renderer_world();
+    ASSERT_NE(world_entity, nullptr);
+    ASSERT_NE(world_entity->model, nullptr);
+    EXPECT_EQ(world_entity->model, state->worldmodel);
+    EXPECT_EQ(draw_calls(), 1);
+    EXPECT_EQ(draw_count(), 3) << "the face was not submitted";
+    ASSERT_NE(draw_vertices(), nullptr);
+    EXPECT_EQ(std::memcmp(draw_vertices(), submitted, sizeof(submitted)), 0);
+    EXPECT_EQ(r_drawworld_calls(), 0);
+    EXPECT_EQ(r_drawworld_hooked(), 0);
+    EXPECT_EQ(r_newmap_calls(), 0);
+    EXPECT_EQ(r_newmap_hooked(), 0);
+    EXPECT_EQ(host_map_calls(), 0);
+
+    goldsrc::model_t* previous_world = world_entity->model;
+    ASSERT_TRUE(WriteBytes(map_path, FixtureBsp(29)));
+    EXPECT_EQ(csr::LoadAndBindXashMap(temp.root.c_str(), "fixture", XASH_ENGINE_MINI_FILE), 0);
+    EXPECT_EQ(world_entity->model, previous_world);
+    EXPECT_EQ(draw_calls(), 1);
+    EXPECT_EQ(draw_count(), 3);
+
+    ASSERT_TRUE(WriteBytes(map_path, std::vector<unsigned char>(123, 0)));
+    EXPECT_EQ(csr::LoadAndBindXashMap(temp.root.c_str(), "fixture", XASH_ENGINE_MINI_FILE), 0);
+    EXPECT_EQ(world_entity->model, previous_world);
+    EXPECT_EQ(draw_calls(), 1);
+
+    goldsrc::model_t sentinel{};
+    std::snprintf(sentinel.name, sizeof(sentinel.name), "previous");
+    world_entity->model = &sentinel;
+    EXPECT_EQ(csr::LoadAndBindXashMap(temp.root.c_str(), "missing", XASH_ENGINE_MINI_FILE), 0);
+    EXPECT_EQ(world_entity->model, &sentinel);
+    EXPECT_EQ(state->worldmodel, previous_world);
+    EXPECT_EQ(draw_calls(), 1);
+    EXPECT_EQ(r_drawworld_calls(), 0);
+    EXPECT_EQ(r_drawworld_hooked(), 0);
+
+    unsigned long window_after = 1;
+    int swaps_after = -1;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window_after, &swaps_after), 0);
+    EXPECT_EQ(window_after, 0u);
+    EXPECT_EQ(swaps_after, swaps);
+    std::vector<std::string> sockets_after;
+    ASSERT_TRUE(ReadOpenSockets(&sockets_after));
+    EXPECT_EQ(sockets_after, sockets_before);
+    EXPECT_EQ(ReadChildPids(), children_before);
+    EXPECT_FALSE(MapsContain(planted_hw));
+
+    csr::CloseXashLauncher(&session);
+    dlclose(engine);
+    EXPECT_FALSE(session.open);
 
     std::filesystem::remove(planted_hw);
     std::remove(map_path.c_str());

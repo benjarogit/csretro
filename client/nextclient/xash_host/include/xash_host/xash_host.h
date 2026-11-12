@@ -195,9 +195,13 @@ CSR_HOST_API int csr_host_pump(int wide, int tall, int frames, double delta);
  * and does not run it. Motion and button events still go to
  * csr_host_input_move and csr_host_input_button. Then the window is destroyed.
  * After a successful call the swap count is the number of frames and host
- * time has advanced by that count times delta. Returns 0 when a frame fails,
- * and still destroys the window. Does not call CVGui::RunFrame, does not
- * install a hook, and does not exec the launcher command.
+ * time has advanced by that count times delta. When a world model is bound,
+ * each successful frame calls EngineMini_DrawRendererWorld once. That draw
+ * records one primitive and does not write the color buffer. When no world
+ * model is bound, the frame stays the menu and that draw is not called.
+ * Returns 0 when a frame fails, and still destroys the window. Does not call
+ * CVGui::RunFrame, does not install or call the retail R_DrawWorld hook, and
+ * does not exec the launcher command.
  */
 CSR_HOST_API int csr_host_run(int wide, int tall, double delta);
 CSR_HOST_API void csr_host_read_host_time(double* realtime, double* frametime, double* oldrealtime);

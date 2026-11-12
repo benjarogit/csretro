@@ -86,6 +86,17 @@ using EngineMiniSprDrawAdditiveFn = void (*)(int frame, int x, int y, const gold
 // Process replacement for the retail SPR_DrawHoles hook. A null value is not a call.
 using EngineMiniSprDrawHolesFn = void (*)(int frame, int x, int y, const goldsrc::wrect_t* prc);
 
+// Process replacement for the retail SPR_DrawGeneric hook. A null value is not a call.
+using EngineMiniSprDrawGenericFn = void (*)(
+    int frame,
+    int x,
+    int y,
+    const goldsrc::wrect_t* prc,
+    int src,
+    int dest,
+    int width,
+    int height);
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -127,6 +138,7 @@ struct EngineMiniXashStartup
     int spr_draw_calls{};
     int spr_draw_additive_calls{};
     int spr_draw_holes_calls{};
+    int spr_draw_generic_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -167,6 +179,7 @@ struct EngineMiniXashStartup
     EngineMiniSprDrawFn spr_draw{};
     EngineMiniSprDrawAdditiveFn spr_draw_additive{};
     EngineMiniSprDrawHolesFn spr_draw_holes{};
+    EngineMiniSprDrawGenericFn spr_draw_generic{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -253,6 +266,9 @@ extern EngineMiniSprDrawAdditiveFn g_EngineMiniSprDrawAdditive;
 // Defaults to SPR_DrawHoles. Init stores the pointer and does not call it.
 extern EngineMiniSprDrawHolesFn g_EngineMiniSprDrawHoles;
 
+// Defaults to SPR_DrawGeneric. Init stores the pointer and does not call it.
+extern EngineMiniSprDrawGenericFn g_EngineMiniSprDrawGeneric;
+
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();
 void EngineMini_NoteHostMapCall();
@@ -277,8 +293,11 @@ extern "C" int EngineMini_RNewMapCalls(void);
 extern "C" int EngineMini_RDrawWorldHooked(void);
 // Calls of the retail R_DrawWorld wrapper. The direct world draw does not increment this.
 extern "C" int EngineMini_RDrawWorldCalls(void);
+// True when r_worldentity->model is set. Does not install or call R_DrawWorld.
+extern "C" int EngineMini_RendererWorldBound(void);
 // Walks the bound world's faces through surfedges and records one primitive.
-// Does not call the retail R_DrawWorld hook and does not open a window.
+// Does not call the retail R_DrawWorld hook, does not open a window, and does
+// not write the color buffer.
 extern "C" int EngineMini_DrawRendererWorld(void);
 extern "C" int EngineMini_WorldDrawCalls(void);
 extern "C" int EngineMini_WorldDrawVertexCount(void);

@@ -506,7 +506,12 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not draw a sprite. The process body draws
     // the current sprite with holes when a sprite is current and the point is inside
     // the video image, and can call Draw_SpriteFrameHoles, so a real call does not
-    // run. The next retail hook is SPR_DrawGeneric. This path returns before it.
+    // run.
+    // SPR_DrawGeneric is then the process function when that hook is absent.
+    // This init stores the pointer and does not draw a sprite. The process body draws
+    // the current sprite with the caller blend when a sprite is current and the point
+    // is inside the video image, and can call Draw_SpriteFrameGeneric, so a real call
+    // does not run. The next retail hook is SPR_EnableScissor. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -544,6 +549,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSprDraw();
             RecordXashSprDrawAdditive();
             RecordXashSprDrawHoles();
+            RecordXashSprDrawGeneric();
         }
         return;
     }
@@ -990,6 +996,7 @@ EngineMiniSprLoadFn g_EngineMiniSprLoad = SPR_Load;
 EngineMiniSprDrawFn g_EngineMiniSprDraw = SPR_Draw;
 EngineMiniSprDrawAdditiveFn g_EngineMiniSprDrawAdditive = SPR_DrawAdditive;
 EngineMiniSprDrawHolesFn g_EngineMiniSprDrawHoles = SPR_DrawHoles;
+EngineMiniSprDrawGenericFn g_EngineMiniSprDrawGeneric = SPR_DrawGeneric;
 
 namespace
 {
@@ -1473,6 +1480,25 @@ namespace
         g_xash_startup.spr_draw_holes = g_EngineMiniSprDrawHoles;
     }
 
+    void RecordXashSprDrawGeneric()
+    {
+        // The retail site installs a replacement. It does not draw a sprite during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body draws the current sprite with the caller blend when a sprite
+        // is current and the point is inside the video image, and can call
+        // Draw_SpriteFrameGeneric, so this path does not call it.
+        g_xash_startup.spr_draw_generic = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->SPR_DrawGeneric.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniSprDrawGeneric == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.spr_draw_generic = g_EngineMiniSprDrawGeneric;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -1772,6 +1798,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSprDraw = SPR_Draw;
     g_EngineMiniSprDrawAdditive = SPR_DrawAdditive;
     g_EngineMiniSprDrawHoles = SPR_DrawHoles;
+    g_EngineMiniSprDrawGeneric = SPR_DrawGeneric;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -1911,6 +1938,11 @@ extern "C" int EngineMini_RDrawWorldHooked(void)
 static int g_world_draw_calls = 0;
 static int g_world_draw_vertex_count = 0;
 static float g_world_draw_vertices[64 * 3]{};
+
+extern "C" int EngineMini_RendererWorldBound(void)
+{
+    return p_r_worldentity != nullptr && p_r_worldentity->model != nullptr ? 1 : 0;
+}
 
 extern "C" int EngineMini_DrawRendererWorld(void)
 {
@@ -2099,6 +2131,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             ++count;
         }
         if (g_xash_startup.spr_draw_holes != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.spr_draw_generic != nullptr)
         {
             ++count;
         }

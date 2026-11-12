@@ -461,6 +461,8 @@ namespace
         EngineMiniInterface* engine = nullptr;
         int (*check_parm)(const char*) = nullptr;
         void (*read_startup)(int*, int*, int*, int*, int*) = nullptr;
+        int (*renderer_world_bound)() = nullptr;
+        int (*draw_renderer_world)() = nullptr;
         bool nitro_ready = false;
     };
 
@@ -503,6 +505,8 @@ namespace
         g_engine_api.nitro_ready = false;
         g_engine_api.check_parm = nullptr;
         g_engine_api.read_startup = nullptr;
+        g_engine_api.renderer_world_bound = nullptr;
+        g_engine_api.draw_renderer_world = nullptr;
         g_engine_loaded = 0;
         if (g_engine_api.engine_module != nullptr)
         {
@@ -1237,7 +1241,10 @@ int csr_host_load_engine(const char* engine_path, const char* nitro_path, const 
     auto engine_create = LoadSymbol<void* (*)(const char*, int*)>(engine_module, "CreateInterface");
     auto check_parm = LoadSymbol<int (*)(const char*)>(engine_module, "EngineMini_CheckParm");
     auto read_startup = LoadSymbol<void (*)(int*, int*, int*, int*, int*)>(engine_module, "EngineMini_ReadXashStartup");
-    if (engine_create == nullptr || check_parm == nullptr || read_startup == nullptr)
+    auto renderer_world_bound = LoadSymbol<int (*)()>(engine_module, "EngineMini_RendererWorldBound");
+    auto draw_renderer_world = LoadSymbol<int (*)()>(engine_module, "EngineMini_DrawRendererWorld");
+    if (engine_create == nullptr || check_parm == nullptr || read_startup == nullptr || renderer_world_bound == nullptr ||
+        draw_renderer_world == nullptr)
     {
         dlclose(engine_module);
         NitroUninitialize(nitro);
@@ -1264,6 +1271,8 @@ int csr_host_load_engine(const char* engine_path, const char* nitro_path, const 
     g_engine_api.engine = engine;
     g_engine_api.check_parm = check_parm;
     g_engine_api.read_startup = read_startup;
+    g_engine_api.renderer_world_bound = renderer_world_bound;
+    g_engine_api.draw_renderer_world = draw_renderer_world;
     g_engine_loaded = 1;
 
     // Pointers stay in this process for COM_CheckParm. Shutdown and the fatal
@@ -1427,6 +1436,20 @@ int csr_host_pump(int wide, int tall, int frames, double delta)
     return 1;
 }
 
+static void DrawBoundRendererWorld()
+{
+    if (g_engine_api.renderer_world_bound == nullptr || g_engine_api.draw_renderer_world == nullptr)
+    {
+        return;
+    }
+    if (g_engine_api.renderer_world_bound() == 0)
+    {
+        return;
+    }
+    // Direct face walk in this process. The retail R_DrawWorld hook is not this call.
+    g_engine_api.draw_renderer_world();
+}
+
 int csr_host_run(int wide, int tall, double delta)
 {
     if (wide <= 0 || tall <= 0)
@@ -1441,6 +1464,7 @@ int csr_host_run(int wide, int tall, double delta)
             csr_host_present_shutdown();
             return 0;
         }
+        DrawBoundRendererWorld();
         // Events from this frame are still queued. The next ActivateGameUI
         // writes setpause over the recorded command, so quit is read here.
         csr_host_present_dispatch();

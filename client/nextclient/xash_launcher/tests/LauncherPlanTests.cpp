@@ -1192,6 +1192,17 @@ TEST(XashLauncher, RunKeepsTheWindowUntilQuit)
     EXPECT_EQ(filter_calls, 0);
     EXPECT_GT(stored_before, 0);
     EXPECT_EQ(nitro_hooks, 0);
+    auto world_draw_calls = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_WorldDrawCalls"));
+    auto retail_draw_calls = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_RDrawWorldCalls"));
+    auto retail_draw_hooked = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_RDrawWorldHooked"));
+    ASSERT_NE(world_draw_calls, nullptr);
+    ASSERT_NE(retail_draw_calls, nullptr);
+    ASSERT_NE(retail_draw_hooked, nullptr);
+    EXPECT_EQ(world_draw_calls(), 0);
+    ASSERT_EQ(csr::PresentXashLauncher(&session, 640, 480), 1);
+    EXPECT_EQ(world_draw_calls(), 0);
+    EXPECT_EQ(retail_draw_calls(), 0);
+    EXPECT_EQ(retail_draw_hooked(), 0);
 
     void* vgui = dlopen(XASH_VGUI_FILE, RTLD_NOW | RTLD_NOLOAD);
     ASSERT_NE(vgui, nullptr);
@@ -1338,6 +1349,9 @@ TEST(XashLauncher, RunKeepsTheWindowUntilQuit)
     EXPECT_EQ(filter_after, 0);
     EXPECT_EQ(stored_after, stored_before);
     EXPECT_EQ(nitro_after, 0);
+    EXPECT_EQ(world_draw_calls(), 0);
+    EXPECT_EQ(retail_draw_calls(), 0);
+    EXPECT_EQ(retail_draw_hooked(), 0);
     EXPECT_FALSE(MapsContain(planted_hw));
     auto steam_running = reinterpret_cast<bool (*)()>(dlsym(session.steam, "SteamAPI_IsSteamRunning"));
     ASSERT_NE(steam_running, nullptr);
@@ -2583,5 +2597,278 @@ TEST(XashLauncher, RunDrawsTheLoadedFace)
     std::remove(menu.c_str());
     rmdir((temp.root + "/cstrike/maps").c_str());
     rmdir((temp.root + "/cstrike").c_str());
+    rmdir((temp.root + "/Resource").c_str());
+}
+
+TEST(XashLauncher, RunDrawsTheBoundFaceEachFrame)
+{
+    if (!RunInFreshProcess("face-frame", "XashLauncher.RunDrawsTheBoundFaceEachFrame"))
+    {
+        return;
+    }
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/Resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/resource/schemes").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/cstrike").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/cstrike/maps").c_str(), 0755), 0);
+    const std::string menu = temp.root + "/Resource/GameMenu.res";
+    const std::string scheme = temp.root + "/resource/schemes/TrackerScheme_ClassicPlus.res";
+    const char* menu_text =
+        "\"GameMenu\"\n"
+        "{\n"
+        "\t\"1\"\n"
+        "\t{\n"
+        "\t\t\"label\" \"Quit\"\n"
+        "\t\t\"command\" \"QuitNoConfirm\"\n"
+        "\t\t\"name\" \"QuitGame\"\n"
+        "\t}\n"
+        "}\n";
+    const char* scheme_text =
+        "\"Scheme\"\n"
+        "{\n"
+        "\t\"Colors\"\n"
+        "\t{\n"
+        "\t\t\"Blank\" \"0 0 0 0\"\n"
+        "\t}\n"
+        "\t\"BaseSettings\"\n"
+        "\t{\n"
+        "\t\t\"FgColor\" \"Blank\"\n"
+        "\t}\n"
+        "}\n";
+    ASSERT_TRUE(WriteTextFile(menu, menu_text));
+    ASSERT_TRUE(WriteTextFile(scheme, scheme_text));
+    const std::string map_path = temp.root + "/cstrike/maps/fixture.bsp";
+    ASSERT_TRUE(WriteBytes(map_path, FaceBsp()));
+    const float submitted[] = {4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 1.f, 2.f, 3.f};
+
+    const std::string planted_hw = temp.root + "/hw.so";
+    std::filesystem::copy_file(XASH_HOST_FILE, planted_hw);
+    EXPECT_FALSE(MapsContain(planted_hw));
+
+    csr::LauncherProcess session;
+    ASSERT_EQ(
+        csr::OpenXashLauncher(
+            temp.root.c_str(),
+            XASH_HOST_FILE,
+            XASH_SURFACE_FILE,
+            XASH_CLIENT_FILE,
+            XASH_VGUI_FILE,
+            XASH_GAMEUI_FILE,
+            XASH_STEAM_API_FILE,
+            XASH_ENGINE_MINI_FILE,
+            XASH_NITRO_API_FILE,
+            &session),
+        1);
+    ASSERT_EQ(csr::LoadAndBindXashMap(temp.root.c_str(), "fixture", XASH_ENGINE_MINI_FILE), 1);
+
+    VirtualDisplay display;
+    std::string display_error;
+    ASSERT_TRUE(display.Start(&display_error)) << display_error;
+
+    void* engine = dlopen(XASH_ENGINE_MINI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(engine, nullptr);
+    using GuardFn = void (*)(int*, int*, int*);
+    auto guard = reinterpret_cast<GuardFn>(dlsym(engine, "EngineMini_ReadFrameGuard"));
+    auto draw_calls = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_WorldDrawCalls"));
+    auto draw_count = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_WorldDrawVertexCount"));
+    auto draw_vertices = reinterpret_cast<const float* (*)()>(dlsym(engine, "EngineMini_WorldDrawVertices"));
+    auto retail_draw_calls = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_RDrawWorldCalls"));
+    auto retail_draw_hooked = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_RDrawWorldHooked"));
+    ASSERT_NE(guard, nullptr);
+    ASSERT_NE(draw_calls, nullptr);
+    ASSERT_NE(draw_count, nullptr);
+    ASSERT_NE(draw_vertices, nullptr);
+    ASSERT_NE(retail_draw_calls, nullptr);
+    ASSERT_NE(retail_draw_hooked, nullptr);
+    EXPECT_EQ(draw_calls(), 1);
+    EXPECT_EQ(draw_count(), 3);
+    EXPECT_EQ(std::memcmp(draw_vertices(), submitted, sizeof(submitted)), 0);
+    EXPECT_EQ(retail_draw_calls(), 0);
+    EXPECT_EQ(retail_draw_hooked(), 0);
+    int filter_calls = -1;
+    int stored_before = -1;
+    int nitro_hooks = -1;
+    guard(&filter_calls, &stored_before, &nitro_hooks);
+    EXPECT_EQ(filter_calls, 0);
+    EXPECT_GT(stored_before, 0);
+    EXPECT_EQ(nitro_hooks, 0);
+
+    void* vgui = dlopen(XASH_VGUI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(vgui, nullptr);
+    auto run_frame_count = reinterpret_cast<int (*)()>(dlsym(vgui, "csr_vgui_run_frame_count"));
+    ASSERT_NE(run_frame_count, nullptr);
+    const int run_frames_before = run_frame_count();
+
+    ASSERT_EQ(csr_host_activate_gameui(), 1);
+    ASSERT_EQ(csr_host_paint_gameui(640, 480), 1);
+    auto* surface = static_cast<vgui2::ISurface*>(csr_host_create_interface("VGUI_Surface026", nullptr));
+    auto create = reinterpret_cast<void* (*)(const char*, int*)>(dlsym(vgui, "CreateInterface"));
+    ASSERT_NE(surface, nullptr);
+    ASSERT_NE(create, nullptr);
+    int code = 1;
+    auto* panels = static_cast<vgui2::IPanel*>(create("VGUI_Panel007", &code));
+    ASSERT_NE(panels, nullptr);
+    const vgui2::VPANEL item = FindPanelNamed(panels, surface->GetEmbeddedPanel(), "QuitGame");
+    ASSERT_NE(item, 0);
+    int origin_x = 0;
+    int origin_y = 0;
+    int item_wide = 0;
+    int item_tall = 0;
+    panels->GetAbsPos(item, origin_x, origin_y);
+    panels->GetSize(item, item_wide, item_tall);
+    ASSERT_GT(item_wide, 0);
+    ASSERT_GT(item_tall, 0);
+    const int click_x = origin_x + item_wide / 2;
+    const int click_y = origin_y + item_tall / 2;
+    EXPECT_EQ(draw_calls(), 1);
+
+    std::vector<std::string> sockets_before;
+    ASSERT_TRUE(ReadOpenSockets(&sockets_before));
+    const std::vector<std::string> children_before = ReadChildPids();
+    ASSERT_EQ(children_before.size(), 1u);
+    EXPECT_EQ(children_before[0], std::to_string(display.pid));
+    const int draws_before_run = draw_calls();
+
+    std::atomic<unsigned long> seen_window{0};
+    std::atomic<int> saw_viewable{0};
+    std::thread injector([&seen_window, &saw_viewable, click_x, click_y] {
+        Display* view = XOpenDisplay(nullptr);
+        if (view == nullptr)
+        {
+            return;
+        }
+        const Window root = RootWindow(view, DefaultScreen(view));
+        for (int attempt = 0; attempt < 400; ++attempt)
+        {
+            unsigned long window = 0;
+            int swaps = 0;
+            csr_host_present_query(nullptr, nullptr, &window, &swaps);
+            if (swaps >= 2 && window != 0)
+            {
+                XWindowAttributes attributes{};
+                if (XGetWindowAttributes(view, static_cast<Window>(window), &attributes) != 0 &&
+                    attributes.map_state == IsViewable)
+                {
+                    saw_viewable.store(1);
+                    seen_window.store(window);
+                    const Window target = static_cast<Window>(window);
+                    XEvent motion{};
+                    motion.xmotion.type = MotionNotify;
+                    motion.xmotion.display = view;
+                    motion.xmotion.window = target;
+                    motion.xmotion.root = root;
+                    motion.xmotion.x = click_x;
+                    motion.xmotion.y = click_y;
+                    motion.xmotion.x_root = click_x;
+                    motion.xmotion.y_root = click_y;
+                    motion.xmotion.same_screen = True;
+                    XSendEvent(view, target, False, PointerMotionMask, &motion);
+                    XEvent press{};
+                    press.xbutton.type = ButtonPress;
+                    press.xbutton.display = view;
+                    press.xbutton.window = target;
+                    press.xbutton.root = root;
+                    press.xbutton.x = click_x;
+                    press.xbutton.y = click_y;
+                    press.xbutton.x_root = click_x;
+                    press.xbutton.y_root = click_y;
+                    press.xbutton.button = Button1;
+                    press.xbutton.same_screen = True;
+                    XSendEvent(view, target, False, ButtonPressMask, &press);
+                    XEvent release{};
+                    release.xbutton.type = ButtonRelease;
+                    release.xbutton.display = view;
+                    release.xbutton.window = target;
+                    release.xbutton.root = root;
+                    release.xbutton.x = click_x;
+                    release.xbutton.y = click_y;
+                    release.xbutton.x_root = click_x;
+                    release.xbutton.y_root = click_y;
+                    release.xbutton.button = Button1;
+                    release.xbutton.same_screen = True;
+                    XSendEvent(view, target, False, ButtonReleaseMask, &release);
+                    XFlush(view);
+                    break;
+                }
+            }
+            timespec delay{};
+            delay.tv_nsec = 5 * 1000 * 1000;
+            nanosleep(&delay, nullptr);
+        }
+        XCloseDisplay(view);
+    });
+
+    constexpr double kDelta = 0.125;
+    ASSERT_EQ(csr_host_run(640, 480, kDelta), 1) << csr_host_present_error();
+    injector.join();
+    ASSERT_EQ(saw_viewable.load(), 1);
+    ASSERT_NE(seen_window.load(), 0u);
+    EXPECT_STREQ(csr_host_last_client_command(), "quit\n");
+
+    unsigned long window = 1;
+    int swaps = 0;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window, &swaps), 0);
+    EXPECT_EQ(window, 0u);
+    EXPECT_GE(swaps, 2);
+    const int frame_draws = draw_calls() - draws_before_run;
+    EXPECT_EQ(frame_draws, swaps);
+    EXPECT_EQ(draw_count(), 3);
+    ASSERT_NE(draw_vertices(), nullptr);
+    EXPECT_EQ(std::memcmp(draw_vertices(), submitted, sizeof(submitted)), 0);
+
+    int filter_after = -1;
+    int stored_after = -1;
+    int nitro_after = -1;
+    guard(&filter_after, &stored_after, &nitro_after);
+    EXPECT_EQ(filter_after, 0);
+    EXPECT_EQ(stored_after, stored_before);
+    EXPECT_EQ(nitro_after, 0);
+    EXPECT_EQ(retail_draw_calls(), 0);
+    EXPECT_EQ(retail_draw_hooked(), 0);
+    EXPECT_EQ(run_frame_count(), run_frames_before);
+    EXPECT_FALSE(MapsContain(planted_hw));
+    auto steam_running = reinterpret_cast<bool (*)()>(dlsym(session.steam, "SteamAPI_IsSteamRunning"));
+    ASSERT_NE(steam_running, nullptr);
+    EXPECT_FALSE(steam_running());
+    EXPECT_EQ(ReadChildPids(), children_before);
+
+    std::vector<std::string> sockets_after;
+    ASSERT_TRUE(ReadOpenSockets(&sockets_after));
+    std::vector<std::string> added;
+    std::set_difference(
+        sockets_after.begin(),
+        sockets_after.end(),
+        sockets_before.begin(),
+        sockets_before.end(),
+        std::back_inserter(added));
+    EXPECT_TRUE(added.empty());
+
+    Display* view = XOpenDisplay(nullptr);
+    ASSERT_NE(view, nullptr);
+    g_fixture_x_error = 0;
+    XErrorHandler previous = XSetErrorHandler(OnFixtureXError);
+    XWindowAttributes gone{};
+    const int attributes = XGetWindowAttributes(view, static_cast<Window>(seen_window.load()), &gone);
+    XSync(view, False);
+    XSetErrorHandler(previous);
+    EXPECT_EQ(attributes, 0);
+    EXPECT_EQ(g_fixture_x_error, BadWindow);
+    XCloseDisplay(view);
+
+    csr::CloseXashLauncher(&session);
+    dlclose(vgui);
+    dlclose(engine);
+    EXPECT_FALSE(session.open);
+    std::filesystem::remove(planted_hw);
+    std::remove(map_path.c_str());
+    std::remove(menu.c_str());
+    std::remove(scheme.c_str());
+    rmdir((temp.root + "/cstrike/maps").c_str());
+    rmdir((temp.root + "/cstrike").c_str());
+    rmdir((temp.root + "/resource/schemes").c_str());
+    rmdir((temp.root + "/resource").c_str());
     rmdir((temp.root + "/Resource").c_str());
 }

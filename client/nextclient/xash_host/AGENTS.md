@@ -72,11 +72,15 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   recorded client command is `quit`. `QuitNoConfirm` records the command
   through `pfnClientCmd` and does not run it. Motion and button events still
   go to `csr_host_input_move` and `csr_host_input_button`. The call then
-  destroys the window. `RunXashLauncher` opens the host the way
-  `OpenXashLauncher` does and then calls this loop. The launcher executable
-  `main` calls `RunXashLauncher` and does not load a map.
-  `PresentXashLauncher` paints one frame and returns. It does not call this loop.
-  `CVGui::RunFrame` is not called. No retail hook is added.
+  destroys the window. When a world model is bound, each successful frame
+  calls `EngineMini_DrawRendererWorld` once. That draw records one primitive
+  and does not write the color buffer, so the swapped window stays the menu.
+  When no world model is bound, the frame stays the menu and that draw is
+  not called. `RunXashLauncher` opens the host the way `OpenXashLauncher`
+  does and then calls this loop. The launcher executable `main` calls
+  `RunXashLauncher` and does not load a map. `PresentXashLauncher` paints
+  one frame and returns. It does not call this loop. `CVGui::RunFrame` is
+  not called. The retail `R_DrawWorld` hook is not installed and not called.
 - Our `vgui2` exports `csr_vgui_dispatch_messages` through
   `patches/sdk/0001-export-vgui-dispatch.patch`. The SDK submodule pin does
   not move. Retail `vgui2` keeps `DispatchMessages` local, so the host takes

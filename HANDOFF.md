@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `8f15927` (`OnGameInitializing` reads a process engine table and does not call `Sys_Error`; `hw.so` stays unmapped)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43195855883 – success (`8f15927`)
+- **Commit:** `235274a` (`OnGameInitializing` stores a process engine table, then `Con_Init` runs; a null filesystem is not a call; `hw.so` stays unmapped)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43196946044 – success (`235274a`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -346,7 +346,7 @@ implementation; the plan is the only source for the gate list.
   process; original maps, models, sounds and `valve/resource` stay required.
   Product process is x86_64 (plan section 3.7). The Linux client preset is
   `linux` with the vcpkg triplet `x64-linux`. There is no second 32-bit client
-  preset. `engine_mini-tests` (`XashStartup` 3/3; earlier full run 555 before those three), `nitro_api-tests` (70),
+  preset. `engine_mini-tests` (`XashStartup` 4/4; full run 559), `nitro_api-tests` (70),
   `xash_surface-tests` (21), `xash_host-tests` (20), `xash_engine-tests` (6),
   `sdk_pair-tests` (4), `player_identity-tests` (6), `steam_api-tests` (2) and
   `xash_launcher-tests` (4)
@@ -356,7 +356,7 @@ implementation; the plan is the only source for the gate list.
   or `vgui2.so`. Product identity is `xash`. `NitroApi::Initialize` does not
   open, hash, or hook `hw.so`. `nitro_api-tests` 70/70, including
   `XashIdentity.InitializeDoesNotOpenOrHashTheRetailEngine`. `engine_mini-tests`
-  filter `XashStartup` is 3/3. Missing engine addresses are not hooks and are not called.
+  filter `XashStartup` is 4/4. Full `engine_mini-tests` is 559/559. Missing engine addresses are not hooks and are not called.
   `xash_engine` forwards `vgui2_surface`, texture reset and text color to that
   one surface. `VGUI2_Draw_Init` has no entry there. The same library takes
   `csr_xash_engine_argv`, `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
@@ -364,6 +364,8 @@ implementation; the plan is the only source for the gate list.
   binds each one only when that retail hook is absent, and records that the
   engine is Xash. `COM_InitArgv` runs. Mode and init run. `OnGameInitializing`
   reads a pointer table from this process and does not call `Sys_Error`.
+  `Con_Init` then runs. It reads `-condebug` through `COM_CheckParm` and does
+  not call a null filesystem. The retail hook chain does not run.
   Shutdown and the fatal error stay uncalled on that path. A null function
   is not a call. The call does not open `hw.so` and does not call `RunFrame`.
   The other `engine_mini` forwards still call the retail hook, which stays
@@ -468,8 +470,9 @@ the Security overview switches in the browser.
   `csr_xash_engine_init_game`, `csr_xash_engine_shutdown` and
   `csr_xash_engine_error`. `engine_mini` binds those when the retail hook is
   absent. `COM_InitArgv` runs. `OnGameInitializing` reads a pointer table from
-  this process and does not call `Sys_Error`. The retail hook chain and
-  `Con_Init` do not run.
+  this process and does not call `Sys_Error`. `Con_Init` then runs. It reads
+  `-condebug` through `COM_CheckParm` and does not call a null filesystem.
+  The retail hook chain does not run.
   `client_mini` and `vgui2` are the matched ELF64 pair and link the host runtime.
   `xash_host` loads that pair. It does not start the game.
   `gameui` is the ELF64 library from the same SDK. The host opens it after the
@@ -493,8 +496,8 @@ the Security overview switches in the browser.
   Next: that open now loads `engine_mini` and calls argv, mode and init_game.
   It still does not exec Xash3D or call `RunFrame`. The game still does not
   start. `OnGameInitializing` reads a pointer table from this process, not
-  from `hw.so`, and does not call `Sys_Error`. The retail hook chain, `Con_Init`
-  and a real Xash frame still do not run.
+  from `hw.so`, and does not call `Sys_Error`. `Con_Init` then runs. The
+  retail hook chain and a real Xash frame still do not run.
   `csr_host_load_pair` binds `VGUI_InputInternal001` (cursor/press/release +
   one dispatch). Paint associates the embedded root with the default input
   context. `HostFactory.GameMenuClickSendsTheCommandWithoutRunFrame` passes:
@@ -516,12 +519,16 @@ the Security overview switches in the browser.
   VGUI alpha 0 = opaque (engine 255 = opaque).
 - **Then:** the client still does not start and play. `OnGameInitializing`
   returns on a pointer table in this process and does not call `Sys_Error`.
-  The host loads `next_engine_mini.dll` and `nitro_api2.dll` after
+  `Con_Init` then runs: `con_initialized` is set, `-condebug` is read through
+  `COM_CheckParm`, and a null filesystem is not a call, so `qconsole.log`
+  stays. The host loads `next_engine_mini.dll` and `nitro_api2.dll` after
   `IGameUI::Start` and calls argv, mode and init_game. `COM_InitArgv` runs.
   A successful open does not call shutdown or the fatal error. The open does
-  not exec Xash3D and does not call `RunFrame`. `Con_Init`, the retail hook
-  chain and a real frame loop still have no Xash entry. The command is not
-  executed.
+  not exec Xash3D and does not call `RunFrame`. The next call in that
+  function is `SetCStrikeFlags`, which needs `g_engfuncs.pfnGetGameDir`.
+  That pointer stays null, so the retail hook chain still has no Xash entry.
+  A real GL/Xash frame and `CVGui::RunFrame` are still missing. The planned
+  command is not executed. The game was not started.
 - **After the decision:** schedule the server performance backlog above
   (measurement first, then hookchain/native/per-frame work). It needs a plan gate
   entry.
@@ -559,6 +566,40 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Console init on the process path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ engine_mini-tests --gtest_filter=XashStartup.*
+4/4 passed
+AbsentHooksRecordTheSequenceAndInitArgv
+NullBindingIsNotACall
+ConInitReadsCondebugAndLeavesTheLog
+WiredCallDoesNotOpenHwSo
+
+$ engine_mini-tests
+559/559 passed
+
+$ xash_host-tests
+20/20 passed
+
+$ xash_launcher-tests
+4/4 passed
+```
+
+`OnGameInitializing` stores a pointer table in this process and then calls
+`Con_Init`. `con_initialized` becomes true. Without `-condebug`,
+`con_debuglog` stays false. With `-condebug`, `COM_CheckParm` is non-zero and
+a planted `qconsole.log` stays, because `g_pFileSystem` is null and that
+pointer is not a call. `SetCStrikeFlags` does not run.
+`initializing_calls` is 1. Shutdown and the fatal error stay 0 until the
+test calls them. A planted `hw.so` is not mapped. `Sys_Error` is not called.
+`RunFrame` is not called. Steam is not started. The planned command is not
+executed. The game was not started.
+
+CI: https://github.com/benjarogit/csretro/actions/runs/43196946044 success (`235274a`).
+
+`scripts/verify.sh`: 68 checks passed.
 
 Process engine table (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

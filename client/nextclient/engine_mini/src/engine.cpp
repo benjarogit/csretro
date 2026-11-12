@@ -385,6 +385,7 @@ namespace
     void RecordXashSvcSendCvarValue();
     void RecordXashHttpUpdate();
     void RecordXashHttpStop();
+    void RecordXashStartResourceDownloading();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -404,7 +405,9 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not update HTTP.
     // CL_HTTPStop_f is then the process function when that hook is absent.
     // This init stores the pointer and does not stop a download.
-    // The remaining retail hooks stay after this return.
+    // CL_StartResourceDownloading is then the process function when that hook
+    // is absent. This init stores the pointer and does not start a download.
+    // The next retail hook is CL_ReadPackets. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -420,6 +423,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSvcSendCvarValue();
             RecordXashHttpUpdate();
             RecordXashHttpStop();
+            RecordXashStartResourceDownloading();
         }
         return;
     }
@@ -844,6 +848,7 @@ EngineMiniSvcTimeScaleFn g_EngineMiniSvcTimeScale = CL_Parse_Timescale;
 EngineMiniSvcSendCvarValueFn g_EngineMiniSvcSendCvarValue = CL_Send_CvarValue;
 EngineMiniHttpUpdateFn g_EngineMiniHttpUpdate = CL_HTTPUpdate;
 EngineMiniHttpStopFn g_EngineMiniHttpStop = CL_HTTPStop_f;
+EngineMiniStartResourceDownloadingFn g_EngineMiniStartResourceDownloading = CL_StartResourceDownloading;
 
 namespace
 {
@@ -945,6 +950,22 @@ namespace
             return;
         }
         g_xash_startup.http_stop = g_EngineMiniHttpStop;
+    }
+
+    void RecordXashStartResourceDownloading()
+    {
+        // The retail site installs a replacement. It does not start a download during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        g_xash_startup.start_resource = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->CL_StartResourceDownloading.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniStartResourceDownloading == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.start_resource = g_EngineMiniStartResourceDownloading;
     }
 
     bool XashStartupIsActive()
@@ -1206,6 +1227,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSvcSendCvarValue = CL_Send_CvarValue;
     g_EngineMiniHttpUpdate = CL_HTTPUpdate;
     g_EngineMiniHttpStop = CL_HTTPStop_f;
+    g_EngineMiniStartResourceDownloading = CL_StartResourceDownloading;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

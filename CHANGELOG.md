@@ -62,8 +62,12 @@ The authoritative version string is the `VERSION` file.
   not a call. A null hook is not a call. `CL_HTTPStop_f` is then the function
   in this process when that retail hook is absent. Init stores the pointer
   and does not call it, so no download is stopped and no socket is opened. A
-  null pointer is not a call. A null hook is not a call. The next retail hook
-  is `CL_StartResourceDownloading`. This path returns before it.
+  null pointer is not a call. A null hook is not a call.
+  `CL_StartResourceDownloading` is then the function in this process when
+  that retail hook is absent. Init stores the pointer and does not call it,
+  so no download is started and no socket is opened. A null pointer is not a
+  call. A null hook is not a call. The next retail hook is `CL_ReadPackets`.
+  This path returns before it.
   `OnGameInitialized` is not entered. The retail hook chain
   does not run. `hw.so` stays
   unmapped. The game is not started.

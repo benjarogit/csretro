@@ -53,8 +53,12 @@ Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
 `CL_HTTPStop_f` ist danach die Funktion in diesem Prozess, wenn dieser
 Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
 daher wird kein Download gestoppt und kein Socket geöffnet. Ein
-Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-Retail-Hook ist `CL_StartResourceDownloading`. Dieser Pfad kehrt davor zurück.
+Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+`CL_StartResourceDownloading` ist danach die Funktion in diesem Prozess,
+wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn
+nicht auf, daher wird kein Download gestartet und kein Socket geöffnet.
+Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
+Retail-Hook ist `CL_ReadPackets`. Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten.
 Die Retail-Hook-Kette läuft dabei nicht. `hw.so` wird nicht geöffnet. `RunFrame` wird
 nicht gerufen. Die übrigen `engine_mini`-Weiterleitungen bleiben am

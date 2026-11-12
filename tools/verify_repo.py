@@ -236,6 +236,10 @@ def check_links(report: Report, files: list[str]) -> None:
     for rel in files:
         if not rel.endswith(".md"):
             continue
+        # Upstream snapshots keep their own documents. A broken wiki link or a
+        # typo in a vendored changelog is not a CSRETRO docs defect.
+        if rel.startswith("server/vendor/"):
+            continue
         path = ROOT / rel
         if not path.is_file():
             continue

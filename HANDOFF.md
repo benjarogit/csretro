@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `5f44be1` (Xash startup sequence recorded through `xash_engine`; `hw.so` stays closed)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43187709740 – success (`5f44be1`)
+- **Commit:** `f0c07f4` (host loads `engine_mini` and calls argv, mode and init_game; `hw.so` stays closed)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43191564494 – success (`f0c07f4`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -344,9 +344,9 @@ implementation; the plan is the only source for the gate list.
   Product process is x86_64 (plan section 3.7). The Linux client preset is
   `linux` with the vcpkg triplet `x64-linux`. There is no second 32-bit client
   preset. `engine_mini-tests` (`XashStartup` 3/3; earlier full run 555 before those three), `nitro_api-tests` (70),
-  `xash_surface-tests` (21), `xash_host-tests` (17), `xash_engine-tests` (6),
+  `xash_surface-tests` (21), `xash_host-tests` (20), `xash_engine-tests` (6),
   `sdk_pair-tests` (4), `player_identity-tests` (6), `steam_api-tests` (2) and
-  `xash_launcher-tests` (3)
+  `xash_launcher-tests` (4)
   pass as ELF64 binaries
   and do not load Valve's
   i386 `hw.so`, `client.so`
@@ -363,7 +363,11 @@ implementation; the plan is the only source for the gate list.
   error are recorded. `OnGameInitializing` is not entered. A null function
   is not a call. The call does not open `hw.so` and does not call `RunFrame`.
   The other `engine_mini` forwards still call the retail hook, which stays
-  unset. The host does not call this sequence yet. `client_mini` and
+  unset. After `IGameUI::Start` the host loads `next_engine_mini.dll` and
+  `nitro_api2.dll`, calls `EngineMini::Init`, then argv, mode and init_game.
+  A missing library or export fails that load and is not called. A successful
+  open does not call shutdown or the fatal error; both stay bound.
+  `client_mini` and
   `vgui2` now build from that SDK as ELF64 and link the host runtime.
   `xash_host` opens that pair after the surface factory. A missing library is
   not called. The host does not start the game. `gameui` now builds from the
@@ -469,13 +473,15 @@ the Security overview switches in the browser.
   The Xash launcher plans one command and the same process opens that list.
   It does not execute the command or call `RunFrame`. A missing content root
   is a failure. `nextclient.sh` stays the GoldSrc starter.
-  Next: that open host still does not exec Xash3D or call `RunFrame`.
-  The game still does not start.
+  Next: that open now loads `engine_mini` and calls argv, mode and init_game.
+  It still does not exec Xash3D or call `RunFrame`. The game still does not
+  start. `OnGameInitializing` still needs an engine table that is not retail
+  `hw.so`.
   `csr_host_load_pair` binds `VGUI_InputInternal001` (cursor/press/release +
   one dispatch). Paint associates the embedded root with the default input
   context. `HostFactory.GameMenuClickSendsTheCommandWithoutRunFrame` passes:
   a laid-out `QuitGame` item is under the cursor and `QuitNoConfirm` records
-  `quit` without running it. `xash_host-tests` HostFactory 19/19. `RunFrame`
+  `quit` without running it. `xash_host-tests` HostFactory 20/20. `RunFrame`
   stays unused. The HL1 SDK source is the tracked tree
   `client/dep/ncl-hl1-source-sdk/`, including the LP64 edits. The rollup
   patch is gone. This tree is not a submodule. The upstream base in
@@ -490,12 +496,13 @@ the Security overview switches in the browser.
   promotes `repaint` only when `+0x30` (NEEDS_REPAINT) is set and `allowForce`
   is true; `surface()->PushMakeCurrent`/`PopMakeCurrent` bracket every paint;
   VGUI alpha 0 = opaque (engine 255 = opaque).
-- **Then:** the open host still does not load `engine_mini`, does not call
-  `csr_xash_engine_argv`, `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
-  `csr_xash_engine_shutdown` or `csr_xash_engine_error`, does not exec Xash3D
-  and does not call `RunFrame`. `OnGameInitializing` still needs the retail
-  pointer table. The other `engine_mini` forwards still have no Xash entry.
-  The command is not executed. The client does not start and play.
+- **Then:** the client still does not start and play. `OnGameInitializing`
+  still needs an engine table that is not retail `hw.so`. The host now loads
+  `next_engine_mini.dll` and `nitro_api2.dll` after `IGameUI::Start` and calls
+  argv, mode and init_game. `COM_InitArgv` runs. A successful open does not
+  call shutdown or the fatal error. The open does not exec Xash3D and does
+  not call `RunFrame`. The other `engine_mini` forwards still have no Xash
+  entry. The command is not executed.
 - **After the decision:** schedule the server performance backlog above
   (measurement first, then hookchain/native/per-frame work). It needs a plan gate
   entry.
@@ -533,6 +540,35 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Host calls the Xash startup entries (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ xash_launcher-tests
+4/4 passed
+OpenLoadsThePlanAndDoesNotCallRunFrame
+PresentPaintsTheMenuWithoutRunFrame
+
+$ xash_host-tests
+20/20 passed
+HostFactory.GameMenuClickSendsTheCommandWithoutRunFrame
+HostFactory.EngineStartupRunsArgvWithoutHwSo
+
+$ xash_engine-tests
+6/6 passed
+
+$ engine_mini-tests --gtest_filter=XashStartup.*
+3/3 passed
+```
+
+`OpenXashLauncher` calls `csr_host_load_engine` after `csr_host_start_gameui`.
+That loads `next_engine_mini.dll` and `nitro_api2.dll`, calls
+`EngineMini::Init`, then argv, mode and init_game. `EngineMini_CheckParm("-console")`
+is non-zero, so `COM_InitArgv` ran. The successful open records calls 1/1/1
+and leaves shutdown and the fatal error at 0. The same test then calls those
+two entries and reads 1 and 1 back. A planted `hw.so` is not mapped.
+`SteamAPI_IsSteamRunning` stays false. `RunFrame` is not called.
+`OnGameInitializing` is not entered. The client does not start and play.
 
 Xash startup entry (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

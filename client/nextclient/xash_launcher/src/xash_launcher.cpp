@@ -124,7 +124,8 @@ int OpenXashLauncher(
 
     // The host is this process. The planned command is not executed.
     if (csr_host_open(surface_path) == 0 || csr_host_load_pair(client_path, vgui_path) == 0 ||
-        csr_host_load_gameui(gameui_path) == 0 || csr_host_mount_filesystem(content_root) == 0)
+        csr_host_load_gameui(gameui_path) == 0 || csr_host_mount_filesystem(content_root) == 0 ||
+        csr_host_connect_vgui() == 0)
     {
         csr_host_close();
         return 0;

@@ -276,6 +276,7 @@ TEST_F(HostFactory, FilesystemServesOnlyTheMountedRoot)
 
     ASSERT_EQ(csr_host_mount_filesystem(temp.root.c_str()), 1);
     EXPECT_EQ(csr_host_filesystem_mounted(), 1);
+    EXPECT_EQ(csr_host_vgui_connected(), 0);
 
     csr_host_factories_t factories{};
     ASSERT_EQ(csr_host_factory_list(nullptr, 0, &factories), 1);
@@ -359,4 +360,23 @@ TEST_F(HostFactory, TextureFileReadsUncompressedTgaFromTheRoot)
     EXPECT_EQ(tall, 0);
 
     std::remove(path.c_str());
+}
+
+TEST_F(HostFactory, ConnectsTheSurfaceIntoVguiWithoutRunFrame)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    EXPECT_EQ(csr_host_connect_vgui(), 0);
+
+    ASSERT_EQ(csr_host_load_pair(XASH_CLIENT_FILE, XASH_VGUI_FILE), 1);
+    EXPECT_EQ(csr_host_connect_vgui(), 0);
+    EXPECT_EQ(csr_host_vgui_connected(), 0);
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(csr_host_mount_filesystem(temp.root.c_str()), 1);
+    ASSERT_EQ(csr_host_connect_vgui(), 1);
+    EXPECT_EQ(csr_host_vgui_connected(), 1);
+    EXPECT_EQ(csr_host_connect_vgui(), 1);
+    EXPECT_NE(csr_host_vgui_dispatch(), nullptr);
+    EXPECT_NE(csr_host_create_interface("VGUI_Surface026", nullptr), nullptr);
 }

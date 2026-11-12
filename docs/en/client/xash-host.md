@@ -7,7 +7,9 @@ spike tool.
 
 The first list entry answers only `VGUI_Surface026`. Once a root is mounted,
 `VFileSystem009` follows on that same list. The proxy reads only files under
-that root. A missing file or a path outside the root is a miss. Later
+that root. A missing file or a path outside the root is a miss. After the
+pair is loaded and the root is mounted, `IVGui::Init` takes this list.
+`vgui2` then holds the one surface. `RunFrame` is not that call. Later
 factories are not asked for the surface name.
 
 Mouse move, press and release go to the three input calls and then to exactly

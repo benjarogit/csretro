@@ -12,7 +12,7 @@ Voraussetzung und liegen nicht im Repository.
 
 Derselbe Prozess öffnet diese Liste über den Host: die eine Surface, dann
 `client_mini` und `vgui2`, dann `gameui`, dann die Dateisystem-Wurzel, dann
-`libsteam_api.so`. `SteamAPI_IsSteamRunning` bleibt falsch. Der geplante
+`IVGui::Init` auf dieser Liste, dann `libsteam_api.so`. `SteamAPI_IsSteamRunning` bleibt falsch. Der geplante
 Befehl wird nicht ausgeführt. Der Launcher startet das Spiel nicht, führt
 Xash3D nicht aus, ruft `RunFrame` nicht auf und startet Steam nicht. Ein
 fehlgeschlagenes Öffnen lässt den Host geschlossen.

@@ -17,6 +17,9 @@ target_include_directories(xash_host
             "${NEXTCLIENT_ROOT}/dep/ncl-hl1-source-sdk/public/tier1")
 
 target_link_libraries(xash_host PRIVATE xash::engine ${CMAKE_DL_LIBS})
+if (UNIX AND NOT APPLE)
+    target_compile_definitions(xash_host PRIVATE GNUC POSIX LINUX _LINUX)
+endif ()
 
 set_target_properties(xash_host PROPERTIES
         PREFIX ""

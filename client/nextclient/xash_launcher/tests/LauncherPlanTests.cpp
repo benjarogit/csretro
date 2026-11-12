@@ -92,6 +92,7 @@ TEST(XashLauncher, OpenLoadsThePlanAndDoesNotCallRunFrame)
     EXPECT_EQ(csr_host_pair_loaded(), 1);
     EXPECT_EQ(csr_host_gameui_loaded(), 1);
     EXPECT_EQ(csr_host_filesystem_mounted(), 1);
+    EXPECT_EQ(csr_host_vgui_connected(), 1);
     EXPECT_NE(csr_host_vgui_dispatch(), nullptr);
     EXPECT_NE(csr_host_gameui(), nullptr);
 

@@ -36,8 +36,9 @@ The authoritative version string is the `VERSION` file.
   one root is mounted. A missing file is a miss. `DrawSetTextureFile` reads
   an uncompressed TGA from that root. A missing or compressed file is not a
   texture. A cursor bound to that texture is drawn at the end of
-  `PaintTraverse`. `RunFrame` does not draw it. The proxy does not open
-  `hw.so` and does not start the game.
+  `PaintTraverse`. `RunFrame` does not draw it. After the root is mounted,
+  `IVGui::Init` gives `vgui2` that surface. `RunFrame` is not that call.
+  The proxy does not open `hw.so` and does not start the game.
 - `xash_host` opens `gameui` after the one surface factory and reads
   `GameUI007` and `GameConsole003`. It does not call into the game UI.
 - `gameui` builds as ELF64 from the same SDK revision and links the host

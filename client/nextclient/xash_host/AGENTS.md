@@ -17,6 +17,9 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   the surface and installs that root as the surface file reader.
   `DrawSetTextureFile` loads an uncompressed TGA from it. A missing file or
   a path outside that root is a miss. The proxy does not open `hw.so`.
+- `csr_host_connect_vgui` calls `IVGui::Init` after the pair and the mount.
+  `vgui2` takes the one surface, `VFileSystem009` and `VGUI_Localize003`.
+  A missing piece returns 0 and is not called. `RunFrame` stays unused.
 - Extra factories follow those entries. The surface name is not forwarded to them.
 - `csr_host_bind_input` forwards cursor, press and release, then one dispatch.
   `CVGui::RunFrame` is not called. `SurfaceSetCursorPos` does not dispatch.

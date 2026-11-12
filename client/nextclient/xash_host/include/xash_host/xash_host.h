@@ -78,6 +78,15 @@ CSR_HOST_API void* csr_host_game_console(void);
 CSR_HOST_API int csr_host_mount_filesystem(const char* root);
 CSR_HOST_API int csr_host_filesystem_mounted(void);
 
+/*
+ * Calls IVGui::Init with this factory list after the pair is loaded and a
+ * root is mounted. vgui2 then takes VGUI_Surface026, VFileSystem009 and
+ * VGUI_Localize003. Returns 0 when one of those is missing and does not call
+ * a null pointer. Does not call RunFrame and does not start the game.
+ */
+CSR_HOST_API int csr_host_connect_vgui(void);
+CSR_HOST_API int csr_host_vgui_connected(void);
+
 /* list[0] answers VGUI_Surface026. A mounted filesystem follows it, then extras. */
 CSR_HOST_API int csr_host_factory_list(csr_host_factory_fn* extra, int extra_count, csr_host_factories_t* out);
 CSR_HOST_API void* csr_host_create_interface(const char* name, int* code);

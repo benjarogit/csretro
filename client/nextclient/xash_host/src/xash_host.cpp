@@ -4,6 +4,8 @@
 #include "xash_surface/xash_surface.h"
 #include "xash_engine/xash_engine.h"
 
+#include <vgui/IVGui.h>
+
 #include <dlfcn.h>
 
 #include <cstring>
@@ -35,11 +37,13 @@ namespace
     {
         void* client = nullptr;
         void* vgui = nullptr;
+        void* (*create)(const char*, int*) = nullptr;
         void (*dispatch)() = nullptr;
         void* scheme = nullptr;
     };
 
     PairApi g_pair;
+    int g_vgui_connected = 0;
 
     struct GameUiApi
     {
@@ -65,6 +69,8 @@ namespace
     {
         g_pair.dispatch = nullptr;
         g_pair.scheme = nullptr;
+        g_pair.create = nullptr;
+        g_vgui_connected = 0;
         if (g_pair.vgui != nullptr)
         {
             dlclose(g_pair.vgui);
@@ -223,6 +229,7 @@ int csr_host_load_pair(const char* client_path, const char* vgui_path)
 
     g_pair.client = client;
     g_pair.vgui = vgui;
+    g_pair.create = create;
     g_pair.dispatch = dispatch;
     g_pair.scheme = scheme;
     return 1;
@@ -314,6 +321,50 @@ int csr_host_mount_filesystem(const char* root)
     }
     RebuildList();
     return 1;
+}
+
+int csr_host_connect_vgui(void)
+{
+    if (g_vgui_connected != 0)
+    {
+        return 1;
+    }
+    if (g_pair.create == nullptr || g_surface.create_interface == nullptr || csr_host_filesystem_mounted() == 0)
+    {
+        return 0;
+    }
+
+    int code = 1;
+    if (g_surface.create_interface("VGUI_Surface026", &code) == nullptr ||
+        csr_host_filesystem_factory("VFileSystem009", &code) == nullptr ||
+        g_pair.create("VGUI_Localize003", &code) == nullptr)
+    {
+        return 0;
+    }
+
+    auto* ivgui = static_cast<vgui2::IVGui*>(g_pair.create("VGUI_ivgui006", &code));
+    if (ivgui == nullptr)
+    {
+        return 0;
+    }
+
+    // Init stores the surface, the filesystem and localize. RunFrame is not this call.
+    CreateInterfaceFn list[3] = {
+        reinterpret_cast<CreateInterfaceFn>(g_surface.create_interface),
+        reinterpret_cast<CreateInterfaceFn>(csr_host_filesystem_factory),
+        reinterpret_cast<CreateInterfaceFn>(g_pair.create),
+    };
+    if (!ivgui->Init(list, 3))
+    {
+        return 0;
+    }
+    g_vgui_connected = 1;
+    return 1;
+}
+
+int csr_host_vgui_connected(void)
+{
+    return g_vgui_connected;
 }
 
 void csr_host_close(void)

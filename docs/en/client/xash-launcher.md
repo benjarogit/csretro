@@ -12,7 +12,8 @@ not in the repository.
 
 The same process opens that list through the host: the one surface, then
 `client_mini` and `vgui2`, then `gameui`, then the filesystem root, then
-`libsteam_api.so`. `SteamAPI_IsSteamRunning` stays false. The planned command
+`IVGui::Init` on that list, then `libsteam_api.so`. `SteamAPI_IsSteamRunning`
+stays false. The planned command
 is not executed. The launcher does not start the game, does not exec Xash3D,
 does not call `RunFrame` and does not start Steam. A failed open leaves the
 host closed.

@@ -30,8 +30,9 @@ does not add a second factory.
 
 The same factory list answers `VFileSystem009` after the host mounts one root.
 The surface stays the first entry. The proxy reads only files under that root.
-A missing file is a miss. It does not open `hw.so`. The host does not start
-the game.
+A missing file is a miss. It does not open `hw.so`. After that mount,
+`IVGui::Init` takes this list so `vgui2` holds the one surface. `RunFrame`
+is not that call. The host does not start the game.
 
 The one `libsteam_api.so` is the ELF64 host library. It does not load Valve's
 i386 library and it does not start Steam. When Steam is not already logged in

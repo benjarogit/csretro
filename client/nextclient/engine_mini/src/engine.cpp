@@ -403,6 +403,7 @@ namespace
     void RecordXashSprInit();
     void RecordXashSprShutdown();
     void RecordXashSprShutdownNoModelFree();
+    void RecordXashSprLoad();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -483,8 +484,12 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // SPR_Shutdown_NoModelFree is then the process function when that hook is absent.
     // This init stores the pointer and does not free the sprite list or the sprite names.
     // The process body frees that list and those names when the list is allocated and
-    // does not unload sprite textures, so a real call does not run. The next retail hook is
-    // SPR_Load. This path returns before it.
+    // does not unload sprite textures, so a real call does not run.
+    // SPR_Load is then the process function when that hook is absent.
+    // This init stores the pointer and does not load a sprite or allocate a sprite name.
+    // The process body loads a named sprite when the list is allocated, can allocate a
+    // sprite name, can call Mod_ForName, and can Sys_Error when the list is full, so a
+    // real call does not run. The next retail hook is SPR_Draw. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -518,6 +523,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSprInit();
             RecordXashSprShutdown();
             RecordXashSprShutdownNoModelFree();
+            RecordXashSprLoad();
         }
         return;
     }
@@ -960,6 +966,7 @@ EngineMiniModExtradataFn g_EngineMiniModExtradata = Mod_Extradata;
 EngineMiniSprInitFn g_EngineMiniSprInit = SPR_Init;
 EngineMiniSprShutdownFn g_EngineMiniSprShutdown = SPR_Shutdown;
 EngineMiniSprShutdownNoModelFreeFn g_EngineMiniSprShutdownNoModelFree = SPR_Shutdown_NoModelFree;
+EngineMiniSprLoadFn g_EngineMiniSprLoad = SPR_Load;
 
 namespace
 {
@@ -1367,6 +1374,25 @@ namespace
         g_xash_startup.spr_shutdown_nomodelfree = g_EngineMiniSprShutdownNoModelFree;
     }
 
+    void RecordXashSprLoad()
+    {
+        // The retail site installs a replacement. It does not load a sprite during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body loads a named sprite when the list is allocated, can allocate a
+        // name, can call Mod_ForName, and can Sys_Error when the list is full, so this path
+        // does not call it.
+        g_xash_startup.spr_load = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->SPR_Load.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniSprLoad == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.spr_load = g_EngineMiniSprLoad;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -1662,6 +1688,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSprInit = SPR_Init;
     g_EngineMiniSprShutdown = SPR_Shutdown;
     g_EngineMiniSprShutdownNoModelFree = SPR_Shutdown_NoModelFree;
+    g_EngineMiniSprLoad = SPR_Load;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -1862,6 +1889,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
         {
             ++count;
         }
+        if (g_xash_startup.spr_load != nullptr)
+        {
+            ++count;
+        }
         *stored_functions = count;
     }
     if (nitro_hooks != nullptr)
@@ -1899,6 +1930,7 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             count_hook(g_xash_engine->SPR_Init);
             count_hook(g_xash_engine->SPR_Shutdown);
             count_hook(g_xash_engine->SPR_Shutdown_NoModelFree);
+            count_hook(g_xash_engine->SPR_Load);
         }
         *nitro_hooks = count;
     }

@@ -110,7 +110,14 @@ same pointer, and its sprite name stays at the same pointer. No sprite
 texture is unloaded, no sprite name is freed, no sprite is loaded, no file
 is read and no socket is opened. A null pointer is not a call. A null hook
 is not a call.
-The next retail hook is `SPR_Load`. This path returns before it.
+`SPR_Load` is then the function in this process when that retail hook is
+absent. Init stores the pointer and does not call it, so an empty sprite
+list stays unallocated, an allocated sprite list stays at the same pointer
+with the same count, and its sprite name stays at the same pointer. No
+sprite is loaded, no sprite name is allocated, `Mod_ForName` does not run,
+`Sys_Error` does not run, no file is read and no socket is opened. A null
+pointer is not a call. A null hook is not a call.
+The next retail hook is `SPR_Draw`. This path returns before it.
 `csr_host_frame` is a later direct call and does not extend that list.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and that open does not call them. A missing library or export fails

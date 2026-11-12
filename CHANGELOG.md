@@ -51,8 +51,13 @@ The authoritative version string is the `VERSION` file.
   `SVC_TimeScale` is then the function in this process when that retail hook
   is absent. That function is `CL_Parse_Timescale`. Init stores the pointer
   and does not call it, so the timescale stays unchanged and no socket is
-  opened. A null pointer is not a call. A null hook is not a call. The next
-  retail hook is `SVC_SendCvarValue`. This path returns before it.
+  opened. A null pointer is not a call. A null hook is not a call.
+  `SVC_SendCvarValue` is then the function in this process when that retail
+  hook is absent. That function is `CL_Send_CvarValue`. Init stores the
+  pointer and does not call it, so no cvar is sent, cvar values stay
+  unchanged and no socket is opened. A null pointer is not a call. A null
+  hook is not a call. The next retail hook is `CL_HTTPUpdate`. This path
+  returns before it.
   `OnGameInitialized` is not entered. The retail hook chain
   does not run. `hw.so` stays
   unmapped. The game is not started.

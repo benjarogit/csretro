@@ -31,8 +31,12 @@ geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
 Retail-Hook fehlt. Diese Funktion ist `CL_Parse_Timescale`. Der Init speichert
 den Zeiger und ruft ihn nicht auf, daher bleibt die Timescale unverändert und
 es wird kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook
-ist kein Aufruf. Der nächste Retail-Hook ist `SVC_SendCvarValue`. Dieser Pfad
-kehrt davor zurück.
+ist kein Aufruf. `SVC_SendCvarValue` ist danach die Funktion in diesem
+Prozess, wenn dieser Retail-Hook fehlt. Diese Funktion ist `CL_Send_CvarValue`.
+Der Init speichert den Zeiger und ruft ihn nicht auf, daher wird kein Cvar
+gesendet, Cvar-Werte bleiben unverändert und es wird kein Socket geöffnet.
+Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
+Retail-Hook ist `CL_HTTPUpdate`. Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie
 nicht. Eine fehlende Bibliothek oder ein fehlender Export lässt das Laden

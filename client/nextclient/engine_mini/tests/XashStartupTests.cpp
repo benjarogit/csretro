@@ -37,7 +37,9 @@ extern goldsrc::enginefuncs_t g_engfuncs;
 void NET_SendPacket(goldsrc::netsrc_t sock, int length, void* data, goldsrc::netadr_t to);
 goldsrc::qboolean Netchan_CopyFileFragments(goldsrc::netchan_t* chan);
 void CL_Parse_Timescale();
+void CL_Send_CvarValue();
 extern goldsrc::cvar_t* sys_timescale;
+extern goldsrc::cvar_t** p_cvar_vars;
 
 namespace
 {
@@ -144,6 +146,7 @@ namespace
             g_bIsHL1 = false;
             g_engfuncs.pfnGetGameDir = nullptr;
             sys_timescale = nullptr;
+            p_cvar_vars = nullptr;
             csr_host_filesystem_clear();
             COM_InitArgv(0, nullptr);
             EngineMini_BindXashStartup(nullptr, false);
@@ -756,6 +759,144 @@ TEST_F(XashStartup, SvcTimeScaleUsesTheProcessFunction)
     }
 
     sys_timescale = nullptr;
+    if (previous_path == nullptr)
+    {
+        ASSERT_EQ(unsetenv("LD_LIBRARY_PATH"), 0);
+    }
+    else
+    {
+        ASSERT_EQ(setenv("LD_LIBRARY_PATH", saved_path.c_str(), 1), 0);
+    }
+    std::filesystem::remove_all(root);
+}
+
+TEST_F(XashStartup, SvcSendCvarValueUsesTheProcessFunction)
+{
+    Dl_info info{};
+    ASSERT_NE(dladdr(reinterpret_cast<void*>(csr_xash_engine_argv), &info), 0);
+    ASSERT_NE(info.dli_fname, nullptr);
+
+    const std::filesystem::path root = std::filesystem::temp_directory_path() / "csretro-xash-svc-sendcvarvalue";
+    std::filesystem::remove_all(root);
+    std::filesystem::create_directories(root);
+    std::filesystem::copy_file(info.dli_fname, root / "hw.so");
+    const std::vector<std::string> files_before = RegularFileNames(root);
+
+    goldsrc::cvar_t timescale{};
+    char timescale_text[] = "3.5";
+    timescale.name = "sys_timescale";
+    timescale.string = timescale_text;
+    timescale.flags = 0;
+    timescale.value = 3.5f;
+    timescale.next = nullptr;
+
+    goldsrc::cvar_t sensitivity{};
+    char sensitivity_text[] = "3.0";
+    sensitivity.name = "sensitivity";
+    sensitivity.string = sensitivity_text;
+    sensitivity.flags = goldsrc::FCVAR_ARCHIVE;
+    sensitivity.value = 3.0f;
+    sensitivity.next = &timescale;
+    goldsrc::cvar_t* cvar_head = &sensitivity;
+    sys_timescale = &timescale;
+    p_cvar_vars = &cvar_head;
+
+    const char* previous_path = std::getenv("LD_LIBRARY_PATH");
+    const std::string saved_path = previous_path != nullptr ? previous_path : "";
+    ASSERT_EQ(setenv("LD_LIBRARY_PATH", root.c_str(), 1), 0);
+
+    auto engine = std::make_unique<nitroapi::EngineData>();
+    EngineMini_BindXashStartup(engine.get(), true);
+
+    {
+        const WorkingDirectory directory(root);
+        char arg0[] = "xash";
+        char arg1[] = "-console";
+        char* argv[] = {arg0, arg1, nullptr};
+        int window = 0;
+        std::vector<std::string> sockets_before;
+        ASSERT_TRUE(ReadOpenSockets(&sockets_before));
+
+        csr_xash_engine_argv(2, argv);
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+
+        const EngineMiniXashStartup* record = EngineMini_XashStartup();
+        ASSERT_NE(record->svc_sendcvarvalue, nullptr);
+        EXPECT_EQ(record->svc_sendcvarvalue, &CL_Send_CvarValue);
+        EXPECT_EQ(g_EngineMiniSvcSendCvarValue, &CL_Send_CvarValue);
+        EXPECT_EQ(record->svc_sendcvarvalue_calls, 0);
+        EXPECT_EQ(record->svc_timescale_calls, 0);
+        EXPECT_EQ(record->netchan_copy_calls, 0);
+        EXPECT_EQ(record->net_send_calls, 0);
+        EXPECT_EQ(record->svc_timescale, &CL_Parse_Timescale);
+        EXPECT_EQ(engine->SVC_SendCvarValue.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_HTTPUpdate.GetHook(), nullptr);
+        EXPECT_EQ(engine->Sys_InitGame.GetHook(), nullptr);
+        EXPECT_EQ(engine->Sys_Error.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_Init.GetHook(), nullptr);
+        EXPECT_EQ(record->initializing_calls, 1);
+        EXPECT_EQ(record->init_calls, 0);
+        EXPECT_EQ(record->shutdown_calls, 0);
+        EXPECT_EQ(record->error_calls, 0);
+        EXPECT_EQ(p_cvar_vars, &cvar_head);
+        EXPECT_EQ(cvar_head, &sensitivity);
+        EXPECT_EQ(sensitivity.next, &timescale);
+        EXPECT_EQ(sensitivity.flags, goldsrc::FCVAR_ARCHIVE);
+        EXPECT_FLOAT_EQ(sensitivity.value, 3.0f);
+        EXPECT_STREQ(sensitivity.string, "3.0");
+        EXPECT_STREQ(sensitivity.name, "sensitivity");
+        EXPECT_EQ(sys_timescale, &timescale);
+        EXPECT_FLOAT_EQ(timescale.value, 3.5f);
+        EXPECT_EQ(timescale.flags, 0);
+        EXPECT_STREQ(timescale.string, "3.5");
+        EXPECT_EQ(timescale.next, nullptr);
+        EXPECT_FALSE(MapsContain(root / "hw.so"));
+
+        Dl_info send_info{};
+        ASSERT_NE(dladdr(reinterpret_cast<void*>(record->svc_sendcvarvalue), &send_info), 0);
+        ASSERT_NE(send_info.dli_fname, nullptr);
+        EXPECT_EQ(std::string(send_info.dli_fname).find("hw.so"), std::string::npos);
+
+        std::vector<std::string> sockets_after;
+        ASSERT_TRUE(ReadOpenSockets(&sockets_after));
+        EXPECT_EQ(sockets_before, sockets_after);
+        EXPECT_EQ(RegularFileNames(root), files_before);
+
+        g_EngineMiniSvcSendCvarValue = nullptr;
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+
+        record = EngineMini_XashStartup();
+        EXPECT_EQ(record->svc_sendcvarvalue, nullptr);
+        EXPECT_EQ(record->svc_sendcvarvalue_calls, 0);
+        EXPECT_EQ(record->svc_timescale_calls, 0);
+        EXPECT_EQ(record->netchan_copy_calls, 0);
+        EXPECT_EQ(record->net_send_calls, 0);
+        EXPECT_EQ(engine->SVC_SendCvarValue.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_HTTPUpdate.GetHook(), nullptr);
+        EXPECT_EQ(record->shutdown_calls, 0);
+        EXPECT_EQ(record->error_calls, 0);
+        EXPECT_EQ(p_cvar_vars, &cvar_head);
+        EXPECT_EQ(cvar_head, &sensitivity);
+        EXPECT_EQ(sensitivity.next, &timescale);
+        EXPECT_EQ(sensitivity.flags, goldsrc::FCVAR_ARCHIVE);
+        EXPECT_FLOAT_EQ(sensitivity.value, 3.0f);
+        EXPECT_STREQ(sensitivity.string, "3.0");
+        EXPECT_STREQ(sensitivity.name, "sensitivity");
+        EXPECT_EQ(sys_timescale, &timescale);
+        EXPECT_FLOAT_EQ(timescale.value, 3.5f);
+        EXPECT_EQ(timescale.flags, 0);
+        EXPECT_STREQ(timescale.string, "3.5");
+        EXPECT_EQ(timescale.next, nullptr);
+        EXPECT_FALSE(MapsContain(root / "hw.so"));
+
+        std::vector<std::string> sockets_null;
+        ASSERT_TRUE(ReadOpenSockets(&sockets_null));
+        EXPECT_EQ(sockets_before, sockets_null);
+        EXPECT_EQ(RegularFileNames(root), files_before);
+    }
+
+    sys_timescale = nullptr;
+    p_cvar_vars = nullptr;
     if (previous_path == nullptr)
     {
         ASSERT_EQ(unsetenv("LD_LIBRARY_PATH"), 0);

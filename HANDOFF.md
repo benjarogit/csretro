@@ -8,8 +8,9 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `fef9602` (gameui start)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43173008453 – success (`fef9602`)
+- **Commit:** `3d137c5` (public docs site)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43177258829 – success (`3d137c5`)
+- **Pages:** https://github.com/benjarogit/csretro/actions/runs/43177510852 – success; site https://benjarogit.github.io/csretro/
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
 
@@ -407,12 +408,11 @@ implementation; the plan is the only source for the gate list.
 
 Public collaboration, SemVer from `1.0.0`, and upstream policy are in
 `docs/plan/csretro-plan.md` §11. `VERSION` is `1.0.0-dev`. No `v1.0.0` tag yet.
-The public docs site is built: Zensical + vgui.css skins, audience hubs,
-`SECURITY.md`, Pages workflow (after green `ci` on `main`), Dependabot for
-Actions, weekly upstream-watch. Page URL:
-https://benjarogit.github.io/csretro/ (first deploy after this push + Pages
-source set to GitHub Actions). Benny still flips Security overview switches and
-branch protection in the browser.
+The public docs site is live: Zensical + vgui.css skins, audience hubs,
+`SECURITY.md`, Pages after green `ci` on `main`, Dependabot for Actions,
+weekly upstream-watch. Site: https://benjarogit.github.io/csretro/
+Pages source is GitHub Actions. Benny still flips Security overview switches
+and branch protection in the browser.
 
 ## Next task
 

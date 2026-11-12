@@ -4,6 +4,10 @@ This check proves G07d: the client identifies the public build, patches `hw.so`,
 opens the console and does not crash. It is run by hand; CSRETRO never starts the
 game itself.
 
+The Xash content copy is [Install game content](install.md). That copy leaves
+`hw.so` behind. The steps below are the GoldSrc check and still use a full
+hand copy, because that check loads the retail engine.
+
 ## Prerequisites
 
 - Counter-Strike 1.6 from the user's own Steam installation (App 10)

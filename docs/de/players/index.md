@@ -7,7 +7,8 @@ du nicht tun darfst, sobald er startet.
 
 - Eine retail Counter-Strike-1.6-Installation (Originalinhalte: Maps, Modelle,
   Sounds, `valve`/`cstrike`/`resource`).
-- Eine **eigene Kopie** der Spieldateien **außerhalb** der Steam-Bibliothek.
+- Eine **eigene Kopie** der gemounteten Spieldateien **außerhalb** der
+  Steam-Bibliothek ([Spielinhalte installieren](../client/install.md)).
 - Linux x86_64.
 
 ## Was du nie tun darfst

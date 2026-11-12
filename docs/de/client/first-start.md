@@ -4,6 +4,10 @@ Diese Prüfung belegt G07d: Der Client erkennt den Public-Build, patcht `hw.so`,
 öffnet die Konsole und stürzt nicht ab. Sie wird von Hand ausgeführt; CSRETRO
 startet das Spiel nie selbst.
 
+Die Xash-Inhaltskopie ist [Spielinhalte installieren](install.md). Sie lässt
+`hw.so` liegen. Die Schritte unten sind die GoldSrc-Prüfung und kopieren den
+Baum weiter von Hand, weil diese Prüfung die Retail-Engine lädt.
+
 ## Voraussetzungen
 
 - Counter-Strike 1.6 aus der eigenen Steam-Installation (App 10)

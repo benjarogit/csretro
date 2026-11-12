@@ -6,10 +6,12 @@ the one `VGUI_Surface026`, `client_mini`, `vgui2`, `gameui`, the
 and `nitro_api2.dll`. It does not add a
 second surface, a second factory or a second identity slot.
 
-The caller passes the content root. A missing directory is a failure. The
-launcher does not search a Steam library and does not invent a path. Original
-game content, maps, models, sounds and `valve/resource` stay required and are
-not in the repository.
+Installation searches the Steam library and copies the mounted content
+outside it. See [Install game content](install.md). The open receives that
+copy as the content root. A missing directory is a failure. The copy does not
+invent a path, and this open does not start Steam. Original game content,
+maps, models, sounds and `valve/resource` stay required and are not in the
+repository.
 
 The same process opens that list through the host: the one surface, then
 `client_mini` and `vgui2`, then `gameui`, then the filesystem root, then

@@ -7,7 +7,8 @@ not do once it starts.
 
 - A retail Counter-Strike 1.6 install (original content: maps, models, sounds,
   `valve` / `cstrike` / `resource`).
-- A **separate copy** of the game files **outside** the Steam library.
+- A **separate copy** of the mounted game files **outside** the Steam library
+  ([Install game content](../client/install.md)).
 - Linux x86_64.
 
 ## What you must never do

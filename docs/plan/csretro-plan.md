@@ -772,9 +772,21 @@ zusammen: `xash_host`, die eine `VGUI_Surface026`, `client_mini`, `vgui2`,
 `gameui`, die `VFileSystem009`-Wurzel, die ELF64-`libsteam_api.so`,
 `next_engine_mini.dll` und `nitro_api2.dll`. Er
 fügt keine zweite Surface, keine zweite Factory und keinen zweiten
-Identitätsslot hinzu. Der Aufrufer übergibt die Inhaltswurzel. Fehlt sie,
-ist das ein Fehlschlag. Der Launcher sucht die Steam-Bibliothek nicht und
-erfindet keinen Pfad. Derselbe Prozess öffnet diese Liste über den Host
+Identitätsslot hinzu. Die Installation sucht Steam über
+`steamapps/libraryfolders.vdf` und die CS-1.6-Daten über
+`steamapps/appmanifest_10.acf`. Der Installationsordner muss `cstrike` und
+`valve` enthalten. Kopiert wird nur die Allowlist aus
+`tools/install_content.py`: die `cstrike`-Inhalte, die der Client mountet
+(Maps, Modelle, Sounds, Sprites, Grafiken, Resource, Events, Overviews,
+Klassen, Logos, WAD-Dateien und die Spieldateien `liblist.gam` und
+`delta.lst`), `valve` einschließlich `valve/resource` mit Marlett und
+`BackgroundLayout.txt`, und `platform/resource`. Das Ziel liegt außerhalb
+der gefundenen Steam-Bibliothek. Ein Ziel innerhalb dieses Baums wird
+abgelehnt. Fehlt Steam oder das Spiel, ist das ein Fehlschlag, und es wird
+kein Pfad erfunden. Persönliche Konfigurationen, Demos, Screenshots, Caches,
+Steam- und VAC-Binaries, `hw.so` und fremde Mods bleiben liegen. Der
+Laufzeit-Launcher bekommt diese Kopie als Inhaltswurzel. Fehlt sie, ist das
+ein Fehlschlag. Er startet Steam nicht. Derselbe Prozess öffnet diese Liste über den Host
 und führt den Befehl nicht aus. Dasselbe Öffnen ruft `IGameUI::Start` und
 lädt danach `engine_mini`. `EngineMini::Init` bindet die Startfolge, dann
 laufen argv, Modus und Init. Shutdown und der fatale Fehler werden dabei
@@ -1229,6 +1241,12 @@ und Deinstallation auf einem sauberen Benutzerkonto nachvollzogen.
 
 **Sicherheit:** niemals im Steam-Ordner installieren, niemals auf VAC-Servern
 testen, keine Steam-Zugangsdaten annehmen oder speichern.
+
+**Inhaltskopie (umgesetzt, Abschnitt 3.7):** `scripts/install-content.sh`
+sucht die Steam-Bibliothek und App 10, kopiert die Allowlist in ein Ziel
+außerhalb dieser Bibliothek und bricht ab, wenn Steam oder das Spiel fehlt.
+Installer-Hülle, Hash-Prüfung der Retail-Binaries, `--target`, Deinstallation
+und die `.desktop`-Starter bleiben Aufgabe von G09.
 
 ---
 

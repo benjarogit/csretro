@@ -6,9 +6,11 @@ die `VFileSystem009`-Wurzel, die ELF64-`libsteam_api.so`,
 `next_engine_mini.dll` und `nitro_api2.dll`. Er fügt keine
 zweite Surface, keine zweite Factory und keinen zweiten Identitätsslot hinzu.
 
-Der Aufrufer übergibt die Inhaltswurzel. Fehlt das Verzeichnis, ist das ein
-Fehlschlag. Der Launcher sucht keine Steam-Bibliothek und erfindet keinen
-Pfad. Originaldaten, Maps, Modelle, Sounds und `valve/resource` bleiben
+Die Installation sucht die Steam-Bibliothek und kopiert die gemounteten
+Inhalte nach außerhalb. Siehe [Spielinhalte installieren](install.md). Das
+Öffnen bekommt diese Kopie als Inhaltswurzel. Fehlt das Verzeichnis, ist das
+ein Fehlschlag. Die Kopie erfindet keinen Pfad, und dieses Öffnen startet
+Steam nicht. Originaldaten, Maps, Modelle, Sounds und `valve/resource` bleiben
 Voraussetzung und liegen nicht im Repository.
 
 Derselbe Prozess öffnet diese Liste über den Host: die eine Surface, dann

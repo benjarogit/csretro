@@ -59,8 +59,10 @@ wird nicht aufgerufen. Der Name bleibt `ResolvePlayerIdentity` und der
 `name`-Setinfo, ohne Portrait.
 
 Der Xash-Launcher setzt diese Stücke zu einem Befehl zusammen. Die
-Inhaltswurzel kommt vom Aufrufer. Fehlt sie, startet nichts. Der Launcher
-wird nicht ausgeführt, startet Steam nicht und braucht die Originaldaten.
+Installation sucht Steam und kopiert die gemounteten Inhalte außerhalb der
+Bibliothek; das Öffnen bekommt diese Kopie als Inhaltswurzel. Fehlt sie,
+startet nichts. Der Launcher wird nicht ausgeführt, startet Steam nicht und
+braucht die Originaldaten. Siehe [Spielinhalte installieren](install.md).
 `nextclient.sh` und der First-Start bleiben der GoldSrc-Weg.
 
 Die Build-Registry in `client/nextclient/nitro_api/src/build_registry.cpp`

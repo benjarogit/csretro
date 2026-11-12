@@ -54,9 +54,11 @@ i386 library and it does not start Steam. When Steam is not already logged in
 it reports logged out. A missing interface name is not called. The name stays
 `ResolvePlayerIdentity` and the `name` setinfo, with no portrait.
 
-The Xash launcher assembles those pieces into one command. The caller passes
-the content root. A missing root starts nothing. The launcher is not
-executed, does not start Steam, and requires the original game content.
+The Xash launcher assembles those pieces into one command. Installation
+searches Steam and copies the mounted content outside the library; the open
+receives that copy as the content root. A missing root starts nothing. The
+launcher is not executed, does not start Steam, and requires the original
+game content. See [Install game content](install.md).
 `nextclient.sh` and the first-start steps remain the GoldSrc path.
 
 The build registry in `client/nextclient/nitro_api/src/build_registry.cpp`

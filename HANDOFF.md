@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `64f9efa` (launcher opens the planned list in-process)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43161328640 – success (`64f9efa`)
+- **Commit:** `405b9d8` (uncompressed TGA from the host root)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43162247406 – success (`405b9d8`)
 - **Version:** `0.1.0-dev` (`VERSION`)
 
 ## Verified (with evidence)

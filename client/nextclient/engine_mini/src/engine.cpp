@@ -420,6 +420,7 @@ namespace
     void RecordXashDrawCrosshair();
     void RecordXashRRenderView();
     void RecordXashGLInit();
+    void RecordXashGLConfig();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -564,7 +565,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // GL_Init is then the process function when that hook is absent.
     // This init stores the pointer and does not initialize GL. The process body
     // requires a GL context and queries GL strings, so a real call does not run.
-    // The next retail hook is GL_Config. This path returns before it.
+    // GL_Config is then the process function when that hook is absent.
+    // This init stores the pointer and does not configure GL. The process body
+    // writes GL cvar pointers and can insert vendor cfg text, so a real call
+    // does not run.
+    // The next retail hook is GL_SelectTexture. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -615,6 +620,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashDrawCrosshair();
             RecordXashRRenderView();
             RecordXashGLInit();
+            RecordXashGLConfig();
         }
         return;
     }
@@ -1074,6 +1080,7 @@ EngineMiniSetCrosshairFn g_EngineMiniSetCrosshair = SetCrosshair;
 EngineMiniDrawCrosshairFn g_EngineMiniDrawCrosshair = DrawCrosshair;
 EngineMiniRRenderViewFn g_EngineMiniRRenderView = R_RenderView;
 EngineMiniGLInitFn g_EngineMiniGLInit = GL_Init;
+EngineMiniGLConfigFn g_EngineMiniGLConfig = GL_Config;
 
 namespace
 {
@@ -1792,6 +1799,24 @@ namespace
         g_xash_startup.gl_init = g_EngineMiniGLInit;
     }
 
+    void RecordXashGLConfig()
+    {
+        // The retail site installs a replacement. It does not configure GL during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body writes GL cvar pointers and can insert vendor cfg text,
+        // so this path does not call it.
+        g_xash_startup.gl_config = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->GL_Config.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniGLConfig == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.gl_config = g_EngineMiniGLConfig;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2104,6 +2129,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniDrawCrosshair = DrawCrosshair;
     g_EngineMiniRRenderView = R_RenderView;
     g_EngineMiniGLInit = GL_Init;
+    g_EngineMiniGLConfig = GL_Config;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

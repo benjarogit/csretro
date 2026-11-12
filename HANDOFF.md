@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `7bed0a3` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`, `CL_ClearState`, `Host_Map_f`, `Host_FilterTime`, `Mod_ClearAll`, `Mod_FindName`, `Mod_Print` and `Mod_ValidateCRC` are the process functions and are not called; no game socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected, client state stays unchanged, no map is loaded, init leaves host time unchanged, the model list stays unchanged, no model is looked up or loaded, the model list is not printed and no CRC is validated; `hw.so` stays unmapped; `csr_host_frame` is a later direct call that paints one GameUI frame, creates an X11 window surface, calls `eglSwapBuffers` and advances host time by the caller delta; `Host_FilterTime` and `CVGui::RunFrame` stay uncalled; that frame installs no retail hook; the window exists only for the test on Xvfb)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43222460398 – success (`7bed0a3`)
+- **Commit:** `5347150` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`, `CL_ClearState`, `Host_Map_f`, `Host_FilterTime`, `Mod_ClearAll`, `Mod_FindName`, `Mod_Print`, `Mod_ValidateCRC` and `Mod_NeedCRC` are the process functions and are not called; no game socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected, client state stays unchanged, no map is loaded, init leaves host time unchanged, the model list stays unchanged, no model is looked up or loaded, the model list is not printed, no CRC is validated and the need-CRC flag stays unchanged; `hw.so` stays unmapped; `csr_host_frame` is a later direct call that paints one GameUI frame, creates an X11 window surface, calls `eglSwapBuffers` and advances host time by the caller delta; `Host_FilterTime` and `CVGui::RunFrame` stay uncalled; that frame installs no retail hook; the window exists only for the test on Xvfb)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43223729060 – success (`5347150`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -760,8 +760,12 @@ the Security overview switches in the browser.
   pointer and does not call it. A null pointer is not a call. A null hook
   is not a call. No CRC is validated, no model is looked up or rejected
   and no socket is opened.
-  The next retail hook in `OnGameInitializing` is `eng()->Mod_NeedCRC`
-  (`Mod_NeedCRC`). The Xash path returns before that install.
+  `Mod_NeedCRC` is the function in this process. Init stores that pointer
+  and does not call it. A null pointer is not a call. A null hook is not a
+  call. The need-CRC flag stays unchanged, no model is looked up and no
+  CRC is computed.
+  The next retail hook in `OnGameInitializing` is `eng()->Mod_LoadModel`
+  (`Mod_LoadModel`). The Xash path returns before that install.
   `OnGameInitialized` is not entered.
   `csr_host_frame` paints one GameUI frame, creates an X11 window whose
   visual matches the EGL config, calls `eglCreateWindowSurface` and then
@@ -814,6 +818,90 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Process `Mod_NeedCRC` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ engine_mini-tests --gtest_filter=XashStartup.*
+23/23 passed
+AbsentHooksRecordTheSequenceAndInitArgv
+NullBindingIsNotACall
+ConInitReadsCondebugAndLeavesTheLog
+WiredCallDoesNotOpenHwSo
+SetCStrikeFlagsReadsTheMountedDirectory
+NetSendPacketUsesTheProcessFunction
+NetchanCopyFileFragmentsUsesTheProcessFunction
+SvcTimeScaleUsesTheProcessFunction
+SvcSendCvarValueUsesTheProcessFunction
+HttpUpdateUsesTheProcessFunction
+HttpStopUsesTheProcessFunction
+StartResourceDownloadingUsesTheProcessFunction
+ReadPacketsUsesTheProcessFunction
+RequestMissingResourcesUsesTheProcessFunction
+DisconnectUsesTheProcessFunction
+ClearStateUsesTheProcessFunction
+HostMapUsesTheProcessFunction
+HostFilterTimeUsesTheProcessFunction
+ModClearAllUsesTheProcessFunction
+ModFindNameUsesTheProcessFunction
+ModPrintUsesTheProcessFunction
+ModValidateCrcUsesTheProcessFunction
+ModNeedCrcUsesTheProcessFunction
+
+$ engine_mini-tests
+578/578 passed
+
+$ xash_host-tests
+20/20 passed
+
+$ xash_launcher-tests
+5/5 passed
+```
+
+`OnGameInitializing` stores a pointer table in this process and then calls
+`Con_Init`. `pfnGetGameDir` writes the mounted directory name and
+`SetCStrikeFlags` runs for that name. An empty mount leaves that pointer
+null. `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale`
+(`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`),
+`CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`,
+`CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`,
+`CL_ClearState`, `Host_Map_f`, `Host_FilterTime`, `Mod_ClearAll`,
+`Mod_FindName`, `Mod_Print` and `Mod_ValidateCRC` stay the process functions
+and are not called. Their call counters stay 0. No socket is opened, no
+fragment file is copied, the timescale stays unchanged, no cvar is sent, no
+HTTP request is made, no download is stopped, no resource download is
+started, no packet is read, no resource is requested, no session is
+disconnected, client state stays unchanged, no map is loaded, host time
+stays unchanged, the model list is not printed and no CRC is validated.
+`Mod_NeedCRC` is then the function in this process when that retail hook is
+absent. Init stores that pointer and does not call it. `mod_need_calls`
+stays 0. A null pointer leaves the recorded pointer null and is not a call.
+A null hook is not a call. A planted `sensitivity` stays `3.0` with flags
+`FCVAR_ARCHIVE`, and its next cvar `sys_timescale` stays `3.5` with flags
+`0`. A planted `client_state` keeps `max_edicts` 42, `servercount` 7 and
+`levelname` `csretro-keep`. A planted host time of `9.25` stays, and the
+frame interval stays at its planted value. `oldrealtime` stays at the value
+from before init. A real `Mod_NeedCRC` looks up a model and writes the
+need-CRC flag. It was not called. No CRC was computed. A planted brush CRC
+stays `shouldCRC` 1, `firstCRCDone` 1, `initialCRC` `0xC5C5C5C5`, and a
+planted sprite CRC stays `shouldCRC` 0, `firstCRCDone` 0, `initialCRC`
+`0x11111111`. A planted brush `maps/csretro_keep.bsp` stays `NL_PRESENT`
+with its cache pointer, and a planted sprite `sprites/csretro_keep.spr`
+stays `NL_NEEDS_LOADED` with its cache pointer. `mod_numknown` stays 2.
+Nothing was printed. The open-socket list in `/proc/self/fd` is unchanged.
+The directory file list stays the planted `hw.so`, so `qconsole.log` was
+not created. The next retail hook is `eng()->Mod_LoadModel`
+(`Mod_LoadModel`). That hook stays null. The Xash path returns before it.
+`OnGameInitialized` is not entered. `Sys_Error` is not called.
+`initializing_calls` is 1 on the first pass. Shutdown and the fatal error
+stay 0 until the test calls them. A planted `hw.so` is not mapped.
+`csr_host_frame` is a later direct call and was not this init. `RunFrame`
+is not called. Steam is not started. The planned command is not executed.
+The game was not started. The client is not playable.
+
+CI: https://github.com/benjarogit/csretro/actions/runs/43223729060 success (`5347150`).
+
+`scripts/verify.sh`: 68 checks passed.
 
 EGL window present for one GameUI frame (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

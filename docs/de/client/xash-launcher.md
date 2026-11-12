@@ -40,8 +40,12 @@ kein Aufruf. Ein Null-Hook ist kein Aufruf. `SVC_SendCvarValue` ist danach die F
 wenn dieser Retail-Hook fehlt. Diese Funktion ist `CL_Send_CvarValue`. Der
 Init speichert den Zeiger und ruft ihn nicht auf, daher wird kein Cvar
 gesendet, Cvar-Werte bleiben unverändert und es wird kein Socket geöffnet.
-Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-Retail-Hook ist `CL_HTTPUpdate`. Dieser Pfad kehrt davor zurück.
+Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+`CL_HTTPUpdate` ist danach die Funktion in diesem Prozess, wenn dieser
+Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
+daher wird kein HTTP-Request ausgeführt und kein Socket geöffnet. Ein
+Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
+Retail-Hook ist `CL_HTTPStop_f`. Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler
 bleiben gebunden und werden nicht gerufen. Eine fehlende Bibliothek oder ein

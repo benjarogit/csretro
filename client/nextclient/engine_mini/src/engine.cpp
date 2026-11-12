@@ -383,6 +383,7 @@ namespace
     void RecordXashNetchanCopyFileFragments();
     void RecordXashSvcTimeScale();
     void RecordXashSvcSendCvarValue();
+    void RecordXashHttpUpdate();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -398,6 +399,8 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not change the timescale.
     // SVC_SendCvarValue is then the process function when that hook is absent.
     // This init stores the pointer and does not send a cvar.
+    // CL_HTTPUpdate is then the process function when that hook is absent.
+    // This init stores the pointer and does not update HTTP.
     // The remaining retail hooks stay after this return.
     if (XashStartupIsActive())
     {
@@ -412,6 +415,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashNetchanCopyFileFragments();
             RecordXashSvcTimeScale();
             RecordXashSvcSendCvarValue();
+            RecordXashHttpUpdate();
         }
         return;
     }
@@ -834,6 +838,7 @@ EngineMiniNetSendPacketFn g_EngineMiniNetSendPacket = NET_SendPacket;
 EngineMiniNetchanCopyFileFragmentsFn g_EngineMiniNetchanCopyFileFragments = Netchan_CopyFileFragments;
 EngineMiniSvcTimeScaleFn g_EngineMiniSvcTimeScale = CL_Parse_Timescale;
 EngineMiniSvcSendCvarValueFn g_EngineMiniSvcSendCvarValue = CL_Send_CvarValue;
+EngineMiniHttpUpdateFn g_EngineMiniHttpUpdate = CL_HTTPUpdate;
 
 namespace
 {
@@ -903,6 +908,22 @@ namespace
             return;
         }
         g_xash_startup.svc_sendcvarvalue = g_EngineMiniSvcSendCvarValue;
+    }
+
+    void RecordXashHttpUpdate()
+    {
+        // The retail site installs a replacement. It does not update HTTP during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        g_xash_startup.http_update = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->CL_HTTPUpdate.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniHttpUpdate == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.http_update = g_EngineMiniHttpUpdate;
     }
 
     bool XashStartupIsActive()
@@ -1162,6 +1183,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniNetchanCopyFileFragments = Netchan_CopyFileFragments;
     g_EngineMiniSvcTimeScale = CL_Parse_Timescale;
     g_EngineMiniSvcSendCvarValue = CL_Send_CvarValue;
+    g_EngineMiniHttpUpdate = CL_HTTPUpdate;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

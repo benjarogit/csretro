@@ -14,6 +14,9 @@ using EngineMiniSvcTimeScaleFn = void (*)();
 // Process replacement for the retail SVC_SendCvarValue hook. A null value is not a call.
 using EngineMiniSvcSendCvarValueFn = void (*)();
 
+// Process replacement for the retail CL_HTTPUpdate hook. A null value is not a call.
+using EngineMiniHttpUpdateFn = void (*)();
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -31,6 +34,7 @@ struct EngineMiniXashStartup
     int netchan_copy_calls{};
     int svc_timescale_calls{};
     int svc_sendcvarvalue_calls{};
+    int http_update_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -47,6 +51,7 @@ struct EngineMiniXashStartup
     EngineMiniNetchanCopyFileFragmentsFn netchan_copy{};
     EngineMiniSvcTimeScaleFn svc_timescale{};
     EngineMiniSvcSendCvarValueFn svc_sendcvarvalue{};
+    EngineMiniHttpUpdateFn http_update{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -60,6 +65,9 @@ extern EngineMiniSvcTimeScaleFn g_EngineMiniSvcTimeScale;
 
 // Defaults to CL_Send_CvarValue. Init stores the pointer and does not call it.
 extern EngineMiniSvcSendCvarValueFn g_EngineMiniSvcSendCvarValue;
+
+// Defaults to CL_HTTPUpdate. Init stores the pointer and does not call it.
+extern EngineMiniHttpUpdateFn g_EngineMiniHttpUpdate;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

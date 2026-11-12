@@ -35,8 +35,12 @@ cvar is sent, cvar values stay unchanged and no socket is opened. A null
 pointer is not a call. A null hook is not a call. `CL_HTTPUpdate` is then
 the function in this process when that retail hook is absent. Init stores
 the pointer and does not call it, so no HTTP request is made and no socket
-is opened. A null pointer is not a call. A null hook is not a call. The next
-retail hook is `CL_HTTPStop_f`. This path returns before it.
+is opened. A null pointer is not a call. A null hook is not a call.
+`CL_HTTPStop_f` is then the function in this process when that retail hook
+is absent. Init stores the pointer and does not call it, so no download is
+stopped and no socket is opened. A null pointer is not a call. A null hook
+is not a call. The next retail hook is `CL_StartResourceDownloading`. This
+path returns before it.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and that open does not call them. A missing library or export fails
 the load and is not

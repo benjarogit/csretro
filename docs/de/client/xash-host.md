@@ -39,8 +39,12 @@ Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
 `CL_HTTPUpdate` ist danach die Funktion in diesem Prozess, wenn dieser
 Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
 daher wird kein HTTP-Request ausgeführt und kein Socket geöffnet. Ein
+Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+`CL_HTTPStop_f` ist danach die Funktion in diesem Prozess, wenn dieser
+Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
+daher wird kein Download gestoppt und kein Socket geöffnet. Ein
 Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-Retail-Hook ist `CL_HTTPStop_f`. Dieser Pfad kehrt davor zurück.
+Retail-Hook ist `CL_StartResourceDownloading`. Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie
 nicht. Eine fehlende Bibliothek oder ein fehlender Export lässt das Laden

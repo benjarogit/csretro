@@ -9,11 +9,16 @@ add_library(xash::launcher ALIAS xash_launcher)
 target_include_directories(xash_launcher PUBLIC include)
 target_link_libraries(xash_launcher PUBLIC xash::host ${CMAKE_DL_LIBS})
 
+add_executable(xash_launcher_entry src/main.cpp)
+set_target_properties(xash_launcher_entry PROPERTIES OUTPUT_NAME "xash_launcher")
+target_link_libraries(xash_launcher_entry PRIVATE xash_launcher)
+
 if (NEXTCLIENT_BUILD_TESTS)
     find_package(GTest CONFIG REQUIRED)
     include(GoogleTest)
 
-    add_executable(xash_launcher-tests tests/LauncherPlanTests.cpp)
+    add_executable(xash_launcher-tests tests/LauncherPlanTests.cpp src/main.cpp)
+    target_compile_definitions(xash_launcher-tests PRIVATE CSRETRO_ENTRY_NAME=csretro_human_main)
     target_include_directories(xash_launcher-tests PRIVATE
             "${NEXTCLIENT_ROOT}/dep/ncl-hl1-source-sdk/public"
             "${NEXTCLIENT_ROOT}/dep/ncl-hl1-source-sdk/public/tier0"
@@ -40,6 +45,6 @@ if (NEXTCLIENT_BUILD_TESTS)
     else ()
         target_link_libraries(xash_launcher-tests PRIVATE xash_launcher GTest::gtest_main)
     endif ()
-    add_dependencies(xash_launcher-tests xash_host xash_surface client_mini vgui2 gameui steam_api next_engine_mini nitro_api)
+    add_dependencies(xash_launcher-tests xash_launcher_entry xash_host xash_surface client_mini vgui2 gameui steam_api next_engine_mini nitro_api)
     gtest_discover_tests(xash_launcher-tests)
 endif ()

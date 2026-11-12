@@ -147,6 +147,10 @@ The authoritative version string is the `VERSION` file.
 - `RunXashLauncher` opens the host the way `OpenXashLauncher` does and then
   calls `csr_host_run`. `PresentXashLauncher` still paints one frame and
   returns. The call does not play Counter-Strike.
+- The human process is `client/build/linux/out/bin/Release/xash_launcher`.
+  Its `main` calls `RunXashLauncher`. The content root is the first argument.
+  The planned command is not executed. The call does not load a map and does
+  not play Counter-Strike.
 - `scripts/install-content.sh` searches a Steam library (`libraryfolders.vdf`,
   `appmanifest_10.acf`) and copies the mounted Counter-Strike 1.6 files into a
   directory outside that library. Files shipped in `client/assets` overlay

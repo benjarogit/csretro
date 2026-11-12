@@ -1455,6 +1455,43 @@ TEST(XashLauncher, RunEntryReturnsWithoutAHost)
     EXPECT_STREQ(csr_host_last_client_command(), "");
 }
 
+extern int csretro_human_main(int argc, char** argv);
+
+TEST(XashLauncher, HumanEntryCallsRunXashLauncher)
+{
+    double realtime = 0.0;
+    double frametime = 0.0;
+    double oldrealtime = 0.0;
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    int swaps = -1;
+    unsigned long window = 1;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window, &swaps), 0);
+    const std::vector<std::string> children_before = ReadChildPids();
+
+    // This is the process entry. main in the human executable is this function.
+    // No content root, so RunXashLauncher returns before a window exists.
+    EXPECT_EQ(csretro_human_main(0, nullptr), 1);
+
+    double realtime_after = 0.0;
+    double frametime_after = 0.0;
+    double oldrealtime_after = 0.0;
+    csr_host_read_host_time(&realtime_after, &frametime_after, &oldrealtime_after);
+    EXPECT_DOUBLE_EQ(realtime_after, realtime);
+    EXPECT_DOUBLE_EQ(frametime_after, frametime);
+    EXPECT_DOUBLE_EQ(oldrealtime_after, oldrealtime);
+    int swaps_after = -1;
+    unsigned long window_after = 1;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window_after, &swaps_after), 0);
+    EXPECT_EQ(swaps_after, swaps);
+    EXPECT_EQ(window_after, window);
+    EXPECT_STREQ(csr_host_last_client_command(), "");
+    EXPECT_EQ(ReadChildPids(), children_before);
+
+    std::ifstream cmdline("/proc/self/cmdline", std::ios::binary);
+    std::string arguments((std::istreambuf_iterator<char>(cmdline)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(arguments.find("--surface"), std::string::npos);
+}
+
 TEST(XashLauncher, EntryRunsTheHostUntilQuit)
 {
     if (!RunInFreshProcess("entry", "XashLauncher.EntryRunsTheHostUntilQuit"))

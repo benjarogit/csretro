@@ -145,9 +145,15 @@ Host-Zeit bleibt stehen. `csr_host_pump` ruft diesen Frame mit einer
 Framezahl auf demselben gemappten Fenster auf, gibt Bewegungs- und
 Tastenereignisse an `csr_host_input_move` und `csr_host_input_button` und
 zerstört danach das Fenster. Nach N Frames ist die Swap-Zahl N, und die
-Host-Zeit ist um N mal das Delta vorgerückt. `csr_host_run` hält dieses Fenster gemappt und wiederholt den Frame, bis der aufgezeichnete Client-Befehl `quit` ist. `QuitNoConfirm` schreibt diesen Befehl über `pfnClientCmd` und führt ihn nicht aus. Bewegungs- und Tastenereignisse erreichen weiter `csr_host_input_move` und `csr_host_input_button`. Der Aufruf zerstört danach das Fenster. Die Swap-Zahl ist die Zahl der Frames, und die Host-Zeit rückt um diese Zahl mal das Delta vor. `PresentXashLauncher` zeichnet ein Bild und kehrt zurück. Es ruft diesen Loop nicht auf. `RunXashLauncher` öffnet den Host wie `OpenXashLauncher` und ruft danach `csr_host_run`. Ein menschlicher Prozess ruft `RunXashLauncher`. Dieser Aufruf spielt kein Counter-Strike. Die X11-Verbindung ist der Socket des Fensters.
+Host-Zeit ist um N mal das Delta vorgerückt. `csr_host_run` hält dieses Fenster gemappt und wiederholt den Frame, bis der aufgezeichnete Client-Befehl `quit` ist. `QuitNoConfirm` schreibt diesen Befehl über `pfnClientCmd` und führt ihn nicht aus. Bewegungs- und Tastenereignisse erreichen weiter `csr_host_input_move` und `csr_host_input_button`. Der Aufruf zerstört danach das Fenster. Die Swap-Zahl ist die Zahl der Frames, und die Host-Zeit rückt um diese Zahl mal das Delta vor. `PresentXashLauncher` zeichnet ein Bild und kehrt zurück. Es ruft diesen Loop nicht auf. `RunXashLauncher` öffnet den Host wie `OpenXashLauncher` und ruft danach `csr_host_run`. Der menschliche Prozess ist `client/build/linux/out/bin/Release/xash_launcher`. Sein `main` ruft `RunXashLauncher`. Die Inhaltswurzel ist das erste Argument. Dieser Aufruf lädt keine Map und spielt kein Counter-Strike. Die X11-Verbindung ist der Socket des Fensters.
 Ein Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
 Surface-Tests behalten ihr EGL-Pbuffer.
+
+Ein Mensch startet diesen Befehl. `$CONTENT_ROOT` ist die Kopie aus [Spielinhalte installieren](install.md). Sie bleibt außerhalb der Steam-Bibliothek und liegt nicht in diesem Repository. Der Befehl startet Steam nicht, führt den geplanten Launcher-Befehl nicht aus, lädt keine Map und spielt kein Counter-Strike. `main` ruft `RunXashLauncher`.
+
+```bash
+client/build/linux/out/bin/Release/xash_launcher "$CONTENT_ROOT"
+```
 
 `nextclient.sh` und [Erster Client-Start](first-start.md) bleiben der
 GoldSrc-Weg, bis dieser Pfad sie ersetzt.

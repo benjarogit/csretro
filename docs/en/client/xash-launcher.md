@@ -129,9 +129,15 @@ does not swap and does not move host time. `csr_host_pump` calls that frame
 a given number of times on the same mapped window, forwards X11 motion and
 button events to `csr_host_input_move` and `csr_host_input_button`, then
 destroys the window. After N frames the swap count is N and host time has
-advanced by N times the delta. `csr_host_run` keeps that window mapped and repeats the frame until the recorded client command is `quit`. `QuitNoConfirm` records that command through `pfnClientCmd` and does not run it. Motion and button events still reach `csr_host_input_move` and `csr_host_input_button`. The call then destroys the window. The swap count is the number of frames and host time advances by that count times the delta. `PresentXashLauncher` paints one frame and returns. It does not call this loop. `RunXashLauncher` opens the host the way `OpenXashLauncher` does and then calls `csr_host_run`. A human process calls `RunXashLauncher`. That call does not play Counter-Strike. The X11 display connection is the window's socket. No game socket is
+advanced by N times the delta. `csr_host_run` keeps that window mapped and repeats the frame until the recorded client command is `quit`. `QuitNoConfirm` records that command through `pfnClientCmd` and does not run it. Motion and button events still reach `csr_host_input_move` and `csr_host_input_button`. The call then destroys the window. The swap count is the number of frames and host time advances by that count times the delta. `PresentXashLauncher` paints one frame and returns. It does not call this loop. `RunXashLauncher` opens the host the way `OpenXashLauncher` does and then calls `csr_host_run`. The human process is `client/build/linux/out/bin/Release/xash_launcher`. Its `main` calls `RunXashLauncher`. The content root is the first argument. That call does not load a map and does not play Counter-Strike. The X11 display connection is the window's socket. No game socket is
 opened. `ISurface::SwapBuffers` stays empty. The surface tests still use an
 EGL pbuffer.
+
+A human runs this command. `$CONTENT_ROOT` is the copy from [Install game content](install.md). It stays outside the Steam library and is not in this repository. The command does not start Steam, does not exec the planned launcher command, does not load a map and does not play Counter-Strike. `main` calls `RunXashLauncher`.
+
+```bash
+client/build/linux/out/bin/Release/xash_launcher "$CONTENT_ROOT"
+```
 
 `nextclient.sh` and [First client start](first-start.md) remain the GoldSrc
 path until this path replaces them.

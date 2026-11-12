@@ -162,6 +162,9 @@ using EngineMiniGLUnloadTextureFn = void (*)(const char* identifier);
 // Process replacement for the retail GL_Bind hook. A null value is not a call.
 using EngineMiniGLBindFn = void (*)(int texnum);
 
+// Process replacement for the retail Draw_Init hook. A null value is not a call.
+using EngineMiniDrawInitFn = void (*)();
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -225,6 +228,7 @@ struct EngineMiniXashStartup
     int unload_textures_calls{};
     int unload_texture_calls{};
     int bind_calls{};
+    int draw_init_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -287,6 +291,7 @@ struct EngineMiniXashStartup
     EngineMiniGLUnloadTexturesFn unload_textures{};
     EngineMiniGLUnloadTextureFn unload_texture{};
     EngineMiniGLBindFn bind{};
+    EngineMiniDrawInitFn draw_init{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -438,6 +443,9 @@ extern EngineMiniGLUnloadTextureFn g_EngineMiniGLUnloadTexture;
 
 // Defaults to GL_Bind. Init stores the pointer and does not call it.
 extern EngineMiniGLBindFn g_EngineMiniGLBind;
+
+// Defaults to Draw_Init. Init stores the pointer and does not call it.
+extern EngineMiniDrawInitFn g_EngineMiniDrawInit;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

@@ -251,8 +251,13 @@ The authoritative version string is the `VERSION` file.
   process when that retail hook is absent. Init stores the pointer and does not
   call it, so no texture is bound, no GL texture state is changed, no GL
   context is opened from this init, no sprite is loaded and no socket is
-  opened. A null pointer is not a call. A null hook is not a call. The next
-  retail hook is `Draw_Init`. This path returns before it.
+  opened. A null pointer is not a call. A null hook is not a call. `Draw_Init`
+  is then the function in this process when that retail hook is absent. Init
+  stores the pointer and does not call it, so no draw state is initialized, no
+  draw resources are loaded, no GL context is opened from this init, no sprite
+  is loaded and no socket is opened. A null pointer is not a call. A null hook
+  is not a call. The next retail hook is `Draw_Shutdown`. This path returns
+  before it.
   `csr_host_frame` is a later direct call. One call opens the X11 display,
   chooses an EGL config whose native visual can be a child of the root window,
   creates that window, calls `eglCreateWindowSurface`, paints one GameUI frame

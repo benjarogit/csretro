@@ -242,8 +242,12 @@ not a call. `Draw_PicFromWad` is then the function in this process when that
 retail hook is absent. Init stores the pointer and does not call it, so no WAD
 picture is loaded, no WAD file is opened, no GL context is opened from this
 init, no sprite is loaded and no socket is opened. A null pointer is not a
-call. A null hook is not a call. The next retail hook is `V_UpdatePalette`.
-This path returns before it.
+call. A null hook is not a call. `V_UpdatePalette` is then the function in this
+process when that retail hook is absent. Init stores the pointer and does not
+call it, so the palette is not updated, no gamma tables are written, no GL
+context is opened from this init, no sprite is loaded and no socket is opened.
+A null pointer is not a call. A null hook is not a call. The next retail hook
+is `V_CheckGamma`. This path returns before it.
 `csr_host_frame` is a later direct call and does not extend that list.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and are not called. A missing library or export fails the open and is

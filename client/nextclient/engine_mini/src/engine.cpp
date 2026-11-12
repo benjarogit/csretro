@@ -432,6 +432,7 @@ namespace
     void RecordXashDrawInit();
     void RecordXashDrawShutdown();
     void RecordXashDrawPicFromWad();
+    void RecordXashUpdatePalette();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -621,7 +622,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // Draw_PicFromWad is then the process function when that hook is absent.
     // This init stores the pointer and does not load a WAD picture. The
     // process body loads a WAD picture, so a real call does not run.
-    // The next retail hook is V_UpdatePalette. This path returns before it.
+    // V_UpdatePalette is then the process function when that hook is absent.
+    // This init stores the pointer and does not update the palette. The
+    // process body updates the palette and can write gamma tables, so a real
+    // call does not run.
+    // The next retail hook is V_CheckGamma. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -684,6 +689,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashDrawInit();
             RecordXashDrawShutdown();
             RecordXashDrawPicFromWad();
+            RecordXashUpdatePalette();
         }
         return;
     }
@@ -1158,6 +1164,7 @@ EngineMiniGLBindFn g_EngineMiniGLBind = GL_Bind;
 EngineMiniDrawInitFn g_EngineMiniDrawInit = Draw_Init;
 EngineMiniDrawShutdownFn g_EngineMiniDrawShutdown = Draw_Shutdown;
 EngineMiniDrawPicFromWadFn g_EngineMiniDrawPicFromWad = Draw_PicFromWad;
+EngineMiniUpdatePaletteFn g_EngineMiniUpdatePalette = V_UpdatePalette;
 
 namespace
 {
@@ -2089,6 +2096,24 @@ namespace
         g_xash_startup.draw_pic_from_wad = g_EngineMiniDrawPicFromWad;
     }
 
+    void RecordXashUpdatePalette()
+    {
+        // The retail site installs a replacement. It does not update the palette during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body updates the palette and can write gamma tables, so this path
+        // does not call it.
+        g_xash_startup.update_palette = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->V_UpdatePalette.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniUpdatePalette == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.update_palette = g_EngineMiniUpdatePalette;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2413,6 +2438,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniDrawInit = Draw_Init;
     g_EngineMiniDrawShutdown = Draw_Shutdown;
     g_EngineMiniDrawPicFromWad = Draw_PicFromWad;
+    g_EngineMiniUpdatePalette = V_UpdatePalette;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

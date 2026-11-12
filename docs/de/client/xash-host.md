@@ -229,8 +229,13 @@ Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft
 ihn nicht auf, daher wird keine Textur geladen, kein GL-Speicher alloziert,
 keine Texturdatei geöffnet, kein GL-Kontext aus diesem Init geöffnet, kein
 Sprite geladen und kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein
-Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist `GL_LoadTexture2`. Dieser
-Pfad kehrt davor zurück.
+Null-Hook ist kein Aufruf. `GL_LoadTexture2` ist danach die Funktion in diesem
+Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft
+ihn nicht auf, daher wird keine Textur geladen, kein Filter angewendet, kein
+GL-Speicher alloziert, keine Texturdatei geöffnet, kein GL-Kontext aus diesem
+Init geöffnet, kein Sprite geladen und kein Socket geöffnet. Ein Null-Zeiger
+ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
+`GL_UnloadTextures`. Dieser Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie

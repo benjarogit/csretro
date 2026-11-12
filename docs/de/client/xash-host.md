@@ -78,8 +78,12 @@ geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
 `Mod_FindName` ist danach die Funktion in diesem Prozess, wenn dieser
 Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
 daher wird kein Modell gesucht oder geladen und kein Socket geöffnet.
+Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+`Mod_Print` ist danach die Funktion in diesem Prozess, wenn dieser
+Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
+daher wird die Modellliste nicht gedruckt und kein Socket geöffnet.
 Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der
-nächste Retail-Hook ist `Mod_Print`. Dieser Pfad kehrt davor zurück.
+nächste Retail-Hook ist `Mod_ValidateCRC`. Dieser Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie

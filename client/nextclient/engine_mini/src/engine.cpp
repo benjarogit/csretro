@@ -394,6 +394,7 @@ namespace
     void RecordXashHostFilterTime();
     void RecordXashModClearAll();
     void RecordXashModFindName();
+    void RecordXashModPrint();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -438,7 +439,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // Mod_FindName is then the process function when that hook is absent.
     // This init stores the pointer and does not look up a model. The process
     // body searches the known list and can allocate a slot, so a real call
-    // does not run. The next retail hook is Mod_Print. This path returns
+    // does not run.
+    // Mod_Print is then the process function when that hook is absent.
+    // This init stores the pointer and does not print the model list. The
+    // process body writes that list through Con_Printf, so a real call does
+    // not run. The next retail hook is Mod_ValidateCRC. This path returns
     // before it.
     if (XashStartupIsActive())
     {
@@ -464,6 +469,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashHostFilterTime();
             RecordXashModClearAll();
             RecordXashModFindName();
+            RecordXashModPrint();
         }
         return;
     }
@@ -897,6 +903,7 @@ EngineMiniHostMapFn g_EngineMiniHostMap = Host_Map_f;
 EngineMiniHostFilterTimeFn g_EngineMiniHostFilterTime = Host_FilterTime;
 EngineMiniModClearAllFn g_EngineMiniModClearAll = Mod_ClearAll;
 EngineMiniModFindNameFn g_EngineMiniModFindName = Mod_FindName;
+EngineMiniModPrintFn g_EngineMiniModPrint = Mod_Print;
 
 namespace
 {
@@ -1149,6 +1156,23 @@ namespace
             return;
         }
         g_xash_startup.mod_find = g_EngineMiniModFindName;
+    }
+
+    void RecordXashModPrint()
+    {
+        // The retail site installs a replacement. It does not print during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body prints the cached model list, so this path does not call it.
+        g_xash_startup.mod_print = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->Mod_Print.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniModPrint == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.mod_print = g_EngineMiniModPrint;
     }
 
     bool XashStartupIsActive()
@@ -1437,6 +1461,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniHostFilterTime = Host_FilterTime;
     g_EngineMiniModClearAll = Mod_ClearAll;
     g_EngineMiniModFindName = Mod_FindName;
+    g_EngineMiniModPrint = Mod_Print;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -1579,6 +1604,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             ++count;
         }
         if (g_xash_startup.mod_find != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.mod_print != nullptr)
         {
             ++count;
         }

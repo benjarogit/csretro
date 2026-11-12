@@ -426,6 +426,7 @@ namespace
     void RecordXashCLClearClientState();
     void RecordXashGLLoadTexture();
     void RecordXashGLLoadTexture2();
+    void RecordXashGLUnloadTextures();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -594,7 +595,10 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not load a texture. The process
     // body requires a GL context or a texture file, applies a filter and
     // allocates texture memory, so a real call does not run.
-    // The next retail hook is GL_UnloadTextures. This path returns before it.
+    // GL_UnloadTextures is then the process function when that hook is absent.
+    // This init stores the pointer and does not unload textures. The process
+    // body frees texture session state, so a real call does not run.
+    // The next retail hook is GL_UnloadTexture. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -651,6 +655,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashCLClearClientState();
             RecordXashGLLoadTexture();
             RecordXashGLLoadTexture2();
+            RecordXashGLUnloadTextures();
         }
         return;
     }
@@ -1119,6 +1124,7 @@ EngineMiniGLLoadTextureFn g_EngineMiniGLLoadTexture =
     reinterpret_cast<EngineMiniGLLoadTextureFn>(GL_LoadTexture);
 EngineMiniGLLoadTexture2Fn g_EngineMiniGLLoadTexture2 =
     reinterpret_cast<EngineMiniGLLoadTexture2Fn>(GL_LoadTexture2);
+EngineMiniGLUnloadTexturesFn g_EngineMiniGLUnloadTextures = GL_UnloadTextures;
 
 namespace
 {
@@ -1945,6 +1951,23 @@ namespace
         g_xash_startup.load_texture2 = g_EngineMiniGLLoadTexture2;
     }
 
+    void RecordXashGLUnloadTextures()
+    {
+        // The retail site installs a replacement. It does not unload textures during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body frees texture session state, so this path does not call it.
+        g_xash_startup.unload_textures = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->GL_UnloadTextures.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniGLUnloadTextures == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.unload_textures = g_EngineMiniGLUnloadTextures;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2263,6 +2286,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniCLClearClientState = CL_ClearClientState;
     g_EngineMiniGLLoadTexture = reinterpret_cast<EngineMiniGLLoadTextureFn>(GL_LoadTexture);
     g_EngineMiniGLLoadTexture2 = reinterpret_cast<EngineMiniGLLoadTexture2Fn>(GL_LoadTexture2);
+    g_EngineMiniGLUnloadTextures = GL_UnloadTextures;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

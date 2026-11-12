@@ -250,8 +250,12 @@ A null pointer is not a call. A null hook is not a call. `V_CheckGamma` is then
 the function in this process when that retail hook is absent. Init stores the
 pointer and does not call it, so gamma is not checked, no gamma tables are
 rebuilt, no GL context is opened from this init, no sprite is loaded and no
+socket is opened. A null pointer is not a call. A null hook is not a call.
+`BuildGammaTable` is then the function in this process when that retail hook is
+absent. Init stores the pointer and does not call it, so no gamma tables are
+rebuilt, no GL context is opened from this init, no sprite is loaded and no
 socket is opened. A null pointer is not a call. A null hook is not a call. The
-next retail hook is `BuildGammaTable`. This path returns before it.
+next retail hook is `DT_SetRenderState`. This path returns before it.
 `csr_host_frame` is a later direct call and does not extend that list.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and are not called. A missing library or export fails the open and is

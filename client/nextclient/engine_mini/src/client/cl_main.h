@@ -14,6 +14,7 @@ void CL_SetDevOverView(goldsrc::refdef_t* refdef);
 void CL_Send_CvarValue();
 
 void CL_ClearClientState();
+void CL_ClearState(goldsrc::qboolean quiet);
 void CL_Disconnect();
 void CL_StopPlayback();
 void SetCareerAudioState(int state);

@@ -389,6 +389,7 @@ namespace
     void RecordXashReadPackets();
     void RecordXashRequestMissingResources();
     void RecordXashDisconnect();
+    void RecordXashClearState();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -417,7 +418,10 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // CL_Disconnect is then the process function when that hook is absent.
     // This init stores the pointer and does not disconnect. The retail body
     // reads client state and can transmit, so a real call does not run.
-    // The next retail hook is CL_ClearState. This path returns before it.
+    // CL_ClearState is then the process function when that hook is absent.
+    // This init stores the pointer and does not clear client state. The
+    // process body forwards into the retail clear, so a real call does not run.
+    // The next retail hook is Host_Map_f. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -437,6 +441,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashReadPackets();
             RecordXashRequestMissingResources();
             RecordXashDisconnect();
+            RecordXashClearState();
         }
         return;
     }
@@ -865,6 +870,7 @@ EngineMiniStartResourceDownloadingFn g_EngineMiniStartResourceDownloading = CL_S
 EngineMiniReadPacketsFn g_EngineMiniReadPackets = CL_ReadPackets;
 EngineMiniRequestMissingResourcesFn g_EngineMiniRequestMissingResources = CL_RequestMissingResources;
 EngineMiniDisconnectFn g_EngineMiniDisconnect = CL_Disconnect;
+EngineMiniClearStateFn g_EngineMiniClearState = CL_ClearState;
 
 namespace
 {
@@ -1031,6 +1037,24 @@ namespace
             return;
         }
         g_xash_startup.disconnect = g_EngineMiniDisconnect;
+    }
+
+    void RecordXashClearState()
+    {
+        // The retail site runs the original clear after a lifecycle notice.
+        // It does not clear during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body forwards into that clear, so this path does not call it.
+        g_xash_startup.clear_state = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->CL_ClearState.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniClearState == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.clear_state = g_EngineMiniClearState;
     }
 
     bool XashStartupIsActive()
@@ -1296,6 +1320,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniReadPackets = CL_ReadPackets;
     g_EngineMiniRequestMissingResources = CL_RequestMissingResources;
     g_EngineMiniDisconnect = CL_Disconnect;
+    g_EngineMiniClearState = CL_ClearState;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

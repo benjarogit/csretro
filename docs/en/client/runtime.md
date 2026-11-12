@@ -51,8 +51,11 @@ stopped and no socket is opened. A null pointer is not a call. A null hook
 is not a call. `CL_StartResourceDownloading` is then the function in this
 process when that retail hook is absent. Init stores the pointer and does
 not call it, so no download is started and no socket is opened. A null
-pointer is not a call. A null hook is not a call. The next retail hook is
-`CL_ReadPackets`. This path returns before it.
+pointer is not a call. A null hook is not a call. `CL_ReadPackets` is then
+the function in this process when that retail hook is absent. Init stores
+the pointer and does not call it, so no packet is read and no socket is
+opened. A null pointer is not a call. A null hook is not a call. The next
+retail hook is `CL_RequestMissingResources`. This path returns before it.
 `OnGameInitialized` is not entered. The retail hook chain
 does not run. `hw.so` is not opened.
 `RunFrame` is not called. The other `engine_mini` forwards stay on the retail

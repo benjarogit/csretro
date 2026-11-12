@@ -403,8 +403,12 @@ Nebenbefunde:
   `CL_StartResourceDownloading` ist danach die Funktion in diesem Prozess,
   wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn
   nicht auf, daher wird kein Download gestartet und kein Socket geöffnet.
-  Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-  Retail-Hook ist `CL_ReadPackets`. Dieser Pfad kehrt davor zurück.
+  Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+  `CL_ReadPackets` ist danach die Funktion in diesem Prozess, wenn dieser
+  Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
+  daher wird kein Paket gelesen und kein Socket geöffnet. Ein Null-Zeiger
+  ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook
+  ist `CL_RequestMissingResources`. Dieser Pfad kehrt davor zurück.
   `OnGameInitialized` wird nicht betreten. Die Retail-Hook-Kette läuft dabei nicht.
   `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen haben weiter
   keinen Xash3D-Einsprung.
@@ -764,8 +768,12 @@ Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
 `CL_StartResourceDownloading` ist danach die Funktion in diesem Prozess,
 wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn
 nicht auf, daher wird kein Download gestartet und kein Socket geöffnet.
-Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-Retail-Hook ist `CL_ReadPackets`. Dieser Pfad kehrt davor zurück.
+Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+`CL_ReadPackets` ist danach die Funktion in diesem Prozess, wenn dieser
+Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
+daher wird kein Paket gelesen und kein Socket geöffnet. Ein Null-Zeiger
+ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook
+ist `CL_RequestMissingResources`. Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten. Die
 Retail-Hook-Kette und ein Xash-Frame laufen dabei nicht. `hw.so` wird nicht geöffnet.
 `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen von `engine_mini`

@@ -386,6 +386,7 @@ namespace
     void RecordXashHttpUpdate();
     void RecordXashHttpStop();
     void RecordXashStartResourceDownloading();
+    void RecordXashReadPackets();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -407,7 +408,9 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not stop a download.
     // CL_StartResourceDownloading is then the process function when that hook
     // is absent. This init stores the pointer and does not start a download.
-    // The next retail hook is CL_ReadPackets. This path returns before it.
+    // CL_ReadPackets is then the process function when that hook is absent.
+    // This init stores the pointer and does not read a packet.
+    // The next retail hook is CL_RequestMissingResources. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -424,6 +427,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashHttpUpdate();
             RecordXashHttpStop();
             RecordXashStartResourceDownloading();
+            RecordXashReadPackets();
         }
         return;
     }
@@ -849,6 +853,7 @@ EngineMiniSvcSendCvarValueFn g_EngineMiniSvcSendCvarValue = CL_Send_CvarValue;
 EngineMiniHttpUpdateFn g_EngineMiniHttpUpdate = CL_HTTPUpdate;
 EngineMiniHttpStopFn g_EngineMiniHttpStop = CL_HTTPStop_f;
 EngineMiniStartResourceDownloadingFn g_EngineMiniStartResourceDownloading = CL_StartResourceDownloading;
+EngineMiniReadPacketsFn g_EngineMiniReadPackets = CL_ReadPackets;
 
 namespace
 {
@@ -966,6 +971,22 @@ namespace
             return;
         }
         g_xash_startup.start_resource = g_EngineMiniStartResourceDownloading;
+    }
+
+    void RecordXashReadPackets()
+    {
+        // The retail site installs a replacement. It does not read packets during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        g_xash_startup.read_packets = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->CL_ReadPackets.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniReadPackets == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.read_packets = g_EngineMiniReadPackets;
     }
 
     bool XashStartupIsActive()
@@ -1228,6 +1249,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniHttpUpdate = CL_HTTPUpdate;
     g_EngineMiniHttpStop = CL_HTTPStop_f;
     g_EngineMiniStartResourceDownloading = CL_StartResourceDownloading;
+    g_EngineMiniReadPackets = CL_ReadPackets;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

@@ -200,8 +200,13 @@ loaded and no socket is opened. A null pointer is not a call. A null hook is not
 a call. `CL_ClearClientState` is then the function in this process when that
 retail hook is absent. Init stores the pointer and does not call it, so no
 client state is cleared, no sprite is loaded and no socket is opened. A null
-pointer is not a call. A null hook is not a call. The next retail hook is
-`GL_LoadTexture`. This path returns before it.
+pointer is not a call. A null hook is not a call. `GL_LoadTexture` is then the
+function in this process when that retail hook is absent. Init stores the
+pointer and does not call it, so no texture is loaded, no GL memory is
+allocated, no texture file is opened, no GL context is opened from this init,
+no sprite is loaded and no socket is opened. A null pointer is not a call. A
+null hook is not a call. The next retail hook is `GL_LoadTexture2`. This path
+returns before it.
 `csr_host_frame` is a later direct call and does not extend that list.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and that open does not call them. A missing library or export fails

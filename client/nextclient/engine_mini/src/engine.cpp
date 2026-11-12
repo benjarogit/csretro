@@ -424,6 +424,7 @@ namespace
     void RecordXashGLSelectTexture();
     void RecordXashCLConnectClient();
     void RecordXashCLClearClientState();
+    void RecordXashGLLoadTexture();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -584,7 +585,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not clear client state. The
     // process body can clear client and connection state, so a real call
     // does not run.
-    // The next retail hook is GL_LoadTexture. This path returns before it.
+    // GL_LoadTexture is then the process function when that hook is absent.
+    // This init stores the pointer and does not load a texture. The process
+    // body requires a GL context or a texture file and allocates texture
+    // memory, so a real call does not run.
+    // The next retail hook is GL_LoadTexture2. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -639,6 +644,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashGLSelectTexture();
             RecordXashCLConnectClient();
             RecordXashCLClearClientState();
+            RecordXashGLLoadTexture();
         }
         return;
     }
@@ -1103,6 +1109,8 @@ EngineMiniGLSelectTextureFn g_EngineMiniGLSelectTexture =
     reinterpret_cast<EngineMiniGLSelectTextureFn>(GL_SelectTexture);
 EngineMiniCLConnectClientFn g_EngineMiniCLConnectClient = CL_ConnectClient;
 EngineMiniCLClearClientStateFn g_EngineMiniCLClearClientState = CL_ClearClientState;
+EngineMiniGLLoadTextureFn g_EngineMiniGLLoadTexture =
+    reinterpret_cast<EngineMiniGLLoadTextureFn>(GL_LoadTexture);
 
 namespace
 {
@@ -1893,6 +1901,24 @@ namespace
         g_xash_startup.clear_client_state = g_EngineMiniCLClearClientState;
     }
 
+    void RecordXashGLLoadTexture()
+    {
+        // The retail site installs a replacement. It does not load a texture during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body requires a GL context or a texture file and allocates
+        // texture memory, so this path does not call it.
+        g_xash_startup.load_texture = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->GL_LoadTexture.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniGLLoadTexture == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.load_texture = g_EngineMiniGLLoadTexture;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2209,6 +2235,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniGLSelectTexture = reinterpret_cast<EngineMiniGLSelectTextureFn>(GL_SelectTexture);
     g_EngineMiniCLConnectClient = CL_ConnectClient;
     g_EngineMiniCLClearClientState = CL_ClearClientState;
+    g_EngineMiniGLLoadTexture = reinterpret_cast<EngineMiniGLLoadTextureFn>(GL_LoadTexture);
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

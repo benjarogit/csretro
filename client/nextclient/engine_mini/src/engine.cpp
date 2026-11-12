@@ -408,6 +408,7 @@ namespace
     void RecordXashSprDrawAdditive();
     void RecordXashSprDrawHoles();
     void RecordXashSprDrawGeneric();
+    void RecordXashSprEnableScissor();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -512,7 +513,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not draw a sprite. The process body draws
     // the current sprite with the caller blend when a sprite is current and the point
     // is inside the video image, and can call Draw_SpriteFrameGeneric, so a real call
-    // does not run. The next retail hook is SPR_EnableScissor. This path returns before it.
+    // does not run.
+    // SPR_EnableScissor is then the process function when that hook is absent.
+    // This init stores the pointer and does not set a scissor rectangle. The process
+    // body enables a scissor rectangle and can call EnableScissorTest, so a real call
+    // does not run. The next retail hook is SPR_DisableScissor. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -551,6 +556,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSprDrawAdditive();
             RecordXashSprDrawHoles();
             RecordXashSprDrawGeneric();
+            RecordXashSprEnableScissor();
         }
         return;
     }
@@ -998,6 +1004,7 @@ EngineMiniSprDrawFn g_EngineMiniSprDraw = SPR_Draw;
 EngineMiniSprDrawAdditiveFn g_EngineMiniSprDrawAdditive = SPR_DrawAdditive;
 EngineMiniSprDrawHolesFn g_EngineMiniSprDrawHoles = SPR_DrawHoles;
 EngineMiniSprDrawGenericFn g_EngineMiniSprDrawGeneric = SPR_DrawGeneric;
+EngineMiniSprEnableScissorFn g_EngineMiniSprEnableScissor = SPR_EnableScissor;
 
 namespace
 {
@@ -1500,6 +1507,24 @@ namespace
         g_xash_startup.spr_draw_generic = g_EngineMiniSprDrawGeneric;
     }
 
+    void RecordXashSprEnableScissor()
+    {
+        // The retail site installs a replacement. It does not set a scissor during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body enables a scissor rectangle and can call EnableScissorTest,
+        // so this path does not call it.
+        g_xash_startup.spr_enable_scissor = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->SPR_EnableScissor.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniSprEnableScissor == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.spr_enable_scissor = g_EngineMiniSprEnableScissor;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -1800,6 +1825,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSprDrawAdditive = SPR_DrawAdditive;
     g_EngineMiniSprDrawHoles = SPR_DrawHoles;
     g_EngineMiniSprDrawGeneric = SPR_DrawGeneric;
+    g_EngineMiniSprEnableScissor = SPR_EnableScissor;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -2136,6 +2162,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             ++count;
         }
         if (g_xash_startup.spr_draw_generic != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.spr_enable_scissor != nullptr)
         {
             ++count;
         }

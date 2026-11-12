@@ -155,6 +155,7 @@ void BuildGammaTable(float g);
 
 void EnableScissorTest(int x, int y, int width, int height);
 void DisableScissorTest();
+void EngineMini_ReadScissorTest(int* x, int* y, int* width, int* height, bool* enabled);
 
 //
 // gl_rmain.cpp

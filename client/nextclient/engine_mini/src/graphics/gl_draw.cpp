@@ -966,6 +966,30 @@ void DisableScissorTest()
     giScissorTest = false;
 }
 
+void EngineMini_ReadScissorTest(int* x, int* y, int* width, int* height, bool* enabled)
+{
+    if (x != nullptr)
+    {
+        *x = scissor_x;
+    }
+    if (y != nullptr)
+    {
+        *y = scissor_y;
+    }
+    if (width != nullptr)
+    {
+        *width = scissor_width;
+    }
+    if (height != nullptr)
+    {
+        *height = scissor_height;
+    }
+    if (enabled != nullptr)
+    {
+        *enabled = giScissorTest != 0;
+    }
+}
+
 goldsrc::qpic_t* LoadTransPic(const char* pszName, goldsrc::qpic_t* ppic)
 {
     NCL_PROFILE_SCOPE();

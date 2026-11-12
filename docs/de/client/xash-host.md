@@ -152,8 +152,13 @@ speichert den Zeiger und ruft ihn nicht auf, daher bleibt das aktuelle
 Sprite am selben Zeiger, kein Sprite-Frame wird mit dem Blend des Aufrufers
 gezeichnet, `Draw_SpriteFrameGeneric` läuft nicht, kein Sprite wird geladen
 und kein Socket wird geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein
-Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist `SPR_EnableScissor`.
-Dieser Pfad kehrt davor zurück.
+Null-Hook ist kein Aufruf. `SPR_EnableScissor` ist danach die Funktion in
+diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den
+Zeiger und ruft ihn nicht auf, daher bleibt ein gesetztes Scissor-Rechteck
+unverändert, `EnableScissorTest` läuft nicht, kein Sprite wird geladen und
+kein Socket wird geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook
+ist kein Aufruf. Der nächste Retail-Hook ist `SPR_DisableScissor`. Dieser
+Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie

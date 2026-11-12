@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <goldsrc/engine/client_state.h>
+#include <goldsrc/engine/model.h>
 
 #include <vgui/IPanel.h>
 #include <vgui/ISurface.h>
@@ -1951,6 +1952,22 @@ std::vector<unsigned char> FixtureBsp(int version)
     return bytes;
 }
 
+std::vector<unsigned char> EntitiesBsp()
+{
+    std::vector<unsigned char> bytes(128, 0);
+    const int version = 30;
+    const int offset = 124;
+    const int length = 4;
+    std::memcpy(bytes.data(), &version, sizeof(version));
+    std::memcpy(bytes.data() + 4, &offset, sizeof(offset));
+    std::memcpy(bytes.data() + 8, &length, sizeof(length));
+    bytes[124] = 'C';
+    bytes[125] = 'S';
+    bytes[126] = 'R';
+    bytes[127] = 'T';
+    return bytes;
+}
+
 TEST(XashLauncher, LoadReadsTheMapFileOntoClientState)
 {
     const unsigned char known[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9'};
@@ -1964,6 +1981,7 @@ TEST(XashLauncher, LoadReadsTheMapFileOntoClientState)
     const std::vector<unsigned char> bytes = FixtureBsp(30);
     ASSERT_TRUE(WriteBytes(map_path, bytes));
     const std::uint32_t checksum = FileChecksum(bytes.data(), bytes.size());
+    EXPECT_EQ(checksum, 0xa4ebf95du);
 
     auto state = std::make_unique<goldsrc::client_state_t>();
     std::memset(state.get(), 0, sizeof(*state));
@@ -1977,6 +1995,11 @@ TEST(XashLauncher, LoadReadsTheMapFileOntoClientState)
     EXPECT_EQ(state->mapCRC, checksum);
     EXPECT_EQ(state->max_edicts, 42);
     EXPECT_EQ(state->servercount, 7);
+    ASSERT_NE(state->worldmodel, nullptr);
+    EXPECT_STREQ(state->worldmodel->name, "fixture");
+    EXPECT_EQ(state->worldmodel->type, goldsrc::mod_brush);
+    EXPECT_EQ(state->worldmodel->entities, nullptr);
+    goldsrc::model_t* world = state->worldmodel;
     int header_version = 0;
     std::memcpy(&header_version, bytes.data(), sizeof(header_version));
     EXPECT_EQ(header_version, 30);
@@ -1986,6 +2009,7 @@ TEST(XashLauncher, LoadReadsTheMapFileOntoClientState)
     EXPECT_STREQ(state->levelname, "fixture");
     EXPECT_EQ(state->mapCRC, loaded_crc);
     EXPECT_EQ(state->max_edicts, 42);
+    EXPECT_EQ(state->worldmodel, world);
 
     ASSERT_TRUE(WriteBytes(map_path, FixtureBsp(29)));
     EXPECT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 0);
@@ -2001,6 +2025,57 @@ TEST(XashLauncher, LoadReadsTheMapFileOntoClientState)
     EXPECT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 0);
     EXPECT_STREQ(state->levelname, "fixture");
     EXPECT_EQ(state->mapCRC, loaded_crc);
+    EXPECT_EQ(state->worldmodel, world);
+
+    rmdir((temp.root + "/cstrike/maps").c_str());
+    rmdir((temp.root + "/cstrike").c_str());
+}
+
+TEST(XashLauncher, LoadBuildsTheWorldModelFromTheEntitiesLump)
+{
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/cstrike").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/cstrike/maps").c_str(), 0755), 0);
+    const std::string map_path = temp.root + "/cstrike/maps/fixture.bsp";
+
+    auto state = std::make_unique<goldsrc::client_state_t>();
+    std::memset(state.get(), 0, sizeof(*state));
+    std::memcpy(state->levelname, "csretro-keep", sizeof("csretro-keep"));
+    state->mapCRC = 0x11111111u;
+
+    ASSERT_TRUE(WriteBytes(map_path, FixtureBsp(29)));
+    EXPECT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 0);
+    EXPECT_STREQ(state->levelname, "csretro-keep");
+    EXPECT_EQ(state->mapCRC, 0x11111111u);
+    EXPECT_EQ(state->worldmodel, nullptr);
+
+    ASSERT_TRUE(WriteBytes(map_path, std::vector<unsigned char>(123, 0)));
+    EXPECT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 0);
+    EXPECT_STREQ(state->levelname, "csretro-keep");
+    EXPECT_EQ(state->worldmodel, nullptr);
+
+    const std::vector<unsigned char> bytes = EntitiesBsp();
+    ASSERT_TRUE(WriteBytes(map_path, bytes));
+    const std::uint32_t checksum = FileChecksum(bytes.data(), bytes.size());
+    ASSERT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 1);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->mapCRC, checksum);
+    ASSERT_NE(state->worldmodel, nullptr);
+    EXPECT_STREQ(state->worldmodel->name, "fixture");
+    EXPECT_EQ(state->worldmodel->type, goldsrc::mod_brush);
+    ASSERT_NE(state->worldmodel->entities, nullptr);
+    EXPECT_STREQ(state->worldmodel->entities, "CSRT");
+    EXPECT_EQ(state->worldmodel->visdata, nullptr);
+    EXPECT_EQ(state->worldmodel->numsubmodels, 0);
+    goldsrc::model_t* world = state->worldmodel;
+
+    std::remove(map_path.c_str());
+    EXPECT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 0);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->mapCRC, checksum);
+    EXPECT_EQ(state->worldmodel, world);
+    EXPECT_STREQ(state->worldmodel->entities, "CSRT");
 
     rmdir((temp.root + "/cstrike/maps").c_str());
     rmdir((temp.root + "/cstrike").c_str());
@@ -2136,6 +2211,10 @@ TEST(XashLauncher, RunLoadsTheMapBeforeTheQuitLoop)
     ASSERT_NE(state, nullptr);
     EXPECT_STREQ(state->levelname, "fixture");
     EXPECT_EQ(state->mapCRC, checksum);
+    ASSERT_NE(state->worldmodel, nullptr);
+    EXPECT_STREQ(state->worldmodel->name, "fixture");
+    EXPECT_EQ(state->worldmodel->type, goldsrc::mod_brush);
+    EXPECT_EQ(state->worldmodel->entities, nullptr);
     EXPECT_EQ(host_map_calls(), 0);
     int filter_calls = -1;
     int stored = -1;

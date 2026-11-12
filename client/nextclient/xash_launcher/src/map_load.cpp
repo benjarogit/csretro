@@ -1,9 +1,12 @@
 #include "xash_launcher/xash_launcher.h"
 
 #include <goldsrc/engine/client_state.h>
+#include <goldsrc/engine/model.h>
+#include <goldsrc/format/bsp.h>
 
 #include <cstdio>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -113,6 +116,129 @@ bool HeaderFits(const std::vector<unsigned char>& bytes)
     return true;
 }
 
+constexpr int kLumpEntities = 0;
+constexpr int kLumpVisibility = 4;
+constexpr int kLumpLighting = 8;
+constexpr int kLumpClipnodes = 9;
+constexpr int kLumpModels = 14;
+
+static_assert(sizeof(goldsrc::dclipnode_t) == 8);
+static_assert(sizeof(goldsrc::dmodel_t) == 64);
+
+goldsrc::model_t* g_owned_world = nullptr;
+
+void FreeWorld(goldsrc::model_t* model)
+{
+    if (model == nullptr)
+    {
+        return;
+    }
+    std::free(model->entities);
+    std::free(model->visdata);
+    std::free(model->lightdata);
+    std::free(model->clipnodes);
+    std::free(model->submodels);
+    std::free(model);
+}
+
+void FreeOwnedAtExit()
+{
+    FreeWorld(g_owned_world);
+    g_owned_world = nullptr;
+}
+
+bool CopyLump(const std::vector<unsigned char>& bytes, const Lump& lump, void** dest, bool terminate)
+{
+    if (lump.length == 0)
+    {
+        *dest = nullptr;
+        return true;
+    }
+    const std::size_t length = static_cast<std::size_t>(lump.length);
+    const std::size_t total = terminate ? length + 1 : length;
+    auto* block = static_cast<unsigned char*>(std::malloc(total));
+    if (block == nullptr)
+    {
+        return false;
+    }
+    std::memcpy(block, bytes.data() + static_cast<std::size_t>(lump.offset), length);
+    if (terminate)
+    {
+        block[length] = '\0';
+    }
+    *dest = block;
+    return true;
+}
+
+// Disk faces, texinfo and textures become draw surfaces inside the retail
+// brush loader, and that loader needs a renderer. Those lumps stay unread.
+// eng()->Mod_LoadBrushModel is not called.
+goldsrc::model_t* BuildWorld(const std::vector<unsigned char>& bytes, const char* map_name)
+{
+    Header header{};
+    std::memcpy(&header, bytes.data(), sizeof(header));
+    auto* model = static_cast<goldsrc::model_t*>(std::calloc(1, sizeof(goldsrc::model_t)));
+    if (model == nullptr)
+    {
+        return nullptr;
+    }
+    std::snprintf(model->name, sizeof(model->name), "%s", map_name);
+    model->type = goldsrc::mod_brush;
+
+    void* entities = nullptr;
+    void* visdata = nullptr;
+    void* lightdata = nullptr;
+    if (!CopyLump(bytes, header.lumps[kLumpEntities], &entities, true) ||
+        !CopyLump(bytes, header.lumps[kLumpVisibility], &visdata, false) ||
+        !CopyLump(bytes, header.lumps[kLumpLighting], &lightdata, false))
+    {
+        model->entities = static_cast<char*>(entities);
+        model->visdata = static_cast<std::uint8_t*>(visdata);
+        model->lightdata = static_cast<goldsrc::color24*>(lightdata);
+        FreeWorld(model);
+        return nullptr;
+    }
+    model->entities = static_cast<char*>(entities);
+    model->visdata = static_cast<std::uint8_t*>(visdata);
+    model->lightdata = static_cast<goldsrc::color24*>(lightdata);
+
+    const Lump& clips = header.lumps[kLumpClipnodes];
+    if (clips.length > 0 && static_cast<std::size_t>(clips.length) % sizeof(goldsrc::dclipnode_t) == 0)
+    {
+        void* clipnodes = nullptr;
+        if (!CopyLump(bytes, clips, &clipnodes, false))
+        {
+            FreeWorld(model);
+            return nullptr;
+        }
+        model->clipnodes = static_cast<goldsrc::dclipnode_t*>(clipnodes);
+        model->numclipnodes = clips.length / static_cast<int>(sizeof(goldsrc::dclipnode_t));
+    }
+
+    const Lump& models = header.lumps[kLumpModels];
+    if (models.length > 0 && static_cast<std::size_t>(models.length) % sizeof(goldsrc::dmodel_t) == 0)
+    {
+        void* submodels = nullptr;
+        if (!CopyLump(bytes, models, &submodels, false))
+        {
+            FreeWorld(model);
+            return nullptr;
+        }
+        model->submodels = static_cast<goldsrc::dmodel_t*>(submodels);
+        model->numsubmodels = models.length / static_cast<int>(sizeof(goldsrc::dmodel_t));
+        if (model->numsubmodels > 0)
+        {
+            model->mins[0] = model->submodels[0].mins[0];
+            model->mins[1] = model->submodels[0].mins[1];
+            model->mins[2] = model->submodels[0].mins[2];
+            model->maxs[0] = model->submodels[0].maxs[0];
+            model->maxs[1] = model->submodels[0].maxs[1];
+            model->maxs[2] = model->submodels[0].maxs[2];
+        }
+    }
+    return model;
+}
+
 } // namespace
 
 int LoadXashMap(const char* content_root, const char* map_name, goldsrc::client_state_t* state)
@@ -152,8 +278,31 @@ int LoadXashMap(const char* content_root, const char* map_name, goldsrc::client_
         return 0;
     }
 
+    goldsrc::model_t* built = BuildWorld(bytes, map_name);
+    if (built == nullptr)
+    {
+        return 0;
+    }
+    static bool release_at_exit = false;
+    if (!release_at_exit)
+    {
+        std::atexit(FreeOwnedAtExit);
+        release_at_exit = true;
+    }
+
     std::snprintf(state->levelname, sizeof(state->levelname), "%s", map_name);
     state->mapCRC = Checksum(bytes.data(), bytes.size());
+    goldsrc::model_t* previous = state->worldmodel;
+    state->worldmodel = built;
+    if (previous != nullptr && previous == g_owned_world)
+    {
+        FreeWorld(previous);
+    }
+    else if (g_owned_world != nullptr && g_owned_world != built)
+    {
+        FreeWorld(g_owned_world);
+    }
+    g_owned_world = built;
     return 1;
 }
 

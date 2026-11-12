@@ -61,15 +61,18 @@ int OpenXashLauncher(
 int PresentXashLauncher(LauncherProcess* session, int wide, int tall);
 
 // Reads cstrike/maps/<map_name>.bsp under content_root. A version 30 header
-// whose lumps sit inside the file records map_name in state->levelname and
-// the checksum of the bytes read in state->mapCRC. A missing file, a short
-// file, or another version leaves state unchanged and returns 0. Host_Map_f
-// is not this call.
+// whose lumps sit inside the file records map_name in state->levelname, the
+// checksum of the bytes read in state->mapCRC, and a brush model in
+// state->worldmodel. The model name is map_name. A non-empty entities lump
+// is copied onto that model. A missing file, a short file, or another version
+// leaves state unchanged and returns 0. Host_Map_f is not this call.
+// Mod_LoadBrushModel is not this call.
 int LoadXashMap(const char* content_root, const char* map_name, goldsrc::client_state_t* state);
 
 // Opens the host the way OpenXashLauncher does. A map name loads that file
-// onto the client state before csr_host_run. An empty map name skips the
-// load. A failed load closes the session and does not enter the quit loop.
+// onto the client state and builds its world model before csr_host_run. An
+// empty map name skips the load. A failed load closes the session and does
+// not enter the quit loop.
 // The window stays mapped until the recorded client command is quit, and
 // the call then destroys that window. PresentXashLauncher is the one-frame
 // present and is not this call. Does not exec the planned command, does not

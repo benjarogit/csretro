@@ -35,6 +35,7 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- `RunXashLauncher` builds a brush world model from the validated map bytes before the quit loop and stores it on `client_state->worldmodel`. The model name is the map name. A non-empty entities lump is copied onto the model. A failed load does not change the client state, so a null `worldmodel` stays null and the previous map name stays. Faces, textures and lightmaps are not built. `eng()->Mod_LoadBrushModel` is not called. `eng()->R_NewMap` is still required before a surface can draw the world.
 - `RunXashLauncher` reads `cstrike/maps/<name>.bsp` from the content root when a map name is given, records that name and a checksum of the bytes it read on the client state, and does this before the quit loop. A missing file, a short file, or a BSP that is not version 30 fails and leaves the previous map name unchanged. No map name leaves the previous behaviour. `Host_Map_f` is not that call.
 - `OnGameInitializing` reads an engine pointer table from this process when
   the retail hook is absent. Null function pointers are not calls, and

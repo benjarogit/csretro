@@ -8,7 +8,7 @@ die Persona eingeloggt und hat einen Namen, ist das der angezeigte Name. Das
 Portrait sind die Pixel, die der Aufruf schon mitbringt. Die Funktion lädt
 kein Bild, speichert keine Zugangsdaten und startet Steam nicht.
 
-Die Entscheidung steht in [Plan, Abschnitt 3.7](../../plan/csretro-plan.md).
+Die Entscheidung steht in [Plan, Abschnitt 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
 
 ## Test
 

@@ -1,7 +1,7 @@
 # Client bauen
 
 Der Client ist ein x86_64-Build. Valves i386-`hw.so` wird nicht geladen.
-Die Entscheidung steht in [Plan, Abschnitt 3.7](../../plan/csretro-plan.md).
+Die Entscheidung steht in [Plan, Abschnitt 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
 Nichts davon berührt die Steam-Installation.
 
 Voraussetzungen: [Build-Voraussetzungen](prerequisites.md).

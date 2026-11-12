@@ -4,7 +4,7 @@
     "name": "CSRETRO",
     "version_file": "VERSION",
     "repository": "https://github.com/benjarogit/csretro",
-    "visibility": "private"
+    "visibility": "public"
   },
   "upstreams": {
     "nextclient": {
@@ -96,6 +96,22 @@
       "usage": "Downloads HLDS App 90 during the test server image build",
       "gate": "G06",
       "note": "Valve ships no official image. The digest pins the third-party image that only runs SteamCMD; the resulting server image is built locally and never published."
+    }
+  },
+  "docs_site": {
+    "zensical": {
+      "version": "0.1.1",
+      "url_manylinux_x86_64": "https://files.pythonhosted.org/packages/ff/2f/b2b12131181d144d5c452820654f40d84e63480dcdff11de6d15f5bc0a16/zensical-0.1.1-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256_manylinux_x86_64": "e11abaf2669c5ee780a145d114e8c3db4cd81cd3fdfc8a4513a324301fefd113",
+      "usage": "GitHub Pages generator for docs/de and docs/en"
+    },
+    "vgui_css": {
+      "repository": "https://github.com/AlpyneDreams/vgui.css",
+      "commit": "d8b12f50a89f7f0c59e3a0cb39f07cd8ca5f0ae7",
+      "prefix": "docs/assets/vgui/",
+      "tree_sha256": "bfde45642b6ec969b02b09821b5f1e596181d6361da0123d0b385b7b3a75ff9f",
+      "license": "MIT",
+      "usage": "greensteam (light) and blacksteam (dark) skins for the docs page"
     }
   },
   "references": {

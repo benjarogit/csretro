@@ -45,7 +45,7 @@ scripts/bootstrap.sh --install-deps
 ## Warum x86_64
 
 Der Produktprozess ist x86_64. Die Entscheidung steht in
-[Plan, Abschnitt 3.7](../../plan/csretro-plan.md). Der Client nutzt das
+[Plan, Abschnitt 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md). Der Client nutzt das
 vcpkg-Triplet `x64-linux`. Das Server-Modul bleibt i386 und braucht dafür
 weiter die 32-Bit-Toolchain.
 
@@ -97,4 +97,4 @@ erneut ausführen.
 | CMake bleibt auf dem alten Triplet | Cache aus `x86-linux` | `scripts/build-client.sh --clean` |
 
 CSRETRO niemals in den Steam-Spielordner installieren. Siehe
-[Sicherheitsregeln](../../../AGENTS.md#10-security).
+[Sicherheitsregeln](https://github.com/benjarogit/csretro/blob/main/AGENTS.md#10-security).

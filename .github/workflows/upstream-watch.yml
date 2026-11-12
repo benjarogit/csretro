@@ -1,0 +1,28 @@
+name: upstream-watch
+
+on:
+  schedule:
+    # Monday 08:00 UTC
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    name: open or refresh one upstream issue
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Compare pins and open at most one issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/upstream-watch.sh

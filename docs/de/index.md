@@ -1,53 +1,31 @@
 # CSRETRO – Dokumentation
 
-Willkommen. Diese Dokumentation ist die deutsche Fassung. Die englische Fassung
-liegt unter [`docs/en`](../en/index.md) und hat denselben Aufbau.
+Der Client ist noch nicht spielbar. CSRETRO ist in früher Entwicklung
+(`1.0.0-dev`). Du brauchst eine retail Counter-Strike-1.6-Installation für die
+Originalinhalte, wenn der Client startet. Nie in den Steam-Spieleordner legen,
+nie auf einen VAC-Server.
 
-## Einstieg
+Die englische Fassung liegt unter [English](../en/index.md) und hat denselben
+Aufbau.
+
+## Für wen
+
+| Leser | Einstieg |
+|---|---|
+| Spieler | [Spieler](players/index.md) |
+| Mitentwickler | [Mitentwickler](maintainers/index.md) |
+| Plugin-Autoren | [Plugin-Autoren](plugins/index.md) |
+| Server | [Server](server/index.md) |
+
+## Status und Quellen
 
 | Thema | Datei |
 |---|---|
-| Projektplan (maßgeblich) | [Plan](../plan/csretro-plan.md) |
-| Aktueller Projektstand | [HANDOFF](../../HANDOFF.md) |
-| Credits und Lizenzen | [CREDITS](../../CREDITS.md) |
-| Changelog | [CHANGELOG](../../CHANGELOG.md) |
-| Harness-Regeln | [AGENTS](../../AGENTS.md) |
+| Aktueller Projektstand | [HANDOFF](https://github.com/benjarogit/csretro/blob/main/HANDOFF.md) |
+| Projektplan (maßgeblich) | [Plan](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md) |
+| Credits und Lizenzen | [CREDITS](https://github.com/benjarogit/csretro/blob/main/CREDITS.md) |
+| Security | [SECURITY](https://github.com/benjarogit/csretro/blob/main/SECURITY.md) |
+| Changelog | [CHANGELOG](https://github.com/benjarogit/csretro/blob/main/CHANGELOG.md) |
+| Harness-Regeln | [AGENTS](https://github.com/benjarogit/csretro/blob/main/AGENTS.md) |
 
-## Status
-
-CSRETRO ist in früher Entwicklung (`0.1.0-dev`). Der aktuelle Gate-Stand und alle
-Nachweise stehen ausschließlich in [`HANDOFF.md`](../../HANDOFF.md).
-
-## Geplanter Aufbau
-
-Die folgenden Kapitel entstehen mit den jeweiligen Gates. Sie sind hier gelistet,
-damit die Struktur nicht zwischen Deutsch und Englisch auseinanderläuft.
-
-| Kapitel | Gate |
-|---|---|
-| Installation unter Linux | G09 |
-| Build-Voraussetzungen | [G03](build/prerequisites.md) |
-| Client bauen | [G04](build/client.md) |
-| Server-API bauen | [G05](build/server.md) |
-| Testserver | [G06](server/testserver.md) |
-| Client-Laufzeit | [G07](client/runtime.md) |
-| Erster Client-Start | [G07](client/first-start.md) |
-| VGUI-Surface auf Xash3D | [G07](client/xash-surface.md) |
-| Host-Factory der Surface | [G07](client/xash-host.md) |
-| Spieleridentität | [G07](client/player-identity.md) |
-| Cvar-Referenz (generiert) | G11 |
-| Command-Referenz (generiert) | G11 |
-| Native-Referenz (generiert) | G11 |
-| Server-API | G05 |
-| Protokoll | G08 |
-| Fehlersuche | G09 |
-| FAQ | G11 |
-| Architektur | G11 |
-| Datenschutz und Telemetrie | G12 |
-
-## Mitwirken
-
-- Code, Kommentare und Commits sind englisch.
-- Dokumentation ist zweisprachig. Eine Änderung ohne beide Sprachen ist unvollständig.
-- Der Plan ist die einzige Quelle für Ziele und Gates. Der Fortschritt steht nur im
-  Handoff. Keine Kopien.
+Fortschritt und Nachweise stehen nur in `HANDOFF.md`, nicht hier als Anleitung.

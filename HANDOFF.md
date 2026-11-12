@@ -10,7 +10,8 @@ Project state for the next session. Personal context belongs in
 - **Branch:** `main`
 - **Commit:** `fef9602` (gameui start)
 - **CI:** https://github.com/benjarogit/csretro/actions/runs/43173008453 – success (`fef9602`)
-- **Version:** `0.1.0-dev` (`VERSION`)
+- **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
+- **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
 
 ## Verified (with evidence)
 
@@ -401,6 +402,17 @@ implementation; the plan is the only source for the gate list.
   scripts.
 - **Branch protection** is unavailable on a private free-plan repository. The
   tracked `pre-push` hook and CI are the two checks.
+
+## Plan note (2026-11-12)
+
+Public collaboration, SemVer from `1.0.0`, and upstream policy are in
+`docs/plan/csretro-plan.md` §11. `VERSION` is `1.0.0-dev`. No `v1.0.0` tag yet.
+The public docs site is built: Zensical + vgui.css skins, audience hubs,
+`SECURITY.md`, Pages workflow (after green `ci` on `main`), Dependabot for
+Actions, weekly upstream-watch. Page URL:
+https://benjarogit.github.io/csretro/ (first deploy after this push + Pages
+source set to GitHub Actions). Benny still flips Security overview switches and
+branch protection in the browser.
 
 ## Next task
 

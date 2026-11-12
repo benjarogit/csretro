@@ -24,7 +24,7 @@ damit der Fokus nicht auf eine gespeicherte Cursorposition zurückspringt.
 
 Die aus dem SDK gebaute `vgui2.so` exportiert `csr_vgui_dispatch_messages`.
 Der Host bekommt Funktionszeiger. Prozess, Steam und Bildrate stehen nur im
-[Plan, Abschnitt 3.7](../../plan/csretro-plan.md).
+[Plan, Abschnitt 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
 
 ## Bauen und Testen
 

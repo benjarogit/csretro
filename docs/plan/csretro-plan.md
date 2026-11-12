@@ -1,9 +1,9 @@
 # CSRETRO – Gesamtplan
 
-**Stand:** 9. November 2026
+**Stand:** 12. November 2026
 **Rolle:** maßgebliche Quelle für Ziele, Entscheidungen und Gates
 **Fortschritt:** steht ausschließlich in [`HANDOFF.md`](../../HANDOFF.md), nicht hier
-**Repository:** `https://github.com/benjarogit/csretro` (privat)
+**Repository:** `https://github.com/benjarogit/csretro` (öffentlich)
 **Zielplattform:** Linux, Produktprozess x86_64 (Abschnitt 3.7)
 
 ---
@@ -33,12 +33,12 @@ committet und gepusht, bevor das nächste beginnt.
 | E04 | Server-Zugang | Nur verifizierte CSRETRO-Clients; Fremdclients werden nach Timeout gekickt. |
 | E05 | Namensschema | `csr_` für Cvars/Commands/Natives; `csretro_` für Dateien und Module. |
 | E06 | Server-Stack | ReHLDS + ReGameDLL_CS + AMXX 1.10 + ReAPI. |
-| E07 | Doku | Zweisprachig DE/EN. `docs/` ist Quelle, GitHub-Wiki wird gespiegelt. |
+| E07 | Doku | Zweisprachig DE/EN. `docs/` ist Quelle; eine GitHub Page aus `docs/de` und `docs/en` ist der Spiegel. Kein Wiki, kein zweiter Doku-Baum. |
 | E08 | GameUI | NextClients native VGUI2 (`gameui.so`) bleibt. CEF/HTML bleibt Windows-only und unter Linux deaktiviert. Kein Velaron-UI. |
 | E09 | Referenzprojekte | FuryBaM/cs16-goldsrc-client und FWGS/cs16-client: nur Ideen und Verfahren, kein Code (GPL). Nicht vendoren. |
 | E10 | Server-Management | Eigenes `csretro-server` im Backlog, HLSW-Funktionsumfang als Vorbild. |
 | E11 | Telemetrie | Eigener Updater, eigenes Sentry, eigenes GameAnalytics, eigene Discord-App. |
-| E12 | Release | Privat. Lizenzfrage nur als Notiz im Handoff. |
+| E12 | Release | Semver ab `1.0.0`. Tag `v1.0.0` erst, wenn ein Release-Gate ihn schneidet und der Client spielbar ist. Lizenz nur für den CSRETRO-Kleber bleibt Maintainer-Entscheidung; ohne sie keine fremden Patches. |
 | E13 | Redundanz | Single Source of Truth (SSoT) für jede Information, CI-Gates gegen Duplikate. |
 
 ---
@@ -895,7 +895,7 @@ feat(client): add public build address provider
 fix(protocol): reject mismatched protocol version
 build(deps): bump vcpkg baseline
 ci(linux): add arch container job
-docs(wiki): add cvar reference
+docs(docs): add cvar reference
 test(server): cover handshake timeout
 chore(repo): remove legacy 8684 providers
 ```
@@ -906,14 +906,15 @@ Scopes: `client`, `server`, `api`, `protocol`, `docs`, `ci`, `scripts`, `deps`, 
 
 | Information | Quelle | Abgeleitet |
 |---|---|---|
-| Cvar-Defaults | Code (`cvar_defaults.h`, Registrierung) | Wiki-Tabellen (generiert) |
-| Commands/Natives | Code + `csretro_api.inc` | Wiki-Tabellen (generiert) |
+| Cvar-Defaults | Code (`cvar_defaults.h`, Registrierung) | Page-Tabellen (generiert) |
+| Commands/Natives | Code + `csretro_api.inc` | Page-Tabellen (generiert) |
 | Protokoll | ein gemeinsames `csr_proto.h` | Client und Server binden dasselbe Header ein |
 | Version | `VERSION` | CMake, Launcher, Doku |
 | Upstream-Pins | `versions.lock.json` | CI, Doku |
-| Credits | `CREDITS.md` | Wiki verlinkt, kopiert nicht |
+| Credits | `CREDITS.md` | Page verlinkt, kopiert nicht |
 | Build-Flags | CMake-Presets | Skripte rufen nur Presets auf |
-| Doku DE/EN | `docs/de`, `docs/en` | Wiki wird generiert |
+| Doku DE/EN | `docs/de`, `docs/en` | GitHub Page wird generiert |
+| Security-Text | `SECURITY.md` | Page und GitHub Security Policy |
 
 **Redundanzverbot:**
 
@@ -922,6 +923,20 @@ Scopes: `client`, `server`, `api`, `protocol`, `docs`, `ci`, `scripts`, `deps`, 
 - Ein generischer Adress-Provider statt Kopien pro Build.
 - Upstream-Doku wird nicht übersetzt, sondern als Referenz belassen.
 - CI-Gates: `docs_drift.py`, `proto_sync.py`, Grep-Gate, Linkcheck.
+
+**Keine Schattenpläne:** Cursor- oder Editor-Arbeitspläne (`.plan.md` und
+ähnlich) sind nur Staging. Maßgeblich bleiben dieser Plan und `HANDOFF.md`.
+Ist etwas beschlossen und bauwürdig (Page, Workflow, `SECURITY.md`, Skript),
+gehören Eintrag hier und Umsetzung in **dasselbe** Gate. Ein Gate, das nur
+Text schreibt und den Bau einer bereits entschiedenen Sache aufschiebt, ist ein
+Defekt. „Steht im anderen Arbeitsplan“ ist keine gültige Antwort.
+
+**Keine Schattenpläne:** Cursor- oder Agent-Arbeitspläne (`.plan.md` außerhalb
+dieses Repositories) sind Staging, keine zweite Wahrheit. Beschlossene und
+bauwürdige Arbeit (Page, Workflow, `SECURITY.md`, Code) gehört in **denselben
+Gate** wie der Eintrag in diesem Plan: aufschreiben und umsetzen. Ein Gate, das
+nur Text schreibt und den Bau absichtlich auslässt, ist unzulässig. Beschlossene
+Arbeit darf nicht nur in einem separaten Arbeitsplan liegen.
 
 ### 5.5 Cleanup
 
@@ -979,7 +994,7 @@ Template:
 - `.gitignore`, `.gitattributes` (LFS-Regeln vom Upstream), `.editorconfig`
 - `.clang-format`, `.clang-tidy` übernehmen
 - `AGENTS.md` mit allen Regeln aus Abschnitt 5
-- `HANDOFF.md`, `CHANGELOG.md`, `VERSION` (`0.1.0-dev`)
+- `HANDOFF.md`, `CHANGELOG.md`, `VERSION` (`1.0.0-dev`)
 - `versions.lock.json` mit Pins und Tool-Matrix
 - `README.md`, `README.de.md`, `CREDITS.md` (Gerüst)
 - `docs/de/`, `docs/en/` mit Index
@@ -1179,16 +1194,17 @@ testen, keine Steam-Zugangsdaten annehmen oder speichern.
 
 **Abnahme:** CI grün auf frischem Clone.
 
-#### G11 – Wiki & Credits
+#### G11 – Doku-Page & Credits
 
 **Aufgaben:**
-- Wiki DE+EN: Credits, Features, Installation, Build, Cvars, Commands, Server-API, Protokoll, Troubleshooting, FAQ, Architektur, Privacy
+- Page DE+EN für die vier Leser: Credits, Features, Installation, Build, Cvars, Commands, Server-API, Protokoll, Troubleshooting, FAQ, Architektur, Privacy
 - `tools/docs_drift.py`: Cvars/Commands/Natives aus Code extrahieren, Tabellen generieren, mit Doku vergleichen
 - `tools/proto_sync.py`: Client-/Server-Protokollheader vergleichen
-- GitHub-Wiki-Spiegel-Workflow
-- `CREDITS.md` vollständig, Wiki verlinkt
+- Zensical-Page-Workflow aus `docs/de` und `docs/en` (Abschnitt 11)
+- `CREDITS.md` vollständig, Page verlinkt
+- `SECURITY.md` als einziger Security-Text
 
-**Abnahme:** Wiki vollständig, Drift-Check grün, Spiegel aktuell.
+**Abnahme:** Page vollständig, Drift-Check grün, Page aktuell.
 
 ---
 
@@ -1214,16 +1230,16 @@ testen, keine Steam-Zugangsdaten annehmen oder speichern.
 - Hosting: GitHub Releases primär, Mirror optional
 - Integration in `csretro.sh` als `--update` (opt-in)
 
-**Abnahme:** Update 0.1.0 → 0.1.1 im Test, Rollback funktioniert, manipulierte Signatur wird abgelehnt.
+**Abnahme:** Update 1.0.0 → 1.0.1 im Test, Rollback funktioniert, manipulierte Signatur wird abgelehnt.
 
 ---
 
 ### P6 – Release
 
-#### G14 – Release 0.1.0
+#### G14 – Release 1.0.0
 
 **Aufgaben:**
-- Tag `v0.1.0`
+- Tag `v1.0.0` (erst wenn der Client spielbar ist; bis dahin bleibt `VERSION` auf `1.0.0-dev` oder einem anderen Semver-Vorabzusatz)
 - Artefakte, SHA256, Manifest, Release Notes
 - Provenance/Checksums
 - Handoff abschließen
@@ -1314,7 +1330,9 @@ erlaubt den Abgleich der Strukturgrößen.
 
 ---
 
-## 11. Doku & Wiki
+## 11. Doku, Zusammenarbeit und Upstream
+
+### 11.1 Eine GitHub Page aus `docs/`
 
 **Struktur DE/EN:**
 
@@ -1342,12 +1360,111 @@ docs/
 
 **Regeln:**
 
-- `docs/` ist die einzige Quelle; GitHub-Wiki wird per CI gespiegelt.
+- `docs/de` und `docs/en` sind die einzige Menschen-Doku. Eine GitHub Page wird daraus
+  gebaut. Es gibt keinen zweiten Doku-Baum und kein gepflegtes Wiki.
 - Generierte Tabellen werden nicht von Hand gepflegt.
 - Upstream-Doku bleibt als technische Referenz im vendorten Baum, klar markiert.
 - Jede Doku-Änderung ist Teil der Definition of Done.
 
+**Generator und Haut:**
+
+- Zensical wird gepinnt und per SHA-256 geprüft (`versions.lock.json`).
+- Hell ist `greensteam`, dunkel ist `blacksteam`, aus
+  [vgui.css](https://github.com/AlpyneDreams/vgui.css) mit festem Commit und
+  SHA-256, nicht als Roh-Link. Kredit nur in [`CREDITS.md`](../../CREDITS.md).
+- Ein Schalter tauscht die Haut. Zensical bleibt der Seitengenerator.
+
+**Vier Leser**, Deutsch und Englisch, Alltagssprache:
+
+| Leser | Inhalt |
+|---|---|
+| Spieler | CS 1.6 besitzen, eigene Kopie außerhalb von Steam, nie auf VAC-Server; was heute noch nicht startet |
+| Mitentwickler | Clone, Bootstrap, Verify, Gates, Handoff |
+| Plugin-Autoren | AMXX-API, Natives, Protokollgrenze |
+| Server | Stack, Module, Betrieb |
+
+Der erste Satz der Einstiegsseiten sagt, dass der Client noch nicht spielbar ist.
+
+### 11.2 Zusammenarbeit und Actions
+
+Zusammenarbeit läuft über Issues und Pull Requests. Actions führen nur Befehle aus;
+sie ersetzen keine menschliche Entscheidung und starten das Spiel nie.
+
+Nützlich und vorgesehen:
+
+| Mittel | Rolle |
+|---|---|
+| Bestehender Verify-Lauf | Gate gegen Drift, Secrets, Struktur |
+| Offizielle Pages-Actions | Bau und Publish der Doku-Page |
+| Dependabot nur für Actions unter `.github/` | Versions-PRs für Workflow-Actions |
+| Code-Scanning für Python und Workflows | Statische Prüfung ohne Auto-Merge |
+| Wöchentlicher Upstream-Wächter | Höchstens ein Issue; ändert keinen Pin |
+
+Kosten: öffentliche Standard-Runner und GitHub Pages sind kostenlos. Größere Runner
+und ein wieder privates Repo sind es nicht. Fork-PRs bekommen keine Secrets und keine
+Schreibrechte.
+
+### 11.3 Semver, beginnend bei 1.0.0
+
+[`VERSION`](../../VERSION) ist die einzige Versionszeile. Sie lautet `1.0.0-dev`:
+Vorabfassung von 1.0.0, kein zweites Nummernschema und kein Tag.
+
+- `v1.0.0` ist der erste Release-Tag, erst wenn Gate G14 ihn schneidet. Solange der
+  Client nicht spielbar ist, wird dieser Tag nicht gesetzt.
+- Danach gilt MAJOR.MINOR.PATCH. Ein Bruch am Protokoll oder an der Plugin-Schnittstelle
+  hebt MAJOR. Eine verträgliche Funktion hebt MINOR. Ein Fix hebt PATCH. Vorabstände
+  tragen `-dev` oder einen anderen Semver-Vorabzusatz.
+- CMake, Launcher und Doku lesen `VERSION`. Keine zweite ausgeschriebene Versionszeile.
+
+### 11.4 Upstream und Cherry-Pick
+
+Ein Wächter vergleicht die Pins in [`versions.lock.json`](../../versions.lock.json)
+mit den Upstream-Repos und öffnet ein Issue. Er ändert keinen Pin, merged nichts und
+cherry-pickt nichts.
+
+Ein Mensch entscheidet pro Fund eine von drei Antworten:
+
+1. **Liegen lassen.** Das Issue nennt den Grund.
+2. **Pin nachziehen.** Nur für vendored Bäume: NextClient und die Server-API als
+   Subtree, das SDK und vcpkg als Submodule. Danach müssen die Dateien unter
+   [`patches/`](../../patches/README.md) wieder sauber anliegen. Schlägt ein Patch
+   fehl, ist der Zug nicht fertig. Der Submodule-Gitlink wird nicht versehentlich mit
+   committed.
+3. **Als eigenen Patch nachbauen.** Ein einzelner Upstream-Commit, den wir wollen,
+   ohne den ganzen Pin zu bewegen, wird eine neue Datei unter `patches/`, mit Grund,
+   genau wie `0004-lp64-focus-message.patch`. Der Upstream-Commit wird zitiert. Die
+   Commit-Nachricht bleibt unsere.
+
+GPL-Referenzen (Xash3D-FWGS, cs16-client, HLSW) werden nicht cherry-pickt und nicht
+vendored. Man liest den Commit, schreibt die Idee in eigenem Code neu und kredited
+sie nur in `CREDITS.md`, wenn sie wirklich eingeflossen ist.
+
+Server-Werkzeuge (ReHLDS, ReGameDLL, AMXX, ReAPI) sind keine Git-Cherry-Picks. Eine
+neue Version ist ein Eintrag in `versions.lock.json` mit geprüfter SHA-256.
+
+Jede Übernahme, die Verhalten ändert, läuft durch denselben Zyklus wie jeder andere
+Gate: Test, Doku Deutsch und Englisch, `scripts/verify.sh`, Commit, Push, grünes CI.
+
+### 11.5 Security-Übersicht
+
+Die sechs Zeilen auf der GitHub-Security-Seite gehören hierher. Fünf sind Schalter,
+die nur der Maintainer im Browser setzt. Eine Datei liegt im Repo. Alles davon ist im
+öffentlichen Free-Plan kostenlos. Nichts davon merged Code oder startet das Spiel.
+
+| Zeile | Entscheidung |
+|---|---|
+| Security policy | `SECURITY.md` anlegen; Lücken privat melden, keine Exploit-Anleitung, keine Secrets committen, CSRETRO nicht ins Steam-Verzeichnis und nicht auf VAC-Server. Einziger Security-Text; Page und GitHub Policy verlinken darauf. |
+| Security advisories | Enabled lassen; keine Advisory veröffentlichen, solange es nichts zu melden gibt. |
+| Dependabot alerts | Enable. |
+| Dependabot security updates | Aus lassen für den vendored Baum und vcpkg; Meldungen lesen. Actions-Versionen kommen nur über Dependabot unter `.github/`. |
+| Code scanning | Für Python und Workflows; kein Auto-Merge. |
+| Secret scanning + Push protection | Enable; Push mit Token oder Schlüssel wird abgelehnt. |
+
+Eine Lizenz nur für den CSRETRO-Kleber bleibt Maintainer-Entscheidung. Vendored Bäume
+behalten ihre Lizenzen. Ohne diese Lizenz werden keine fremden Patches angenommen.
+
 ---
+
 
 ## 12. Credits
 
@@ -1379,7 +1496,7 @@ Auch bei reiner Ideen-Übernahme wird credited.
 | Kein Legacy-Fallback | Kein Plan B bei G07-Scheitern | Bewusste Entscheidung; Neubewertung statt Hintertür |
 | Arch ≠ Ubuntu 26.04 | vcpkg/Build bricht | G04-Spike, Patches, notfalls Container |
 | HLDS/SteamCMD nicht verfügbar | Kein Testserver | Gepflegtes ReHLDS-Image |
-| NextClient ohne Lizenz | Keine öffentlichen Binär-Releases | Privat bleiben, Notiz im Handoff |
+| NextClient ohne Lizenz | Keine öffentlichen Binär-Releases | Repo öffentlich; Binär-Releases zurückhalten, Notiz im Handoff |
 | GPL-Referenzprojekte | Copyleft | Nur Ideen/Verfahren |
 | VAC | Bann | Separate Kopie, kein VAC-Server, kein Steam-Ordner |
 | Rebranding-Regression | Features brechen | Baseline-Tests vor/nach G08 |
@@ -1390,13 +1507,14 @@ Auch bei reiner Ideen-Übernahme wird credited.
 
 1. **Discord-App**, **Sentry-Projekt**, **GameAnalytics-Keys**, **Update-Signaturkey** und Hosting werden für G12/G13 benötigt.
 2. **Windows** ist kein Ziel. Entscheidung in G08: CEF/Browser-Code entfernen oder deaktiviert lassen.
-3. **Lizenz** von NextClient: privat unkritisch; öffentliche Releases brauchen Freigabe.
+3. **Lizenz** nur für den CSRETRO-Kleber: Maintainer-Entscheidung; ohne sie keine fremden Patches. Vendored Bäume behalten ihre Lizenzen. NextClient-Lizenz für Binär-Releases bleibt zu klären.
 4. **HLDS/SteamCMD**: Verfügbarkeit in G06 prüfen.
 5. **Arch/vcpkg**: Host- oder Container-Build als Standard, Entscheidung in G04.
+6. **Security-Schalter** und `SECURITY.md`: Schalter klickt der Maintainer im Browser; Datei kommt mit G11.
 
 ---
 
-## 15. Backlog (nach 0.1.0)
+## 15. Backlog (nach 1.0.0)
 
 - `csretro-server`: A2S-Query, RCON, Spieler/Bans, Logs, Map-Wechsel, portables Datenlayout (HLSW-Vorbild)
 - Buy Presets (cs16-client-Vorbild)
@@ -1413,7 +1531,7 @@ Auch bei reiner Ideen-Übernahme wird credited.
 1. `git init` im Projektordner, Remote setzen
 2. `.gitignore`, `.gitattributes`, `.editorconfig` anlegen
 3. `AGENTS.md` mit Abschnitt 5 schreiben
-4. `HANDOFF.md`, `CHANGELOG.md`, `VERSION`, `versions.lock.json`
+4. `HANDOFF.md`, `CHANGELOG.md`, `VERSION` (Linie `1.0.0-dev`), `versions.lock.json`
 5. `README.md`, `README.de.md`, `CREDITS.md` (Gerüst)
 6. `docs/de/index.md`, `docs/en/index.md`
 7. `scripts/verify.sh`, `scripts/clean.sh`

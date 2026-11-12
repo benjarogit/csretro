@@ -36,11 +36,13 @@ REQUIRED_FILES = [
     "HANDOFF.md",
     "README.md",
     "README.de.md",
+    "SECURITY.md",
     "VERSION",
     "versions.lock.json",
     "docs/plan/csretro-plan.md",
     "docs/de/index.md",
     "docs/en/index.md",
+    "zensical.toml",
 ]
 
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")

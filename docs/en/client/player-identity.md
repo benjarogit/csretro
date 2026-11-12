@@ -8,7 +8,7 @@ When the persona is logged in and has a name, that is the shown name. The
 portrait is the pixels the call already carries. The function does not
 download an image, store credentials, or start Steam.
 
-The decision is in [plan section 3.7](../../plan/csretro-plan.md).
+The decision is in [plan section 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
 
 ## Test
 

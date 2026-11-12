@@ -61,4 +61,4 @@ Bibliothek als erste Factory. Der Spike mit dem externen Stub
 bleibt der Beweis für den echten VGUI2-Baum, bis der Prozess diesen Host lädt.
 
 Die Entscheidung und der Umfang stehen in
-[Plan, Abschnitt 3.7](../../plan/csretro-plan.md).
+[Plan, Abschnitt 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).

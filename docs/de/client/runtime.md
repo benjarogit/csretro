@@ -2,7 +2,7 @@
 
 CSRETRO läuft nur auf dem **Default-Public-Branch** von Counter-Strike 1.6.
 Die Engine des Produktprozesses ist Xash3D. Die Entscheidung steht in
-[Plan, Abschnitt 3.7](../../plan/csretro-plan.md).
+[Plan, Abschnitt 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
 
 ## Build-Erkennung
 

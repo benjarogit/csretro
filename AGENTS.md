@@ -20,6 +20,13 @@ CSRETRO is a fully vendored Counter-Strike 1.6 client plus an AMXX server API.
 The authoritative plan is [`docs/plan/csretro-plan.md`](docs/plan/csretro-plan.md).
 Current progress, evidence and the next task live in [`HANDOFF.md`](HANDOFF.md).
 
+Cursor or other editor work-plan files (`.plan.md` and similar) are **staging
+only**. They are not a second source of truth and must not hold decisions that
+never land in `docs/plan/csretro-plan.md`. When a decision is buildable (Page,
+workflow, `SECURITY.md`, script), the same gate must record it in the
+authoritative plan **and** ship the implementation. A gate that only writes
+plan text and defers the build of an already decided deliverable is a defect.
+
 ---
 
 ## 2. Maintainer and project separation
@@ -55,7 +62,11 @@ task -> implement -> test -> docs (DE+EN) -> verify -> commit -> push -> CI -> h
 Rules:
 
 1. Read `HANDOFF.md` before starting.
-2. Read the relevant section of the plan.
+2. Read the relevant section of the plan. Do not treat a Cursor work plan as a
+   substitute for that section. If the work plan and the authoritative plan
+   disagree, the authoritative plan wins; if the work plan has decisions that
+   are missing from the authoritative plan, write them there in the same gate
+   as the build.
 3. Implement the smallest complete change.
 4. Run the tests that belong to the change, not only the ones that are convenient.
 5. Update documentation in the same commit as the behaviour.
@@ -68,6 +79,14 @@ Rules:
 9. Wait for CI, fix red CI before anything else.
 10. Update `HANDOFF.md` with state, evidence and the next task.
 11. Clean temporary files, logs and caches before closing the gate.
+
+Cursor or other agent work-plan files (`.plan.md` outside this repository) are
+staging only. They are not a second source of truth. Decisions that belong to
+CSRETRO land in `docs/plan/csretro-plan.md` (and progress in `HANDOFF.md`).
+When a decision is buildable (site, workflow, `SECURITY.md`, code), the same
+gate writes it into the plan **and** implements it. Do not open a follow-up
+gate that only records text and defers the build. Do not leave decided work
+only in a separate work plan.
 
 Never leave the repository in a state where `main` is red or undocumented.
 
@@ -119,7 +138,7 @@ feat(client): add public build address provider
 fix(protocol): reject mismatched protocol version
 build(deps): bump vcpkg baseline
 ci(linux): add arch container job
-docs(wiki): add cvar reference
+docs(docs): add cvar reference
 test(server): cover handshake timeout
 chore(repo): remove legacy 8684 providers
 ```
@@ -140,16 +159,17 @@ else is derived or linked, never copied.
 
 | Information | Authoritative source | Derived / linked |
 |---|---|---|
-| Goals, decisions, gates | `docs/plan/csretro-plan.md` | wiki links |
+| Goals, decisions, gates | `docs/plan/csretro-plan.md` | page links |
 | Current state, evidence | `HANDOFF.md` | – |
-| Cvar defaults | code (`cvar_defaults.h`, registration) | wiki tables (generated) |
-| Commands and natives | code + `csretro_api.inc` | wiki tables (generated) |
+| Cvar defaults | code (`cvar_defaults.h`, registration) | page tables (generated) |
+| Commands and natives | code + `csretro_api.inc` | page tables (generated) |
 | Protocol | one shared `csr_proto.h` | client and server include it |
 | Version | `VERSION` | CMake, launcher, docs |
 | Upstream pins | `versions.lock.json` | CI, docs |
-| Credits | `CREDITS.md` | wiki links |
+| Credits | `CREDITS.md` | page links |
 | Build flags | CMake presets | scripts call presets only |
-| Human docs | `docs/de`, `docs/en` | GitHub wiki (generated mirror) |
+| Human docs | `docs/de`, `docs/en` | GitHub Page (generated mirror) |
+| Security text | `SECURITY.md` | page and GitHub Security Policy |
 
 Redundancy is a defect. Concretely:
 
@@ -202,7 +222,9 @@ Rules:
 - German and English are both mandatory for human documentation.
 - `docs/de/` and `docs/en/` mirror each other file by file. `verify_repo.py`
   fails on a missing counterpart.
-- The GitHub wiki is generated from `docs/` by CI. Never edit the wiki by hand.
+- The GitHub Page is generated from `docs/de` and `docs/en` by CI. Never edit
+  the published site by hand. There is no second documentation tree and no
+  maintained wiki.
 - Code comments, commit messages and identifiers are English.
 - Documentation changes are part of the same commit as the behaviour they describe.
 - Generated tables (cvars, commands, natives) are never maintained by hand.

@@ -59,4 +59,4 @@ factory. The spike with the external stub remains the proof for a real VGUI2
 tree until that host is what the process loads.
 
 The decision and the scope are in
-[plan section 3.7](../../plan/csretro-plan.md).
+[plan section 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).

@@ -1,7 +1,7 @@
 # Credits
 
 CSRETRO stands on the work of many people. This file is the single source for
-attribution. The wiki links here; it does not copy this list.
+attribution. The docs page links here; it does not copy this list.
 
 Every project below is credited, including those we only took ideas or procedures
 from. If a name is missing, it is an oversight, not a decision – open an issue.
@@ -17,6 +17,13 @@ These are imported with their history and keep their upstream licenses.
 | [ncl-hl1-source-sdk](https://github.com/CS-NextClient/ncl-hl1-source-sdk) | Fork of [tmp64/hl1_source_sdk](https://github.com/tmp64/hl1_source_sdk) | Valve Source SDK terms + third-party notices | VGUI2, tier1/tier2, Linux port, optional CEF |
 | [vcpkg](https://github.com/microsoft/vcpkg) | Microsoft and contributors | MIT | C/C++ dependency management |
 | [Half-Life 1 SDK](https://github.com/ValveSoftware/halflife) | Valve Corporation | Valve SDK license | GoldSrc interfaces and types |
+
+## Documentation site assets
+
+| Project | Authors | License | What we use |
+|---|---|---|---|
+| [vgui.css](https://github.com/AlpyneDreams/vgui.css) | Jeffrey Ellison (AlpyneDreams) | MIT | `greensteam` / `blacksteam` skins for the GitHub Page (pinned under `docs/assets/vgui/`) |
+| [Zensical](https://github.com/zensical/zensical) | Zensical / Material for MkDocs team | MIT | Static site generator for `docs/de` and `docs/en` (pinned in `versions.lock.json`) |
 
 ## Ideas and procedures only (not vendored)
 

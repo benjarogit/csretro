@@ -8,8 +8,24 @@ The authoritative version string is the `VERSION` file.
 
 ## [Unreleased]
 
+### Changed
+
+- Version line is `1.0.0-dev` (pre-release of 1.0.0). First release tag remains
+  `v1.0.0` at gate G14 when the client is playable. Repository visibility in
+  `versions.lock.json` is `public`. Authoritative plan section 11 records public
+  collaboration (Issues/PRs, Pages, Dependabot for Actions, upstream watch
+  issues), SemVer from 1.0.0, and the three upstream responses (leave, refresh
+  pin, rebuild as `patches/`). Docs mirror is a GitHub Page from `docs/de` and
+  `docs/en`, not a wiki. Cursor work plans are staging only; buildable decisions
+  land in the same gate as the plan entry (`AGENTS.md`, plan §5.4).
+
 ### Added
 
+- Public documentation site: Zensical (pinned) builds `docs/de` and `docs/en`
+  with four audience hubs (players, maintainers, plugins, servers). Vendored
+  vgui.css `greensteam` / `blacksteam` skins. Workflows: Pages deploy after
+  green `ci` on `main`, Dependabot for Actions, weekly upstream-watch issue.
+  `SECURITY.md` is the only security policy text.
 - `xash_surface.so`, a `VGUI_Surface026` the host factory can hand to `vgui2`:
   fills, texture quads and a FreeType glyph atlas, with panel offset, clip and
   GL state restored after each draw. Shipped substitutes stand in for Arial,

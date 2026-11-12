@@ -131,7 +131,7 @@ weil libstdc++ und libgcc statisch sind.
 ## Upstream-Patches
 
 Zwei Portabilitäts-Fixes sind in `server/api/deps/rsa_keygen/` angewendet und in
-[`patches/README.md`](../../../patches/README.md) dokumentiert. Sie betreffen nur
+[`patches/README.md`](https://github.com/benjarogit/csretro/blob/main/patches/README.md) dokumentiert. Sie betreffen nur
 ein Entwicklungswerkzeug, nicht das Modul.
 
 ## Bekannte Warnungen

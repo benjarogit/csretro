@@ -1,53 +1,29 @@
 # CSRETRO – Documentation
 
-Welcome. This is the English documentation. The German version lives in
-[`docs/de`](../de/index.md) and mirrors this structure.
+The client is not playable yet. CSRETRO is in early development (`1.0.0-dev`).
+You need a retail Counter-Strike 1.6 install for original content when the client
+starts. Never put it in the Steam game folder. Never join a VAC-secured server.
 
-## Start here
+The German edition lives under [Deutsch](../de/index.md) and mirrors this tree.
+
+## Who this is for
+
+| Audience | Start here |
+|---|---|
+| Players | [Players](players/index.md) |
+| Maintainers | [Maintainers](maintainers/index.md) |
+| Plugin authors | [Plugin authors](plugins/index.md) |
+| Servers | [Servers](server/index.md) |
+
+## Status and sources
 
 | Topic | File |
 |---|---|
-| Project plan (authoritative) | [Plan](../plan/csretro-plan.md) |
-| Current project state | [HANDOFF](../../HANDOFF.md) |
-| Credits and licenses | [CREDITS](../../CREDITS.md) |
-| Changelog | [CHANGELOG](../../CHANGELOG.md) |
-| Harness rules | [AGENTS](../../AGENTS.md) |
+| Current project state | [HANDOFF](https://github.com/benjarogit/csretro/blob/main/HANDOFF.md) |
+| Project plan (authoritative) | [Plan](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md) |
+| Credits and licenses | [CREDITS](https://github.com/benjarogit/csretro/blob/main/CREDITS.md) |
+| Security | [SECURITY](https://github.com/benjarogit/csretro/blob/main/SECURITY.md) |
+| Changelog | [CHANGELOG](https://github.com/benjarogit/csretro/blob/main/CHANGELOG.md) |
+| Harness rules | [AGENTS](https://github.com/benjarogit/csretro/blob/main/AGENTS.md) |
 
-## Status
-
-CSRETRO is in early development (`0.1.0-dev`). The current gate state and all
-evidence live only in [`HANDOFF.md`](../../HANDOFF.md).
-
-## Planned structure
-
-The following chapters are added with their gates. They are listed here so the
-German and English trees cannot drift apart.
-
-| Chapter | Gate |
-|---|---|
-| Installing on Linux | G09 |
-| Build prerequisites | [G03](build/prerequisites.md) |
-| Building the client | [G04](build/client.md) |
-| Building the server API | [G05](build/server.md) |
-| Test server | [G06](server/testserver.md) |
-| Client runtime | [G07](client/runtime.md) |
-| First client start | [G07](client/first-start.md) |
-| VGUI surface on Xash3D | [G07](client/xash-surface.md) |
-| Surface host factory | [G07](client/xash-host.md) |
-| Player identity | [G07](client/player-identity.md) |
-| Cvar reference (generated) | G11 |
-| Command reference (generated) | G11 |
-| Native reference (generated) | G11 |
-| Server API | G05 |
-| Protocol | G08 |
-| Troubleshooting | G09 |
-| FAQ | G11 |
-| Architecture | G11 |
-| Privacy and telemetry | G12 |
-
-## Contributing
-
-- Code, comments and commits are English.
-- Documentation is bilingual. A change without both languages is incomplete.
-- The plan is the only source for goals and gates. Progress lives only in the
-  handoff. No copies.
+Progress and evidence live only in `HANDOFF.md`, not as a how-to on this page.

@@ -34,7 +34,7 @@ stored cursor. `SurfaceSetCursorPos` only stores the position.
 
 The `vgui2.so` built from this SDK exports `csr_vgui_dispatch_messages`. The
 host receives function pointers. Process, Steam and frame rate are stated once
-in [plan section 3.7](../../plan/csretro-plan.md).
+in [plan section 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
 
 ## Build and tests
 

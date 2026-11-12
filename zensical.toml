@@ -1,0 +1,128 @@
+# Human docs site. Source of truth remains docs/de and docs/en (AGENTS.md / plan §11).
+# Built by CI with the pinned Zensical wheel; never edit the published Page by hand.
+
+[project]
+site_name = "CSRETRO"
+site_description = "Counter-Strike 1.6 client and AMXX API. The client is not playable yet."
+site_author = "CSRETRO"
+site_url = "https://benjarogit.github.io/csretro/"
+repo_url = "https://github.com/benjarogit/csretro"
+repo_name = "benjarogit/csretro"
+docs_dir = "docs"
+site_dir = "site"
+copyright = "CSRETRO – see CREDITS.md and SECURITY.md"
+
+# Authoritative plan stays in-repo; the Page links to GitHub for it (relative
+# links into the repo root break the strict site build). Assets stay published.
+exclude_docs = """
+plan/**
+"""
+
+not_in_nav = """
+assets/**
+stylesheets/**
+javascripts/**
+"""
+
+extra_css = [
+  "stylesheets/csretro-vgui.css",
+]
+
+extra_javascript = [
+  "javascripts/vgui-skin.js",
+]
+
+nav = [
+  { "Deutsch" = [
+      { "Start" = "de/index.md" },
+      { "Spieler" = "de/players/index.md" },
+      { "Mitentwickler" = "de/maintainers/index.md" },
+      { "Plugin-Autoren" = "de/plugins/index.md" },
+      { "Server" = "de/server/index.md" },
+      { "Testserver" = "de/server/testserver.md" },
+      { "Build" = [
+          { "Voraussetzungen" = "de/build/prerequisites.md" },
+          { "Client" = "de/build/client.md" },
+          { "Server-API" = "de/build/server.md" },
+        ]
+      },
+      { "Client-Laufzeit" = [
+          { "Übersicht" = "de/client/runtime.md" },
+          { "Erster Start" = "de/client/first-start.md" },
+          { "Surface" = "de/client/xash-surface.md" },
+          { "Host" = "de/client/xash-host.md" },
+          { "Launcher" = "de/client/xash-launcher.md" },
+          { "Identität" = "de/client/player-identity.md" },
+        ]
+      },
+    ]
+  },
+  { "English" = [
+      { "Home" = "en/index.md" },
+      { "Players" = "en/players/index.md" },
+      { "Maintainers" = "en/maintainers/index.md" },
+      { "Plugin authors" = "en/plugins/index.md" },
+      { "Servers" = "en/server/index.md" },
+      { "Test server" = "en/server/testserver.md" },
+      { "Build" = [
+          { "Prerequisites" = "en/build/prerequisites.md" },
+          { "Client" = "en/build/client.md" },
+          { "Server API" = "en/build/server.md" },
+        ]
+      },
+      { "Client runtime" = [
+          { "Overview" = "en/client/runtime.md" },
+          { "First start" = "en/client/first-start.md" },
+          { "Surface" = "en/client/xash-surface.md" },
+          { "Host" = "en/client/xash-host.md" },
+          { "Launcher" = "en/client/xash-launcher.md" },
+          { "Identity" = "en/client/player-identity.md" },
+        ]
+      },
+    ]
+  },
+]
+
+[project.theme]
+language = "en"
+features = [
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.tabs",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+  "content.code.copy",
+]
+icon.repo = "fontawesome/brands/github"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to blacksteam (dark)"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to greensteam (light)"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/benjarogit/csretro"
+
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+def_list = {}
+footnotes = {}
+md_in_html = {}
+toc.permalink = true
+pymdownx.details = {}
+pymdownx.superfences = {}
+pymdownx.tabbed.alternate_style = true

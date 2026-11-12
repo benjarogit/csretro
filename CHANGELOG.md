@@ -38,6 +38,9 @@ The authoritative version string is the `VERSION` file.
   embedded root with the default input context. `QuitNoConfirm` records
   `quit` and does not run it. The LP64 SDK delta is
   `client/dep/ncl-hl1-source-sdk.patch`, applied when the client is configured.
+- `PresentXashLauncher` activates that menu and paints one frame. The planned
+  command is not executed and `RunFrame` is not called. `setpause` is only
+  recorded.
 - Public documentation site: Zensical (pinned) builds `docs/de` and `docs/en`
   with four audience hubs (players, maintainers, plugins, servers). Workflows:
   Pages deploy after

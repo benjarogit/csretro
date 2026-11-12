@@ -744,6 +744,9 @@ Identitätsslot hinzu. Der Aufrufer übergibt die Inhaltswurzel. Fehlt sie,
 ist das ein Fehlschlag. Der Launcher sucht die Steam-Bibliothek nicht und
 erfindet keinen Pfad. Derselbe Prozess öffnet diese Liste über den Host
 und führt den Befehl nicht aus. Dasselbe Öffnen ruft `IGameUI::Start`.
+`PresentXashLauncher` zeigt danach das Menü (`ActivateGameUI`) und zeichnet
+es. `RunFrame` ist dieser Aufruf nicht. Aufgezeichnete Befehle werden nicht
+ausgeführt. Fehlt das Scheme, bleiben die Optionsseiten ungebaut.
 `SteamAPI_IsSteamRunning` bleibt falsch.
 Er startet das Spiel nicht, führt Xash3D nicht aus und ruft `RunFrame`
 nicht auf. Ein fehlgeschlagenes Öffnen lässt den Host geschlossen. Der

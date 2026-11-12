@@ -15,6 +15,7 @@
 
 #include "IGameUIFuncs.h"
 
+#include "vgui_controls/Controls.h"
 #include "vgui_controls/AnimationController.h"
 #include "vgui_controls/ImagePanel.h"
 #include "vgui_controls/Label.h"
@@ -402,9 +403,9 @@ CBasePanel::~CBasePanel(void)
 
 void CBasePanel::PaintBackground(void)
 {
-    // Options pages read engine cvars. Start installs that pointer.
-    // The background image draws before Start, at time 0.
-    if (engine != nullptr && !m_hOptionsDialog.Get())
+    // Options pages read engine cvars and scheme colors. Start installs the
+    // engine pointer. A missing scheme has no colors, so the pages stay unbuilt.
+    if (engine != nullptr && vgui2::VGui_GetDefaultScheme() != 0 && !m_hOptionsDialog.Get())
     {
         m_hOptionsDialog = new COptionsDialog(this, m_Renderer);
         m_hCreateMultiplayerGameDialog = new CCreateMultiplayerGameDialog(this);

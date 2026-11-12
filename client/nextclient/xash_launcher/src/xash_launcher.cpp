@@ -159,4 +159,19 @@ int OpenXashLauncher(
     return 1;
 }
 
+int PresentXashLauncher(LauncherProcess* session, int wide, int tall)
+{
+    if (session == nullptr || !session->open || wide <= 0 || tall <= 0)
+    {
+        return 0;
+    }
+    // Slot 5 shows the menu. RunFrame is not this call, and the planned
+    // command is still not executed.
+    if (csr_host_activate_gameui() == 0 || csr_host_paint_gameui(wide, tall) == 0)
+    {
+        return 0;
+    }
+    return 1;
+}
+
 } // namespace csr

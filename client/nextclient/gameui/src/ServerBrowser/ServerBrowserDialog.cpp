@@ -171,9 +171,21 @@ void CServerBrowserDialog::Open()
     LoadUserConfig("CServerBrowserDialog");
     Activate();
 
+    // A host that activates before the scheme exists has a dialog and no pages.
+    // Requesting focus on that sheet crashes. The menu itself still opens.
+    if (m_pTabPanel == nullptr)
+    {
+        return;
+    }
+    vgui2::Panel* page = m_pTabPanel->GetActivePage();
+    if (page == nullptr)
+    {
+        return;
+    }
+
     m_pTabPanel->RequestFocus();
 
-    ivgui()->PostMessage(m_pTabPanel->GetActivePage()->GetVPanel(), new KeyValues("PageShow"), GetVPanel());
+    ivgui()->PostMessage(page->GetVPanel(), new KeyValues("PageShow"), GetVPanel());
 }
 
 void CServerBrowserDialog::LoadCountryNativeNames()

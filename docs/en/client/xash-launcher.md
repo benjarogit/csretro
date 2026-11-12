@@ -17,7 +17,10 @@ missing scheme file leaves the host open. `IGameUI::Initialize` follows.
 Then `libsteam_api.so`.
 `SteamAPI_IsSteamRunning` stays false. The planned command is not executed. The launcher does not start the game, does not exec Xash3D,
 does not call `RunFrame` and does not start Steam. A failed open leaves the
-host closed.
+host closed. `PresentXashLauncher` then calls `ActivateGameUI` and paints
+that menu at the given size. `Quit` is not run. `setpause` is only recorded.
+A missing scheme leaves the options pages unbuilt, and a server browser
+without a dialog is not opened.
 
 `nextclient.sh` and [First client start](first-start.md) remain the GoldSrc
 path until this path replaces them.

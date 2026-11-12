@@ -135,3 +135,39 @@ TEST(XashLauncher, OpenLoadsThePlanAndDoesNotCallRunFrame)
     EXPECT_FALSE(session.open);
     EXPECT_EQ(csr_host_pair_loaded(), 0);
 }
+
+TEST(XashLauncher, PresentPaintsTheMenuWithoutRunFrame)
+{
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/Resource").c_str(), 0755), 0);
+    const std::string menu = temp.root + "/Resource/GameMenu.res";
+    FILE* menu_file = std::fopen(menu.c_str(), "wb");
+    ASSERT_NE(menu_file, nullptr);
+    const char* text = "\"GameMenu\"\n{\n}\n";
+    ASSERT_EQ(std::fwrite(text, 1, std::strlen(text), menu_file), std::strlen(text));
+    std::fclose(menu_file);
+
+    csr::LauncherProcess session;
+    EXPECT_EQ(csr::PresentXashLauncher(&session, 640, 480), 0);
+
+    ASSERT_EQ(
+        csr::OpenXashLauncher(
+            temp.root.c_str(), XASH_HOST_FILE, XASH_SURFACE_FILE, XASH_CLIENT_FILE, XASH_VGUI_FILE, XASH_GAMEUI_FILE, XASH_STEAM_API_FILE,
+            &session),
+        1);
+    EXPECT_EQ(csr_host_gameui_started(), 1);
+    EXPECT_STREQ(csr_host_last_client_command(), "");
+
+    ASSERT_EQ(csr::PresentXashLauncher(&session, 640, 480), 1);
+    EXPECT_STREQ(csr_host_last_client_command(), "setpause");
+    EXPECT_EQ(csr::PresentXashLauncher(&session, 0, 480), 0);
+    EXPECT_TRUE(session.open);
+
+    csr::CloseXashLauncher(&session);
+    EXPECT_EQ(csr::PresentXashLauncher(&session, 640, 480), 0);
+    EXPECT_FALSE(session.open);
+
+    std::remove(menu.c_str());
+    rmdir((temp.root + "/Resource").c_str());
+}

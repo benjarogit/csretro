@@ -65,12 +65,20 @@ void CServerBrowser::DisconnectFromGame()
 
 bool CServerBrowser::Activate()
 {
+    if (!server_browser_dialog_.Get())
+    {
+        return false;
+    }
     server_browser_dialog_->Open();
     return true;
 }
 
 bool CServerBrowser::Activate(ServerBrowserTab tab)
 {
+    if (!server_browser_dialog_.Get())
+    {
+        return false;
+    }
     server_browser_dialog_->Open();
     server_browser_dialog_->ActivateTab(tab);
     return true;

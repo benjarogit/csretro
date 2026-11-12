@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `842a59d` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`, `CL_ClearState`, `Host_Map_f`, `Host_FilterTime`, `Mod_ClearAll`, `Mod_FindName`, `Mod_Print`, `Mod_ValidateCRC`, `Mod_NeedCRC` and `Mod_LoadModel` are the process functions and are not called; no game socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected, client state stays unchanged, no map is loaded, init leaves host time unchanged, the model list stays unchanged, no model is looked up or loaded, the model list is not printed, no CRC is validated, the need-CRC flag stays unchanged and no model file is read; `hw.so` stays unmapped; `csr_host_frame` chooses an EGL config whose native visual can be a child of the root, prefers the root depth, sets a border pixel, creates that window, calls `eglSwapBuffers` and advances host time by the caller delta; `csr_host_pump` repeats that frame N times on the same mapped window, forwards X11 motion and button events, then destroys the window; after N frames the swap count is N and host time has advanced by N times the delta; `Host_FilterTime` and `CVGui::RunFrame` stay uncalled; the pump installs no retail hook; the proof is the test's own Xvfb)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43226017035 – success (`842a59d`); `Mod_LoadModel` https://github.com/benjarogit/csretro/actions/runs/43225899556 – success (`974a190`); handoff https://github.com/benjarogit/csretro/actions/runs/43226390114 – success (`3ea0358`)
+- **Commit:** `842a59d` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`, `CL_ClearState`, `Host_Map_f`, `Host_FilterTime`, `Mod_ClearAll`, `Mod_FindName`, `Mod_Print`, `Mod_ValidateCRC`, `Mod_NeedCRC`, `Mod_LoadModel` and `Mod_ForName` are the process functions and are not called; no game socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected, client state stays unchanged, no map is loaded, init leaves host time unchanged, the model list stays unchanged, no model is looked up or loaded, the model list is not printed, no CRC is validated, the need-CRC flag stays unchanged, no model file is read and no model is looked up; `hw.so` stays unmapped; `csr_host_frame` chooses an EGL config whose native visual can be a child of the root, prefers the root depth, sets a border pixel, creates that window, calls `eglSwapBuffers` and advances host time by the caller delta; `csr_host_pump` repeats that frame N times on the same mapped window, forwards X11 motion and button events, then destroys the window; after N frames the swap count is N and host time has advanced by N times the delta; `Host_FilterTime` and `CVGui::RunFrame` stay uncalled; the pump installs no retail hook; the proof is the test's own Xvfb)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43226017035 – success (`842a59d`); `Mod_LoadModel` https://github.com/benjarogit/csretro/actions/runs/43225899556 – success (`974a190`); handoff https://github.com/benjarogit/csretro/actions/runs/43226390114 – success (`3ea0358`); `Mod_ForName` https://github.com/benjarogit/csretro/actions/runs/43227746022 – success (`45a0e26`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -767,8 +767,12 @@ the Security overview switches in the browser.
   `Mod_LoadModel` is the function in this process. Init stores that pointer
   and does not call it. A null pointer is not a call. A null hook is not a
   call. No model is loaded, no model file is read and no CRC is computed.
-  The next retail hook in `OnGameInitializing` is `eng()->Mod_ForName`
-  (`Mod_ForName`). The Xash path returns before that install. This gate
+  `Mod_ForName` is the function in this process. Init stores that pointer
+  and does not call it. A null pointer is not a call. A null hook is not a
+  call. No model is looked up or loaded, no model file is read, no model
+  slot is allocated and no CRC is computed.
+  The next retail hook in `OnGameInitializing` is `eng()->Mod_Extradata`
+  (`Mod_Extradata`). The Xash path returns before that install. This gate
   does not install it.
   `OnGameInitialized` is not entered.
   `csr_host_frame` chooses an EGL config whose native visual can be a child
@@ -869,6 +873,45 @@ An unmapped probe on the NVIDIA session display (vendor NVIDIA, root visual
 returned no error and `eglCreateWindowSurface` succeeded. The window was
 not mapped, focus was not taken, and the window was destroyed. The game was
 not started. The automated test stays on Xvfb and does not require NVIDIA.
+
+Process `Mod_ForName` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ engine_mini-tests --gtest_filter=XashStartup.*
+25/25 passed
+ModForNameUsesTheProcessFunction
+
+$ engine_mini-tests
+580/580 passed
+
+$ xash_host-tests
+20/20 passed
+
+$ xash_launcher-tests
+7/7 passed
+```
+
+`OnGameInitializing` stores `Mod_ForName` from this process when that
+retail hook is absent and does not call it. `mod_forname_calls` stays 0. A
+null pointer leaves the recorded pointer null and is not a call. A null
+hook is not a call. A real `Mod_ForName` searches the known model list and
+can load a model. It was not called. No model was looked up or loaded, no
+model file was read, no model slot was allocated and no CRC was computed.
+needload stays unchanged. A planted brush CRC stays `shouldCRC` 1,
+`firstCRCDone` 1, `initialCRC` `0xC5C5C5C5`, and a planted sprite CRC stays
+`shouldCRC` 0, `firstCRCDone` 0, `initialCRC` `0x11111111`. Brush
+`maps/csretro_keep.bsp` stays `NL_PRESENT` and sprite
+`sprites/csretro_keep.spr` stays `NL_NEEDS_LOADED`, each with the same cache
+pointer. `levelname` stays `csretro-keep`. Host time stays `9.25` and the
+frame interval stays `0.05`. `/proc/self/fd` stays unchanged. The next retail
+hook is `eng()->Mod_Extradata` (`Mod_Extradata`). That hook stays null. The
+Xash path returns before it. `OnGameInitialized` is not entered. `Sys_Error`
+does not run. `csr_host_frame` is not this init. The game was not started.
+The client is not playable.
+
+CI: https://github.com/benjarogit/csretro/actions/runs/43227746022 success (`45a0e26`).
+
+`scripts/verify.sh`: 68 checks passed.
 
 Process `Mod_LoadModel` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

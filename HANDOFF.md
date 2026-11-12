@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `5347150` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`, `CL_ClearState`, `Host_Map_f`, `Host_FilterTime`, `Mod_ClearAll`, `Mod_FindName`, `Mod_Print`, `Mod_ValidateCRC` and `Mod_NeedCRC` are the process functions and are not called; no game socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected, client state stays unchanged, no map is loaded, init leaves host time unchanged, the model list stays unchanged, no model is looked up or loaded, the model list is not printed, no CRC is validated and the need-CRC flag stays unchanged; `hw.so` stays unmapped; `csr_host_frame` is a later direct call that paints one GameUI frame, creates an X11 window surface, calls `eglSwapBuffers` and advances host time by the caller delta; `Host_FilterTime` and `CVGui::RunFrame` stay uncalled; that frame installs no retail hook; the window exists only for the test on Xvfb)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43223729060 – success (`5347150`); handoff https://github.com/benjarogit/csretro/actions/runs/43224005615 – success (`72f5562`)
+- **Commit:** `842a59d` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`, `CL_ClearState`, `Host_Map_f`, `Host_FilterTime`, `Mod_ClearAll`, `Mod_FindName`, `Mod_Print`, `Mod_ValidateCRC`, `Mod_NeedCRC` and `Mod_LoadModel` are the process functions and are not called; no game socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected, client state stays unchanged, no map is loaded, init leaves host time unchanged, the model list stays unchanged, no model is looked up or loaded, the model list is not printed, no CRC is validated, the need-CRC flag stays unchanged and no model file is read; `hw.so` stays unmapped; `csr_host_frame` chooses an EGL config whose native visual can be a child of the root, prefers the root depth, sets a border pixel, creates that window, calls `eglSwapBuffers` and advances host time by the caller delta; `csr_host_pump` repeats that frame N times on the same mapped window, forwards X11 motion and button events, then destroys the window; after N frames the swap count is N and host time has advanced by N times the delta; `Host_FilterTime` and `CVGui::RunFrame` stay uncalled; the pump installs no retail hook; the proof is the test's own Xvfb)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43226017035 – success (`842a59d`); `Mod_LoadModel` https://github.com/benjarogit/csretro/actions/runs/43225899556 – success (`974a190`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -764,23 +764,34 @@ the Security overview switches in the browser.
   and does not call it. A null pointer is not a call. A null hook is not a
   call. The need-CRC flag stays unchanged, no model is looked up and no
   CRC is computed.
-  The next retail hook in `OnGameInitializing` is `eng()->Mod_LoadModel`
-  (`Mod_LoadModel`). The Xash path returns before that install.
+  `Mod_LoadModel` is the function in this process. Init stores that pointer
+  and does not call it. A null pointer is not a call. A null hook is not a
+  call. No model is loaded, no model file is read and no CRC is computed.
+  The next retail hook in `OnGameInitializing` is `eng()->Mod_ForName`
+  (`Mod_ForName`). The Xash path returns before that install. This gate
+  does not install it.
   `OnGameInitialized` is not entered.
-  `csr_host_frame` paints one GameUI frame, creates an X11 window whose
-  visual matches the EGL config, calls `eglCreateWindowSurface` and then
+  `csr_host_frame` chooses an EGL config whose native visual can be a child
+  of the root window, prefers a visual at the root depth, sets a border
+  pixel, creates that window, calls `eglCreateWindowSurface` and
   `eglSwapBuffers`, and advances host time by the caller delta.
+  `csr_host_pump` keeps that window mapped, repeats the frame N times,
+  forwards X11 motion and button events to `csr_host_input_move` and
+  `csr_host_input_button`, then destroys the window. After N frames the
+  swap count is N and host time has advanced by N times the delta.
   `CVGui::RunFrame` stays uncalled. `ISurface::SwapBuffers` stays empty.
-  The surface tests still use an EGL pbuffer. The proof window lives only
-  inside the test, on that test's Xvfb with Mesa llvmpipe, and dies with
-  the test. Before a human can start and play, the missing piece is a
-  process that stays open, repeats `csr_host_frame` and forwards X11 input
-  (`csr_host_input_move`, `csr_host_input_button`). The current session
-  display does not host this window: a parent visual makes
-  `eglCreateWindowSurface` return `0x3005` (`EGL_BAD_CONFIG`), and
-  `XCreateWindow` with the EGL visual returns BadMatch. The planned
-  command is not executed. The game was not started. The client is not
-  playable.
+  The surface tests still use an EGL pbuffer. The proof runs on the test's
+  own Xvfb with Mesa llvmpipe. On a 16-bit Xvfb the old window create is
+  BadMatch; the frame then returns 1. Mesa does not return `EGL_BAD_CONFIG`
+  for a parent visual paired with a deeper config, so that failure stays a
+  session-display observation. An unmapped probe on the NVIDIA session
+  display created a window surface with the root visual and destroyed it
+  without mapping, without taking focus and without starting the game.
+  Before a human can start and play, the missing piece is a process that
+  stays open until quit, keeps one window mapped and repeats
+  `csr_host_frame` while forwarding X11 input. `csr_host_pump` returns
+  after a finite count and destroys the window. The planned command is
+  not executed. The game was not started. The client is not playable.
 - **After the decision:** schedule the server performance backlog above
   (measurement first, then hookchain/native/per-frame work). It needs a plan gate
   entry.
@@ -818,6 +829,46 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+EGL window pump and visual match (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ xash_launcher-tests --gtest_filter=XashLauncher.*
+7/7 passed
+DirectFramePaintsGameUiAndAdvancesHostTime
+WindowSurfaceMatchesWhenRootVisualDiffers
+PumpRepeatsFramesAndForwardsX11Input
+$ xash_host-tests
+20/20 passed
+$ xash_surface-tests
+21/21 passed
+$ scripts/verify.sh
+Verification passed
+```
+
+`WindowSurfaceMatchesWhenRootVisualDiffers` starts Xvfb at `640x480x16`.
+The root visual is depth 16. The first alpha-8 RGB8 config names a depth-32
+visual. Creating that window without a border pixel returns BadMatch (error
+8). `csr_host_frame(640, 480, 0.125)` then returns 1, the swap count is 1
+and host time advances by 0.125. Mesa accepts `eglCreateWindowSurface` when
+the parent visual is paired with that deeper config, so this fixture does
+not reproduce `0x3005` (`EGL_BAD_CONFIG`). The product path no longer uses
+the parent visual for that config.
+
+`PumpRepeatsFramesAndForwardsX11Input` calls `csr_host_pump(640, 480, 3, 0.125)`.
+The swap count is 3. Host time advances by 0.375. One `XSendEvent`
+MotionNotify at (20, 30) and one ButtonPress of Button1 are observed as one
+move and one button code 0. After the pump, `csr_host_present_query` returns
+0 and the window id is 0. `XGetWindowAttributes` on the seen id returns 0
+and the X error is BadWindow. `csr_vgui_run_frame_count` is unchanged.
+`CVGui::RunFrame` stays uncalled. `hw.so` stays unmapped. No game socket is
+opened. The planned launcher command is not executed.
+
+An unmapped probe on the NVIDIA session display (vendor NVIDIA, root visual
+`0x23`, depth 24) selected that same visual (score 1100). `XCreateWindow`
+returned no error and `eglCreateWindowSurface` succeeded. The window was
+not mapped, focus was not taken, and the window was destroyed. The game was
+not started. The automated test stays on Xvfb and does not require NVIDIA.
 
 Process `Mod_NeedCRC` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

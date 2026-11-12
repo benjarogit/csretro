@@ -33,8 +33,9 @@ The authoritative version string is the `VERSION` file.
   logged in. A missing interface is not called. The shown name stays
   `ResolvePlayerIdentity`. The proxy does not start Steam.
 - `xash_host` serves `VFileSystem009` on the existing surface factory after
-  one root is mounted. A missing file is a miss. The proxy does not open
-  `hw.so` and does not start the game.
+  one root is mounted. A missing file is a miss. `DrawSetTextureFile` reads
+  an uncompressed TGA from that root. A missing or compressed file is not a
+  texture. The proxy does not open `hw.so` and does not start the game.
 - `xash_host` opens `gameui` after the one surface factory and reads
   `GameUI007` and `GameConsole003`. It does not call into the game UI.
 - `gameui` builds as ELF64 from the same SDK revision and links the host

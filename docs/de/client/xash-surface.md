@@ -35,6 +35,9 @@ des Hosts: Cursor, Druck oder Loslassen, danach genau eine Zustellung.
 Taste 0 ist die linke Maustaste. `RunFrame` tut nichts, damit kein
 Fokus-Reset auf die letzte Cursorposition den Klick überschreibt.
 `SurfaceSetCursorPos` speichert die Position und löst keine Eingabe aus.
+`DrawSetTextureFile` liest eine unkomprimierte TGA über die Datei-Rückfrage
+des Hosts. Eine fehlende Datei, eine komprimierte TGA oder keine Rückfrage
+lässt die Textur leer.
 
 ## Bauen und Testen
 

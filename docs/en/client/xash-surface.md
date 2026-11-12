@@ -32,7 +32,9 @@ surface paints them afterwards. Without the function table neither call does
 anything. Mouse events go to the host input functions: cursor, press or
 release, then exactly one dispatch. Button 0 is the left button. `RunFrame`
 does nothing, so a focus reset cannot overwrite the click. `SurfaceSetCursorPos`
-stores the position and does not emit input.
+stores the position and does not emit input. `DrawSetTextureFile` reads an
+uncompressed TGA through the host file callback. A missing file, a compressed
+TGA, or no callback leaves the texture empty.
 
 ## Build and tests
 

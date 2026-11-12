@@ -1,8 +1,8 @@
 #include "xash_host/xash_host.h"
 
 #include "host_filesystem.h"
-#include "xash_engine/xash_engine.h"
 #include "xash_surface/xash_surface.h"
+#include "xash_engine/xash_engine.h"
 
 #include <dlfcn.h>
 
@@ -20,6 +20,7 @@ namespace
         void (*move)(csr_surface_t*, int, int) = nullptr;
         void (*button)(csr_surface_t*, int, int) = nullptr;
         void (*set_input)(csr_surface_t*, const csr_surface_input_fns_t*) = nullptr;
+        void (*set_file)(csr_surface_t*, const csr_surface_file_fns_t*) = nullptr;
         void* (*create_interface)(const char*, int*) = nullptr;
     };
 
@@ -158,9 +159,10 @@ int csr_host_open(const char* path)
     g_surface.move = LoadSymbol<decltype(g_surface.move)>(module, "csr_surface_input_move");
     g_surface.button = LoadSymbol<decltype(g_surface.button)>(module, "csr_surface_input_button");
     g_surface.set_input = LoadSymbol<decltype(g_surface.set_input)>(module, "csr_surface_set_input");
+    g_surface.set_file = LoadSymbol<decltype(g_surface.set_file)>(module, "csr_surface_set_file");
     g_surface.create_interface = LoadSymbol<decltype(g_surface.create_interface)>(module, "csr_surface_create_interface");
     if (g_surface.create == nullptr || g_surface.destroy == nullptr || g_surface.move == nullptr || g_surface.button == nullptr ||
-        g_surface.set_input == nullptr || g_surface.create_interface == nullptr)
+        g_surface.set_input == nullptr || g_surface.set_file == nullptr || g_surface.create_interface == nullptr)
     {
         csr_host_close();
         return 0;
@@ -301,6 +303,14 @@ int csr_host_mount_filesystem(const char* root)
     if (csr_host_filesystem_set_root(root) == 0)
     {
         return 0;
+    }
+    csr_surface_file_fns_t file{};
+    file.read = [](const char* path, unsigned char* dest, int dest_cap, void*) {
+        return csr_host_filesystem_read(path, dest, dest_cap);
+    };
+    if (g_surface.set_file != nullptr)
+    {
+        g_surface.set_file(g_surface.surface, &file);
     }
     RebuildList();
     return 1;

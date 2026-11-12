@@ -14,8 +14,9 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   `GameUI007` and `GameConsole003`. It does not call into the game UI and
   does not add a factory.
 - `csr_host_mount_filesystem` puts `VFileSystem009` on that same list after
-  the surface. The caller supplies the only root. A missing file or a path
-  outside that root is a miss. The proxy does not open `hw.so`.
+  the surface and installs that root as the surface file reader.
+  `DrawSetTextureFile` loads an uncompressed TGA from it. A missing file or
+  a path outside that root is a miss. The proxy does not open `hw.so`.
 - Extra factories follow those entries. The surface name is not forwarded to them.
 - `csr_host_bind_input` forwards cursor, press and release, then one dispatch.
   `CVGui::RunFrame` is not called. `SurfaceSetCursorPos` does not dispatch.

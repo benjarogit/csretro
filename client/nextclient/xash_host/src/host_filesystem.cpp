@@ -562,6 +562,44 @@ namespace
         {
         }
 
+        int ReadAll(const char* name, unsigned char* dest, int cap)
+        {
+            std::string joined;
+            if (!Join(name, &joined))
+            {
+                return -1;
+            }
+            FILE* file = std::fopen(joined.c_str(), "rb");
+            if (file == nullptr)
+            {
+                return -1;
+            }
+            if (std::fseek(file, 0, SEEK_END) != 0)
+            {
+                std::fclose(file);
+                return -1;
+            }
+            const long size = std::ftell(file);
+            if (size < 0 || size > 8 * 1024 * 1024)
+            {
+                std::fclose(file);
+                return -1;
+            }
+            if (dest == nullptr || cap == 0)
+            {
+                std::fclose(file);
+                return static_cast<int>(size);
+            }
+            if (cap < size || std::fseek(file, 0, SEEK_SET) != 0)
+            {
+                std::fclose(file);
+                return -1;
+            }
+            const auto read = std::fread(dest, 1, static_cast<size_t>(size), file);
+            std::fclose(file);
+            return read == static_cast<size_t>(size) ? static_cast<int>(size) : -1;
+        }
+
     private:
         bool Join(const char* name, std::string* joined) const
         {
@@ -691,6 +729,11 @@ void csr_host_filesystem_clear()
 int csr_host_filesystem_mounted(void)
 {
     return Instance().mounted() ? 1 : 0;
+}
+
+int csr_host_filesystem_read(const char* path, unsigned char* dest, int dest_cap)
+{
+    return Instance().ReadAll(path, dest, dest_cap);
 }
 
 void* csr_host_filesystem_factory(const char* name, int* code)

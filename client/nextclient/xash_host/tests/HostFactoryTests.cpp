@@ -310,3 +310,53 @@ TEST_F(HostFactory, FilesystemServesOnlyTheMountedRoot)
     EXPECT_FALSE(filesystem->FileExists("leak"));
     EXPECT_EQ(filesystem->Open("leak", "rb", nullptr), nullptr);
 }
+
+TEST_F(HostFactory, TextureFileReadsUncompressedTgaFromTheRoot)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    auto* vgui = static_cast<vgui2::ISurface*>(csr_host_create_interface("VGUI_Surface026", nullptr));
+    ASSERT_NE(vgui, nullptr);
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    unsigned char tga[24] = {};
+    tga[2] = 2;
+    tga[12] = 2;
+    tga[14] = 1;
+    tga[16] = 24;
+    tga[18] = 0;
+    tga[19] = 0;
+    tga[20] = 255;
+    tga[21] = 255;
+    tga[22] = 0;
+    tga[23] = 0;
+    const std::string path = temp.root + "/cursor.tga";
+    FILE* out = std::fopen(path.c_str(), "wb");
+    ASSERT_NE(out, nullptr);
+    ASSERT_EQ(std::fwrite(tga, 1, sizeof(tga), out), sizeof(tga));
+    std::fclose(out);
+
+    ASSERT_EQ(csr_host_mount_filesystem(temp.root.c_str()), 1);
+    vgui->DrawSetTextureFile(3, "cursor.tga", 0, false);
+    int wide = 0;
+    int tall = 0;
+    vgui->DrawGetTextureSize(3, wide, tall);
+    EXPECT_EQ(wide, 2);
+    EXPECT_EQ(tall, 1);
+
+    vgui->DrawSetTextureFile(4, "missing.tga", 0, false);
+    wide = 7;
+    tall = 7;
+    vgui->DrawGetTextureSize(4, wide, tall);
+    EXPECT_EQ(wide, 0);
+    EXPECT_EQ(tall, 0);
+
+    vgui->DrawSetTextureFile(5, "../cursor.tga", 0, false);
+    wide = 7;
+    tall = 7;
+    vgui->DrawGetTextureSize(5, wide, tall);
+    EXPECT_EQ(wide, 0);
+    EXPECT_EQ(tall, 0);
+
+    std::remove(path.c_str());
+}

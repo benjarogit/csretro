@@ -31,6 +31,59 @@ namespace
 
     constexpr int kTextureCap = 4096;
     constexpr int kFontCap = 256;
+    constexpr int kMaxTextureEdge = 4096;
+    constexpr int kMaxTextureFile = 8 * 1024 * 1024;
+
+    bool DecodeUncompressedTga(const unsigned char* data, int size, std::vector<unsigned char>* rgba, int* wide, int* tall)
+    {
+        if (data == nullptr || rgba == nullptr || wide == nullptr || tall == nullptr || size < 18)
+        {
+            return false;
+        }
+        const int id_length = data[0];
+        const int color_map = data[1];
+        const int image_type = data[2];
+        if (color_map != 0 || image_type != 2)
+        {
+            return false;
+        }
+        const int image_wide = data[12] | (data[13] << 8);
+        const int image_tall = data[14] | (data[15] << 8);
+        const int bpp = data[16];
+        if (image_wide <= 0 || image_tall <= 0 || image_wide > kMaxTextureEdge || image_tall > kMaxTextureEdge)
+        {
+            return false;
+        }
+        if (bpp != 24 && bpp != 32)
+        {
+            return false;
+        }
+        const int stride = bpp / 8;
+        const int payload = image_wide * image_tall * stride;
+        if (payload <= 0 || payload > kMaxTextureFile || id_length < 0 || 18 + id_length > size || payload > size - 18 - id_length)
+        {
+            return false;
+        }
+        rgba->assign(static_cast<size_t>(image_wide) * static_cast<size_t>(image_tall) * 4, 0);
+        const unsigned char* src = data + 18 + id_length;
+        const bool top_origin = (data[17] & 0x20) != 0;
+        for (int y = 0; y < image_tall; ++y)
+        {
+            const int dst_y = top_origin ? y : image_tall - 1 - y;
+            for (int x = 0; x < image_wide; ++x)
+            {
+                const unsigned char* pixel = src + (static_cast<size_t>(y) * static_cast<size_t>(image_wide) + static_cast<size_t>(x)) * static_cast<size_t>(stride);
+                unsigned char* dst = rgba->data() + (static_cast<size_t>(dst_y) * static_cast<size_t>(image_wide) + static_cast<size_t>(x)) * 4;
+                dst[0] = pixel[2];
+                dst[1] = pixel[1];
+                dst[2] = pixel[0];
+                dst[3] = stride == 4 ? pixel[3] : 255;
+            }
+        }
+        *wide = image_wide;
+        *tall = image_tall;
+        return true;
+    }
     constexpr int kProportionalWide = 640;
     constexpr int kProportionalTall = 480;
 
@@ -404,10 +457,30 @@ namespace xash
 
         void DeleteHTMLWindow(vgui2::IHTML*) override {}
 
-        void DrawSetTextureFile(int id, const char*, int, bool) override
+        void DrawSetTextureFile(int id, const char* filename, int hardwareFilter, bool) override
         {
-            // File bytes come from the host filesystem, which this slice does not own.
-            EnsureTexture(id);
+            if (filename == nullptr || filename[0] == '\0' || file_.read == nullptr)
+            {
+                return;
+            }
+            const int size = file_.read(filename, nullptr, 0, file_.user);
+            if (size <= 0 || size > kMaxTextureFile)
+            {
+                return;
+            }
+            std::vector<unsigned char> bytes(static_cast<size_t>(size));
+            if (file_.read(filename, bytes.data(), size, file_.user) != size)
+            {
+                return;
+            }
+            std::vector<unsigned char> rgba;
+            int wide = 0;
+            int tall = 0;
+            if (!DecodeUncompressedTga(bytes.data(), size, &rgba, &wide, &tall))
+            {
+                return;
+            }
+            StoreTexture(id, rgba.data(), wide, tall, hardwareFilter != 0, false);
         }
 
         void DrawSetTextureRGBA(int id, const unsigned char* rgba, int wide, int tall, int hardwareFilter, bool) override
@@ -744,6 +817,16 @@ namespace xash
                 return;
             }
             input_ = *input;
+        }
+
+        void SetFileFns(const csr_surface_file_fns_t* file)
+        {
+            if (file == nullptr)
+            {
+                file_ = {};
+                return;
+            }
+            file_ = *file;
         }
 
         void EnableMouseCapture(vgui2::VPANEL, bool) override {}
@@ -1391,6 +1474,7 @@ namespace xash
         csr_surface_host_t host_{};
         csr_surface_panel_fns_t panel_{};
         csr_surface_input_fns_t input_{};
+        csr_surface_file_fns_t file_{};
         std::vector<SurfaceFrame> stack_;
         std::vector<Texture> textures_;
         // Faces close before FreeType shuts down: fonts_ is declared after faces_.
@@ -1536,6 +1620,14 @@ void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t
     if (surface != nullptr)
     {
         As(surface)->SetInputFns(input);
+    }
+}
+
+void csr_surface_set_file(csr_surface_t* surface, const csr_surface_file_fns_t* file)
+{
+    if (surface != nullptr)
+    {
+        As(surface)->SetFileFns(file);
     }
 }
 

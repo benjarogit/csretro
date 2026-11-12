@@ -64,6 +64,14 @@ typedef struct csr_surface_input_fns
     void* user;
 } csr_surface_input_fns_t;
 
+// read returns the file size when dest is null. With a buffer it writes the
+// bytes and returns the size, or -1 when the file is missing or does not fit.
+typedef struct csr_surface_file_fns
+{
+    int (*read)(const char* path, unsigned char* dest, int dest_cap, void* user);
+    void* user;
+} csr_surface_file_fns_t;
+
 #if defined(_WIN32)
 #define CSR_SURFACE_API __declspec(dllexport)
 #else
@@ -84,6 +92,7 @@ struct csr_xash_engine_surface;
 CSR_SURFACE_API void csr_surface_engine_hooks(csr_surface_t* surface, struct csr_xash_engine_surface* out);
 CSR_SURFACE_API void csr_surface_set_panel(csr_surface_t* surface, const csr_surface_panel_fns_t* panel);
 CSR_SURFACE_API void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t* input);
+CSR_SURFACE_API void csr_surface_set_file(csr_surface_t* surface, const csr_surface_file_fns_t* file);
 CSR_SURFACE_API void* csr_surface_create_interface(const char* name, int* code);
 
 #ifdef __cplusplus

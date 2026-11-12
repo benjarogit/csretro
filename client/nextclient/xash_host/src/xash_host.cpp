@@ -11,6 +11,7 @@
 #include <IGameUIFuncs.h>
 
 #include <vgui/IClientPanel.h>
+#include <vgui/IInputInternal.h>
 #include <vgui/IPanel.h>
 #include <vgui/IScheme.h>
 #include <vgui/ISurface.h>
@@ -406,6 +407,12 @@ namespace
         g_ivgui = nullptr;
         g_gameui_root = 0;
         g_root_client.panel_ = 0;
+        // Drop the pair input bind before closing the modules that own it.
+        if (g_surface.surface != nullptr && g_surface.set_input != nullptr)
+        {
+            g_surface.set_input(g_surface.surface, nullptr);
+        }
+        g_vgui = {};
         if (g_pair.vgui != nullptr)
         {
             dlclose(g_pair.vgui);
@@ -447,6 +454,69 @@ namespace
         {
             g_vgui.dispatch(g_vgui.vgui);
         }
+    }
+
+    void RealCursorMoved(void* input, int x, int y)
+    {
+        if (input == nullptr)
+        {
+            return;
+        }
+        static_cast<vgui2::IInputInternal*>(input)->InternalCursorMoved(x, y);
+    }
+
+    void RealMousePressed(void* input, int code)
+    {
+        if (input == nullptr)
+        {
+            return;
+        }
+        static_cast<vgui2::IInputInternal*>(input)->InternalMousePressed(static_cast<vgui2::MouseCode>(code));
+    }
+
+    void RealMouseReleased(void* input, int code)
+    {
+        if (input == nullptr)
+        {
+            return;
+        }
+        static_cast<vgui2::IInputInternal*>(input)->InternalMouseReleased(static_cast<vgui2::MouseCode>(code));
+    }
+
+    void RealDispatch(void*)
+    {
+        if (g_pair.dispatch != nullptr)
+        {
+            g_pair.dispatch();
+        }
+    }
+
+    // The pair's input object. IInputInternal::RunFrame is not this call.
+    int BindRealInput()
+    {
+        if (g_pair.create == nullptr || g_pair.dispatch == nullptr || g_surface.surface == nullptr || g_surface.set_input == nullptr)
+        {
+            return 0;
+        }
+        int code = 1;
+        void* input = g_pair.create("VGUI_InputInternal001", &code);
+        if (input == nullptr)
+        {
+            return 0;
+        }
+        g_vgui = {};
+        g_vgui.input = input;
+        g_vgui.cursor_moved = RealCursorMoved;
+        g_vgui.mouse_pressed = RealMousePressed;
+        g_vgui.mouse_released = RealMouseReleased;
+        g_vgui.dispatch = RealDispatch;
+        csr_surface_input_fns_t fns{};
+        fns.cursor_moved = OnCursorMoved;
+        fns.mouse_pressed = OnMousePressed;
+        fns.mouse_released = OnMouseReleased;
+        fns.dispatch = OnDispatch;
+        g_surface.set_input(g_surface.surface, &fns);
+        return 1;
     }
 
     template <typename T>
@@ -677,6 +747,11 @@ int csr_host_load_pair(const char* client_path, const char* vgui_path)
     g_pair.create = create;
     g_pair.dispatch = dispatch;
     g_pair.scheme = scheme;
+    if (BindRealInput() == 0)
+    {
+        ClosePair();
+        return 0;
+    }
     return 1;
 }
 

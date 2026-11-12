@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `3d137c5` (public docs site)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43177258829 – success (`3d137c5`)
+- **Commit:** (pending push: pair input bind)
+- **CI:** (pending)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43177510852 – success; site https://benjarogit.github.io/csretro/
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -448,7 +448,9 @@ and branch protection in the browser.
   is a failure. `nextclient.sh` stays the GoldSrc starter.
   Next: that open host still does not exec Xash3D or call `RunFrame`.
   The game still does not start.
-  The host factory and the mouse bind are in `xash_host`. `RunFrame` stays unused.
+  `csr_host_load_pair` binds `VGUI_InputInternal001` (cursor/press/release +
+  one dispatch). `xash_host-tests` 18/18, including
+  `PairInputReceivesTheCursorWithoutRunFrame`. `RunFrame` stays unused.
   Local identity is `ResolvePlayerIdentity` (plan section 3.7).
   `player_identity-tests` 6/6, no network. The lookup does not read Steam.
   Keep the Xvfb screen equal to the game resolution.

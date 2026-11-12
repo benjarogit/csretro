@@ -4,8 +4,11 @@
 
 #include <gtest/gtest.h>
 #include <Color.h>
+#include <vgui/IInput.h>
 #include <vgui/IScheme.h>
 #include <vgui/ISurface.h>
+
+#include <dlfcn.h>
 
 #include <FileSystem.h>
 
@@ -142,6 +145,37 @@ TEST_F(HostFactory, MouseEventsDispatchOnceAndCursorWarpsDoNot)
     surface->SurfaceGetCursorPos(x, y);
     EXPECT_EQ(x, 4);
     EXPECT_EQ(y, 5);
+}
+
+TEST_F(HostFactory, PairInputReceivesTheCursorWithoutRunFrame)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    ASSERT_EQ(csr_host_load_pair(XASH_CLIENT_FILE, XASH_VGUI_FILE), 1);
+    char root_name[] = "/tmp/csretro-input-XXXXXX";
+    ASSERT_NE(mkdtemp(root_name), nullptr);
+    ASSERT_EQ(csr_host_mount_filesystem(root_name), 1);
+    ASSERT_EQ(csr_host_connect_vgui(), 1);
+
+    void* module = dlopen(XASH_VGUI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(module, nullptr);
+    auto create = reinterpret_cast<void* (*)(const char*, int*)>(dlsym(module, "CreateInterface"));
+    ASSERT_NE(create, nullptr);
+    int code = 1;
+    auto* input = static_cast<vgui2::IInput*>(create("VGUI_InputInternal001", &code));
+    ASSERT_NE(input, nullptr);
+
+    csr_host_input_move(15, 25);
+    int x = 0;
+    int y = 0;
+    input->GetCursorPos(x, y);
+    EXPECT_EQ(x, 15);
+    EXPECT_EQ(y, 25);
+    csr_host_input_button(0, 1);
+    EXPECT_TRUE(input->IsMouseDown(vgui2::MOUSE_LEFT));
+    csr_host_input_button(0, 0);
+    EXPECT_FALSE(input->IsMouseDown(vgui2::MOUSE_LEFT));
+    dlclose(module);
+    rmdir(root_name);
 }
 
 TEST_F(HostFactory, AMissingPairLibraryLeavesTheSurfaceFactory)

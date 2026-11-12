@@ -28,9 +28,12 @@ background image is drawn at time 0 before that call. The paint after it
 builds the options pages. `RunFrame` is not that call. Later
 factories are not asked for the surface name.
 
-Mouse move, press and release go to the three input calls and then to exactly
-one message dispatch. `RunFrame` is not called, so focus cannot jump back to a
-stored cursor. `SurfaceSetCursorPos` only stores the position.
+`csr_host_load_pair` binds mouse move, press and release to that pair's
+`VGUI_InputInternal001`. Each event ends with exactly one
+`csr_vgui_dispatch_messages`. `IInputInternal::RunFrame` and `CVGui::RunFrame`
+are not called, so focus cannot jump back to a stored cursor.
+`SurfaceSetCursorPos` only stores the position. A manual `csr_host_bind_input`
+remains for tests with fake callbacks.
 
 The `vgui2.so` built from this SDK exports `csr_vgui_dispatch_messages`. The
 host receives function pointers. Process, Steam and frame rate are stated once

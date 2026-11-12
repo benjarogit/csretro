@@ -7,9 +7,10 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   one surface. The first factory entry is `csr_surface_create_interface`.
   The same object is bound into `xash_engine` for the vgui2 forwards.
 - `csr_host_load_pair` opens the matched `client_mini` and `vgui2` after that
-  factory. A missing library or export returns 0 and is not called. The
-  dispatch pointer is kept and not invoked. `RunFrame` stays unused. The
-  pair does not add a factory.
+  factory. A missing library or export returns 0 and is not called. It binds
+  cursor, press and release to that `VGUI_InputInternal001`, then one
+  `csr_vgui_dispatch_messages` per event. `IInputInternal::RunFrame` and
+  `CVGui::RunFrame` stay unused. The pair does not add a factory.
 - `csr_host_load_gameui` opens `gameui` after that factory and reads
   `GameUI007` and `GameConsole003`. It does not call into the game UI and
   does not add a factory.

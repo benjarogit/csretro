@@ -52,7 +52,8 @@ CSR_HOST_API void csr_host_close(void);
 /*
  * Opens the matched client_mini and vgui2 after the surface factory is live.
  * Returns 0 when a library or a required export is missing, and does not call
- * a null pointer. Does not call the dispatch and does not start the client.
+ * a null pointer. Binds cursor, press and release to that vgui input, then one
+ * dispatch. Does not call RunFrame and does not start the client.
  */
 CSR_HOST_API int csr_host_load_pair(const char* client_path, const char* vgui_path);
 CSR_HOST_API int csr_host_pair_loaded(void);

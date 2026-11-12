@@ -21,6 +21,9 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- `csr_host_load_pair` binds cursor, press and release to the pair's
+  `VGUI_InputInternal001` and dispatches once per event without
+  `IInputInternal::RunFrame` or `CVGui::RunFrame`.
 - Public documentation site: Zensical (pinned) builds `docs/de` and `docs/en`
   with four audience hubs (players, maintainers, plugins, servers). Vendored
   vgui.css `greensteam` / `blacksteam` skins. Workflows: Pages deploy after

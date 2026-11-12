@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(xash_launcher STATIC src/xash_launcher.cpp)
 add_library(xash::launcher ALIAS xash_launcher)
 target_include_directories(xash_launcher PUBLIC include)
+target_link_libraries(xash_launcher PUBLIC xash::host ${CMAKE_DL_LIBS})
 
 if (NEXTCLIENT_BUILD_TESTS)
     find_package(GTest CONFIG REQUIRED)

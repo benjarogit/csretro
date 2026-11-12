@@ -10,8 +10,12 @@ launcher does not search a Steam library and does not invent a path. Original
 game content, maps, models, sounds and `valve/resource` stay required and are
 not in the repository.
 
-The command is not executed. The launcher does not start the game, does not
-exec Xash3D, does not call `RunFrame` and does not start Steam.
+The same process opens that list through the host: the one surface, then
+`client_mini` and `vgui2`, then `gameui`, then the filesystem root, then
+`libsteam_api.so`. `SteamAPI_IsSteamRunning` stays false. The planned command
+is not executed. The launcher does not start the game, does not exec Xash3D,
+does not call `RunFrame` and does not start Steam. A failed open leaves the
+host closed.
 
 `nextclient.sh` and [First client start](first-start.md) remain the GoldSrc
 path until this path replaces them.

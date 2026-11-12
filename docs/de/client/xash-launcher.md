@@ -10,8 +10,12 @@ Fehlschlag. Der Launcher sucht keine Steam-Bibliothek und erfindet keinen
 Pfad. Originaldaten, Maps, Modelle, Sounds und `valve/resource` bleiben
 Voraussetzung und liegen nicht im Repository.
 
-Der Befehl wird nicht ausgeführt. Der Launcher startet das Spiel nicht,
-führt Xash3D nicht aus, ruft `RunFrame` nicht auf und startet Steam nicht.
+Derselbe Prozess öffnet diese Liste über den Host: die eine Surface, dann
+`client_mini` und `vgui2`, dann `gameui`, dann die Dateisystem-Wurzel, dann
+`libsteam_api.so`. `SteamAPI_IsSteamRunning` bleibt falsch. Der geplante
+Befehl wird nicht ausgeführt. Der Launcher startet das Spiel nicht, führt
+Xash3D nicht aus, ruft `RunFrame` nicht auf und startet Steam nicht. Ein
+fehlgeschlagenes Öffnen lässt den Host geschlossen.
 
 `nextclient.sh` und [Erster Client-Start](first-start.md) bleiben der
 GoldSrc-Weg, bis dieser Pfad sie ersetzt.

@@ -25,9 +25,10 @@ The authoritative version string is the `VERSION` file.
   portrait. Otherwise the slot is the in-game name and has no portrait. The
   lookup does not start Steam, store credentials, or download an image.
 - The Xash launcher plans one command from the existing host, surface,
-  client pair, `gameui`, filesystem root and `libsteam_api.so`. A missing
-  content root is a failure. The command is not executed and does not start
-  Steam. The GoldSrc starter stays in place.
+  client pair, `gameui`, filesystem root and `libsteam_api.so`. The same
+  process opens that list and does not execute the command. A missing
+  content root is a failure. `RunFrame` stays uncalled and Steam stays down.
+  The GoldSrc starter stays in place.
 - The ELF64 `libsteam_api.so` reports logged out when Steam is not already
   logged in. A missing interface is not called. The shown name stays
   `ResolvePlayerIdentity`. The proxy does not start Steam.

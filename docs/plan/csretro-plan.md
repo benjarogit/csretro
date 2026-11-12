@@ -711,8 +711,10 @@ zusammen: `xash_host`, die eine `VGUI_Surface026`, `client_mini`, `vgui2`,
 fügt keine zweite Surface, keine zweite Factory und keinen zweiten
 Identitätsslot hinzu. Der Aufrufer übergibt die Inhaltswurzel. Fehlt sie,
 ist das ein Fehlschlag. Der Launcher sucht die Steam-Bibliothek nicht und
-erfindet keinen Pfad. Er wird in diesem Stand nicht ausgeführt, startet das
-Spiel nicht, führt Xash3D nicht aus und ruft `RunFrame` nicht auf. Der
+erfindet keinen Pfad. Derselbe Prozess öffnet diese Liste über den Host
+und führt den Befehl nicht aus. `SteamAPI_IsSteamRunning` bleibt falsch.
+Er startet das Spiel nicht, führt Xash3D nicht aus und ruft `RunFrame`
+nicht auf. Ein fehlgeschlagenes Öffnen lässt den Host geschlossen. Der
 bisherige GoldSrc-Starter `nextclient.sh` und der First-Start bleiben, bis
 dieser Pfad sie tatsächlich ersetzt.
 

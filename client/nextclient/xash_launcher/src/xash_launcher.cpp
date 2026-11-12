@@ -1,5 +1,8 @@
 #include "xash_launcher/xash_launcher.h"
 
+#include "xash_host/xash_host.h"
+
+#include <dlfcn.h>
 #include <sys/stat.h>
 
 #include <string>
@@ -76,6 +79,74 @@ LauncherPlan PlanXashLauncher(
         quoted[4] + " --filesystem-root " + quoted[5] + " --steam-api " + quoted[6];
     plan.ready = true;
     return plan;
+}
+
+void CloseXashLauncher(LauncherProcess* session)
+{
+    if (session == nullptr)
+    {
+        return;
+    }
+    if (session->steam != nullptr)
+    {
+        dlclose(session->steam);
+        session->steam = nullptr;
+    }
+    if (session->open)
+    {
+        csr_host_close();
+    }
+    session->open = false;
+}
+
+int OpenXashLauncher(
+    const char* content_root,
+    const char* host_path,
+    const char* surface_path,
+    const char* client_path,
+    const char* vgui_path,
+    const char* gameui_path,
+    const char* steam_api_path,
+    LauncherProcess* session)
+{
+    if (session == nullptr)
+    {
+        return 0;
+    }
+    CloseXashLauncher(session);
+
+    const LauncherPlan plan = PlanXashLauncher(
+        content_root, host_path, surface_path, client_path, vgui_path, gameui_path, steam_api_path);
+    if (!plan.ready)
+    {
+        return 0;
+    }
+
+    // The host is this process. The planned command is not executed.
+    if (csr_host_open(surface_path) == 0 || csr_host_load_pair(client_path, vgui_path) == 0 ||
+        csr_host_load_gameui(gameui_path) == 0 || csr_host_mount_filesystem(content_root) == 0)
+    {
+        csr_host_close();
+        return 0;
+    }
+
+    void* steam = dlopen(steam_api_path, RTLD_NOW | RTLD_LOCAL);
+    if (steam == nullptr)
+    {
+        csr_host_close();
+        return 0;
+    }
+    auto running = reinterpret_cast<bool (*)()>(dlsym(steam, "SteamAPI_IsSteamRunning"));
+    if (running == nullptr || running())
+    {
+        dlclose(steam);
+        csr_host_close();
+        return 0;
+    }
+
+    session->steam = steam;
+    session->open = true;
+    return 1;
 }
 
 } // namespace csr

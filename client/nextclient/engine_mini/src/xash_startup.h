@@ -180,6 +180,9 @@ using EngineMiniCheckGammaFn = bool (*)();
 // Process replacement for the retail BuildGammaTable hook. A null value is not a call.
 using EngineMiniBuildGammaTableFn = void (*)(float g);
 
+// Process replacement for the retail DT_SetRenderState hook. A null value is not a call.
+using EngineMiniDTSetRenderStateFn = goldsrc::qboolean (*)(int diffuseId);
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -249,6 +252,7 @@ struct EngineMiniXashStartup
     int update_palette_calls{};
     int check_gamma_calls{};
     int build_gamma_table_calls{};
+    int set_render_state_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -317,6 +321,7 @@ struct EngineMiniXashStartup
     EngineMiniUpdatePaletteFn update_palette{};
     EngineMiniCheckGammaFn check_gamma{};
     EngineMiniBuildGammaTableFn build_gamma_table{};
+    EngineMiniDTSetRenderStateFn set_render_state{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -486,6 +491,9 @@ extern EngineMiniCheckGammaFn g_EngineMiniCheckGamma;
 
 // Defaults to BuildGammaTable. Init stores the pointer and does not call it.
 extern EngineMiniBuildGammaTableFn g_EngineMiniBuildGammaTable;
+
+// Defaults to DT_SetRenderState. Init stores the pointer and does not call it.
+extern EngineMiniDTSetRenderStateFn g_EngineMiniDTSetRenderState;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

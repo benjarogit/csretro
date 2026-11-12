@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `9b34c0d` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect` and `CL_ClearState` are the process functions and are not called; no socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected and client state stays unchanged; `hw.so` stays unmapped)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43212890565 – success (`9b34c0d`)
+- **Commit:** `c346fe8` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`, `CL_ClearState` and `Host_Map_f` are the process functions and are not called; no socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected, client state stays unchanged and no map is loaded; `hw.so` stays unmapped)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43214434065 – success (`c346fe8`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -346,7 +346,7 @@ implementation; the plan is the only source for the gate list.
   process; original maps, models, sounds and `valve/resource` stay required.
   Product process is x86_64 (plan section 3.7). The Linux client preset is
   `linux` with the vcpkg triplet `x64-linux`. There is no second 32-bit client
-  preset. `engine_mini-tests` (`XashStartup` 16/16; full run 571), `nitro_api-tests` (70),
+  preset. `engine_mini-tests` (`XashStartup` 17/17; full run 572), `nitro_api-tests` (70),
   `xash_surface-tests` (21), `xash_host-tests` (20), `xash_engine-tests` (6),
   `sdk_pair-tests` (4), `player_identity-tests` (6), `steam_api-tests` (2) and
   `xash_launcher-tests` (4)
@@ -356,7 +356,7 @@ implementation; the plan is the only source for the gate list.
   or `vgui2.so`. Product identity is `xash`. `NitroApi::Initialize` does not
   open, hash, or hook `hw.so`. `nitro_api-tests` 70/70, including
   `XashIdentity.InitializeDoesNotOpenOrHashTheRetailEngine`. `engine_mini-tests`
-  filter `XashStartup` is 16/16. Full `engine_mini-tests` is 571/571. Missing engine addresses are not hooks and are not called.
+  filter `XashStartup` is 17/17. Full `engine_mini-tests` is 572/572. Missing engine addresses are not hooks and are not called.
   `xash_engine` forwards `vgui2_surface`, texture reset and text color to that
   one surface. `VGUI2_Draw_Init` has no entry there. The same library takes
   `csr_xash_engine_argv`, `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
@@ -406,8 +406,12 @@ implementation; the plan is the only source for the gate list.
   function in this process when that retail hook is absent. Init stores
   the pointer and does not call it, so client state stays unchanged and
   no socket is opened. A null pointer is not a call. A null hook is not
-  a call. The next retail hook is `eng()->Host_Map_f` (`Host_Map_f`).
-  This path returns before it.
+  a call. `Host_Map_f` is then the function in this process when that
+  retail hook is absent. Init stores the pointer and does not call it, so
+  no map is loaded, the level name stays unchanged and no socket is opened.
+  A null pointer is not a call. A null hook is not a call. The next retail
+  hook is `eng()->Host_FilterTime` (`Host_FilterTime`). This path returns
+  before it.
   `OnGameInitialized` is not entered.
   The retail hook chain does not run.
   Shutdown and the fatal error stay uncalled on that path. A null function
@@ -556,8 +560,12 @@ the Security overview switches in the browser.
   function in this process when that retail hook is absent. Init stores
   the pointer and does not call it, so client state stays unchanged and
   no socket is opened. A null pointer is not a call. A null hook is not
-  a call. The next retail hook is `eng()->Host_Map_f` (`Host_Map_f`).
-  This path returns before it.
+  a call. `Host_Map_f` is then the function in this process when that
+  retail hook is absent. Init stores the pointer and does not call it, so
+  no map is loaded, the level name stays unchanged and no socket is opened.
+  A null pointer is not a call. A null hook is not a call. The next retail
+  hook is `eng()->Host_FilterTime` (`Host_FilterTime`). This path returns
+  before it.
   `OnGameInitialized`
   is not entered. The retail hook
   chain does not run.
@@ -619,8 +627,12 @@ the Security overview switches in the browser.
   and no socket is opened. `CL_ClearState` is then the function in this
   process. Init stores that pointer and does not call it. A null pointer
   is not a call. A null hook is not a call. Client state stays unchanged
-  and no socket is opened. The next retail hook is `eng()->Host_Map_f`
-  (`Host_Map_f`). This path returns before it. `OnGameInitialized`
+  and no socket is opened. `Host_Map_f` is then the function in this
+  process. Init stores that pointer and does not call it. A null pointer
+  is not a call. A null hook is not a call. No map is loaded, the level
+  name stays unchanged and no socket is opened. The next retail hook is
+  `eng()->Host_FilterTime` (`Host_FilterTime`). This path returns before
+  it. `OnGameInitialized`
   is not entered. The retail
   hook chain and a real Xash frame still do not run.
   `csr_host_load_pair` binds `VGUI_InputInternal001` (cursor/press/release +
@@ -684,9 +696,12 @@ the Security overview switches in the browser.
   session is disconnected and no socket is opened. `CL_ClearState` is the
   function in this process. Init stores that pointer and does not call
   it. A null pointer is not a call. A null hook is not a call. Client
-  state stays unchanged and no socket is opened. The next retail hook in
-  `OnGameInitializing` is `eng()->Host_Map_f` (`Host_Map_f`). The
-  Xash path returns before that install.
+  state stays unchanged and no socket is opened. `Host_Map_f` is the
+  function in this process. Init stores that pointer and does not call
+  it. A null pointer is not a call. A null hook is not a call. No map is
+  loaded, the level name stays unchanged and no socket is opened. The
+  next retail hook in `OnGameInitializing` is `eng()->Host_FilterTime`
+  (`Host_FilterTime`). The Xash path returns before that install.
   `OnGameInitialized` is not entered.
   A real GL/Xash frame and
   `CVGui::RunFrame` are still missing. The planned command is not executed.
@@ -728,6 +743,90 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Process `Host_Map_f` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ engine_mini-tests --gtest_filter=XashStartup.*
+17/17 passed
+AbsentHooksRecordTheSequenceAndInitArgv
+NullBindingIsNotACall
+ConInitReadsCondebugAndLeavesTheLog
+WiredCallDoesNotOpenHwSo
+SetCStrikeFlagsReadsTheMountedDirectory
+NetSendPacketUsesTheProcessFunction
+NetchanCopyFileFragmentsUsesTheProcessFunction
+SvcTimeScaleUsesTheProcessFunction
+SvcSendCvarValueUsesTheProcessFunction
+HttpUpdateUsesTheProcessFunction
+HttpStopUsesTheProcessFunction
+StartResourceDownloadingUsesTheProcessFunction
+ReadPacketsUsesTheProcessFunction
+RequestMissingResourcesUsesTheProcessFunction
+DisconnectUsesTheProcessFunction
+ClearStateUsesTheProcessFunction
+HostMapUsesTheProcessFunction
+
+$ engine_mini-tests
+572/572 passed
+
+$ xash_host-tests
+20/20 passed
+
+$ xash_launcher-tests
+4/4 passed
+```
+
+`OnGameInitializing` stores a pointer table in this process and then calls
+`Con_Init`. `pfnGetGameDir` writes the mounted directory name and
+`SetCStrikeFlags` runs for that name. An empty mount leaves that pointer
+null. `NET_SendPacket` is the function in this process when the retail hook
+is absent. Init stores that pointer and does not call it. `net_send_calls`
+stays 0. `Netchan_CopyFileFragments` is then the function in this process
+when that retail hook is absent. Init stores that pointer and does not call
+it. `netchan_copy_calls` stays 0. `SVC_TimeScale` is then
+`CL_Parse_Timescale` in this process when that retail hook is absent. Init
+stores that pointer and does not call it. `svc_timescale_calls` stays 0.
+`SVC_SendCvarValue` is then `CL_Send_CvarValue` in this process when that
+retail hook is absent. Init stores that pointer and does not call it.
+`svc_sendcvarvalue_calls` stays 0. `CL_HTTPUpdate` is then the function in
+this process when that retail hook is absent. Init stores that pointer and
+does not call it. `http_update_calls` stays 0. `CL_HTTPStop_f` is then the
+function in this process when that retail hook is absent. Init stores that
+pointer and does not call it. `http_stop_calls` stays 0.
+`CL_StartResourceDownloading` is then the function in this process when that
+retail hook is absent. Init stores that pointer and does not call it.
+`start_resource_calls` stays 0. `CL_ReadPackets` is then the function in
+this process when that retail hook is absent. Init stores that pointer and
+does not call it. `read_packets_calls` stays 0.
+`CL_RequestMissingResources` is then the function in this process when that
+retail hook is absent. Init stores that pointer and does not call it.
+`request_missing_calls` stays 0. `CL_Disconnect` is then the function in
+this process when that retail hook is absent. Init stores that pointer and
+does not call it. `disconnect_calls` stays 0. `CL_ClearState` is then the
+function in this process when that retail hook is absent. Init stores that
+pointer and does not call it. `clear_state_calls` stays 0. `Host_Map_f` is
+then the function in this process when that retail hook is absent. Init
+stores that pointer and does not call it. `host_map_calls` stays 0. A null
+pointer leaves the recorded pointer null and is not a call. A null hook is
+not a call. A planted `sensitivity` stays `3.0` with flags `FCVAR_ARCHIVE`,
+and its next cvar `sys_timescale` stays `3.5` with flags `0`. No cvar is
+sent. No HTTP request is made, no download is stopped, no resource download
+is started, no packet is read, no resource is requested, and no disconnect
+runs. Client state stays unchanged. A real call would disconnect and start
+a map. A planted `client_state` keeps `max_edicts` 42, `servercount` 7 and
+`levelname` `csretro-keep`. No map was loaded. The open-socket list in
+`/proc/self/fd` is unchanged, so no socket was opened. The next retail hook
+is `eng()->Host_FilterTime` (`Host_FilterTime`). That hook stays null. The
+Xash path returns before it. `OnGameInitialized` is not entered. `Sys_Error`
+is not called. `initializing_calls` is 1 on the first pass. Shutdown and the
+fatal error stay 0 until the test calls them. A planted `hw.so` is not
+mapped. `RunFrame` is not called. Steam is not started. The planned command
+is not executed. The game was not started.
+
+CI: https://github.com/benjarogit/csretro/actions/runs/43214434065 success (`c346fe8`).
+
+`scripts/verify.sh`: 68 checks passed.
 
 Process `CL_ClearState` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

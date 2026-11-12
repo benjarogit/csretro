@@ -124,6 +124,9 @@ using EngineMiniRStudioReloadSkinFn = int* (*)(goldsrc::model_t* pModel, int ind
 // Process replacement for the retail SetCrosshair hook. A null value is not a call.
 using EngineMiniSetCrosshairFn = void (*)(goldsrc::HSPRITE_t hspr, goldsrc::wrect_t rc, int r, int g, int b);
 
+// Process replacement for the retail DrawCrosshair hook. A null value is not a call.
+using EngineMiniDrawCrosshairFn = void (*)(int x, int y);
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -175,6 +178,7 @@ struct EngineMiniXashStartup
     int spr_get_model_pointer_calls{};
     int studio_reload_skin_calls{};
     int set_crosshair_calls{};
+    int draw_crosshair_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -225,6 +229,7 @@ struct EngineMiniXashStartup
     EngineMiniSprGetModelPointerFn spr_get_model_pointer{};
     EngineMiniRStudioReloadSkinFn studio_reload_skin{};
     EngineMiniSetCrosshairFn set_crosshair{};
+    EngineMiniDrawCrosshairFn draw_crosshair{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -340,6 +345,9 @@ extern EngineMiniRStudioReloadSkinFn g_EngineMiniRStudioReloadSkin;
 
 // Defaults to SetCrosshair. Init stores the pointer and does not call it.
 extern EngineMiniSetCrosshairFn g_EngineMiniSetCrosshair;
+
+// Defaults to DrawCrosshair. Init stores the pointer and does not call it.
+extern EngineMiniDrawCrosshairFn g_EngineMiniDrawCrosshair;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

@@ -368,10 +368,11 @@ Nebenbefunde:
   `COM_InitArgv`, `GL_SetMode`, `Sys_InitGame`, `Host_Shutdown` und `Sys_Error`
   hat einen Host-Einstieg auf `xash_engine`. Ein vorhandener Retail-Hook bleibt
   der bisherige Aufruf. Fehlt der Hook, zeichnet `engine_mini` die Argumente
-  auf. `COM_InitArgv` läuft dabei. `OnGameInitializing` bleibt an der
-  Retail-Zeigertabelle und wird auf diesem Pfad nicht betreten. `RunFrame`
-  wird nicht gerufen. Die übrigen Weiterleitungen haben weiter keinen
-  Xash3D-Einsprung.
+  auf. `COM_InitArgv` läuft dabei. `OnGameInitializing` liest eine
+  Zeigertabelle aus diesem Prozess, nicht aus `hw.so`. Ein Null-Funktionszeiger
+  wird nicht aufgerufen, und `Sys_Error` läuft auf dieser Tabelle nicht. Die
+  Retail-Hook-Kette und `Con_Init` laufen dabei nicht. `RunFrame` wird nicht
+  gerufen. Die übrigen Weiterleitungen haben weiter keinen Xash3D-Einsprung.
 - HTML/MOTD verlangt einen ChromeHTML-Controller/Serializer. Ohne CEF wird MOTD
   in CSRETRO deaktiviert oder durch eine einfache Text-Ansicht ersetzt.
 - Ein x86_64-Client setzt quelloffenen 64-Bit-Client-Gamecode voraus. Valves
@@ -694,8 +695,10 @@ Der Host lädt `next_engine_mini.dll` und `nitro_api2.dll`, nachdem die
 Export ist ein Fehlschlag und kein Aufruf. Ein erfolgreiches Öffnen ruft
 Shutdown und den fatalen Fehler nicht; beide bleiben gebunden.
 `COM_InitArgv` läuft. Modus und Init werden aufgezeichnet.
-`OnGameInitializing` läuft nicht, weil die Retail-Zeigertabelle fehlt und ein
-Aufruf mit Nullzeigern in `Sys_Error` endet. `hw.so` wird nicht geöffnet.
+`OnGameInitializing` liest eine Zeigertabelle aus diesem Prozess, nicht aus
+`hw.so`. Ein Null-Funktionszeiger wird nicht aufgerufen. `Sys_Error` wird auf
+dieser Tabelle nicht gerufen. Die Retail-Hook-Kette, `Con_Init` und ein
+Xash-Frame laufen dabei nicht. `hw.so` wird nicht geöffnet.
 `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen von `engine_mini`
 bleiben am Retail-Hook.
 

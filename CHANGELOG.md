@@ -35,6 +35,10 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- `OnGameInitializing` reads an engine pointer table from this process when
+  the retail hook is absent. Null function pointers are not calls, and
+  `Sys_Error` is not called on that table. `hw.so` stays unmapped. The retail
+  hook chain and `Con_Init` do not run. The game is not started.
 - `scripts/install-content.sh` searches a Steam library (`libraryfolders.vdf`,
   `appmanifest_10.acf`) and copies the mounted Counter-Strike 1.6 files into a
   directory outside that library. Files shipped in `client/assets` overlay
@@ -48,15 +52,13 @@ The authoritative version string is the `VERSION` file.
   `csr_xash_engine_init_game`. `COM_InitArgv` runs. A successful open does
   not call shutdown or the fatal error. A missing library or export is a
   failure and is not called. The open does not exec Xash3D, does not call
-  `RunFrame` and does not start Steam. `OnGameInitializing` still needs an
-  engine table that is not retail `hw.so`.
+  `RunFrame` and does not start Steam.
 - `xash_engine` takes the startup sequence through `csr_xash_engine_argv`,
   `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
   `csr_xash_engine_shutdown` and `csr_xash_engine_error`. A present retail
   hook keeps the retail call. A missing hook is recorded by `engine_mini`,
   which also records that the engine is Xash. `COM_InitArgv` runs. The call
-  does not open `hw.so` and does not call `RunFrame`. `OnGameInitializing`
-  still needs the retail pointer table.
+  does not open `hw.so` and does not call `RunFrame`.
 - `csr_host_load_pair` binds cursor, press and release to the pair's
   `VGUI_InputInternal001` and dispatches once per event without
   `IInputInternal::RunFrame` or `CVGui::RunFrame`.

@@ -1233,7 +1233,8 @@ int csr_host_load_engine(const char* engine_path, const char* nitro_path, const 
     g_engine_loaded = 1;
 
     // Pointers stay in this process for COM_CheckParm. Shutdown and the fatal
-    // error stay bound and are not called here. OnGameInitializing is not entered.
+    // error stay bound and are not called here. OnGameInitializing reads the
+    // Xash table and does not call Sys_Error.
     char* argv[] = {g_engine_arg0, g_engine_arg1};
     csr_xash_engine_argv(2, argv);
     csr_xash_engine_mode(&g_engine_window, nullptr, nullptr, "gl", g_engine_mode_line, 1);

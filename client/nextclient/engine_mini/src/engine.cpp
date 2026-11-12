@@ -368,8 +368,22 @@ static void OnGameUninitializing()
     g_Unsubs.clear();
 }
 
+namespace
+{
+    bool XashStartupIsActive();
+    void SupplyXashEngineTable();
+}
+
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
 {
+    // The Xash table is storage in this process. Null function pointers in it
+    // are not calls, and a missing pointer is not Sys_Error.
+    if (XashStartupIsActive())
+    {
+        SupplyXashEngineTable();
+        return;
+    }
+
     if (g_Analytics)
         g_Analytics->AddBreadcrumb("info", BREADCRUMBS_TAG " OnGameInitializing");
 
@@ -788,6 +802,129 @@ namespace
 {
 
     EngineMiniXashStartup g_xash_startup{};
+    nitroapi::EngineData* g_xash_engine = nullptr;
+
+    bool XashStartupIsActive()
+    {
+        return g_xash_startup.engine_is_xash;
+    }
+
+    template<class T>
+    void FillXashPointer(T*& field)
+    {
+        // One object per type. Same-typed fields share it. This path only
+        // needs the pointers to be non-null; it does not read the values.
+        if (field == nullptr)
+        {
+            static T storage{};
+            field = &storage;
+        }
+    }
+
+    void SupplyXashEngineTable()
+    {
+        nitroapi::EngineData* engine = g_xash_engine;
+        if (engine == nullptr)
+        {
+            return;
+        }
+
+        FillXashPointer(engine->currenttexture);
+        FillXashPointer(engine->client_state);
+        FillXashPointer(engine->client_static);
+        FillXashPointer(engine->cl_enginefunc);
+        FillXashPointer(engine->enginefuncs);
+        FillXashPointer(engine->modfuncs);
+        FillXashPointer(engine->cldll_func);
+        FillXashPointer(engine->net_message);
+        FillXashPointer(engine->net_from);
+        FillXashPointer(engine->msg_readcount);
+        FillXashPointer(engine->realtime);
+        FillXashPointer(engine->host_frametime);
+        FillXashPointer(engine->gfExtendedError);
+        FillXashPointer(engine->gszDisconnectReason);
+        FillXashPointer(engine->gDownloadFile);
+        FillXashPointer(engine->cmd_source);
+        FillXashPointer(engine->server_static);
+        FillXashPointer(engine->server);
+        FillXashPointer(engine->bMajorMapChange);
+        FillXashPointer(engine->careerState);
+        FillXashPointer(engine->loadmodel);
+        FillXashPointer(engine->cl_playerindex);
+        FillXashPointer(engine->loadcache);
+        FillXashPointer(engine->loadbuf);
+        FillXashPointer(engine->loadsize);
+        FillXashPointer(engine->host_initialized);
+        FillXashPointer(engine->g_engdstAddrs);
+        FillXashPointer(engine->vid);
+        FillXashPointer(engine->currententity);
+        FillXashPointer(engine->r_blend);
+        FillXashPointer(engine->r_entorigin);
+        FillXashPointer(engine->g_bUserFogOn);
+        FillXashPointer(engine->numTransObjs);
+        FillXashPointer(engine->transObjects);
+        FillXashPointer(engine->mtexenabled);
+        FillXashPointer(engine->r_worldentity);
+        FillXashPointer(engine->mirror);
+        FillXashPointer(engine->c_brush_polys);
+        FillXashPointer(engine->c_alias_polys);
+        FillXashPointer(engine->cl_numvisedicts);
+        FillXashPointer(engine->cl_visedicts);
+        FillXashPointer(engine->isFogEnabled);
+        FillXashPointer(engine->r_refdef);
+        FillXashPointer(engine->scr_fov_value);
+        FillXashPointer(engine->g_SND_VoiceOverdrive);
+        FillXashPointer(engine->cszrawsentences);
+        FillXashPointer(engine->rgpszrawsentence);
+        FillXashPointer(engine->cl_elights);
+        FillXashPointer(engine->scr_con_current);
+        FillXashPointer(engine->scr_downloading);
+        FillXashPointer(engine->cl_entities);
+        FillXashPointer(engine->noclip_anglehack);
+        FillXashPointer(engine->developer);
+        FillXashPointer(engine->cmd_argc);
+        FillXashPointer(engine->cmd_argv);
+        FillXashPointer(engine->cvar_vars);
+        FillXashPointer(engine->key_dest);
+        FillXashPointer(engine->known_sfx);
+        FillXashPointer(engine->num_sfx);
+        FillXashPointer(engine->gHostSpawnCount);
+        FillXashPointer(engine->net_local_adr);
+        FillXashPointer(engine->ip_sockets);
+        FillXashPointer(engine->g_GameServerAddress);
+        FillXashPointer(engine->g_LastScreenUpdateTime);
+        FillXashPointer(engine->maxTransObjs);
+
+        const void* required[] = {
+            engine->currenttexture,
+            engine->client_state,
+            engine->client_static,
+            engine->cl_enginefunc,
+            engine->enginefuncs,
+            engine->modfuncs,
+            engine->cldll_func,
+            engine->net_message,
+            engine->realtime,
+            engine->host_frametime,
+            engine->server_static,
+            engine->server,
+            engine->vid,
+            engine->r_refdef,
+            engine->cl_entities,
+            engine->ip_sockets,
+        };
+        for (const void* pointer : required)
+        {
+            if (pointer == nullptr)
+            {
+                return;
+            }
+        }
+
+        // Function pointers inside the tables stay null. This return does not
+        // call them, does not call Sys_Error, and does not run the retail hooks.
+        ++g_xash_startup.initializing_calls;
+    }
 
     void CopyField(char* dest, size_t size, const char* src)
     {
@@ -820,8 +957,10 @@ namespace
         g_xash_startup.mode_result = result;
         CopyField(g_xash_startup.driver, sizeof(g_xash_startup.driver), driver);
         CopyField(g_xash_startup.mode_cmdline, sizeof(g_xash_startup.mode_cmdline), cmdline);
-        // OnGameInitializing walks the retail pointer table and ends in Sys_Error
-        // when those pointers are null. Record the mode and stop.
+        if (g_xash_startup.engine_is_xash)
+        {
+            OnGameInitializing(window, reinterpret_cast<HDC*>(device), reinterpret_cast<HGLRC*>(context), driver, cmdline, result != 0);
+        }
     }
 
     void XashAcceptInitGame(char* cmdline, char* basedir, void* window, int dedicated, int result)
@@ -849,6 +988,7 @@ namespace
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash)
 {
+    g_xash_engine = engine;
     g_xash_startup = {};
     g_xash_startup.engine_is_xash = engine_is_xash;
 

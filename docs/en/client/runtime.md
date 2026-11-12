@@ -21,8 +21,10 @@ and records that the engine is Xash. The host loads `next_engine_mini.dll`
 and `nitro_api2.dll` after the other host pieces, calls `EngineMini::Init`,
 then argv, mode and init_game. A missing library or export is a failure and
 is not called. A successful open does not call shutdown or the fatal error;
-both stay bound. `COM_InitArgv` runs. `OnGameInitializing`
-stays out because the retail pointer table is missing. `hw.so` is not opened.
+both stay bound. `COM_InitArgv` runs. `OnGameInitializing` reads a pointer
+table from this process. A null function pointer is not a call, and
+`Sys_Error` is not called. The retail hook chain and `Con_Init` do not run.
+`hw.so` is not opened.
 `RunFrame` is not called. The other `engine_mini` forwards stay on the retail
 hook.
 

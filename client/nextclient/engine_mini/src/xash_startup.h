@@ -12,6 +12,7 @@ struct EngineMiniXashStartup
     int argv_calls{};
     int mode_calls{};
     int init_calls{};
+    int initializing_calls{};
     int shutdown_calls{};
     int error_calls{};
     int argc{};

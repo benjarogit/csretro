@@ -20,8 +20,10 @@ geladen. Fehlt sie, bleibt der Host offen. Danach folgt
 `IGameUI::Initialize`. Dann `libsteam_api.so`.
 `SteamAPI_IsSteamRunning` bleibt falsch. Nach `IGameUI::Start` lädt dasselbe
 Öffnen `engine_mini`, ruft `EngineMini::Init` und danach argv, Modus und
-Init. `COM_InitArgv` läuft. Shutdown und der fatale Fehler bleiben gebunden
-und werden nicht gerufen. Eine fehlende Bibliothek oder ein fehlender
+Init. `COM_InitArgv` läuft. `OnGameInitializing` liest eine Zeigertabelle aus
+diesem Prozess und ruft `Sys_Error` nicht. Shutdown und der fatale Fehler
+bleiben gebunden und werden nicht gerufen. Eine fehlende Bibliothek oder ein
+fehlender
 Export lässt das Öffnen scheitern und ist kein Aufruf. Der geplante
 Befehl wird nicht ausgeführt. Der Launcher startet das Spiel nicht, führt
 Xash3D nicht aus, ruft `RunFrame` nicht auf und startet Steam nicht. Ein

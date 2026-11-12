@@ -96,6 +96,13 @@ TEST_F(XashStartup, AbsentHooksRecordTheSequenceAndInitArgv)
     EXPECT_STREQ(record->driver, "gl");
     EXPECT_STREQ(record->mode_cmdline, "-windowed");
     EXPECT_EQ(record->mode_result, 1);
+    EXPECT_EQ(record->initializing_calls, 1);
+    EXPECT_EQ(record->shutdown_calls, 0);
+    EXPECT_EQ(record->error_calls, 0);
+    EXPECT_NE(engine->client_state, nullptr);
+    EXPECT_NE(engine->cl_enginefunc, nullptr);
+    EXPECT_EQ(engine->Sys_Error.GetHook(), nullptr);
+    EXPECT_EQ(engine->CL_Init.GetHook(), nullptr);
 
     char cmdline[] = "-game cstrike";
     char basedir[] = "valve";
@@ -137,6 +144,7 @@ TEST_F(XashStartup, NullBindingIsNotACall)
     EXPECT_EQ(record->init_calls, 0);
     EXPECT_EQ(record->shutdown_calls, 0);
     EXPECT_EQ(record->error_calls, 0);
+    EXPECT_EQ(record->initializing_calls, 0);
 }
 
 TEST_F(XashStartup, WiredCallDoesNotOpenHwSo)
@@ -169,6 +177,10 @@ TEST_F(XashStartup, WiredCallDoesNotOpenHwSo)
         csr_xash_engine_argv(2, argv);
         csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
         csr_xash_engine_init_game(cmdline, basedir, &window, 0, 1);
+        EXPECT_EQ(EngineMini_XashStartup()->initializing_calls, 1);
+        EXPECT_EQ(EngineMini_XashStartup()->shutdown_calls, 0);
+        EXPECT_EQ(EngineMini_XashStartup()->error_calls, 0);
+        EXPECT_FALSE(MapsContain(root / "hw.so"));
         csr_xash_engine_shutdown();
         csr_xash_engine_error("fatal");
     }

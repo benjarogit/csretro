@@ -14,8 +14,10 @@ through the same manager. A missing file leaves the host open. The host
 then calls `IGameUI::Initialize`. A missing engine module is not called.
 After `IGameUI::Start` the host loads `next_engine_mini.dll` and
 `nitro_api2.dll`, calls `EngineMini::Init`, then argv, mode and init_game.
-`COM_InitArgv` runs. Shutdown and the fatal error stay bound and that open
-does not call them. A missing library or export fails the load and is not
+`COM_InitArgv` runs. `OnGameInitializing` reads a pointer table from this
+process and does not call `Sys_Error`. Shutdown and the fatal error stay
+bound and that open does not call them. A missing library or export fails
+the load and is not
 called. The load does not open `hw.so` and does not call `RunFrame`.
 The base panel is a child of the host root. When
 `resource/schemes/TrackerScheme_ClassicPlus.res` is on that root, the default

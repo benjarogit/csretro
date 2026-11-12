@@ -395,6 +395,7 @@ namespace
     void RecordXashModClearAll();
     void RecordXashModFindName();
     void RecordXashModPrint();
+    void RecordXashModValidateCRC();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -443,7 +444,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // Mod_Print is then the process function when that hook is absent.
     // This init stores the pointer and does not print the model list. The
     // process body writes that list through Con_Printf, so a real call does
-    // not run. The next retail hook is Mod_ValidateCRC. This path returns
+    // not run.
+    // Mod_ValidateCRC is then the process function when that hook is absent.
+    // This init stores the pointer and does not validate a CRC. The process
+    // body looks up a model and can reject a stored CRC, so a real call does
+    // not run. The next retail hook is Mod_NeedCRC. This path returns
     // before it.
     if (XashStartupIsActive())
     {
@@ -470,6 +475,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashModClearAll();
             RecordXashModFindName();
             RecordXashModPrint();
+            RecordXashModValidateCRC();
         }
         return;
     }
@@ -904,6 +910,7 @@ EngineMiniHostFilterTimeFn g_EngineMiniHostFilterTime = Host_FilterTime;
 EngineMiniModClearAllFn g_EngineMiniModClearAll = Mod_ClearAll;
 EngineMiniModFindNameFn g_EngineMiniModFindName = Mod_FindName;
 EngineMiniModPrintFn g_EngineMiniModPrint = Mod_Print;
+EngineMiniModValidateCRCFn g_EngineMiniModValidateCRC = Mod_ValidateCRC;
 
 namespace
 {
@@ -1173,6 +1180,23 @@ namespace
             return;
         }
         g_xash_startup.mod_print = g_EngineMiniModPrint;
+    }
+
+    void RecordXashModValidateCRC()
+    {
+        // The retail site installs a replacement. It does not validate a CRC during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body looks up a model and can reject a stored CRC, so this path does not call it.
+        g_xash_startup.mod_validate = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->Mod_ValidateCRC.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniModValidateCRC == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.mod_validate = g_EngineMiniModValidateCRC;
     }
 
     bool XashStartupIsActive()
@@ -1462,6 +1486,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniModClearAll = Mod_ClearAll;
     g_EngineMiniModFindName = Mod_FindName;
     g_EngineMiniModPrint = Mod_Print;
+    g_EngineMiniModValidateCRC = Mod_ValidateCRC;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -1611,6 +1636,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
         {
             ++count;
         }
+        if (g_xash_startup.mod_validate != nullptr)
+        {
+            ++count;
+        }
         *stored_functions = count;
     }
     if (nitro_hooks != nullptr)
@@ -1640,6 +1669,7 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             count_hook(g_xash_engine->Mod_ClearAll);
             count_hook(g_xash_engine->Mod_FindName);
             count_hook(g_xash_engine->Mod_Print);
+            count_hook(g_xash_engine->Mod_ValidateCRC);
         }
         *nitro_hooks = count;
     }

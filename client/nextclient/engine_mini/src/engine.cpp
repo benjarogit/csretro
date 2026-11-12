@@ -371,16 +371,20 @@ static void OnGameUninitializing()
 namespace
 {
     bool XashStartupIsActive();
-    void SupplyXashEngineTable();
+    bool SupplyXashEngineTable();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
 {
     // The Xash table is storage in this process. Null function pointers in it
-    // are not calls, and a missing pointer is not Sys_Error.
+    // are not calls, and a missing pointer is not Sys_Error. Con_Init runs
+    // once that table is stored. The retail hook chain stays after this return.
     if (XashStartupIsActive())
     {
-        SupplyXashEngineTable();
+        if (SupplyXashEngineTable())
+        {
+            Con_Init();
+        }
         return;
     }
 
@@ -821,12 +825,12 @@ namespace
         }
     }
 
-    void SupplyXashEngineTable()
+    bool SupplyXashEngineTable()
     {
         nitroapi::EngineData* engine = g_xash_engine;
         if (engine == nullptr)
         {
-            return;
+            return false;
         }
 
         FillXashPointer(engine->currenttexture);
@@ -917,13 +921,14 @@ namespace
         {
             if (pointer == nullptr)
             {
-                return;
+                return false;
             }
         }
 
         // Function pointers inside the tables stay null. This return does not
         // call them, does not call Sys_Error, and does not run the retail hooks.
         ++g_xash_startup.initializing_calls;
+        return true;
     }
 
     void CopyField(char* dest, size_t size, const char* src)

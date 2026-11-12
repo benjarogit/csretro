@@ -370,9 +370,11 @@ Nebenbefunde:
   der bisherige Aufruf. Fehlt der Hook, zeichnet `engine_mini` die Argumente
   auf. `COM_InitArgv` läuft dabei. `OnGameInitializing` liest eine
   Zeigertabelle aus diesem Prozess, nicht aus `hw.so`. Ein Null-Funktionszeiger
-  wird nicht aufgerufen, und `Sys_Error` läuft auf dieser Tabelle nicht. Die
-  Retail-Hook-Kette und `Con_Init` laufen dabei nicht. `RunFrame` wird nicht
-  gerufen. Die übrigen Weiterleitungen haben weiter keinen Xash3D-Einsprung.
+  wird nicht aufgerufen, und `Sys_Error` läuft auf dieser Tabelle nicht.
+  `Con_Init` läuft danach. Es liest `-condebug` über `COM_CheckParm` und ruft
+  ein Null-Dateisystem nicht auf. Die Retail-Hook-Kette läuft dabei nicht.
+  `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen haben weiter
+  keinen Xash3D-Einsprung.
 - HTML/MOTD verlangt einen ChromeHTML-Controller/Serializer. Ohne CEF wird MOTD
   in CSRETRO deaktiviert oder durch eine einfache Text-Ansicht ersetzt.
 - Ein x86_64-Client setzt quelloffenen 64-Bit-Client-Gamecode voraus. Valves
@@ -697,8 +699,9 @@ Shutdown und den fatalen Fehler nicht; beide bleiben gebunden.
 `COM_InitArgv` läuft. Modus und Init werden aufgezeichnet.
 `OnGameInitializing` liest eine Zeigertabelle aus diesem Prozess, nicht aus
 `hw.so`. Ein Null-Funktionszeiger wird nicht aufgerufen. `Sys_Error` wird auf
-dieser Tabelle nicht gerufen. Die Retail-Hook-Kette, `Con_Init` und ein
-Xash-Frame laufen dabei nicht. `hw.so` wird nicht geöffnet.
+dieser Tabelle nicht gerufen. `Con_Init` läuft danach. Es liest `-condebug`
+über `COM_CheckParm` und ruft ein Null-Dateisystem nicht auf. Die
+Retail-Hook-Kette und ein Xash-Frame laufen dabei nicht. `hw.so` wird nicht geöffnet.
 `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen von `engine_mini`
 bleiben am Retail-Hook.
 

@@ -23,8 +23,9 @@ then argv, mode and init_game. A missing library or export is a failure and
 is not called. A successful open does not call shutdown or the fatal error;
 both stay bound. `COM_InitArgv` runs. `OnGameInitializing` reads a pointer
 table from this process. A null function pointer is not a call, and
-`Sys_Error` is not called. The retail hook chain and `Con_Init` do not run.
-`hw.so` is not opened.
+`Sys_Error` is not called. `Con_Init` then runs. It reads `-condebug` through
+`COM_CheckParm` and does not call a null filesystem. The retail hook chain
+does not run. `hw.so` is not opened.
 `RunFrame` is not called. The other `engine_mini` forwards stay on the retail
 hook.
 

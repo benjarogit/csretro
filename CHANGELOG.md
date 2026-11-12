@@ -37,8 +37,10 @@ The authoritative version string is the `VERSION` file.
 
 - `OnGameInitializing` reads an engine pointer table from this process when
   the retail hook is absent. Null function pointers are not calls, and
-  `Sys_Error` is not called on that table. `hw.so` stays unmapped. The retail
-  hook chain and `Con_Init` do not run. The game is not started.
+  `Sys_Error` is not called on that table. `Con_Init` then runs. It reads
+  `-condebug` through `COM_CheckParm` and does not call a null filesystem, so
+  `qconsole.log` stays. The retail hook chain does not run. `hw.so` stays
+  unmapped. The game is not started.
 - `scripts/install-content.sh` searches a Steam library (`libraryfolders.vdf`,
   `appmanifest_10.acf`) and copies the mounted Counter-Strike 1.6 files into a
   directory outside that library. Files shipped in `client/assets` overlay

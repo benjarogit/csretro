@@ -21,7 +21,8 @@ geladen. Fehlt sie, bleibt der Host offen. Danach folgt
 `SteamAPI_IsSteamRunning` bleibt falsch. Nach `IGameUI::Start` lädt dasselbe
 Öffnen `engine_mini`, ruft `EngineMini::Init` und danach argv, Modus und
 Init. `COM_InitArgv` läuft. `OnGameInitializing` liest eine Zeigertabelle aus
-diesem Prozess und ruft `Sys_Error` nicht. Shutdown und der fatale Fehler
+diesem Prozess, ruft `Con_Init` und ruft `Sys_Error` nicht. `-condebug` ruft
+ein Null-Dateisystem nicht auf. Shutdown und der fatale Fehler
 bleiben gebunden und werden nicht gerufen. Eine fehlende Bibliothek oder ein
 fehlender
 Export lässt das Öffnen scheitern und ist kein Aufruf. Der geplante

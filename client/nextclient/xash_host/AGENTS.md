@@ -37,8 +37,9 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   after the surface factory is live. It calls `EngineMini::Init`, then argv,
   mode and init_game. `COM_InitArgv` runs. A missing library or export
   returns 0 and is not called. A successful load does not call shutdown or
-  the fatal error. `OnGameInitializing` reads the Xash pointer table and does
-  not call `Sys_Error`. `hw.so` stays closed.
+  the fatal error. `OnGameInitializing` reads the Xash pointer table, runs
+  `Con_Init`, and does not call `Sys_Error`. A null filesystem is not a call.
+  `hw.so` stays closed.
   `RunFrame` stays unused.
 - `csr_host_paint_gameui` sizes the root and its non-popup children, solves
   the tree and paints it. A paint calls `PushMakeCurrent`. When

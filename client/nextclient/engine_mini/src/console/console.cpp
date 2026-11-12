@@ -27,8 +27,11 @@ void Con_DebugLog(const char* file, const char* format, ...)
 void Con_Init()
 {
     con_debuglog = COM_CheckParm("-condebug");
-    if (con_debuglog)
+    // The Xash table path has no retail filesystem yet. A null pointer is not a call.
+    if (con_debuglog && g_pFileSystem != nullptr)
+    {
         FS_RemoveFile("qconsole.log", nullptr);
+    }
 
     con_initialized = true;
 }

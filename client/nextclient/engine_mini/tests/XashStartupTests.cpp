@@ -15,6 +15,9 @@
 
 int COM_CheckParm(const char* parm);
 void COM_InitArgv(int argc, char* argv[]);
+extern bool con_initialized;
+extern bool con_debuglog;
+extern bool g_bCS_CZ_Flags_Initialized;
 
 namespace
 {
@@ -57,6 +60,8 @@ namespace
     protected:
         void TearDown() override
         {
+            con_initialized = false;
+            con_debuglog = false;
             COM_InitArgv(0, nullptr);
             EngineMini_BindXashStartup(nullptr, false);
         }
@@ -72,6 +77,9 @@ TEST_F(XashStartup, AbsentHooksRecordTheSequenceAndInitArgv)
     const EngineMiniXashStartup* record = EngineMini_XashStartup();
     ASSERT_NE(record, nullptr);
     EXPECT_TRUE(record->engine_is_xash);
+
+    con_initialized = false;
+    con_debuglog = true;
 
     char arg0[] = "xash";
     char arg1[] = "-console";
@@ -99,6 +107,9 @@ TEST_F(XashStartup, AbsentHooksRecordTheSequenceAndInitArgv)
     EXPECT_EQ(record->initializing_calls, 1);
     EXPECT_EQ(record->shutdown_calls, 0);
     EXPECT_EQ(record->error_calls, 0);
+    EXPECT_TRUE(con_initialized);
+    EXPECT_FALSE(con_debuglog);
+    EXPECT_FALSE(g_bCS_CZ_Flags_Initialized);
     EXPECT_NE(engine->client_state, nullptr);
     EXPECT_NE(engine->cl_enginefunc, nullptr);
     EXPECT_EQ(engine->Sys_Error.GetHook(), nullptr);
@@ -124,6 +135,8 @@ TEST_F(XashStartup, AbsentHooksRecordTheSequenceAndInitArgv)
 TEST_F(XashStartup, NullBindingIsNotACall)
 {
     EngineMini_BindXashStartup(nullptr, true);
+    con_initialized = false;
+    con_debuglog = true;
 
     char arg0[] = "xash";
     char* argv[] = {arg0, nullptr};
@@ -145,6 +158,73 @@ TEST_F(XashStartup, NullBindingIsNotACall)
     EXPECT_EQ(record->shutdown_calls, 0);
     EXPECT_EQ(record->error_calls, 0);
     EXPECT_EQ(record->initializing_calls, 0);
+    EXPECT_FALSE(con_initialized);
+    EXPECT_TRUE(con_debuglog);
+}
+
+TEST_F(XashStartup, ConInitReadsCondebugAndLeavesTheLog)
+{
+    Dl_info info{};
+    ASSERT_NE(dladdr(reinterpret_cast<void*>(csr_xash_engine_argv), &info), 0);
+    ASSERT_NE(info.dli_fname, nullptr);
+
+    const std::filesystem::path root = std::filesystem::temp_directory_path() / "csretro-xash-con-init";
+    std::filesystem::remove_all(root);
+    std::filesystem::create_directories(root);
+    std::filesystem::copy_file(info.dli_fname, root / "hw.so");
+    const std::filesystem::path log = root / "qconsole.log";
+    {
+        std::ofstream stream(log);
+        ASSERT_TRUE(stream.is_open());
+        stream << "keep";
+    }
+
+    const char* previous_path = std::getenv("LD_LIBRARY_PATH");
+    const std::string saved_path = previous_path != nullptr ? previous_path : "";
+    ASSERT_EQ(setenv("LD_LIBRARY_PATH", root.c_str(), 1), 0);
+
+    auto engine = std::make_unique<nitroapi::EngineData>();
+    EngineMini_BindXashStartup(engine.get(), true);
+    con_initialized = false;
+    con_debuglog = false;
+
+    {
+        const WorkingDirectory directory(root);
+        char arg0[] = "xash";
+        char arg1[] = "-condebug";
+        char* argv[] = {arg0, arg1, nullptr};
+        int window = 0;
+
+        csr_xash_engine_argv(2, argv);
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+
+        EXPECT_TRUE(con_initialized);
+        EXPECT_TRUE(con_debuglog);
+        EXPECT_NE(COM_CheckParm("-condebug"), 0);
+        EXPECT_EQ(EngineMini_XashStartup()->initializing_calls, 1);
+        EXPECT_EQ(EngineMini_XashStartup()->shutdown_calls, 0);
+        EXPECT_EQ(EngineMini_XashStartup()->error_calls, 0);
+        EXPECT_EQ(engine->Sys_Error.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_Init.GetHook(), nullptr);
+        EXPECT_FALSE(g_bCS_CZ_Flags_Initialized);
+        EXPECT_FALSE(MapsContain(root / "hw.so"));
+
+        std::ifstream kept(log);
+        std::string text;
+        ASSERT_TRUE(static_cast<bool>(kept));
+        std::getline(kept, text);
+        EXPECT_EQ(text, "keep");
+    }
+
+    if (previous_path == nullptr)
+    {
+        ASSERT_EQ(unsetenv("LD_LIBRARY_PATH"), 0);
+    }
+    else
+    {
+        ASSERT_EQ(setenv("LD_LIBRARY_PATH", saved_path.c_str(), 1), 0);
+    }
+    std::filesystem::remove_all(root);
 }
 
 TEST_F(XashStartup, WiredCallDoesNotOpenHwSo)
@@ -174,10 +254,15 @@ TEST_F(XashStartup, WiredCallDoesNotOpenHwSo)
         char cmdline[] = "-game cstrike";
         char basedir[] = "valve";
 
+        con_initialized = false;
+        con_debuglog = true;
         csr_xash_engine_argv(2, argv);
         csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
         csr_xash_engine_init_game(cmdline, basedir, &window, 0, 1);
         EXPECT_EQ(EngineMini_XashStartup()->initializing_calls, 1);
+        EXPECT_TRUE(con_initialized);
+        EXPECT_FALSE(con_debuglog);
+        EXPECT_FALSE(g_bCS_CZ_Flags_Initialized);
         EXPECT_EQ(EngineMini_XashStartup()->shutdown_calls, 0);
         EXPECT_EQ(EngineMini_XashStartup()->error_calls, 0);
         EXPECT_FALSE(MapsContain(root / "hw.so"));

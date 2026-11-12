@@ -25,8 +25,9 @@ oder ein fehlender Export ist ein Fehlschlag und kein Aufruf. Ein
 erfolgreiches Öffnen ruft Shutdown und den fatalen Fehler nicht; beide
 bleiben gebunden. `COM_InitArgv` läuft dabei. `OnGameInitializing` liest eine
 Zeigertabelle aus diesem Prozess. Ein Null-Funktionszeiger ist kein Aufruf,
-und `Sys_Error` wird nicht gerufen. Die Retail-Hook-Kette und `Con_Init`
-laufen dabei nicht. `hw.so` wird nicht geöffnet. `RunFrame` wird
+und `Sys_Error` wird nicht gerufen. `Con_Init` läuft danach. Es liest
+`-condebug` über `COM_CheckParm` und ruft ein Null-Dateisystem nicht auf.
+Die Retail-Hook-Kette läuft dabei nicht. `hw.so` wird nicht geöffnet. `RunFrame` wird
 nicht gerufen. Die übrigen `engine_mini`-Weiterleitungen bleiben am
 Retail-Hook.
 

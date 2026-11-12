@@ -15,7 +15,8 @@ lässt den Host offen. Danach ruft der Host `IGameUI::Initialize`. Ein
 fehlendes Engine-Modul wird nicht aufgerufen. Nach `IGameUI::Start` lädt der
 Host `next_engine_mini.dll` und `nitro_api2.dll`, ruft `EngineMini::Init`
 und danach argv, Modus und Init. `COM_InitArgv` läuft. `OnGameInitializing`
-liest eine Zeigertabelle aus diesem Prozess und ruft `Sys_Error` nicht.
+liest eine Zeigertabelle aus diesem Prozess, ruft `Con_Init` und ruft
+`Sys_Error` nicht. `-condebug` ruft ein Null-Dateisystem nicht auf.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie
 nicht. Eine fehlende Bibliothek oder ein fehlender Export lässt das Laden
 scheitern und

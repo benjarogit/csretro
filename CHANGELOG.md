@@ -188,7 +188,12 @@ The authoritative version string is the `VERSION` file.
   pointer and does not call it, so planted sprite frame and dimension fields
   stay unchanged, no sprite frame count is read, no sprite is loaded and no
   socket is opened. A null pointer is not a call. A null hook is not a call.
-  The next retail hook is `SPR_GetModelPointer`. This path returns before it.
+  `SPR_GetModelPointer` is then the function in this process when that retail
+  hook is absent. Init stores the pointer and does not call it, so planted
+  sprite and model fields stay unchanged, no model pointer is resolved, no
+  sprite is loaded and no socket is opened. A null pointer is not a call. A
+  null hook is not a call. The next retail hook is `R_StudioReloadSkin`. This
+  path returns before it.
   `csr_host_frame` is a later direct call. One call opens the X11 display,
   chooses an EGL config whose native visual can be a child of the root window,
   creates that window, calls `eglCreateWindowSurface`, paints one GameUI frame

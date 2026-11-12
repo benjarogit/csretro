@@ -224,7 +224,10 @@ CBaseGamesPage::CBaseGamesPage(vgui2::Panel *parent, const char *name, const cha
     m_hFont = NULL;
 
     wchar_t *all = g_pVGuiLocalize->Find("ServerBrowser_All");
-    Q_UnicodeToUTF8(all, m_szComboAllText, sizeof(m_szComboAllText));
+    if (all != nullptr)
+        Q_UnicodeToUTF8(all, m_szComboAllText, sizeof(m_szComboAllText));
+    else
+        m_szComboAllText[0] = '\0';
 
     m_pConnect = new Button(this, "ConnectButton", "#ServerBrowser_Connect");
     m_pConnect->SetEnabled(false);

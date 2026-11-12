@@ -34,7 +34,7 @@ The surface stays the first entry. The proxy reads only files under that root.
 A missing file is a miss. It does not open `hw.so`. After that mount,
 `IVGui::Init` takes this list so `vgui2` holds the one surface. A scheme
 file under that root is loaded through that manager. A missing file leaves
-the host open. `IGameUI::Initialize` then parents the base panel to the host root. A missing
+the host open. `IGameUI::Initialize` then parents the base panel to the host root. The default scheme is read from `resource/schemes/TrackerScheme_ClassicPlus.res` when that file is present, and the server list is then a child of the base panel. A missing
 engine module is not called. `Start` and `RunFrame` are not that call. The
 host does not start the game.
 

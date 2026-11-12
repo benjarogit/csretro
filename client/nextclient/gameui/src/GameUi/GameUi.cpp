@@ -215,11 +215,17 @@ namespace vgui2
         const char* scheme_file = miscellaneous_settings->GetString(OptionsSubMiscellaneous::kSchemeKey, OptionsSubMiscellaneous::kDefaultScheme);
         std::string scheme_path = std::format("{}/{}", OptionsSubMiscellaneous::kSchemesPath, scheme_file);
 
-        if (g_pFullFileSystem->FileExists(scheme_path.c_str()))
-            g_DefaultScheme = scheme()->LoadSchemeFromFilePath(scheme_path.c_str(), "GAMECONFIG", nullptr);
-        else
-            g_DefaultScheme = 0;
+        // The mounted root is read-only, so the compiled ".i" file cannot be written.
+        // KeyValues already expands #include and #base while reading the source.
+        // A miss is not cached: the next lookup can still load the file.
+        if (!g_pFullFileSystem->FileExists(scheme_path.c_str()))
+            return 0;
 
+        const HScheme loaded = scheme()->LoadSchemeFromFile(scheme_path.c_str(), "GAMECONFIG");
+        if (loaded == 0)
+            return 0;
+
+        g_DefaultScheme = loaded;
         return g_DefaultScheme;
     }
 }

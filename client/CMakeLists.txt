@@ -128,7 +128,8 @@ set(FUNCHOOK_CPU "x86")
 set(CSR_SDK_PATCHES
         "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0001-export-vgui-dispatch.patch"
         "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0002-lp64-tier1.patch"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0003-lp64-host-libs.patch")
+        "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0003-lp64-host-libs.patch"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0004-lp64-focus-message.patch")
 foreach (CSR_SDK_PATCH IN LISTS CSR_SDK_PATCHES)
     if (NOT EXISTS "${CSR_SDK_PATCH}")
         message(FATAL_ERROR "Missing ${CSR_SDK_PATCH}")

@@ -37,7 +37,7 @@ nur Dateien unter dieser Wurzel. Eine fehlende Datei ist ein Fehltreffer.
 `hw.so` wird dabei nicht geöffnet. Nach diesem Mount nimmt `IVGui::Init`
 diese Liste, sodass `vgui2` die eine Surface hält. Eine Scheme-Datei unter
 dieser Wurzel lädt derselbe Manager. Eine fehlende Datei lässt den Host
-offen. `IGameUI::Initialize` hängt das Basis-Panel danach an die Host-Wurzel. Ein fehlendes
+offen. `IGameUI::Initialize` hängt das Basis-Panel danach an die Host-Wurzel. Liegt `resource/schemes/TrackerScheme_ClassicPlus.res` vor, wird das Scheme daraus gelesen und die Serverliste ein Kind des Basis-Panels. Ein fehlendes
 Engine-Modul wird nicht aufgerufen. `Start` und `RunFrame` sind dieser
 Aufruf nicht. Der Host startet das Spiel nicht.
 

@@ -555,6 +555,22 @@ int csr_host_gameui_child_count(void)
     return panels->GetChildCount(g_gameui_root);
 }
 
+int csr_host_gameui_base_child_count(void)
+{
+    if (g_gameui_root == 0 || g_pair.create == nullptr)
+    {
+        return 0;
+    }
+    int code = 1;
+    auto* panels = static_cast<vgui2::IPanel*>(g_pair.create("VGUI_Panel007", &code));
+    if (panels == nullptr || panels->GetChildCount(g_gameui_root) < 1)
+    {
+        return 0;
+    }
+    const vgui2::VPANEL base = panels->GetChild(g_gameui_root, 0);
+    return panels->GetChildCount(base);
+}
+
 int csr_host_gameui_initialized(void)
 {
     return g_gameui_initialized;

@@ -453,8 +453,57 @@ TEST_F(HostFactory, InitializesGameUiWithoutRunFrame)
     ASSERT_EQ(csr_host_init_gameui(), 1);
     EXPECT_EQ(csr_host_gameui_initialized(), 1);
     EXPECT_GE(csr_host_gameui_child_count(), 1);
+    EXPECT_EQ(csr_host_gameui_base_child_count(), 2);
     EXPECT_EQ(csr_host_init_gameui(), 1);
 
     std::remove(menu.c_str());
+    rmdir((temp.root + "/Resource").c_str());
+}
+
+TEST_F(HostFactory, BuildsTheServerListWhenTheDefaultSchemeIsPresent)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    ASSERT_EQ(csr_host_load_pair(XASH_CLIENT_FILE, XASH_VGUI_FILE), 1);
+    ASSERT_EQ(csr_host_load_gameui(XASH_GAMEUI_FILE), 1);
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/Resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/resource/schemes").c_str(), 0755), 0);
+    const std::string menu = temp.root + "/Resource/GameMenu.res";
+    const std::string scheme = temp.root + "/resource/schemes/TrackerScheme_ClassicPlus.res";
+    const char* menu_text = "\"GameMenu\"\n{\n}\n";
+    const char* scheme_text =
+        "\"Scheme\"\n"
+        "{\n"
+        "\t\"Colors\"\n"
+        "\t{\n"
+        "\t\t\"Blank\" \"0 0 0 0\"\n"
+        "\t}\n"
+        "\t\"BaseSettings\"\n"
+        "\t{\n"
+        "\t\t\"FgColor\" \"Blank\"\n"
+        "\t}\n"
+        "}\n";
+    FILE* menu_out = std::fopen(menu.c_str(), "wb");
+    ASSERT_NE(menu_out, nullptr);
+    ASSERT_EQ(std::fwrite(menu_text, 1, std::strlen(menu_text), menu_out), std::strlen(menu_text));
+    std::fclose(menu_out);
+    FILE* scheme_out = std::fopen(scheme.c_str(), "wb");
+    ASSERT_NE(scheme_out, nullptr);
+    ASSERT_EQ(std::fwrite(scheme_text, 1, std::strlen(scheme_text), scheme_out), std::strlen(scheme_text));
+    std::fclose(scheme_out);
+
+    ASSERT_EQ(csr_host_mount_filesystem(temp.root.c_str()), 1);
+    ASSERT_EQ(csr_host_connect_vgui(), 1);
+    ASSERT_EQ(csr_host_init_gameui(), 1);
+    EXPECT_EQ(csr_host_gameui_initialized(), 1);
+    EXPECT_EQ(csr_host_gameui_base_child_count(), 3);
+
+    std::remove(menu.c_str());
+    std::remove(scheme.c_str());
+    rmdir((temp.root + "/resource/schemes").c_str());
+    rmdir((temp.root + "/resource").c_str());
     rmdir((temp.root + "/Resource").c_str());
 }

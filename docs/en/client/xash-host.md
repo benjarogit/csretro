@@ -12,8 +12,11 @@ pair is loaded and the root is mounted, `IVGui::Init` takes this list.
 `vgui2` then holds the one surface. A scheme file under that root is loaded
 through the same manager. A missing file leaves the host open. The host
 then calls `IGameUI::Initialize`. A missing engine module is not called.
-The base panel is a child of the host root. The server list
-waits until a scheme is loaded. `Start` and `RunFrame` are not that call. Later
+The base panel is a child of the host root. When
+`resource/schemes/TrackerScheme_ClassicPlus.res` is on that root, the default
+scheme is read from the source file and the server list becomes a child of
+the base panel. A missing scheme leaves the list unbuilt. `Start` and
+`RunFrame` are not that call. Later
 factories are not asked for the surface name.
 
 Mouse move, press and release go to the three input calls and then to exactly

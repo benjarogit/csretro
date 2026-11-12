@@ -1,0 +1,67 @@
+diff --git a/public/vgui_controls/MessageMap.h b/public/vgui_controls/MessageMap.h
+--- a/public/vgui_controls/MessageMap.h
++++ b/public/vgui_controls/MessageMap.h
+@@ -215,6 +215,7 @@ typedef void (Panel::*MessageFunc_t)(void);
+ // two parameters
+ #define MESSAGE_FUNC_INT_INT( name, scriptname, p1, p2 )	_MessageFuncCommon( name, scriptname, 2, vgui2::DATATYPE_INT, #p1, vgui2::DATATYPE_INT, #p2 );	virtual void name( int p1, int p2 )
+ #define MESSAGE_FUNC_PTR_INT( name, scriptname, p1, p2 )	_MessageFuncCommon( name, scriptname, 2, vgui2::DATATYPE_PTR, #p1, vgui2::DATATYPE_INT, #p2 );	virtual void name( vgui2::Panel *p1, int p2 )
++#define MESSAGE_FUNC_VPANEL_VPANEL( name, scriptname, p1, p2 )	_MessageFuncCommon( name, scriptname, 2, vgui2::DATATYPE_PTR, #p1, vgui2::DATATYPE_PTR, #p2 );	virtual void name( vgui2::VPANEL p1, vgui2::VPANEL p2 )
+ #define MESSAGE_FUNC_HANDLE_INT( name, scriptname, p1, p2 )	_MessageFuncCommon( name, scriptname, 2, vgui2::DATATYPE_HANDLE, #p1, vgui2::DATATYPE_INT, #p2 );	virtual void name( vgui2::VPANEL p1, int p2 )
+ #define MESSAGE_FUNC_ENUM_ENUM( name, scriptname, t1, p1, t2, p2 )	_MessageFuncCommon( name, scriptname, 2, vgui2::DATATYPE_INT, #p1, vgui2::DATATYPE_INT, #p2 );	virtual void name( t1 p1, t2 p2 )
+ #define MESSAGE_FUNC_INT_CHARPTR( name, scriptname, p1, p2 )	_MessageFuncCommon( name, scriptname, 2, vgui2::DATATYPE_INT, #p1, vgui2::DATATYPE_CONSTCHARPTR, #p2 );	virtual void name( int p1, const char *p2 )
+diff --git a/public/vgui_controls/Panel.h b/public/vgui_controls/Panel.h
+--- a/public/vgui_controls/Panel.h
++++ b/public/vgui_controls/Panel.h
+@@ -675,7 +675,7 @@ protected:
+ protected:
+ 	virtual void OnChildSettingsApplied( KeyValues *pInResourceData, Panel *pChild );
+ 
+-	MESSAGE_FUNC_ENUM_ENUM( OnRequestFocus, "OnRequestFocus", VPANEL, subFocus, VPANEL, defaultPanel);
++	MESSAGE_FUNC_VPANEL_VPANEL( OnRequestFocus, "OnRequestFocus", subFocus, defaultPanel);
+ 	MESSAGE_FUNC_INT_INT( OnScreenSizeChanged, "OnScreenSizeChanged", oldwide, oldtall );
+ 	virtual void *QueryInterface(EInterfaceID id);
+ 
+diff --git a/vgui2/vgui_controls/Panel.cpp b/vgui2/vgui_controls/Panel.cpp
+--- a/vgui2/vgui_controls/Panel.cpp
++++ b/vgui2/vgui_controls/Panel.cpp
+@@ -3564,7 +3564,11 @@ void Panel::RequestFocus(int direction)
+ //-----------------------------------------------------------------------------
+ void Panel::OnRequestFocus(VPANEL subFocus, VPANEL defaultPanel)
+ {
+-	CallParentFunction(new KeyValues("OnRequestFocus", "subFocus", subFocus, "defaultPanel", defaultPanel));
++	// KeyValues' int constructor truncates a panel pointer on LP64.
++	KeyValues *msg = new KeyValues("OnRequestFocus");
++	msg->SetPtr("subFocus", reinterpret_cast<void *>(static_cast<uintptr_t>(subFocus)));
++	msg->SetPtr("defaultPanel", reinterpret_cast<void *>(static_cast<uintptr_t>(defaultPanel)));
++	CallParentFunction(msg);
+ }
+ 
+ //-----------------------------------------------------------------------------
+@@ -5326,6 +5330,13 @@ void Panel::OnMessage(const KeyValues *params, VPANEL ifromPanel)
+ 						typedef void (Panel::*MessageFunc_PtrInt_t)(void *, int);
+ 						(this->*((MessageFunc_PtrInt_t)pMap->func))( param1->GetPtr(), param2->GetInt() );
+ 					}
++					else if ( (DATATYPE_PTR == pMap->firstParamType) && (DATATYPE_PTR == pMap->secondParamType) )
++					{
++						typedef void (Panel::*MessageFunc_VPanelVPanel_t)(VPANEL, VPANEL);
++						(this->*((MessageFunc_VPanelVPanel_t)pMap->func))(
++							static_cast<VPANEL>(reinterpret_cast<uintptr_t>(param1->GetPtr())),
++							static_cast<VPANEL>(reinterpret_cast<uintptr_t>(param2->GetPtr())));
++					}
+ 					else if ( (DATATYPE_CONSTCHARPTR == pMap->firstParamType) && (DATATYPE_INT == pMap->secondParamType) )
+ 					{
+ 						typedef void (Panel::*MessageFunc_ConstCharPtrInt_t)(const char *, int);
+@@ -5424,6 +5435,13 @@ void Panel::OnOldMessage(KeyValues *params, VPANEL ifromPanel)
+ 						typedef void (Panel::*MessageFunc_PtrInt_t)(void *, int);
+ 						(this->*((MessageFunc_PtrInt_t)pMessageMap[i].func))( params->GetPtr(pMessageMap[i].firstParamName), params->GetInt(pMessageMap[i].secondParamName) );
+ 					}
++					else if ( (DATATYPE_PTR == pMessageMap[i].firstParamType) && (DATATYPE_PTR == pMessageMap[i].secondParamType) )
++					{
++						typedef void (Panel::*MessageFunc_VPanelVPanel_t)(VPANEL, VPANEL);
++						(this->*((MessageFunc_VPanelVPanel_t)pMessageMap[i].func))(
++							static_cast<VPANEL>(reinterpret_cast<uintptr_t>(params->GetPtr(pMessageMap[i].firstParamName))),
++							static_cast<VPANEL>(reinterpret_cast<uintptr_t>(params->GetPtr(pMessageMap[i].secondParamName))));
++					}
+ 					else if ( (DATATYPE_CONSTCHARPTR == pMessageMap[i].firstParamType) && (DATATYPE_INT == pMessageMap[i].secondParamType) )
+ 					{
+ 						typedef void (Panel::*MessageFunc_ConstCharPtrInt_t)(const char *, int);

@@ -778,10 +778,16 @@ the Security overview switches in the browser.
   `SPR_Init` is the function in this process. Init stores that pointer
   and does not call it. A null pointer is not a call. A null hook is not a
   call. An empty sprite list stays unallocated, no sprite is loaded and no
+  file is read.
+  `SPR_Shutdown` is the function in this process. Init stores that pointer
+  and does not call it. A null pointer is not a call. A null hook is not a
+  call. An empty sprite list stays unallocated and an allocated sprite list
+  stays allocated. No sprite texture is unloaded, no sprite is loaded and no
   file is read. The next retail hook in `OnGameInitializing` is
-  `eng()->SPR_Shutdown` (`SPR_Shutdown`). The process body frees the sprite
-  list when it is allocated and can unload sprite textures. The Xash path
-  returns before that install. This gate does not install it.
+  `eng()->SPR_Shutdown_NoModelFree` (`SPR_Shutdown_NoModelFree`). The process
+  body frees the sprite list and sprite names when the list is allocated. It
+  does not unload sprite textures. The Xash path returns before that install.
+  This gate does not install it.
   `OnGameInitialized` is not entered.
   `csr_host_frame` chooses an EGL config whose native visual can be a child
   of the root window, prefers a visual at the root depth, sets a border
@@ -811,12 +817,11 @@ the Security overview switches in the browser.
   `csr_host_run`, because those tests do not record `quit`. Calling
   `RunXashLauncher` does not play Counter-Strike. The loop returns when
   `quit` is recorded. Recorded commands are not executed, no map is
-  loaded, and `OnGameInitialized` stays out. Nothing a person launches
-  calls `csr::RunXashLauncher`. Before a human can start and play, a
-  human-started process must call `csr::RunXashLauncher` and that session
-  must load a map. This gate does not start that process and does not
-  load a map. The planned command is not executed. The game was not
-  started. The client is not playable.
+  loaded, and `OnGameInitialized` stays out. The human process is
+  `client/build/linux/out/bin/Release/xash_launcher`. Its `main` calls
+  `csr::RunXashLauncher`. The content root is the first argument. That call
+  does not load a map and does not play Counter-Strike. The planned command
+  is not executed. The game was not started. The client is not playable.
 - **After the decision:** schedule the server performance backlog above
   (measurement first, then hookchain/native/per-frame work). It needs a plan gate
   entry.
@@ -854,6 +859,41 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Process `SPR_Shutdown` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ engine_mini-tests --gtest_filter=XashStartup.*
+28/28 passed
+SprShutdownUsesTheProcessFunction
+
+$ engine_mini-tests
+583/583 passed
+
+$ xash_launcher-tests
+11/11 passed
+RunKeepsTheWindowUntilQuit
+```
+
+`OnGameInitializing` stores `SPR_Shutdown` from this process when that retail
+hook is absent and does not call it. `spr_shutdown_calls` stays 0. A null
+pointer leaves the recorded pointer null and is not a call. A null hook is
+not a call. The process body frees the sprite list when it is allocated and
+can unload sprite textures. It was not called. An empty sprite list stayed
+unallocated, `gSpriteCount` stayed 0, and a planted allocated list stayed
+allocated at the same pointer with `gSpriteCount` 1. No sprite texture was
+unloaded, no sprite was loaded and no file was read. A planted brush CRC stays
+`shouldCRC` 1, `firstCRCDone` 1, `initialCRC` `0xC5C5C5C5`, and a planted
+sprite CRC stays `shouldCRC` 0, `firstCRCDone` 0, `initialCRC` `0x11111111`.
+Brush `maps/csretro_keep.bsp` stays `NL_PRESENT` and sprite
+`sprites/csretro_keep.spr` stays `NL_NEEDS_LOADED`, each with the same cache
+pointer. `levelname` stays `csretro-keep`. Host time stays `9.25` and the
+frame interval stays `0.05`. `/proc/self/fd` stays unchanged. `SPR_Init` stays
+stored and `spr_init_calls` stays 0. The next retail hook is
+`eng()->SPR_Shutdown_NoModelFree` (`SPR_Shutdown_NoModelFree`). That hook stays
+null. The Xash path returns before it. `OnGameInitialized` is not entered.
+`csr_host_frame` is not this init. The game was not started.
+The client is not playable.
 
 Process `SPR_Init` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

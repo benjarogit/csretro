@@ -119,8 +119,14 @@ ist kein Aufruf. `SPR_Init` ist danach die Funktion in diesem Prozess, wenn
 dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht
 auf, daher bleibt eine leere Sprite-Liste unalloziert, kein Sprite wird
 geladen, keine Datei gelesen und kein Socket geöffnet. Ein Null-Zeiger ist
-kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
-`SPR_Shutdown`. Dieser Pfad kehrt davor zurück.
+kein Aufruf. Ein Null-Hook ist kein Aufruf. `SPR_Shutdown` ist danach die
+Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert
+den Zeiger und ruft ihn nicht auf, daher bleibt eine leere Sprite-Liste
+unalloziert, eine allozierte Sprite-Liste bleibt alloziert, keine
+Sprite-Textur wird entladen, kein Sprite wird geladen, keine Datei gelesen
+und kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook
+ist kein Aufruf. Der nächste Retail-Hook ist `SPR_Shutdown_NoModelFree`.
+Dieser Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 Ein Aufruf öffnet das X11-Display, wählt eine EGL-Config, deren natives Visual
 ein Kind des Root-Fensters sein kann, erzeugt mit `eglCreateWindowSurface` eine

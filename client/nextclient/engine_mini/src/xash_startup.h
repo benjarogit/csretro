@@ -68,6 +68,9 @@ using EngineMiniModExtradataFn = void* (*)(goldsrc::model_t* mod);
 // Process replacement for the retail SPR_Init hook. A null value is not a call.
 using EngineMiniSprInitFn = void (*)();
 
+// Process replacement for the retail SPR_Shutdown hook. A null value is not a call.
+using EngineMiniSprShutdownFn = void (*)();
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -103,6 +106,7 @@ struct EngineMiniXashStartup
     int mod_forname_calls{};
     int mod_extradata_calls{};
     int spr_init_calls{};
+    int spr_shutdown_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -137,6 +141,7 @@ struct EngineMiniXashStartup
     EngineMiniModForNameFn mod_forname{};
     EngineMiniModExtradataFn mod_extradata{};
     EngineMiniSprInitFn spr_init{};
+    EngineMiniSprShutdownFn spr_shutdown{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -204,6 +209,9 @@ extern EngineMiniModExtradataFn g_EngineMiniModExtradata;
 
 // Defaults to SPR_Init. Init stores the pointer and does not call it.
 extern EngineMiniSprInitFn g_EngineMiniSprInit;
+
+// Defaults to SPR_Shutdown. Init stores the pointer and does not call it.
+extern EngineMiniSprShutdownFn g_EngineMiniSprShutdown;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

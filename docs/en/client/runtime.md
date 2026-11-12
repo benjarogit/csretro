@@ -107,7 +107,12 @@ does not run. A null pointer is not a call. A null hook is not a call.
 absent. Init stores the pointer and does not call it, so an empty sprite
 list stays unallocated, no sprite is loaded, no file is read and no socket
 is opened. A null pointer is not a call. A null hook is not a call.
-The next retail hook is `SPR_Shutdown`. This path returns before it.
+`SPR_Shutdown` is then the function in this process when that retail hook is
+absent. Init stores the pointer and does not call it, so an empty sprite
+list stays unallocated, an allocated sprite list stays allocated, no sprite
+texture is unloaded, no sprite is loaded, no file is read and no socket is
+opened. A null pointer is not a call. A null hook is not a call.
+The next retail hook is `SPR_Shutdown_NoModelFree`. This path returns before it.
 `csr_host_frame` is a later direct call and does not extend that list.
 One call opens the X11 display, chooses an EGL config whose native visual can
 be a child of the root window, creates that window surface with

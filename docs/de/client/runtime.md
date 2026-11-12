@@ -177,8 +177,12 @@ dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht
 auf, daher bleibt das aktuelle Sprite am selben Zeiger mit derselben Farbe
 und demselben Scale, `qglColor4f` läuft nicht, kein Sprite wird geladen und
 kein Socket wird geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook
-ist kein Aufruf. Der nächste Retail-Hook ist `SPR_Width`. Dieser
-Pfad kehrt davor zurück.
+ist kein Aufruf. `SPR_Width` ist danach die Funktion in diesem Prozess, wenn
+dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht
+auf, daher bleiben gesetzte Sprite-Abmessungen unverändert, keine Sprite-Breite
+wird gelesen, kein Sprite wird geladen und kein Socket wird geöffnet. Ein
+Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
+Retail-Hook ist `SPR_Height`. Dieser Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 Ein Aufruf öffnet das X11-Display, wählt eine EGL-Config, deren natives Visual
 ein Kind des Root-Fensters sein kann, erzeugt mit `eglCreateWindowSurface` eine

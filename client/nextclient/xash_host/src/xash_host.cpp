@@ -70,6 +70,11 @@ namespace
     int g_gameui_started = 0;
     int g_engine_commands = 0;
     char g_last_client_command[128] = {};
+    int g_input_moves = 0;
+    int g_input_x = -1;
+    int g_input_y = -1;
+    int g_input_presses = 0;
+    int g_input_code = -1;
     goldsrc::cl_enginefunc_t g_engine_funcs{};
 
     int AddCommand(const char* name, void (*)())
@@ -782,6 +787,34 @@ namespace
         g_surface.set_panel(g_surface.surface, &fns);
     }
 
+    // QuitNoConfirm records "quit\n" through pfnClientCmd and does not run it.
+    bool CommandRequestsQuit(const char* command)
+    {
+        if (command == nullptr)
+        {
+            return false;
+        }
+        constexpr char kQuit[] = "quit";
+        for (std::size_t index = 0; kQuit[index] != '\0'; ++index)
+        {
+            if (command[index] != kQuit[index])
+            {
+                return false;
+            }
+        }
+        const char tail = command[sizeof(kQuit) - 1];
+        return tail == '\0' || tail == '\n' || tail == '\r' || tail == ' ' || tail == ';';
+    }
+
+    void ResetInputObservation()
+    {
+        g_input_moves = 0;
+        g_input_x = -1;
+        g_input_y = -1;
+        g_input_presses = 0;
+        g_input_code = -1;
+    }
+
 } // namespace
 
 int csr_host_open(const char* path)
@@ -1394,6 +1427,31 @@ int csr_host_pump(int wide, int tall, int frames, double delta)
     return 1;
 }
 
+int csr_host_run(int wide, int tall, double delta)
+{
+    if (wide <= 0 || tall <= 0)
+    {
+        return 0;
+    }
+    ResetInputObservation();
+    for (;;)
+    {
+        if (csr_host_frame(wide, tall, delta) == 0)
+        {
+            csr_host_present_shutdown();
+            return 0;
+        }
+        // Events from this frame are still queued. The next ActivateGameUI
+        // writes setpause over the recorded command, so quit is read here.
+        csr_host_present_dispatch();
+        if (CommandRequestsQuit(g_last_client_command))
+        {
+            csr_host_present_shutdown();
+            return 1;
+        }
+    }
+}
+
 void csr_host_read_host_time(double* realtime, double* frametime, double* oldrealtime)
 {
     csr_xash_engine_read_host_time(realtime, frametime, oldrealtime);
@@ -1493,6 +1551,9 @@ int csr_host_bind_input(const csr_host_vgui_t* vgui)
 
 void csr_host_input_move(int x, int y)
 {
+    ++g_input_moves;
+    g_input_x = x;
+    g_input_y = y;
     if (g_surface.move != nullptr && g_surface.surface != nullptr)
     {
         g_surface.move(g_surface.surface, x, y);
@@ -1501,8 +1562,37 @@ void csr_host_input_move(int x, int y)
 
 void csr_host_input_button(int button, int down)
 {
+    if (down != 0)
+    {
+        ++g_input_presses;
+        g_input_code = button;
+    }
     if (g_surface.button != nullptr && g_surface.surface != nullptr)
     {
         g_surface.button(g_surface.surface, button, down);
+    }
+}
+
+void csr_host_input_observed(int* moves, int* x, int* y, int* presses, int* code)
+{
+    if (moves != nullptr)
+    {
+        *moves = g_input_moves;
+    }
+    if (x != nullptr)
+    {
+        *x = g_input_x;
+    }
+    if (y != nullptr)
+    {
+        *y = g_input_y;
+    }
+    if (presses != nullptr)
+    {
+        *presses = g_input_presses;
+    }
+    if (code != nullptr)
+    {
+        *code = g_input_code;
     }
 }

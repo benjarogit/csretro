@@ -189,6 +189,17 @@ CSR_HOST_API int csr_host_frame(int wide, int tall, double delta);
  * the launcher command.
  */
 CSR_HOST_API int csr_host_pump(int wide, int tall, int frames, double delta);
+/*
+ * Repeats csr_host_frame on one mapped X11 window until the recorded client
+ * command is quit. QuitNoConfirm records that command through pfnClientCmd
+ * and does not run it. Motion and button events still go to
+ * csr_host_input_move and csr_host_input_button. Then the window is destroyed.
+ * After a successful call the swap count is the number of frames and host
+ * time has advanced by that count times delta. Returns 0 when a frame fails,
+ * and still destroys the window. Does not call CVGui::RunFrame, does not
+ * install a hook, and does not exec the launcher command.
+ */
+CSR_HOST_API int csr_host_run(int wide, int tall, double delta);
 CSR_HOST_API void csr_host_read_host_time(double* realtime, double* frametime, double* oldrealtime);
 /* The live EGL window surface. Returns 0 when no window is mapped.
    swaps is the count from the present that just ran, including after the
@@ -205,6 +216,9 @@ CSR_HOST_API void* csr_host_create_interface(const char* name, int* code);
 CSR_HOST_API int csr_host_bind_input(const csr_host_vgui_t* vgui);
 CSR_HOST_API void csr_host_input_move(int x, int y);
 CSR_HOST_API void csr_host_input_button(int button, int down);
+/* Motion calls and button presses since csr_host_run cleared them. x and y
+   are the last motion. code is the last pressed button. */
+CSR_HOST_API void csr_host_input_observed(int* moves, int* x, int* y, int* presses, int* code);
 
 #ifdef __cplusplus
 }

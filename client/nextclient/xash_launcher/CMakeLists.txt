@@ -14,6 +14,13 @@ if (NEXTCLIENT_BUILD_TESTS)
     include(GoogleTest)
 
     add_executable(xash_launcher-tests tests/LauncherPlanTests.cpp)
+    target_include_directories(xash_launcher-tests PRIVATE
+            "${NEXTCLIENT_ROOT}/dep/ncl-hl1-source-sdk/public"
+            "${NEXTCLIENT_ROOT}/dep/ncl-hl1-source-sdk/public/tier0"
+            "${NEXTCLIENT_ROOT}/dep/ncl-hl1-source-sdk/public/tier1")
+    target_compile_definitions(xash_launcher-tests PRIVATE
+            NO_MALLOC_OVERRIDE
+            MATHLIB_HEADER_ONLY)
     target_compile_definitions(xash_launcher-tests PRIVATE
             "XASH_HOST_FILE=\"$<TARGET_FILE:xash_host>\""
             "XASH_SURFACE_FILE=\"$<TARGET_FILE:xash_surface>\""
@@ -24,6 +31,7 @@ if (NEXTCLIENT_BUILD_TESTS)
             "XASH_ENGINE_MINI_FILE=\"$<TARGET_FILE:next_engine_mini>\""
             "XASH_NITRO_API_FILE=\"$<TARGET_FILE:nitro_api>\"")
     if (UNIX AND NOT APPLE)
+        target_compile_definitions(xash_launcher-tests PRIVATE GNUC POSIX LINUX _LINUX "_DLL_EXT=.so")
         find_package(X11 REQUIRED)
         find_package(Threads REQUIRED)
         find_package(PkgConfig REQUIRED)

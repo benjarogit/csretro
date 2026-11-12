@@ -120,7 +120,7 @@ gesetzt, damit ein tieferes Visual kein BadMatch ist. `csr_host_pump` wiederholt
 diesen Frame auf demselben gemappten Fenster, gibt Bewegungs- und
 Tastenereignisse an `csr_host_input_move` und `csr_host_input_button` und
 zerstört danach das Fenster. Nach N Frames ist die Swap-Zahl N, und die
-Host-Zeit ist um N mal das Delta vorgerückt. `CVGui::RunFrame` bleibt ungerufen
+Host-Zeit ist um N mal das Delta vorgerückt. `csr_host_run` hält dieses Fenster gemappt und wiederholt den Frame, bis der aufgezeichnete Client-Befehl `quit` ist. `QuitNoConfirm` schreibt diesen Befehl über `pfnClientCmd` und führt ihn nicht aus. Bewegungs- und Tastenereignisse erreichen weiter `csr_host_input_move` und `csr_host_input_button`. Der Aufruf zerstört danach das Fenster. Die Swap-Zahl ist die Zahl der Frames, und die Host-Zeit rückt um diese Zahl mal das Delta vor. `PresentXashLauncher` zeichnet ein Bild und kehrt zurück. Es ruft diesen Loop nicht auf. `CVGui::RunFrame` bleibt ungerufen
 und der Launcher-Befehl wird nicht ausgeführt. `ISurface::SwapBuffers` bleibt leer. Die Surface-Tests behalten ihr EGL-Pbuffer.
 `OnGameInitialized` wird nicht betreten.
 Die Retail-Hook-Kette läuft dabei nicht. `hw.so` wird nicht geöffnet. `RunFrame` wird

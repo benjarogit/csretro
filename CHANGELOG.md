@@ -124,7 +124,7 @@ The authoritative version string is the `VERSION` file.
   same mapped window, forwards X11 motion and button events to
   `csr_host_input_move` and `csr_host_input_button`, then destroys the window.
   After N frames the swap count is N and host time has advanced by N times the
-  delta. `CVGui::RunFrame` stays uncalled and the launcher command is not
+  delta. `csr_host_run` keeps that window mapped and repeats the frame until the recorded client command is `quit`. `QuitNoConfirm` records that command through `pfnClientCmd` and does not run it. Motion and button events still reach `csr_host_input_move` and `csr_host_input_button`. The call then destroys the window. The swap count is the number of frames and host time advances by that count times the delta. `PresentXashLauncher` paints one frame and returns. It does not call this loop. `CVGui::RunFrame` stays uncalled and the launcher command is not
   executed. The call adds the
   caller's delta to host time by writing `realtime`, `host_frametime` and
   `oldrealtime`. A failed surface or swap does not move that clock.

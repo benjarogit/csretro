@@ -68,6 +68,13 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   `csr_host_input_move` and `csr_host_input_button`, then destroys the
   window. `CVGui::RunFrame` is not called. The pump does not exec the
   launcher command.
+- `csr_host_run` repeats that frame on the same mapped window until the
+  recorded client command is `quit`. `QuitNoConfirm` records the command
+  through `pfnClientCmd` and does not run it. Motion and button events still
+  go to `csr_host_input_move` and `csr_host_input_button`. The call then
+  destroys the window. `PresentXashLauncher` paints one frame and returns.
+  It does not call this loop. `CVGui::RunFrame` is not called. No retail
+  hook is added.
 - Our `vgui2` exports `csr_vgui_dispatch_messages` through
   `patches/sdk/0001-export-vgui-dispatch.patch`. The SDK submodule pin does
   not move. Retail `vgui2` keeps `DispatchMessages` local, so the host takes

@@ -9,6 +9,7 @@
 #include <X11/Xutil.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -31,7 +32,8 @@ namespace
 
     Present g_present;
     // Survives shutdown so a pump can report how many swaps it presented.
-    int g_swaps = 0;
+    // Release on each swap so a waiter that acquires the count also sees the window.
+    std::atomic<int> g_swaps{0};
     char g_error[80] = {};
     int g_x_error = 0;
 
@@ -396,7 +398,7 @@ int csr_host_present_begin(int wide, int tall)
     }
     std::stable_sort(ranked.begin(), ranked.end(), [](const Ranked& left, const Ranked& right) { return left.score > right.score; });
 
-    g_swaps = 0;
+    g_swaps.store(0, std::memory_order_relaxed);
     XErrorHandler previous_handler = XSetErrorHandler(OnXError);
     bool created = false;
     for (const Ranked& candidate : ranked)
@@ -446,7 +448,7 @@ int csr_host_present_swap(void)
         SetError("eglSwapBuffers", eglGetError());
         return 0;
     }
-    ++g_swaps;
+    g_swaps.fetch_add(1, std::memory_order_release);
     g_error[0] = '\0';
     return 1;
 }
@@ -499,13 +501,14 @@ int csr_host_present_query(void** egl_display, void** egl_surface, unsigned long
     {
         *egl_surface = g_present.egl_surface == EGL_NO_SURFACE ? nullptr : g_present.egl_surface;
     }
+    const int swap_count = g_swaps.load(std::memory_order_acquire);
     if (window != nullptr)
     {
         *window = static_cast<unsigned long>(g_present.window);
     }
     if (swaps != nullptr)
     {
-        *swaps = g_swaps;
+        *swaps = swap_count;
     }
     return g_present.egl_surface != EGL_NO_SURFACE ? 1 : 0;
 }

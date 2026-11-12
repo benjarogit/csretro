@@ -121,7 +121,7 @@ does not swap and does not move host time. `csr_host_pump` calls that frame
 a given number of times on the same mapped window, forwards X11 motion and
 button events to `csr_host_input_move` and `csr_host_input_button`, then
 destroys the window. After N frames the swap count is N and host time has
-advanced by N times the delta. The X11 display connection is the window's socket. No game socket is
+advanced by N times the delta. `csr_host_run` keeps that window mapped and repeats the frame until the recorded client command is `quit`. `QuitNoConfirm` records that command through `pfnClientCmd` and does not run it. Motion and button events still reach `csr_host_input_move` and `csr_host_input_button`. The call then destroys the window. The swap count is the number of frames and host time advances by that count times the delta. `PresentXashLauncher` paints one frame and returns. It does not call this loop. The X11 display connection is the window's socket. No game socket is
 opened. `ISurface::SwapBuffers` stays empty. The surface tests still use an
 EGL pbuffer.
 

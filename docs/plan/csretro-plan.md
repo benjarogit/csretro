@@ -999,6 +999,7 @@ demselben gemappten Fenster auf. Bewegungs- und Tastenereignisse, die
 währenddessen ankommen, gehen an `csr_host_input_move` und
 `csr_host_input_button`. Danach wird das Fenster zerstört. Nach N Frames
 ist die Swap-Zahl N, und die Host-Zeit ist um N mal das Delta vorgerückt.
+`csr_host_run` hält dieses Fenster gemappt und wiederholt den Frame, bis der aufgezeichnete Client-Befehl `quit` ist. `QuitNoConfirm` schreibt diesen Befehl über `pfnClientCmd` und führt ihn nicht aus. Bewegungs- und Tastenereignisse erreichen weiter `csr_host_input_move` und `csr_host_input_button`. Der Aufruf zerstört danach das Fenster. Die Swap-Zahl ist die Zahl der Frames, und die Host-Zeit rückt um diese Zahl mal das Delta vor. `PresentXashLauncher` zeichnet ein Bild und kehrt zurück. Es ruft diesen Loop nicht auf.
 Die X11-Verbindung ist der Socket des Fensters. Ein
 Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
 Surface-Tests behalten ihr EGL-Pbuffer. Die Retail-Hook-Liste wird nicht

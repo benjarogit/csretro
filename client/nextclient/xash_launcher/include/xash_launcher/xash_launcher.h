@@ -49,9 +49,10 @@ int OpenXashLauncher(
     LauncherProcess* session);
 
 // One frame of the opened session: ActivateGameUI, then paint at wide x tall.
-// Does not exec the planned command, does not call RunFrame, and does not
-// start Steam. Returns 0 when the session is closed or the paint does not
-// reach a panel. Recorded commands are not executed.
+// Does not call csr_host_run, does not exec the planned command, does not
+// call RunFrame, and does not start Steam. Returns 0 when the session is
+// closed or the paint does not reach a panel. Recorded commands are not
+// executed.
 int PresentXashLauncher(LauncherProcess* session, int wide, int tall);
 
 void CloseXashLauncher(LauncherProcess* session);

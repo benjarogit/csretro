@@ -253,7 +253,11 @@ socket is opened. A null pointer is not a call. A null hook is not a call.
 is absent. Init stores the pointer and does not call it, so no detail-texture
 render state is set, no GL context is opened from this init, no sprite is
 loaded and no socket is opened. A null pointer is not a call. A null hook is
-not a call. The next retail hook is `DT_LoadDetailTexture`. This path returns
+not a call. `DT_LoadDetailTexture` is then the function in this process when
+that retail hook is absent. Init stores the pointer and does not call it, so
+no detail texture is loaded, no GL context is opened from this init, no sprite
+is loaded and no socket is opened. A null pointer is not a call. A null hook
+is not a call. The next retail hook is `R_ForceCVars`. This path returns
 before it.
 `csr_host_frame` is a later direct call and does not extend that list.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay

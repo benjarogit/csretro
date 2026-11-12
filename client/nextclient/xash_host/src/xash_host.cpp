@@ -1372,6 +1372,28 @@ int csr_host_frame(int wide, int tall, double delta)
     return 1;
 }
 
+int csr_host_pump(int wide, int tall, int frames, double delta)
+{
+    if (wide <= 0 || tall <= 0 || frames <= 0)
+    {
+        return 0;
+    }
+    for (int index = 0; index < frames; ++index)
+    {
+        if (csr_host_frame(wide, tall, delta) == 0)
+        {
+            csr_host_present_shutdown();
+            return 0;
+        }
+        // The window stays mapped across these calls. Events sent while a
+        // frame was painting are still queued.
+        csr_host_present_dispatch();
+    }
+    csr_host_present_dispatch();
+    csr_host_present_shutdown();
+    return 1;
+}
+
 void csr_host_read_host_time(double* realtime, double* frametime, double* oldrealtime)
 {
     csr_xash_engine_read_host_time(realtime, frametime, oldrealtime);

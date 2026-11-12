@@ -107,10 +107,16 @@ without a dialog is not opened.
 the caller's delta to host time by writing `realtime`, `host_frametime` and
 `oldrealtime`. `Host_FilterTime` stays uncalled and no retail hook is added.
 `CVGui::RunFrame` stays uncalled. The planned command is not executed and
-Steam does not start. The frame opens the X11 display, creates a window
-with the EGL config's visual, calls `eglCreateWindowSurface`, paints, then
-calls `eglSwapBuffers`. A failed call does not swap and does not move host
-time. The X11 display connection is the window's socket. No game socket is
+Steam does not start. The frame opens the X11 display and chooses an EGL
+config whose native visual can be a child of the root window. A visual at
+the root depth is preferred. A border pixel is set so a deeper visual is
+not a BadMatch. The window uses that visual, not the parent's, then calls
+`eglCreateWindowSurface`, paints and calls `eglSwapBuffers`. A failed call
+does not swap and does not move host time. `csr_host_pump` calls that frame
+a given number of times on the same mapped window, forwards X11 motion and
+button events to `csr_host_input_move` and `csr_host_input_button`, then
+destroys the window. After N frames the swap count is N and host time has
+advanced by N times the delta. The X11 display connection is the window's socket. No game socket is
 opened. `ISurface::SwapBuffers` stays empty. The surface tests still use an
 EGL pbuffer.
 

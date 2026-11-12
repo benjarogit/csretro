@@ -5,12 +5,14 @@
 #include <gtest/gtest.h>
 
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
 #include <dlfcn.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <cstddef>
@@ -21,6 +23,7 @@
 #include <iterator>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <signal.h>
@@ -351,7 +354,7 @@ struct VirtualDisplay
     bool had_software = false;
     bool changed_software = false;
 
-    bool Start(std::string* error)
+    bool Start(std::string* error, const char* screen = "640x480x24")
     {
         int chosen = -1;
         for (int candidate = 20; candidate < 60; ++candidate)
@@ -382,7 +385,7 @@ struct VirtualDisplay
         if (pid == 0)
         {
             unsetenv("LD_LIBRARY_PATH");
-            execlp("Xvfb", "Xvfb", name.c_str(), "-nolisten", "tcp", "-screen", "0", "640x480x24", "+extension", "GLX", nullptr);
+            execlp("Xvfb", "Xvfb", name.c_str(), "-nolisten", "tcp", "-screen", "0", screen, "+extension", "GLX", nullptr);
             _exit(127);
         }
         bool ready = false;
@@ -661,4 +664,389 @@ TEST(XashLauncher, DirectFramePaintsGameUiAndAdvancesHostTime)
     std::filesystem::remove(planted_hw);
     std::remove(menu.c_str());
     rmdir((temp.root + "/Resource").c_str());
+}
+
+namespace
+{
+
+int g_fixture_x_error = 0;
+
+int OnFixtureXError(Display*, XErrorEvent* event)
+{
+    g_fixture_x_error = event->error_code;
+    return 0;
+}
+
+std::atomic<int> g_pump_moves{0};
+std::atomic<int> g_pump_x{-1};
+std::atomic<int> g_pump_y{-1};
+std::atomic<int> g_pump_presses{0};
+std::atomic<int> g_pump_code{-1};
+
+void PumpCursorMoved(void*, int x, int y)
+{
+    g_pump_x.store(x);
+    g_pump_y.store(y);
+    g_pump_moves.fetch_add(1);
+}
+
+void PumpMousePressed(void*, int code)
+{
+    g_pump_code.store(code);
+    g_pump_presses.fetch_add(1);
+}
+
+void PumpMouseReleased(void*, int)
+{
+}
+
+// After an EGL display is terminated, a second session in that process calls
+// CVGui::AllocPanel through a null PLT. Each proof here execs a fresh process.
+bool RunInFreshProcess(const char* token, const char* filter)
+{
+    const char* isolated = std::getenv("CSR_HOST_ISOLATED");
+    if (isolated != nullptr && std::strcmp(isolated, token) == 0)
+    {
+        return true;
+    }
+    const pid_t pid = fork();
+    EXPECT_GE(pid, 0);
+    if (pid < 0)
+    {
+        return false;
+    }
+    if (pid == 0)
+    {
+        if (setenv("CSR_HOST_ISOLATED", token, 1) != 0)
+        {
+            _exit(127);
+        }
+        const std::string argument = std::string("--gtest_filter=") + filter;
+        execl("/proc/self/exe", "xash_launcher-tests", argument.c_str(), nullptr);
+        _exit(127);
+    }
+    int status = 0;
+    EXPECT_EQ(waitpid(pid, &status, 0), pid);
+    EXPECT_TRUE(WIFEXITED(status));
+    EXPECT_EQ(WEXITSTATUS(status), 0);
+    return false;
+}
+
+struct FrameSession
+{
+    TempRoot temp;
+    std::string menu;
+    std::string planted_hw;
+    csr::LauncherProcess session{};
+
+    bool Open()
+    {
+        if (temp.root.empty())
+        {
+            return false;
+        }
+        if (mkdir((temp.root + "/Resource").c_str(), 0755) != 0)
+        {
+            return false;
+        }
+        menu = temp.root + "/Resource/GameMenu.res";
+        FILE* menu_file = std::fopen(menu.c_str(), "wb");
+        if (menu_file == nullptr)
+        {
+            return false;
+        }
+        const char* text = "\"GameMenu\"\n{\n}\n";
+        const bool wrote = std::fwrite(text, 1, std::strlen(text), menu_file) == std::strlen(text);
+        std::fclose(menu_file);
+        if (!wrote)
+        {
+            return false;
+        }
+        planted_hw = temp.root + "/hw.so";
+        std::error_code copy_error;
+        std::filesystem::copy_file(XASH_HOST_FILE, planted_hw, copy_error);
+        if (copy_error)
+        {
+            return false;
+        }
+        return csr::OpenXashLauncher(
+                   temp.root.c_str(),
+                   XASH_HOST_FILE,
+                   XASH_SURFACE_FILE,
+                   XASH_CLIENT_FILE,
+                   XASH_VGUI_FILE,
+                   XASH_GAMEUI_FILE,
+                   XASH_STEAM_API_FILE,
+                   XASH_ENGINE_MINI_FILE,
+                   XASH_NITRO_API_FILE,
+                   &session) == 1;
+    }
+
+    ~FrameSession()
+    {
+        csr::CloseXashLauncher(&session);
+        if (!planted_hw.empty())
+        {
+            std::filesystem::remove(planted_hw);
+        }
+        if (!menu.empty())
+        {
+            std::remove(menu.c_str());
+        }
+        if (!temp.root.empty())
+        {
+            rmdir((temp.root + "/Resource").c_str());
+        }
+    }
+};
+
+} // namespace
+
+TEST(XashLauncher, WindowSurfaceMatchesWhenRootVisualDiffers)
+{
+    if (!RunInFreshProcess("visual", "XashLauncher.WindowSurfaceMatchesWhenRootVisualDiffers"))
+    {
+        return;
+    }
+    VirtualDisplay display;
+    FrameSession session;
+    ASSERT_TRUE(session.Open());
+    std::string display_error;
+    // 16-bit root. The first alpha-8 EGL config on this server is a 32-bit
+    // visual, so the parent visual and the EGL visual are not the same.
+    ASSERT_TRUE(display.Start(&display_error, "640x480x16")) << display_error;
+
+    Display* view = XOpenDisplay(nullptr);
+    ASSERT_NE(view, nullptr);
+    const int screen = DefaultScreen(view);
+    const Window root = RootWindow(view, screen);
+    XWindowAttributes root_attributes{};
+    ASSERT_NE(XGetWindowAttributes(view, root, &root_attributes), 0);
+    const int root_depth = root_attributes.depth;
+    const VisualID root_visual = XVisualIDFromVisual(root_attributes.visual);
+
+    auto* get_platform = reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(eglGetProcAddress("eglGetPlatformDisplayEXT"));
+    ASSERT_NE(get_platform, nullptr);
+    EGLDisplay egl_display = get_platform(EGL_PLATFORM_X11_KHR, view, nullptr);
+    ASSERT_NE(egl_display, EGL_NO_DISPLAY);
+    ASSERT_EQ(eglInitialize(egl_display, nullptr, nullptr), static_cast<EGLBoolean>(EGL_TRUE));
+    ASSERT_EQ(eglBindAPI(EGL_OPENGL_API), static_cast<EGLBoolean>(EGL_TRUE));
+    const EGLint strict[] = {
+        EGL_SURFACE_TYPE,
+        EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE,
+        EGL_OPENGL_BIT,
+        EGL_RED_SIZE,
+        8,
+        EGL_GREEN_SIZE,
+        8,
+        EGL_BLUE_SIZE,
+        8,
+        EGL_ALPHA_SIZE,
+        8,
+        EGL_NONE
+    };
+    EGLConfig config = nullptr;
+    EGLint config_count = 0;
+    ASSERT_EQ(eglChooseConfig(egl_display, strict, &config, 1, &config_count), static_cast<EGLBoolean>(EGL_TRUE));
+    ASSERT_GE(config_count, 1);
+    EGLint visual_id = 0;
+    ASSERT_EQ(eglGetConfigAttrib(egl_display, config, EGL_NATIVE_VISUAL_ID, &visual_id), static_cast<EGLBoolean>(EGL_TRUE));
+    XVisualInfo request{};
+    request.visualid = static_cast<VisualID>(visual_id);
+    int visual_count = 0;
+    XVisualInfo* visual = XGetVisualInfo(view, VisualIDMask, &request, &visual_count);
+    ASSERT_NE(visual, nullptr);
+    ASSERT_GE(visual_count, 1);
+    ASSERT_NE(visual->depth, root_depth) << "fixture did not separate the parent visual from the EGL visual";
+    ASSERT_NE(visual->visualid, root_visual);
+
+    g_fixture_x_error = 0;
+    XErrorHandler previous = XSetErrorHandler(OnFixtureXError);
+    XSetWindowAttributes attributes{};
+    attributes.colormap = XCreateColormap(view, root, visual->visual, AllocNone);
+    attributes.event_mask = StructureNotifyMask;
+    Window mismatched = XCreateWindow(
+        view,
+        root,
+        0,
+        0,
+        64,
+        64,
+        0,
+        visual->depth,
+        InputOutput,
+        visual->visual,
+        CWColormap | CWEventMask,
+        &attributes
+    );
+    XSync(view, False);
+    const int create_error = g_fixture_x_error;
+    if (mismatched != 0)
+    {
+        XDestroyWindow(view, mismatched);
+        XSync(view, False);
+    }
+    if (attributes.colormap != 0)
+    {
+        XFreeColormap(view, attributes.colormap);
+    }
+    XSetErrorHandler(previous);
+    XFree(visual);
+    eglTerminate(egl_display);
+    XCloseDisplay(view);
+    // Without a border pixel this is BadMatch. Mesa does not return
+    // EGL_BAD_CONFIG for the parent visual on this server; NVIDIA does
+    // when that parent visual is paired with this deeper config.
+    EXPECT_EQ(create_error, BadMatch);
+
+    double realtime = 0.0;
+    double frametime = 0.0;
+    double oldrealtime = 0.0;
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    const double realtime_open = realtime;
+    ASSERT_EQ(csr_host_frame(640, 480, 0.125), 1) << csr_host_present_error();
+    void* presented_display = nullptr;
+    void* presented_surface = nullptr;
+    unsigned long window = 0;
+    int swaps = 0;
+    ASSERT_EQ(csr_host_present_query(&presented_display, &presented_surface, &window, &swaps), 1);
+    EXPECT_NE(presented_display, nullptr);
+    EXPECT_NE(presented_surface, nullptr);
+    EXPECT_NE(window, 0u);
+    EXPECT_EQ(swaps, 1);
+    EXPECT_EQ(csr_host_present_error(), nullptr);
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    EXPECT_DOUBLE_EQ(realtime, realtime_open + 0.125);
+}
+
+TEST(XashLauncher, PumpRepeatsFramesAndForwardsX11Input)
+{
+    if (!RunInFreshProcess("pump", "XashLauncher.PumpRepeatsFramesAndForwardsX11Input"))
+    {
+        return;
+    }
+    g_pump_moves.store(0);
+    g_pump_x.store(-1);
+    g_pump_y.store(-1);
+    g_pump_presses.store(0);
+    g_pump_code.store(-1);
+
+    VirtualDisplay display;
+    FrameSession session;
+    ASSERT_TRUE(session.Open());
+
+    void* vgui = dlopen(XASH_VGUI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(vgui, nullptr);
+    auto run_frame_count = reinterpret_cast<int (*)()>(dlsym(vgui, "csr_vgui_run_frame_count"));
+    ASSERT_NE(run_frame_count, nullptr);
+    const int run_frames_before = run_frame_count();
+
+    csr_host_vgui_t input{};
+    input.cursor_moved = PumpCursorMoved;
+    input.mouse_pressed = PumpMousePressed;
+    input.mouse_released = PumpMouseReleased;
+    ASSERT_EQ(csr_host_bind_input(&input), 1);
+
+    std::string display_error;
+    ASSERT_TRUE(display.Start(&display_error)) << display_error;
+
+    double realtime = 0.0;
+    double frametime = 0.0;
+    double oldrealtime = 0.0;
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    const double realtime_open = realtime;
+
+    std::atomic<unsigned long> seen_window{0};
+    std::atomic<bool> injected{false};
+    std::thread injector([&seen_window, &injected] {
+        Display* view = XOpenDisplay(nullptr);
+        if (view == nullptr)
+        {
+            return;
+        }
+        const Window root = RootWindow(view, DefaultScreen(view));
+        for (int attempt = 0; attempt < 400 && !injected.load(); ++attempt)
+        {
+            Window root_return = 0;
+            Window parent = 0;
+            Window* children = nullptr;
+            unsigned int count = 0;
+            if (XQueryTree(view, root, &root_return, &parent, &children, &count) != 0 && count > 0 && children != nullptr)
+            {
+                const Window window = children[count - 1];
+                XFree(children);
+                XEvent motion{};
+                motion.xmotion.type = MotionNotify;
+                motion.xmotion.display = view;
+                motion.xmotion.window = window;
+                motion.xmotion.root = root;
+                motion.xmotion.x = 20;
+                motion.xmotion.y = 30;
+                motion.xmotion.x_root = 20;
+                motion.xmotion.y_root = 30;
+                motion.xmotion.same_screen = True;
+                XSendEvent(view, window, False, PointerMotionMask, &motion);
+                XEvent button{};
+                button.xbutton.type = ButtonPress;
+                button.xbutton.display = view;
+                button.xbutton.window = window;
+                button.xbutton.root = root;
+                button.xbutton.x = 20;
+                button.xbutton.y = 30;
+                button.xbutton.x_root = 20;
+                button.xbutton.y_root = 30;
+                button.xbutton.button = Button1;
+                button.xbutton.same_screen = True;
+                XSendEvent(view, window, False, ButtonPressMask, &button);
+                XFlush(view);
+                seen_window.store(static_cast<unsigned long>(window));
+                injected.store(true);
+                break;
+            }
+            if (children != nullptr)
+            {
+                XFree(children);
+            }
+            timespec delay{};
+            delay.tv_nsec = 5 * 1000 * 1000;
+            nanosleep(&delay, nullptr);
+        }
+        XCloseDisplay(view);
+    });
+
+    constexpr int kFrames = 3;
+    constexpr double kDelta = 0.125;
+    ASSERT_EQ(csr_host_pump(640, 480, kFrames, kDelta), 1) << csr_host_present_error();
+    injector.join();
+    ASSERT_TRUE(injected.load());
+    EXPECT_EQ(g_pump_moves.load(), 1);
+    EXPECT_EQ(g_pump_x.load(), 20);
+    EXPECT_EQ(g_pump_y.load(), 30);
+    EXPECT_EQ(g_pump_presses.load(), 1);
+    EXPECT_EQ(g_pump_code.load(), 0);
+
+    unsigned long window = 1;
+    int swaps = 0;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window, &swaps), 0);
+    EXPECT_EQ(window, 0u);
+    EXPECT_EQ(swaps, kFrames);
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    EXPECT_DOUBLE_EQ(realtime, realtime_open + (kFrames * kDelta));
+    EXPECT_DOUBLE_EQ(frametime, kDelta);
+    EXPECT_DOUBLE_EQ(oldrealtime, realtime_open + (kFrames * kDelta));
+    EXPECT_EQ(run_frame_count(), run_frames_before);
+
+    Display* view = XOpenDisplay(nullptr);
+    ASSERT_NE(view, nullptr);
+    g_fixture_x_error = 0;
+    XErrorHandler previous = XSetErrorHandler(OnFixtureXError);
+    XWindowAttributes gone{};
+    const int attributes = XGetWindowAttributes(view, static_cast<Window>(seen_window.load()), &gone);
+    XSync(view, False);
+    XSetErrorHandler(previous);
+    EXPECT_EQ(attributes, 0);
+    EXPECT_EQ(g_fixture_x_error, BadWindow);
+    XCloseDisplay(view);
+    dlclose(vgui);
 }

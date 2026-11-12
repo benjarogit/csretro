@@ -980,11 +980,18 @@ und setzt `oldrealtime` auf die neue `realtime`. Die Felder werden direkt
 geschrieben. `Host_FilterTime` läuft dabei nicht, und es wird kein Hook
 installiert. `CVGui::RunFrame` bleibt ungerufen. `hw.so` bleibt ungemappt,
 kein Steam-Client startet, und der geplante
-Launcher-Befehl wird nicht ausgeführt. Der Frame öffnet das X11-Display,
-legt ein Fenster mit dem Visual der EGL-Config an, ruft
-`eglCreateWindowSurface`, zeichnet und ruft danach `eglSwapBuffers`.
+Launcher-Befehl wird nicht ausgeführt. Der Frame öffnet das X11-Display und wählt eine EGL-Config, deren natives
+Visual ein Kind des Root-Fensters sein kann. Ein Visual mit der Tiefe des
+Root-Fensters gewinnt. Ein Border-Pixel wird gesetzt, damit ein tieferes
+Visual kein BadMatch ist. Das Fenster bekommt dieses Visual, nicht das
+des Parents, dann `eglCreateWindowSurface`, das Paint und `eglSwapBuffers`.
 Schlägt einer dieser Aufrufe fehl, gibt es keinen Swap und die Host-Zeit
-bleibt stehen. Die X11-Verbindung ist der Socket des Fensters. Ein
+bleibt stehen. `csr_host_pump` ruft diesen Frame mit einer Framezahl auf
+demselben gemappten Fenster auf. Bewegungs- und Tastenereignisse, die
+währenddessen ankommen, gehen an `csr_host_input_move` und
+`csr_host_input_button`. Danach wird das Fenster zerstört. Nach N Frames
+ist die Swap-Zahl N, und die Host-Zeit ist um N mal das Delta vorgerückt.
+Die X11-Verbindung ist der Socket des Fensters. Ein
 Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
 Surface-Tests behalten ihr EGL-Pbuffer. Die Retail-Hook-Liste wird nicht
 verlängert. Der nächste Retail-Hook bleibt `Mod_ForName`.

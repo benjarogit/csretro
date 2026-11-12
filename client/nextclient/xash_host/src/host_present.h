@@ -9,4 +9,8 @@ int csr_host_present_begin(int wide, int tall);
 int csr_host_present_swap(void);
 
 // Drops the window and the EGL display. Safe when present never started.
+// The swap count stays readable through csr_host_present_query.
 void csr_host_present_shutdown(void);
+
+// Delivers queued X11 motion and button events to the host input functions.
+void csr_host_present_dispatch(void);

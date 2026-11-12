@@ -60,6 +60,14 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
 - Extra factories follow those entries. The surface name is not forwarded to them.
 - `csr_host_bind_input` forwards cursor, press and release, then one dispatch.
   `CVGui::RunFrame` is not called. `SurfaceSetCursorPos` does not dispatch.
+- `csr_host_frame` opens one X11 window for an EGL config whose native visual
+  can be a child of the root. A visual at the root depth is preferred. A
+  border pixel is set so a deeper visual is not a BadMatch. The window uses
+  that visual. `csr_host_pump` calls that frame a given number of times on
+  the same mapped window, passes X11 motion and button events to
+  `csr_host_input_move` and `csr_host_input_button`, then destroys the
+  window. `CVGui::RunFrame` is not called. The pump does not exec the
+  launcher command.
 - Our `vgui2` exports `csr_vgui_dispatch_messages` through
   `patches/sdk/0001-export-vgui-dispatch.patch`. The SDK submodule pin does
   not move. Retail `vgui2` keeps `DispatchMessages` local, so the host takes

@@ -108,9 +108,16 @@ berechnet und das Need-CRC-Flag bleibt unverändert. Ein Null-Zeiger ist kein
 Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist `Mod_ForName`.
 Dieser Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
-Ein Aufruf öffnet das X11-Display, erzeugt mit `eglCreateWindowSurface` eine
+Ein Aufruf öffnet das X11-Display, wählt eine EGL-Config, deren natives Visual
+ein Kind des Root-Fensters sein kann, erzeugt mit `eglCreateWindowSurface` eine
 EGL-Fensterfläche, zeichnet ein GameUI-Bild und ruft `eglSwapBuffers`.
-`ISurface::SwapBuffers` bleibt leer. Die Surface-Tests behalten ihr EGL-Pbuffer.
+Ein Visual mit der Tiefe des Root-Fensters gewinnt, und ein Border-Pixel wird
+gesetzt, damit ein tieferes Visual kein BadMatch ist. `csr_host_pump` wiederholt
+diesen Frame auf demselben gemappten Fenster, gibt Bewegungs- und
+Tastenereignisse an `csr_host_input_move` und `csr_host_input_button` und
+zerstört danach das Fenster. Nach N Frames ist die Swap-Zahl N, und die
+Host-Zeit ist um N mal das Delta vorgerückt. `CVGui::RunFrame` bleibt ungerufen
+und der Launcher-Befehl wird nicht ausgeführt. `ISurface::SwapBuffers` bleibt leer. Die Surface-Tests behalten ihr EGL-Pbuffer.
 `OnGameInitialized` wird nicht betreten.
 Die Retail-Hook-Kette läuft dabei nicht. `hw.so` wird nicht geöffnet. `RunFrame` wird
 nicht gerufen. Die übrigen `engine_mini`-Weiterleitungen bleiben am

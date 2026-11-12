@@ -114,10 +114,17 @@ auf die Host-Zeit. Es schreibt `realtime`, `host_frametime` und
 `oldrealtime` direkt. `Host_FilterTime` bleibt ungerufen, und es kommt kein
 Retail-Hook dazu. `CVGui::RunFrame` bleibt ungerufen. `hw.so` bleibt
 ungemappt, kein Steam-Client startet, und der geplante Launcher-Befehl
-wird nicht ausgeführt. Der Frame öffnet das X11-Display, legt ein Fenster
-mit dem Visual der EGL-Config an, ruft `eglCreateWindowSurface`, zeichnet
-und ruft danach `eglSwapBuffers`. Schlägt ein Aufruf fehl, gibt es keinen
-Swap und die Host-Zeit bleibt stehen. Die X11-Verbindung ist der
+wird nicht ausgeführt. Der Frame öffnet das X11-Display und wählt eine
+EGL-Config, deren natives Visual ein Kind des Root-Fensters sein kann.
+Ein Visual mit der Tiefe des Root-Fensters gewinnt. Ein Border-Pixel wird
+gesetzt, damit ein tieferes Visual kein BadMatch ist. Das Fenster bekommt
+dieses Visual, nicht das des Parents, dann `eglCreateWindowSurface`, das
+Paint und `eglSwapBuffers`. Schlägt ein Aufruf fehl, gibt es keinen
+Swap und die Host-Zeit bleibt stehen. `csr_host_pump` ruft diesen Frame
+mit einer Framezahl auf demselben gemappten Fenster auf, gibt Bewegungs-
+und Tastenereignisse an `csr_host_input_move` und `csr_host_input_button`
+und zerstört danach das Fenster. Nach N Frames ist die Swap-Zahl N, und
+die Host-Zeit ist um N mal das Delta vorgerückt. Die X11-Verbindung ist der
 Socket des Fensters. Ein Spiel-Socket geht nicht auf.
 `ISurface::SwapBuffers` bleibt leer. Die Surface-Tests behalten ihr
 EGL-Pbuffer. Die Uhr der GameUI-Engine-Tabelle bleibt bei 0.

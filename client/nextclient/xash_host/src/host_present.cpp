@@ -8,9 +8,11 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <vector>
 
 namespace
 {
@@ -25,10 +27,11 @@ namespace
         EGLContext egl_context = EGL_NO_CONTEXT;
         int wide = 0;
         int tall = 0;
-        int swaps = 0;
     };
 
     Present g_present;
+    // Survives shutdown so a pump can report how many swaps it presented.
+    int g_swaps = 0;
     char g_error[80] = {};
     int g_x_error = 0;
 
@@ -106,6 +109,171 @@ namespace
         return true;
     }
 
+    // Negative when the config has no X visual or the color buffer is below 8 bits.
+    // A visual at the root depth outranks a deeper one: the deeper visual is what
+    // BadMatch rejects when the parent visual is not that visual.
+    int ScoreConfig(Display* display, EGLDisplay egl_display, EGLConfig config, int root_depth, VisualID root_visual)
+    {
+        EGLint visual_id = 0;
+        if (eglGetConfigAttrib(egl_display, config, EGL_NATIVE_VISUAL_ID, &visual_id) == EGL_FALSE || visual_id == 0)
+        {
+            return -1;
+        }
+        EGLint red = 0;
+        EGLint green = 0;
+        EGLint blue = 0;
+        EGLint alpha = 0;
+        eglGetConfigAttrib(egl_display, config, EGL_RED_SIZE, &red);
+        eglGetConfigAttrib(egl_display, config, EGL_GREEN_SIZE, &green);
+        eglGetConfigAttrib(egl_display, config, EGL_BLUE_SIZE, &blue);
+        eglGetConfigAttrib(egl_display, config, EGL_ALPHA_SIZE, &alpha);
+        if (red < 8 || green < 8 || blue < 8)
+        {
+            return -1;
+        }
+
+        XVisualInfo request{};
+        request.visualid = static_cast<VisualID>(visual_id);
+        request.screen = DefaultScreen(display);
+        int visual_count = 0;
+        XVisualInfo* visual = XGetVisualInfo(display, VisualIDMask | VisualScreenMask, &request, &visual_count);
+        if (visual == nullptr || visual_count < 1)
+        {
+            if (visual != nullptr)
+            {
+                XFree(visual);
+            }
+            return -1;
+        }
+        int score = alpha;
+        if (visual->depth == root_depth)
+        {
+            score += 1000;
+        }
+        if (visual->visualid == root_visual)
+        {
+            score += 100;
+        }
+        XFree(visual);
+        return score;
+    }
+
+    // Creates the window with the config's visual. A border pixel lets that
+    // visual be a child when its depth is not the parent's. On failure the
+    // display stays open so another config can be tried.
+    bool TryConfig(Display* display, EGLDisplay egl_display, Window root, EGLConfig config, int wide, int tall)
+    {
+        EGLint visual_id = 0;
+        if (eglGetConfigAttrib(egl_display, config, EGL_NATIVE_VISUAL_ID, &visual_id) == EGL_FALSE)
+        {
+            SetError("eglGetConfigAttrib", eglGetError());
+            return false;
+        }
+        XVisualInfo request{};
+        request.visualid = static_cast<VisualID>(visual_id);
+        request.screen = DefaultScreen(display);
+        int visual_count = 0;
+        XVisualInfo* visual = XGetVisualInfo(display, VisualIDMask | VisualScreenMask, &request, &visual_count);
+        if (visual == nullptr || visual_count < 1)
+        {
+            if (visual != nullptr)
+            {
+                XFree(visual);
+            }
+            SetError("XGetVisualInfo", 0);
+            return false;
+        }
+
+        g_x_error = 0;
+        Colormap colormap = XCreateColormap(display, root, visual->visual, AllocNone);
+        XSetWindowAttributes attributes{};
+        attributes.colormap = colormap;
+        attributes.border_pixel = 0;
+        attributes.background_pixel = 0;
+        attributes.event_mask = StructureNotifyMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
+        Window window = XCreateWindow(
+            display,
+            root,
+            0,
+            0,
+            static_cast<unsigned int>(wide),
+            static_cast<unsigned int>(tall),
+            0,
+            visual->depth,
+            InputOutput,
+            visual->visual,
+            CWColormap | CWBorderPixel | CWBackPixel | CWEventMask,
+            &attributes
+        );
+        XFree(visual);
+        XSync(display, False);
+        if (window == 0 || g_x_error != 0)
+        {
+            SetError("XCreateWindow", g_x_error);
+            if (window != 0)
+            {
+                XDestroyWindow(display, window);
+            }
+            if (colormap != 0)
+            {
+                XFreeColormap(display, colormap);
+            }
+            XSync(display, False);
+            g_x_error = 0;
+            return false;
+        }
+
+        XMapWindow(display, window);
+        XFlush(display);
+        bool viewable = false;
+        for (int attempt = 0; attempt < 50; ++attempt)
+        {
+            XWindowAttributes mapped{};
+            if (XGetWindowAttributes(display, window, &mapped) != 0 && mapped.map_state == IsViewable)
+            {
+                viewable = true;
+                break;
+            }
+            timespec delay{};
+            delay.tv_nsec = 20 * 1000 * 1000;
+            nanosleep(&delay, nullptr);
+        }
+        if (!viewable)
+        {
+            SetError("XMapWindow", 0);
+            XDestroyWindow(display, window);
+            XFreeColormap(display, colormap);
+            return false;
+        }
+
+        EGLSurface surface = eglCreateWindowSurface(egl_display, config, static_cast<EGLNativeWindowType>(window), nullptr);
+        if (surface == EGL_NO_SURFACE)
+        {
+            SetError("eglCreateWindowSurface", eglGetError());
+            XDestroyWindow(display, window);
+            XFreeColormap(display, colormap);
+            return false;
+        }
+        const EGLint context_attributes[] = {EGL_CONTEXT_MAJOR_VERSION, 2, EGL_CONTEXT_MINOR_VERSION, 1, EGL_NONE};
+        EGLContext context = eglCreateContext(egl_display, config, EGL_NO_CONTEXT, context_attributes);
+        if (context == EGL_NO_CONTEXT)
+        {
+            SetError("eglCreateContext", eglGetError());
+            eglDestroySurface(egl_display, surface);
+            XDestroyWindow(display, window);
+            XFreeColormap(display, colormap);
+            return false;
+        }
+
+        g_present.window = window;
+        g_present.colormap = colormap;
+        g_present.egl_surface = surface;
+        g_present.egl_context = context;
+        g_present.wide = wide;
+        g_present.tall = tall;
+        return true;
+    }
+
 } // namespace
 
 int csr_host_present_begin(int wide, int tall)
@@ -174,123 +342,77 @@ int csr_host_present_begin(int wide, int tall)
         return 0;
     }
 
+    // Prefer a visual the root can parent. The first alpha-8 config is often a
+    // deeper visual than the root; creating it without a border pixel is
+    // BadMatch, and the parent visual with that config is EGL_BAD_CONFIG.
+    XWindowAttributes root_attributes{};
+    if (XGetWindowAttributes(display, root, &root_attributes) == 0)
+    {
+        SetError("XGetWindowAttributes", 0);
+        Release(true);
+        return 0;
+    }
+    const int root_depth = root_attributes.depth;
+    const VisualID root_visual = XVisualIDFromVisual(root_attributes.visual);
     const EGLint config_attributes[] = {
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT, EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8,
-        EGL_ALPHA_SIZE, 8, EGL_NONE
+        EGL_NONE
     };
-    EGLConfig config = nullptr;
     EGLint count = 0;
-    if (eglChooseConfig(egl_display, config_attributes, &config, 1, &count) == EGL_FALSE || count < 1)
+    if (eglChooseConfig(egl_display, config_attributes, nullptr, 0, &count) == EGL_FALSE || count < 1)
+    {
+        SetError("eglChooseConfig", eglGetError());
+        Release(true);
+        return 0;
+    }
+    std::vector<EGLConfig> configs(static_cast<size_t>(count));
+    if (eglChooseConfig(egl_display, config_attributes, configs.data(), count, &count) == EGL_FALSE || count < 1)
     {
         SetError("eglChooseConfig", eglGetError());
         Release(true);
         return 0;
     }
 
-    // The window visual has to be the EGL config's visual. A parent visual
-    // makes eglCreateWindowSurface return EGL_BAD_CONFIG.
-    EGLint visual_id = 0;
-    if (eglGetConfigAttrib(egl_display, config, EGL_NATIVE_VISUAL_ID, &visual_id) == EGL_FALSE)
+    struct Ranked
     {
-        SetError("eglGetConfigAttrib", eglGetError());
+        EGLConfig config;
+        int score;
+    };
+    std::vector<Ranked> ranked;
+    ranked.reserve(static_cast<size_t>(count));
+    for (int index = 0; index < count; ++index)
+    {
+        const int score = ScoreConfig(display, egl_display, configs[static_cast<size_t>(index)], root_depth, root_visual);
+        if (score >= 0)
+        {
+            ranked.push_back(Ranked{configs[static_cast<size_t>(index)], score});
+        }
+    }
+    if (ranked.empty())
+    {
+        SetError("eglChooseConfig", 0);
         Release(true);
         return 0;
     }
-    XVisualInfo request = {};
-    request.visualid = static_cast<VisualID>(visual_id);
-    int visual_count = 0;
-    XVisualInfo* visual = XGetVisualInfo(display, VisualIDMask, &request, &visual_count);
-    if (visual == nullptr || visual_count < 1)
-    {
-        SetError("XGetVisualInfo", 0);
-        Release(true);
-        return 0;
-    }
+    std::stable_sort(ranked.begin(), ranked.end(), [](const Ranked& left, const Ranked& right) { return left.score > right.score; });
 
-    g_x_error = 0;
+    g_swaps = 0;
     XErrorHandler previous_handler = XSetErrorHandler(OnXError);
-    Colormap colormap = XCreateColormap(display, root, visual->visual, AllocNone);
-    XSetWindowAttributes attributes = {};
-    attributes.colormap = colormap;
-    attributes.event_mask = StructureNotifyMask;
-    Window window = XCreateWindow(
-        display,
-        root,
-        0,
-        0,
-        static_cast<unsigned int>(wide),
-        static_cast<unsigned int>(tall),
-        0,
-        visual->depth,
-        InputOutput,
-        visual->visual,
-        CWColormap | CWEventMask,
-        &attributes
-    );
-    XFree(visual);
-    if (window != 0 && g_x_error == 0)
+    bool created = false;
+    for (const Ranked& candidate : ranked)
     {
-        XMapWindow(display, window);
-        XFlush(display);
-    }
-    XSync(display, False);
-    XSetErrorHandler(previous_handler);
-    if (window == 0 || g_x_error != 0)
-    {
-        SetError("XCreateWindow", g_x_error);
-        if (window != 0)
+        if (TryConfig(display, egl_display, root, candidate.config, wide, tall))
         {
-            XDestroyWindow(display, window);
-        }
-        if (colormap != 0)
-        {
-            XFreeColormap(display, colormap);
-        }
-        Release(true);
-        return 0;
-    }
-    g_present.window = window;
-    g_present.colormap = colormap;
-
-    bool viewable = false;
-    for (int attempt = 0; attempt < 50; ++attempt)
-    {
-        XWindowAttributes mapped = {};
-        if (XGetWindowAttributes(display, window, &mapped) != 0 && mapped.map_state == IsViewable)
-        {
-            viewable = true;
+            created = true;
             break;
         }
-        timespec delay = {};
-        delay.tv_nsec = 20 * 1000 * 1000;
-        nanosleep(&delay, nullptr);
     }
-    if (!viewable)
+    XSetErrorHandler(previous_handler);
+    if (!created)
     {
-        SetError("XMapWindow", 0);
         Release(true);
         return 0;
     }
-
-    EGLSurface surface = eglCreateWindowSurface(egl_display, config, static_cast<EGLNativeWindowType>(window), nullptr);
-    if (surface == EGL_NO_SURFACE)
-    {
-        SetError("eglCreateWindowSurface", eglGetError());
-        Release(true);
-        return 0;
-    }
-    g_present.egl_surface = surface;
-    const EGLint context_attributes[] = {EGL_CONTEXT_MAJOR_VERSION, 2, EGL_CONTEXT_MINOR_VERSION, 1, EGL_NONE};
-    EGLContext context = eglCreateContext(egl_display, config, EGL_NO_CONTEXT, context_attributes);
-    if (context == EGL_NO_CONTEXT)
-    {
-        SetError("eglCreateContext", eglGetError());
-        Release(true);
-        return 0;
-    }
-    g_present.egl_context = context;
-    g_present.wide = wide;
-    g_present.tall = tall;
     if (!MakeCurrent())
     {
         Release(true);
@@ -324,9 +446,42 @@ int csr_host_present_swap(void)
         SetError("eglSwapBuffers", eglGetError());
         return 0;
     }
-    ++g_present.swaps;
+    ++g_swaps;
     g_error[0] = '\0';
     return 1;
+}
+
+void csr_host_present_dispatch(void)
+{
+    if (g_present.display == nullptr || g_present.window == 0)
+    {
+        return;
+    }
+    XSync(g_present.display, False);
+    while (XPending(g_present.display) > 0)
+    {
+        XEvent event{};
+        XNextEvent(g_present.display, &event);
+        if (event.xany.window != g_present.window)
+        {
+            continue;
+        }
+        if (event.type == MotionNotify)
+        {
+            csr_host_input_move(event.xmotion.x, event.xmotion.y);
+            continue;
+        }
+        if (event.type != ButtonPress && event.type != ButtonRelease)
+        {
+            continue;
+        }
+        const int code = event.xbutton.button - 1;
+        if (code < 0)
+        {
+            continue;
+        }
+        csr_host_input_button(code, event.type == ButtonPress ? 1 : 0);
+    }
 }
 
 void csr_host_present_shutdown(void)
@@ -350,7 +505,7 @@ int csr_host_present_query(void** egl_display, void** egl_surface, unsigned long
     }
     if (swaps != nullptr)
     {
-        *swaps = g_present.swaps;
+        *swaps = g_swaps;
     }
     return g_present.egl_surface != EGL_NO_SURFACE ? 1 : 0;
 }

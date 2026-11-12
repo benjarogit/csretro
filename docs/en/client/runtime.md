@@ -96,9 +96,16 @@ loaded, no model file is read, no CRC is computed and the need-CRC flag
 stays unchanged. A null pointer is not a call. A null hook is not a call.
 The next retail hook is `Mod_ForName`. This path returns before it.
 `csr_host_frame` is a later direct call and does not extend that list.
-One call opens the X11 display, creates an EGL window surface with
+One call opens the X11 display, chooses an EGL config whose native visual can
+be a child of the root window, creates that window surface with
 `eglCreateWindowSurface`, paints one GameUI frame and calls `eglSwapBuffers`.
-`ISurface::SwapBuffers` stays empty. The surface tests still use an EGL pbuffer.
+A visual at the root depth is preferred, and a border pixel is set so a
+deeper visual is not a BadMatch. `csr_host_pump` repeats that frame on the
+same mapped window, forwards X11 motion and button events to
+`csr_host_input_move` and `csr_host_input_button`, then destroys the window.
+After N frames the swap count is N and host time has advanced by N times the
+delta. `CVGui::RunFrame` stays uncalled and the launcher command is not
+executed. `ISurface::SwapBuffers` stays empty. The surface tests still use an EGL pbuffer.
 `OnGameInitialized` is not entered. The retail hook chain
 does not run. `hw.so` is not opened.
 `RunFrame` is not called. The other `engine_mini` forwards stay on the retail

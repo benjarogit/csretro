@@ -167,17 +167,32 @@ CSR_HOST_API int csr_host_textured_quad_count(void);
 
 /*
  * One GameUI frame. Opens the X11 display, creates an EGL window surface,
- * shows the menu, paints it, then calls eglSwapBuffers. Adds delta to host
- * realtime and stores that delta as the frame interval. Writes those fields
- * directly. Returns 0 when the window surface, the swap or the paint fails,
- * and then the clock stays put. Does not call CVGui::RunFrame,
- * ISurface::SwapBuffers or Host_FilterTime, does not install a hook, does
- * not open hw.so, does not start Steam, and does not exec the launcher
- * command. The X11 display connection is the window's socket.
+ * shows the menu, paints it, then calls eglSwapBuffers. The EGL config is
+ * one whose native visual can be a child of the root: a visual at the root
+ * depth is preferred, and a border pixel is set so a deeper visual is not
+ * rejected. The window uses that visual. Adds delta to host realtime and
+ * stores that delta as the frame interval. Writes those fields directly.
+ * Returns 0 when the window surface, the swap or the paint fails, and then
+ * the clock stays put. Does not call CVGui::RunFrame, ISurface::SwapBuffers
+ * or Host_FilterTime, does not install a hook, does not open hw.so, does
+ * not start Steam, and does not exec the launcher command. The X11 display
+ * connection is the window's socket.
  */
 CSR_HOST_API int csr_host_frame(int wide, int tall, double delta);
+/*
+ * Calls csr_host_frame `frames` times on one mapped X11 window. Motion and
+ * button events that arrive during the call go to csr_host_input_move and
+ * csr_host_input_button. Then the window is destroyed. After a successful
+ * call the swap count is `frames` and host time has advanced by frames
+ * times delta. Returns 0 when a frame fails, and still destroys the window.
+ * Does not call CVGui::RunFrame, does not install a hook, and does not exec
+ * the launcher command.
+ */
+CSR_HOST_API int csr_host_pump(int wide, int tall, int frames, double delta);
 CSR_HOST_API void csr_host_read_host_time(double* realtime, double* frametime, double* oldrealtime);
-/* The live EGL window surface. Returns 0 until csr_host_frame creates one. */
+/* The live EGL window surface. Returns 0 when no window is mapped.
+   swaps is the count from the present that just ran, including after the
+   pump destroys the window. */
 CSR_HOST_API int csr_host_present_query(void** egl_display, void** egl_surface, unsigned long* window, int* swaps);
 /* The X11 or EGL call that failed, or null when the present is healthy. */
 CSR_HOST_API const char* csr_host_present_error(void);

@@ -112,8 +112,16 @@ The authoritative version string is the `VERSION` file.
   is not a call. The next retail hook is `Mod_ForName`. This path returns
   before it.
   `csr_host_frame` is a later direct call. One call opens the X11 display,
-  creates a window for the EGL config's visual, calls `eglCreateWindowSurface`,
-  paints one GameUI frame and calls `eglSwapBuffers`. The call adds the
+  chooses an EGL config whose native visual can be a child of the root window,
+  creates that window, calls `eglCreateWindowSurface`, paints one GameUI frame
+  and calls `eglSwapBuffers`. A visual at the root depth is preferred, and a
+  border pixel is set so a deeper visual is not a BadMatch. The window uses
+  that visual, not the parent's. `csr_host_pump` repeats that frame on the
+  same mapped window, forwards X11 motion and button events to
+  `csr_host_input_move` and `csr_host_input_button`, then destroys the window.
+  After N frames the swap count is N and host time has advanced by N times the
+  delta. `CVGui::RunFrame` stays uncalled and the launcher command is not
+  executed. The call adds the
   caller's delta to host time by writing `realtime`, `host_frametime` and
   `oldrealtime`. A failed surface or swap does not move that clock.
   `ISurface::SwapBuffers` stays empty. The surface tests still use an EGL

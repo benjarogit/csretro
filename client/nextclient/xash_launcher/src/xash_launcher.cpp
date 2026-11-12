@@ -149,6 +149,12 @@ int OpenXashLauncher(
     }
 
     session->steam = steam;
+    if (csr_host_init_gameui() == 0)
+    {
+        dlclose(steam);
+        csr_host_close();
+        return 0;
+    }
     session->open = true;
     return 1;
 }

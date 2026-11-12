@@ -683,7 +683,8 @@ zweite Factory. Der Host startet das Spiel nicht.
 und `GameConsole003` und keine eigene `VGUI_Surface026`. Die Surface bleibt
 die eine Host-Factory. Der Host lädt `gameui`, nachdem die Surface-Factory
 steht. Er liest
-`GameUI007` und `GameConsole003` und ruft die Spieloberfläche nicht auf.
+`GameUI007` und `GameConsole003`. Dieser Ladeaufruf startet die Oberfläche
+nicht. `IGameUI::Initialize` folgt erst nach dem Mount.
 Eine fehlende Bibliothek oder ein fehlender Export ist kein Aufruf. Die
 Surface bleibt die einzige Factory. Das Spiel startet er nicht.
 
@@ -698,8 +699,11 @@ gebundene Textur zeichnet `PaintTraverse` an der Cursorposition.
 `RunFrame` zeichnet sie nicht. Danach ruft der Host `IVGui::Init` mit
 dieser Liste. `vgui2` hält damit die eine Surface, das Dateisystem und
 `VGUI_Localize003`. Eine Scheme-Datei unter der Wurzel lädt derselbe
-Manager. Eine fehlende Datei lässt den Host offen. `RunFrame` ist dieser
-Aufruf nicht. Es gibt kein
+Manager. Eine fehlende Datei lässt den Host offen. Danach ruft der Host
+`IGameUI::Initialize`. Ein fehlendes Engine-Modul wird nicht aufgerufen.
+Das Basis-Panel ist sichtbar und hat noch kein Engine-Elternpanel. Die
+Serverliste wartet auf ein geladenes Scheme. `Start` und `RunFrame` sind
+dieser Aufruf nicht. Es gibt kein
 zweites Dateisystem und keine zweite Factory. Retail-Daten liegen nicht im
 Repository. Der Host startet das Spiel nicht.
 

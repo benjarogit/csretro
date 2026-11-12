@@ -46,6 +46,41 @@ namespace
     PairApi g_pair;
     int g_vgui_connected = 0;
     int g_scheme_loaded = 0;
+    int g_gameui_initialized = 0;
+    vgui2::IVGui* g_ivgui = nullptr;
+
+    // Same slots as IEngineVGui: two destructor entries, then GetPanel.
+    // A bare AllocPanel has no client object, and SetParent would crash on it.
+    // Zero leaves the base panel unparented until a real root panel exists.
+    class HostEngineVGui
+    {
+    public:
+        virtual ~HostEngineVGui() = default;
+
+        virtual vgui2::VPANEL GetPanel(int)
+        {
+            return 0;
+        }
+    };
+
+    HostEngineVGui g_engine_vgui;
+
+    void* EngineVGuiFactory(const char* name, int* code)
+    {
+        if (name != nullptr && std::strcmp(name, "VEngineVGui001") == 0)
+        {
+            if (code != nullptr)
+            {
+                *code = 0;
+            }
+            return &g_engine_vgui;
+        }
+        if (code != nullptr)
+        {
+            *code = 1;
+        }
+        return nullptr;
+    }
 
     struct GameUiApi
     {
@@ -60,6 +95,7 @@ namespace
     {
         g_gameui.gameui = nullptr;
         g_gameui.console = nullptr;
+        g_gameui_initialized = 0;
         if (g_gameui.module != nullptr)
         {
             dlclose(g_gameui.module);
@@ -74,6 +110,8 @@ namespace
         g_pair.create = nullptr;
         g_vgui_connected = 0;
         g_scheme_loaded = 0;
+        g_gameui_initialized = 0;
+        g_ivgui = nullptr;
         if (g_pair.vgui != nullptr)
         {
             dlclose(g_pair.vgui);
@@ -361,6 +399,7 @@ int csr_host_connect_vgui(void)
     {
         return 0;
     }
+    g_ivgui = ivgui;
     g_vgui_connected = 1;
     return 1;
 }
@@ -399,6 +438,51 @@ int csr_host_load_scheme(const char* path, const char* tag)
 int csr_host_scheme_loaded(void)
 {
     return g_scheme_loaded;
+}
+
+int csr_host_init_gameui(void)
+{
+    if (g_gameui_initialized != 0)
+    {
+        return 1;
+    }
+    if (g_vgui_connected == 0 || g_ivgui == nullptr || g_gameui.gameui == nullptr || g_pair.create == nullptr)
+    {
+        return 0;
+    }
+
+    int code = 1;
+    if (g_pair.create("VGUI_SurfaceNext001", &code) == nullptr || g_pair.create("VGUI_InputInternal001", &code) == nullptr ||
+        g_pair.create("VGUI_Panel007", &code) == nullptr || g_pair.create("VGUI_SchemeNext001", &code) == nullptr ||
+        g_pair.create("VGUI_System009", &code) == nullptr || g_pair.create("KeyValues003", &code) == nullptr)
+    {
+        return 0;
+    }
+
+    CreateInterfaceFn list[4] = {
+        reinterpret_cast<CreateInterfaceFn>(g_surface.create_interface),
+        reinterpret_cast<CreateInterfaceFn>(csr_host_filesystem_factory),
+        reinterpret_cast<CreateInterfaceFn>(g_pair.create),
+        reinterpret_cast<CreateInterfaceFn>(EngineVGuiFactory),
+    };
+    // Itanium puts the complete and deleting destructor in the first two slots.
+    // Initialize is next. IsGameUIActive follows the ten methods declared before it.
+    // A typed call in this file would bind the empty base instead of CGameUI.
+    auto** gameui_vtable = *reinterpret_cast<void***>(g_gameui.gameui);
+    auto initialize = reinterpret_cast<void (*)(void*, CreateInterfaceFn*, int)>(gameui_vtable[2]);
+    auto active = reinterpret_cast<bool (*)(void*)>(gameui_vtable[12]);
+    initialize(g_gameui.gameui, list, 4);
+    if (!active(g_gameui.gameui))
+    {
+        return 0;
+    }
+    g_gameui_initialized = 1;
+    return 1;
+}
+
+int csr_host_gameui_initialized(void)
+{
+    return g_gameui_initialized;
 }
 
 void csr_host_close(void)

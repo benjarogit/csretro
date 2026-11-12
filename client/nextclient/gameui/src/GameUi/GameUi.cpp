@@ -298,10 +298,14 @@ void CGameUI::Initialize(CreateInterfaceFn *factories, int count)
     }
 
     g_pServerBrowser = (IServerBrowserEx*)CreateInterface(SERVERBROWSEREX_INTERFACE_VERSION, NULL);
-    g_pEngineMini = reinterpret_cast<EngineMiniInterface*>(Sys_GetFactory("next_engine_mini.dll")(ENGINE_MINI_INTERFACE_VERSION, NULL));
-    g_pScenePreview = reinterpret_cast<ScenePreviewInterface*>(Sys_GetFactory("next_engine_mini.dll")(SCENE_PREVIEW_INTERFACE_VERSION, NULL));
-    m_ShaderRenderer =
-        reinterpret_cast<render::ShaderRendererInterface*>(Sys_GetFactory("next_engine_mini.dll")(SHADER_RENDERER_INTERFACE_VERSION, nullptr));
+    CreateInterfaceFn engine_mini = Sys_GetFactory("next_engine_mini.dll");
+    if (engine_mini != nullptr)
+    {
+        g_pEngineMini = reinterpret_cast<EngineMiniInterface*>(engine_mini(ENGINE_MINI_INTERFACE_VERSION, NULL));
+        g_pScenePreview = reinterpret_cast<ScenePreviewInterface*>(engine_mini(SCENE_PREVIEW_INTERFACE_VERSION, NULL));
+        m_ShaderRenderer =
+            reinterpret_cast<render::ShaderRendererInterface*>(engine_mini(SHADER_RENDERER_INTERFACE_VERSION, nullptr));
+    }
 
     m_MaterialEditor = g_pEngineMini != nullptr ? g_pEngineMini->GetMaterialEdit() : nullptr;
     m_FileSystem = g_pFullFileSystem;
@@ -352,11 +356,13 @@ void CGameUI::Initialize(CreateInterfaceFn *factories, int count)
 
     base_panel->SetParent(g_pEngineVGui->GetPanel(PANEL_GAMEUIDLL));
 
-    if (g_pServerBrowser)
+    // The server list builds tooltips from the scheme. With no scheme loaded
+    // that constructor has no color table. The base panel still stands.
+    if (g_pServerBrowser && vgui2::VGui_GetDefaultScheme() != 0)
+    {
         g_pServerBrowser->Initialize(factories, count);
-
-    if (g_pServerBrowser)
         g_pServerBrowser->SetParent(base_panel->GetVPanel());
+    }
 
     vgui2::surface()->SetAllowHTMLJavaScript(true);
 }

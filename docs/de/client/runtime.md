@@ -27,8 +27,9 @@ ist ein Fehlschlag und kein Aufruf. Der Host startet das Spiel nicht.
 
 `gameui` ist ELF64 aus derselben SDK-Revision und linkt dieselbe Host-Laufzeit.
 Es trägt `GameUI007` und `GameConsole003` und keine eigene Surface. Der Host
-öffnet es nach der Surface-Factory, ruft die Spieloberfläche nicht auf und
-hängt keine zweite Factory an.
+öffnet es nach der Surface-Factory. Dieser Ladeaufruf ruft die
+Spieloberfläche nicht auf und hängt keine zweite Factory an.
+`IGameUI::Initialize` folgt dem Mount.
 
 Dieselbe Factory-Liste beantwortet `VFileSystem009`, nachdem der Host eine
 Wurzel gemountet hat. Die Surface bleibt der erste Eintrag. Der Proxy liest
@@ -36,7 +37,9 @@ nur Dateien unter dieser Wurzel. Eine fehlende Datei ist ein Fehltreffer.
 `hw.so` wird dabei nicht geöffnet. Nach diesem Mount nimmt `IVGui::Init`
 diese Liste, sodass `vgui2` die eine Surface hält. Eine Scheme-Datei unter
 dieser Wurzel lädt derselbe Manager. Eine fehlende Datei lässt den Host
-offen. `RunFrame` ist dieser Aufruf nicht. Der Host startet das Spiel nicht.
+offen. `IGameUI::Initialize` baut danach das Basis-Panel. Ein fehlendes
+Engine-Modul wird nicht aufgerufen. `Start` und `RunFrame` sind dieser
+Aufruf nicht. Der Host startet das Spiel nicht.
 
 Die eine `libsteam_api.so` ist ELF64 aus dem Host. Sie lädt Valves
 i386-Bibliothek nicht und startet Steam nicht. Ohne bereits laufendes,

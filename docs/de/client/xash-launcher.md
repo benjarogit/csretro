@@ -13,7 +13,8 @@ Voraussetzung und liegen nicht im Repository.
 Derselbe Prozess öffnet diese Liste über den Host: die eine Surface, dann
 `client_mini` und `vgui2`, dann `gameui`, dann die Dateisystem-Wurzel, dann
 `IVGui::Init` auf dieser Liste. Eine Scheme-Datei in der Wurzel wird dort
-geladen. Fehlt sie, bleibt der Host offen. Dann `libsteam_api.so`.
+geladen. Fehlt sie, bleibt der Host offen. Danach folgt
+`IGameUI::Initialize`. Dann `libsteam_api.so`.
 `SteamAPI_IsSteamRunning` bleibt falsch. Der geplante
 Befehl wird nicht ausgeführt. Der Launcher startet das Spiel nicht, führt
 Xash3D nicht aus, ruft `RunFrame` nicht auf und startet Steam nicht. Ein

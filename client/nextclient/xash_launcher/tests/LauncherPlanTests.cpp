@@ -6,7 +6,10 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
+
+#include <sys/stat.h>
 #include <unistd.h>
 
 namespace
@@ -80,6 +83,13 @@ TEST(XashLauncher, OpenLoadsThePlanAndDoesNotCallRunFrame)
 {
     TempRoot temp;
     ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/Resource").c_str(), 0755), 0);
+    const std::string menu = temp.root + "/Resource/GameMenu.res";
+    FILE* menu_file = std::fopen(menu.c_str(), "wb");
+    ASSERT_NE(menu_file, nullptr);
+    const char* text = "\"GameMenu\"\n{\n}\n";
+    ASSERT_EQ(std::fwrite(text, 1, std::strlen(text), menu_file), std::strlen(text));
+    std::fclose(menu_file);
 
     csr::LauncherProcess session;
     ASSERT_EQ(
@@ -94,6 +104,7 @@ TEST(XashLauncher, OpenLoadsThePlanAndDoesNotCallRunFrame)
     EXPECT_EQ(csr_host_filesystem_mounted(), 1);
     EXPECT_EQ(csr_host_vgui_connected(), 1);
     EXPECT_EQ(csr_host_scheme_loaded(), 0);
+    EXPECT_EQ(csr_host_gameui_initialized(), 1);
     EXPECT_NE(csr_host_vgui_dispatch(), nullptr);
     EXPECT_NE(csr_host_gameui(), nullptr);
 
@@ -110,6 +121,9 @@ TEST(XashLauncher, OpenLoadsThePlanAndDoesNotCallRunFrame)
     EXPECT_EQ(csr_host_pair_loaded(), 0);
     EXPECT_EQ(csr_host_gameui_loaded(), 0);
     EXPECT_EQ(csr_host_filesystem_mounted(), 0);
+    EXPECT_EQ(csr_host_gameui_initialized(), 0);
+    std::remove(menu.c_str());
+    rmdir((temp.root + "/Resource").c_str());
 
     char missing[64];
     std::snprintf(missing, sizeof(missing), "/tmp/csretro-launcher-missing-%d", static_cast<int>(getpid()));

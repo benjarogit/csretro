@@ -96,6 +96,14 @@ CSR_HOST_API int csr_host_vgui_connected(void);
 CSR_HOST_API int csr_host_load_scheme(const char* path, const char* tag);
 CSR_HOST_API int csr_host_scheme_loaded(void);
 
+/*
+ * Calls IGameUI::Initialize after the vgui connection. A missing
+ * next_engine_mini module is not called. Does not call Start or RunFrame
+ * and does not start the game. Returns 0 when the base panel is not visible.
+ */
+CSR_HOST_API int csr_host_init_gameui(void);
+CSR_HOST_API int csr_host_gameui_initialized(void);
+
 /* list[0] answers VGUI_Surface026. A mounted filesystem follows it, then extras. */
 CSR_HOST_API int csr_host_factory_list(csr_host_factory_fn* extra, int extra_count, csr_host_factories_t* out);
 CSR_HOST_API void* csr_host_create_interface(const char* name, int* code);

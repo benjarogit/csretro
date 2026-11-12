@@ -200,6 +200,30 @@ int PresentXashLauncher(LauncherProcess* session, int wide, int tall)
     return 1;
 }
 
+int LoadAndBindXashMap(const char* content_root, const char* map_name, const char* engine_mini_path)
+{
+    void* engine = dlopen(engine_mini_path, RTLD_NOW | RTLD_NOLOAD);
+    using StateFn = goldsrc::client_state_t* (*)();
+    auto state_of = engine == nullptr ? nullptr : reinterpret_cast<StateFn>(dlsym(engine, "EngineMini_ClientState"));
+    goldsrc::client_state_t* state = state_of == nullptr ? nullptr : state_of();
+    const int loaded = LoadXashMap(content_root, map_name, state);
+    int bound = 0;
+    if (loaded != 0 && engine != nullptr)
+    {
+        using BindFn = int (*)();
+        auto bind = reinterpret_cast<BindFn>(dlsym(engine, "EngineMini_BindRendererWorld"));
+        if (bind != nullptr)
+        {
+            bound = bind();
+        }
+    }
+    if (engine != nullptr)
+    {
+        dlclose(engine);
+    }
+    return bound;
+}
+
 int RunXashLauncher(
     const char* content_root,
     const char* host_path,
@@ -236,16 +260,7 @@ int RunXashLauncher(
     }
     if (map_name != nullptr && map_name[0] != '\0')
     {
-        void* engine = dlopen(engine_mini_path, RTLD_NOW | RTLD_NOLOAD);
-        using StateFn = goldsrc::client_state_t* (*)();
-        auto state_of = engine == nullptr ? nullptr : reinterpret_cast<StateFn>(dlsym(engine, "EngineMini_ClientState"));
-        goldsrc::client_state_t* state = state_of == nullptr ? nullptr : state_of();
-        const int loaded = LoadXashMap(content_root, map_name, state);
-        if (engine != nullptr)
-        {
-            dlclose(engine);
-        }
-        if (loaded == 0)
+        if (LoadAndBindXashMap(content_root, map_name, engine_mini_path) == 0)
         {
             CloseXashLauncher(session);
             return 0;

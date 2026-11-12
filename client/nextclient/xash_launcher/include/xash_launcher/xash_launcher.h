@@ -69,10 +69,16 @@ int PresentXashLauncher(LauncherProcess* session, int wide, int tall);
 // Mod_LoadBrushModel is not this call.
 int LoadXashMap(const char* content_root, const char* map_name, goldsrc::client_state_t* state);
 
+// Loads the map and, only when that load builds a world model, points
+// r_worldentity->model at it. A failed load returns 0 and does not write
+// that field. eng()->R_NewMap is not installed and not called. The engine
+// module has to already be loaded.
+int LoadAndBindXashMap(const char* content_root, const char* map_name, const char* engine_mini_path);
+
 // Opens the host the way OpenXashLauncher does. A map name loads that file
-// onto the client state and builds its world model before csr_host_run. An
-// empty map name skips the load. A failed load closes the session and does
-// not enter the quit loop.
+// onto the client state, builds its world model, and binds r_worldentity->model
+// to that model before csr_host_run. An empty map name skips the load. A
+// failed load closes the session and does not enter the quit loop.
 // The window stays mapped until the recorded client command is quit, and
 // the call then destroys that window. PresentXashLauncher is the one-frame
 // present and is not this call. Does not exec the planned command, does not

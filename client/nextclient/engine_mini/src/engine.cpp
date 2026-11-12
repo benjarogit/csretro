@@ -1812,6 +1812,39 @@ extern "C" goldsrc::client_state_t* EngineMini_ClientState(void)
     return g_xash_engine->client_state;
 }
 
+extern "C" int EngineMini_BindRendererWorld(void)
+{
+    if (g_xash_engine == nullptr || g_xash_engine->client_state == nullptr)
+    {
+        return 0;
+    }
+    goldsrc::model_t* world = g_xash_engine->client_state->worldmodel;
+    // Retail R_NewMap writes r_worldentity->model, then builds lightmap
+    // surfaces. Face, texinfo and texture lumps are not on this model, so
+    // there is no surface to build. A null world leaves the previous model.
+    if (world == nullptr || g_xash_engine->r_worldentity == nullptr)
+    {
+        return 0;
+    }
+    p_r_worldentity = g_xash_engine->r_worldentity;
+    p_r_worldentity->model = world;
+    return 1;
+}
+
+extern "C" goldsrc::cl_entity_t* EngineMini_RendererWorldEntity(void)
+{
+    return p_r_worldentity;
+}
+
+extern "C" int EngineMini_RNewMapHooked(void)
+{
+    if (g_xash_engine == nullptr)
+    {
+        return 0;
+    }
+    return g_xash_engine->R_NewMap.GetHook() != nullptr ? 1 : 0;
+}
+
 extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_functions, int* nitro_hooks)
 {
     if (host_filter_calls != nullptr)
@@ -1964,6 +1997,7 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             count_hook(g_xash_engine->SPR_Shutdown_NoModelFree);
             count_hook(g_xash_engine->SPR_Load);
             count_hook(g_xash_engine->SPR_Draw);
+            count_hook(g_xash_engine->R_NewMap);
         }
         *nitro_hooks = count;
     }

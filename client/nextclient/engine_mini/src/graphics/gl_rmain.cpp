@@ -183,8 +183,11 @@ void R_DrawAliasModel(goldsrc::cl_entity_t* e)
     eng()->R_DrawAliasModel.InvokeChained(e);
 }
 
+static int g_engine_mini_r_newmap_calls = 0;
+
 void R_NewMap()
 {
+    ++g_engine_mini_r_newmap_calls;
     NCL_PROFILE_SCOPE();
 
     render::GetLifecycle().OnMapReset();
@@ -199,6 +202,11 @@ void R_NewMap()
     }
 
     eng()->R_NewMap.InvokeChained();
+}
+
+extern "C" int EngineMini_RNewMapCalls(void)
+{
+    return g_engine_mini_r_newmap_calls;
 }
 
 void R_SetupFrame()

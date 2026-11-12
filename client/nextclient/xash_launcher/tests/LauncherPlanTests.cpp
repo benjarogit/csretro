@@ -6,6 +6,7 @@
 
 #include <goldsrc/engine/client_state.h>
 #include <goldsrc/engine/model.h>
+#include <goldsrc/entity.h>
 
 #include <vgui/IPanel.h>
 #include <vgui/ISurface.h>
@@ -2224,6 +2225,57 @@ TEST(XashLauncher, RunLoadsTheMapBeforeTheQuitLoop)
     EXPECT_GT(stored, 0);
     EXPECT_EQ(nitro, 0);
     EXPECT_EQ(run_frame_count(), 0);
+
+    auto renderer_world = reinterpret_cast<goldsrc::cl_entity_t* (*)()>(dlsym(engine, "EngineMini_RendererWorldEntity"));
+    auto r_newmap_calls = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_RNewMapCalls"));
+    auto r_newmap_hooked = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_RNewMapHooked"));
+    ASSERT_NE(renderer_world, nullptr);
+    ASSERT_NE(r_newmap_calls, nullptr);
+    ASSERT_NE(r_newmap_hooked, nullptr);
+    goldsrc::cl_entity_t* world_entity = renderer_world();
+    ASSERT_NE(world_entity, nullptr);
+    ASSERT_NE(world_entity->model, nullptr);
+    EXPECT_EQ(world_entity->model, state->worldmodel);
+    EXPECT_STREQ(world_entity->model->name, "fixture");
+    EXPECT_EQ(world_entity->model->numsurfaces, 0);
+    EXPECT_EQ(world_entity->model->surfaces, nullptr);
+    EXPECT_EQ(world_entity->model->lightdata, nullptr);
+    EXPECT_EQ(r_newmap_calls(), 0);
+    EXPECT_EQ(r_newmap_hooked(), 0);
+
+    goldsrc::model_t* previous_world = world_entity->model;
+    ASSERT_TRUE(WriteBytes(map_path, FixtureBsp(29)));
+    EXPECT_EQ(csr::LoadAndBindXashMap(temp.root.c_str(), "fixture", XASH_ENGINE_MINI_FILE), 0);
+    EXPECT_EQ(world_entity->model, previous_world);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->worldmodel, previous_world);
+
+    ASSERT_TRUE(WriteBytes(map_path, std::vector<unsigned char>(123, 0)));
+    EXPECT_EQ(csr::LoadAndBindXashMap(temp.root.c_str(), "fixture", XASH_ENGINE_MINI_FILE), 0);
+    EXPECT_EQ(world_entity->model, previous_world);
+    EXPECT_STREQ(state->levelname, "fixture");
+
+    goldsrc::model_t sentinel{};
+    std::snprintf(sentinel.name, sizeof(sentinel.name), "previous");
+    world_entity->model = &sentinel;
+    EXPECT_EQ(csr::LoadAndBindXashMap(temp.root.c_str(), "missing", XASH_ENGINE_MINI_FILE), 0);
+    EXPECT_EQ(world_entity->model, &sentinel);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->worldmodel, previous_world);
+
+    ASSERT_TRUE(WriteBytes(map_path, bytes));
+    EXPECT_EQ(csr::LoadAndBindXashMap(temp.root.c_str(), "fixture", XASH_ENGINE_MINI_FILE), 1);
+    world_entity = renderer_world();
+    ASSERT_NE(world_entity, nullptr);
+    ASSERT_NE(world_entity->model, nullptr);
+    EXPECT_EQ(world_entity->model, state->worldmodel);
+    EXPECT_STREQ(world_entity->model->name, "fixture");
+    EXPECT_EQ(world_entity->model->numsurfaces, 0);
+    EXPECT_EQ(world_entity->model->surfaces, nullptr);
+    EXPECT_EQ(world_entity->model->lightdata, nullptr);
+    EXPECT_EQ(r_newmap_calls(), 0);
+    EXPECT_EQ(r_newmap_hooked(), 0);
+    EXPECT_EQ(host_map_calls(), 0);
 
     window_after = 1;
     swaps_after = -1;

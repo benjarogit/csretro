@@ -252,3 +252,8 @@ extern "C" int EngineMini_CheckParm(const char* parm);
 extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_functions, int* nitro_hooks);
 extern "C" int EngineMini_HostMapCalls(void);
 extern "C" goldsrc::client_state_t* EngineMini_ClientState(void);
+// Writes r_worldentity->model from the loaded world model. Does not call R_NewMap.
+extern "C" int EngineMini_BindRendererWorld(void);
+extern "C" goldsrc::cl_entity_t* EngineMini_RendererWorldEntity(void);
+extern "C" int EngineMini_RNewMapHooked(void);
+extern "C" int EngineMini_RNewMapCalls(void);

@@ -783,11 +783,17 @@ the Security overview switches in the browser.
   and does not call it. A null pointer is not a call. A null hook is not a
   call. An empty sprite list stays unallocated and an allocated sprite list
   stays allocated. No sprite texture is unloaded, no sprite is loaded and no
-  file is read. The next retail hook in `OnGameInitializing` is
-  `eng()->SPR_Shutdown_NoModelFree` (`SPR_Shutdown_NoModelFree`). The process
-  body frees the sprite list and sprite names when the list is allocated. It
-  does not unload sprite textures. The Xash path returns before that install.
-  This gate does not install it.
+  file is read.
+  `SPR_Shutdown_NoModelFree` is the function in this process. Init stores
+  that pointer and does not call it. A null pointer is not a call. A null
+  hook is not a call. An empty sprite list stays unallocated. An allocated
+  sprite list stays at the same pointer with the same count and the same
+  name pointer. No sprite texture is unloaded, no sprite name is freed, no
+  sprite is loaded and no file is read. The next retail hook in
+  `OnGameInitializing` is `eng()->SPR_Load` (`SPR_Load`). The process body
+  loads a named sprite when the list is allocated. It can allocate a sprite
+  name, call `Mod_ForName`, and `Sys_Error` when the list is full. The Xash
+  path returns before that install. This gate does not install it.
   `OnGameInitialized` is not entered.
   `csr_host_frame` chooses an EGL config whose native visual can be a child
   of the root window, prefers a visual at the root depth, sets a border
@@ -860,6 +866,23 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Process `SPR_Shutdown_NoModelFree` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ engine_mini-tests --gtest_filter=XashStartup.*
+29/29 passed
+SprShutdownNoModelFreeUsesTheProcessFunction
+
+$ engine_mini-tests
+584/584 passed
+
+$ xash_launcher-tests
+11/11 passed
+RunKeepsTheWindowUntilQuit
+```
+
+`OnGameInitializing` stores `SPR_Shutdown_NoModelFree` from this process when that retail hook is absent and does not call it. `spr_shutdown_nomodelfree_calls` stays 0. A null pointer leaves the recorded pointer null and is not a call. A null hook is not a call. The process body frees the sprite list and the sprite names when the list is allocated and does not unload sprite textures. It was not called. An empty sprite list stayed unallocated, `gSpriteCount` stayed 0, and a planted allocated list stayed allocated at the same pointer with `gSpriteCount` 1 and the same name pointer. No sprite texture was unloaded, no sprite name was freed, no sprite was loaded and no file was read. A planted brush CRC stays `shouldCRC` 1, `firstCRCDone` 1, `initialCRC` `0xC5C5C5C5`, and a planted sprite CRC stays `shouldCRC` 0, `firstCRCDone` 0, `initialCRC` `0x11111111`. Brush `maps/csretro_keep.bsp` stays `NL_PRESENT` and sprite `sprites/csretro_keep.spr` stays `NL_NEEDS_LOADED`, each with the same cache pointer. `levelname` stays `csretro-keep`. Host time stays `9.25` and the frame interval stays `0.05`. `/proc/self/fd` stays unchanged. `SPR_Shutdown` stays stored and `spr_shutdown_calls` stays 0. `SPR_Init` stays stored and `spr_init_calls` stays 0. The next retail hook is `eng()->SPR_Load` (`SPR_Load`). That hook stays null. The Xash path returns before it. `OnGameInitialized` is not entered. `csr_host_frame` is not this init. The game was not started. The client is not playable.
 
 Human launcher entry (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

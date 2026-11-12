@@ -472,7 +472,14 @@ Nebenbefunde:
   unalloziert, eine allozierte Sprite-Liste bleibt alloziert, keine
   Sprite-Textur wird entladen, kein Sprite wird geladen, keine Datei gelesen
   und kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook
-  ist kein Aufruf. Der nächste Retail-Hook ist `SPR_Shutdown_NoModelFree`.
+  ist kein Aufruf. `SPR_Shutdown_NoModelFree` ist danach die Funktion in
+  diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den
+  Zeiger und ruft ihn nicht auf, daher bleibt eine leere Sprite-Liste
+  unalloziert, eine allozierte Sprite-Liste bleibt am selben Zeiger, der
+  Sprite-Name bleibt am selben Zeiger, keine Sprite-Textur wird entladen,
+  kein Sprite-Name wird freigegeben, kein Sprite wird geladen, keine Datei
+  gelesen und kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein
+  Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist `SPR_Load`.
   Dieser Pfad kehrt davor zurück.
   `OnGameInitialized` wird nicht betreten. Die Retail-Hook-Kette läuft dabei nicht.
   Der Xash-Frame ist der spätere direkte Aufruf `csr_host_frame` und verlängert diese Liste nicht.
@@ -903,7 +910,14 @@ den Zeiger und ruft ihn nicht auf, daher bleibt eine leere Sprite-Liste
 unalloziert, eine allozierte Sprite-Liste bleibt alloziert, keine
 Sprite-Textur wird entladen, kein Sprite wird geladen, keine Datei gelesen
 und kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook
-ist kein Aufruf. Der nächste Retail-Hook ist `SPR_Shutdown_NoModelFree`.
+ist kein Aufruf. `SPR_Shutdown_NoModelFree` ist danach die Funktion in
+diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den
+Zeiger und ruft ihn nicht auf, daher bleibt eine leere Sprite-Liste
+unalloziert, eine allozierte Sprite-Liste bleibt am selben Zeiger, der
+Sprite-Name bleibt am selben Zeiger, keine Sprite-Textur wird entladen,
+kein Sprite-Name wird freigegeben, kein Sprite wird geladen, keine Datei
+gelesen und kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein
+Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist `SPR_Load`.
 Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten. Die
 Retail-Hook-Kette läuft bei diesem Init nicht. `csr_host_frame` ist hier kein
@@ -1031,11 +1045,11 @@ demselben gemappten Fenster auf. Bewegungs- und Tastenereignisse, die
 währenddessen ankommen, gehen an `csr_host_input_move` und
 `csr_host_input_button`. Danach wird das Fenster zerstört. Nach N Frames
 ist die Swap-Zahl N, und die Host-Zeit ist um N mal das Delta vorgerückt.
-`csr_host_run` hält dieses Fenster gemappt und wiederholt den Frame, bis der aufgezeichnete Client-Befehl `quit` ist. `QuitNoConfirm` schreibt diesen Befehl über `pfnClientCmd` und führt ihn nicht aus. Bewegungs- und Tastenereignisse erreichen weiter `csr_host_input_move` und `csr_host_input_button`. Der Aufruf zerstört danach das Fenster. Die Swap-Zahl ist die Zahl der Frames, und die Host-Zeit rückt um diese Zahl mal das Delta vor. `PresentXashLauncher` zeichnet ein Bild und kehrt zurück. Es ruft diesen Loop nicht auf. Der menschliche Prozesseinstieg ist `main` von `client/build/linux/out/bin/Release/xash_launcher`. Es ruft `RunXashLauncher` und sonst nichts, was das Spiel startet. Die Inhaltswurzel ist das erste Argument. `RunXashLauncher` öffnet den Host wie `OpenXashLauncher` und ruft danach `csr_host_run`. `PresentXashLauncher` bleibt ein Bild. Dieser Aufruf lädt keine Map und spielt kein Counter-Strike.
+`csr_host_run` hält dieses Fenster gemappt und wiederholt den Frame, bis der aufgezeichnete Client-Befehl `quit` ist. `QuitNoConfirm` schreibt diesen Befehl über `pfnClientCmd` und führt ihn nicht aus. Bewegungs- und Tastenereignisse erreichen weiter `csr_host_input_move` und `csr_host_input_button`. Der Aufruf zerstört danach das Fenster. Die Swap-Zahl ist die Zahl der Frames, und die Host-Zeit rückt um diese Zahl mal das Delta vor. `PresentXashLauncher` zeichnet ein Bild und kehrt zurück. Es ruft diesen Loop nicht auf. Der menschliche Prozesseinstieg ist `main` von `client/build/linux/out/bin/Release/xash_launcher`. Es ruft `RunXashLauncher` und sonst nichts, was das Spiel startet. Die Inhaltswurzel ist das erste Argument und der Mapname das zweite. Ist ein Mapname angegeben, liest `RunXashLauncher` vor dem Quit-Loop `cstrike/maps/<name>.bsp` aus dieser Wurzel und schreibt den angeforderten Namen und eine Prüfsumme der gelesenen Bytes in den Client-Zustand. Die Datei muss ein BSP der Version 30 sein, dessen Lumps in der Datei liegen. Eine fehlende Datei, eine zu kurze Datei oder eine andere Version schlägt fehl und lässt den bisherigen Mapnamen unverändert. `Host_Map_f` ist dieser Aufruf nicht. Ohne Mapname lädt der Aufruf keine Map. `RunXashLauncher` öffnet den Host wie `OpenXashLauncher` und ruft danach `csr_host_run`. `PresentXashLauncher` bleibt ein Bild. Der Aufruf spielt kein Counter-Strike.
 Die X11-Verbindung ist der Socket des Fensters. Ein
 Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
 Surface-Tests behalten ihr EGL-Pbuffer. Die Retail-Hook-Liste wird nicht
-verlängert. Der nächste Retail-Hook bleibt `SPR_Shutdown_NoModelFree`.
+verlängert. Der nächste Retail-Hook bleibt `SPR_Load`.
 `OnGameInitialized` bleibt außen: der Einstieg lädt Materialdateien, löst
 `vgui2` auf und geht in die übrige Retail-Initialisierung, daher kehrt er
 nicht ohne `hw.so` zurück.

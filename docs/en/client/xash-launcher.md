@@ -109,7 +109,14 @@ absent. Init stores the pointer and does not call it, so an empty sprite
 list stays unallocated, an allocated sprite list stays allocated, no sprite
 texture is unloaded, no sprite is loaded, no file is read and no socket is
 opened. A null pointer is not a call. A null hook is not a call.
-The next retail hook is `SPR_Shutdown_NoModelFree`. This path returns before it.
+`SPR_Shutdown_NoModelFree` is then the function in this process when that
+retail hook is absent. Init stores the pointer and does not call it, so an
+empty sprite list stays unallocated, an allocated sprite list stays at the
+same pointer, and its sprite name stays at the same pointer. No sprite
+texture is unloaded, no sprite name is freed, no sprite is loaded, no file
+is read and no socket is opened. A null pointer is not a call. A null hook
+is not a call.
+The next retail hook is `SPR_Load`. This path returns before it.
 `csr_host_frame` is a later direct call and does not extend that list.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and are not called. A missing library or export fails the open and is
@@ -134,7 +141,7 @@ does not swap and does not move host time. `csr_host_pump` calls that frame
 a given number of times on the same mapped window, forwards X11 motion and
 button events to `csr_host_input_move` and `csr_host_input_button`, then
 destroys the window. After N frames the swap count is N and host time has
-advanced by N times the delta. `csr_host_run` keeps that window mapped and repeats the frame until the recorded client command is `quit`. `QuitNoConfirm` records that command through `pfnClientCmd` and does not run it. Motion and button events still reach `csr_host_input_move` and `csr_host_input_button`. The call then destroys the window. The swap count is the number of frames and host time advances by that count times the delta. `PresentXashLauncher` paints one frame and returns. It does not call this loop. `RunXashLauncher` opens the host the way `OpenXashLauncher` does and then calls `csr_host_run`. The human process is `client/build/linux/out/bin/Release/xash_launcher`. Its `main` calls `RunXashLauncher`. The content root is the first argument. That call does not load a map and does not play Counter-Strike. The X11 display connection is the window's socket. No game socket is
+advanced by N times the delta. `csr_host_run` keeps that window mapped and repeats the frame until the recorded client command is `quit`. `QuitNoConfirm` records that command through `pfnClientCmd` and does not run it. Motion and button events still reach `csr_host_input_move` and `csr_host_input_button`. The call then destroys the window. The swap count is the number of frames and host time advances by that count times the delta. `PresentXashLauncher` paints one frame and returns. It does not call this loop. `RunXashLauncher` opens the host the way `OpenXashLauncher` does and then calls `csr_host_run`. The human process is `client/build/linux/out/bin/Release/xash_launcher`. Its `main` calls `RunXashLauncher`. The content root is the first argument and the map name is the second. When a map name is given, `RunXashLauncher` reads `cstrike/maps/<name>.bsp` from that root before the quit loop and records the requested name and a checksum of the bytes it read on the client state. The file has to be a version 30 BSP whose lumps sit inside the file. A missing file, a short file, or a different version fails and leaves the previous map name unchanged. `Host_Map_f` is not that call. When no map name is given, the call does not load a map. The call does not play Counter-Strike. The X11 display connection is the window's socket. No game socket is
 opened. `ISurface::SwapBuffers` stays empty. The surface tests still use an
 EGL pbuffer.
 

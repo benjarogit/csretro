@@ -71,6 +71,9 @@ using EngineMiniSprInitFn = void (*)();
 // Process replacement for the retail SPR_Shutdown hook. A null value is not a call.
 using EngineMiniSprShutdownFn = void (*)();
 
+// Process replacement for the retail SPR_Shutdown_NoModelFree hook. A null value is not a call.
+using EngineMiniSprShutdownNoModelFreeFn = void (*)();
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -107,6 +110,7 @@ struct EngineMiniXashStartup
     int mod_extradata_calls{};
     int spr_init_calls{};
     int spr_shutdown_calls{};
+    int spr_shutdown_nomodelfree_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -142,6 +146,7 @@ struct EngineMiniXashStartup
     EngineMiniModExtradataFn mod_extradata{};
     EngineMiniSprInitFn spr_init{};
     EngineMiniSprShutdownFn spr_shutdown{};
+    EngineMiniSprShutdownNoModelFreeFn spr_shutdown_nomodelfree{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -213,8 +218,12 @@ extern EngineMiniSprInitFn g_EngineMiniSprInit;
 // Defaults to SPR_Shutdown. Init stores the pointer and does not call it.
 extern EngineMiniSprShutdownFn g_EngineMiniSprShutdown;
 
+// Defaults to SPR_Shutdown_NoModelFree. Init stores the pointer and does not call it.
+extern EngineMiniSprShutdownNoModelFreeFn g_EngineMiniSprShutdownNoModelFree;
+
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();
+void EngineMini_NoteHostMapCall();
 void EngineMini_NoteHostFilterCall();
 
 extern "C" void EngineMini_ReadXashStartup(
@@ -225,3 +234,5 @@ extern "C" void EngineMini_ReadXashStartup(
     int* error_calls);
 extern "C" int EngineMini_CheckParm(const char* parm);
 extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_functions, int* nitro_hooks);
+extern "C" int EngineMini_HostMapCalls(void);
+extern "C" goldsrc::client_state_t* EngineMini_ClientState(void);

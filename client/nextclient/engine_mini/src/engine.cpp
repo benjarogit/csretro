@@ -419,6 +419,7 @@ namespace
     void RecordXashSetCrosshair();
     void RecordXashDrawCrosshair();
     void RecordXashRRenderView();
+    void RecordXashGLInit();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -560,7 +561,10 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // R_RenderView is then the process function when that hook is absent.
     // This init stores the pointer and does not render a view. The process body
     // requires a GL context and draws the scene, so a real call does not run.
-    // The next retail hook is GL_Init. This path returns before it.
+    // GL_Init is then the process function when that hook is absent.
+    // This init stores the pointer and does not initialize GL. The process body
+    // requires a GL context and queries GL strings, so a real call does not run.
+    // The next retail hook is GL_Config. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -610,6 +614,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSetCrosshair();
             RecordXashDrawCrosshair();
             RecordXashRRenderView();
+            RecordXashGLInit();
         }
         return;
     }
@@ -1068,6 +1073,7 @@ EngineMiniRStudioReloadSkinFn g_EngineMiniRStudioReloadSkin = R_StudioReloadSkin
 EngineMiniSetCrosshairFn g_EngineMiniSetCrosshair = SetCrosshair;
 EngineMiniDrawCrosshairFn g_EngineMiniDrawCrosshair = DrawCrosshair;
 EngineMiniRRenderViewFn g_EngineMiniRRenderView = R_RenderView;
+EngineMiniGLInitFn g_EngineMiniGLInit = GL_Init;
 
 namespace
 {
@@ -1768,6 +1774,24 @@ namespace
         g_xash_startup.render_view = g_EngineMiniRRenderView;
     }
 
+    void RecordXashGLInit()
+    {
+        // The retail site installs a replacement. It does not initialize GL during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body requires a GL context and queries GL strings,
+        // so this path does not call it.
+        g_xash_startup.gl_init = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->GL_Init.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniGLInit == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.gl_init = g_EngineMiniGLInit;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2079,6 +2103,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSetCrosshair = SetCrosshair;
     g_EngineMiniDrawCrosshair = DrawCrosshair;
     g_EngineMiniRRenderView = R_RenderView;
+    g_EngineMiniGLInit = GL_Init;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

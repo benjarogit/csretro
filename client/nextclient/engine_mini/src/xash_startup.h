@@ -130,6 +130,9 @@ using EngineMiniDrawCrosshairFn = void (*)(int x, int y);
 // Process replacement for the retail R_RenderView hook. A null value is not a call.
 using EngineMiniRRenderViewFn = void (*)();
 
+// Process replacement for the retail GL_Init hook. A null value is not a call.
+using EngineMiniGLInitFn = void (*)();
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -183,6 +186,7 @@ struct EngineMiniXashStartup
     int set_crosshair_calls{};
     int draw_crosshair_calls{};
     int render_view_calls{};
+    int gl_init_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -235,6 +239,7 @@ struct EngineMiniXashStartup
     EngineMiniSetCrosshairFn set_crosshair{};
     EngineMiniDrawCrosshairFn draw_crosshair{};
     EngineMiniRRenderViewFn render_view{};
+    EngineMiniGLInitFn gl_init{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -356,6 +361,9 @@ extern EngineMiniDrawCrosshairFn g_EngineMiniDrawCrosshair;
 
 // Defaults to R_RenderView. Init stores the pointer and does not call it.
 extern EngineMiniRRenderViewFn g_EngineMiniRRenderView;
+
+// Defaults to GL_Init. Init stores the pointer and does not call it.
+extern EngineMiniGLInitFn g_EngineMiniGLInit;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

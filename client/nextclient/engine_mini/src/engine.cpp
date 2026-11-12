@@ -433,6 +433,7 @@ namespace
     void RecordXashDrawShutdown();
     void RecordXashDrawPicFromWad();
     void RecordXashUpdatePalette();
+    void RecordXashCheckGamma();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -626,7 +627,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not update the palette. The
     // process body updates the palette and can write gamma tables, so a real
     // call does not run.
-    // The next retail hook is V_CheckGamma. This path returns before it.
+    // V_CheckGamma is then the process function when that hook is absent.
+    // This init stores the pointer and does not check gamma. The process
+    // body checks gamma and can rebuild gamma tables, so a real call does
+    // not run.
+    // The next retail hook is BuildGammaTable. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -690,6 +695,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashDrawShutdown();
             RecordXashDrawPicFromWad();
             RecordXashUpdatePalette();
+            RecordXashCheckGamma();
         }
         return;
     }
@@ -1165,6 +1171,7 @@ EngineMiniDrawInitFn g_EngineMiniDrawInit = Draw_Init;
 EngineMiniDrawShutdownFn g_EngineMiniDrawShutdown = Draw_Shutdown;
 EngineMiniDrawPicFromWadFn g_EngineMiniDrawPicFromWad = Draw_PicFromWad;
 EngineMiniUpdatePaletteFn g_EngineMiniUpdatePalette = V_UpdatePalette;
+EngineMiniCheckGammaFn g_EngineMiniCheckGamma = V_CheckGamma;
 
 namespace
 {
@@ -2114,6 +2121,24 @@ namespace
         g_xash_startup.update_palette = g_EngineMiniUpdatePalette;
     }
 
+    void RecordXashCheckGamma()
+    {
+        // The retail site installs a replacement. It does not check gamma during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body checks gamma and can rebuild gamma tables, so this path
+        // does not call it.
+        g_xash_startup.check_gamma = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->V_CheckGamma.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniCheckGamma == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.check_gamma = g_EngineMiniCheckGamma;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2439,6 +2464,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniDrawShutdown = Draw_Shutdown;
     g_EngineMiniDrawPicFromWad = Draw_PicFromWad;
     g_EngineMiniUpdatePalette = V_UpdatePalette;
+    g_EngineMiniCheckGamma = V_CheckGamma;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

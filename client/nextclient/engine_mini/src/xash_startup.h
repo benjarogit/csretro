@@ -174,6 +174,9 @@ using EngineMiniDrawPicFromWadFn = goldsrc::qpic_t* (*)(const char* name);
 // Process replacement for the retail V_UpdatePalette hook. A null value is not a call.
 using EngineMiniUpdatePaletteFn = void (*)();
 
+// Process replacement for the retail V_CheckGamma hook. A null value is not a call.
+using EngineMiniCheckGammaFn = bool (*)();
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -241,6 +244,7 @@ struct EngineMiniXashStartup
     int draw_shutdown_calls{};
     int draw_pic_from_wad_calls{};
     int update_palette_calls{};
+    int check_gamma_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -307,6 +311,7 @@ struct EngineMiniXashStartup
     EngineMiniDrawShutdownFn draw_shutdown{};
     EngineMiniDrawPicFromWadFn draw_pic_from_wad{};
     EngineMiniUpdatePaletteFn update_palette{};
+    EngineMiniCheckGammaFn check_gamma{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -470,6 +475,9 @@ extern EngineMiniDrawPicFromWadFn g_EngineMiniDrawPicFromWad;
 
 // Defaults to V_UpdatePalette. Init stores the pointer and does not call it.
 extern EngineMiniUpdatePaletteFn g_EngineMiniUpdatePalette;
+
+// Defaults to V_CheckGamma. Init stores the pointer and does not call it.
+extern EngineMiniCheckGammaFn g_EngineMiniCheckGamma;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

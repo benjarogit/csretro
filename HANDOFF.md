@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `ced5e21` (HL1 SDK vendored in-tree; upstream base `0e9be00`)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43185616744 – success (`ced5e21`)
+- **Commit:** `5f44be1` (Xash startup sequence recorded through `xash_engine`; `hw.so` stays closed)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43187709740 – success (`5f44be1`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -343,8 +343,8 @@ implementation; the plan is the only source for the gate list.
   process; original maps, models, sounds and `valve/resource` stay required.
   Product process is x86_64 (plan section 3.7). The Linux client preset is
   `linux` with the vcpkg triplet `x64-linux`. There is no second 32-bit client
-  preset. `engine_mini-tests` (555), `nitro_api-tests` (70),
-  `xash_surface-tests` (21), `xash_host-tests` (17), `xash_engine-tests` (3),
+  preset. `engine_mini-tests` (`XashStartup` 3/3; earlier full run 555 before those three), `nitro_api-tests` (70),
+  `xash_surface-tests` (21), `xash_host-tests` (17), `xash_engine-tests` (6),
   `sdk_pair-tests` (4), `player_identity-tests` (6), `steam_api-tests` (2) and
   `xash_launcher-tests` (3)
   pass as ELF64 binaries
@@ -353,10 +353,17 @@ implementation; the plan is the only source for the gate list.
   or `vgui2.so`. Product identity is `xash`. `NitroApi::Initialize` does not
   open, hash, or hook `hw.so`. `nitro_api-tests` 70/70, including
   `XashIdentity.InitializeDoesNotOpenOrHashTheRetailEngine`. `engine_mini-tests`
-  555/555. Missing engine addresses are not hooks and are not called.
+  filter `XashStartup` is 3/3. Missing engine addresses are not hooks and are not called.
   `xash_engine` forwards `vgui2_surface`, texture reset and text color to that
-  one surface. `VGUI2_Draw_Init` has no entry there. Other `engine_mini`
-  forwards still call the retail hook, which stays unset. `client_mini` and
+  one surface. `VGUI2_Draw_Init` has no entry there. The same library takes
+  `csr_xash_engine_argv`, `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
+  `csr_xash_engine_shutdown` and `csr_xash_engine_error`. `EngineMini::Init`
+  binds each one only when that retail hook is absent, and records that the
+  engine is Xash. `COM_InitArgv` runs. Mode, init, shutdown and the fatal
+  error are recorded. `OnGameInitializing` is not entered. A null function
+  is not a call. The call does not open `hw.so` and does not call `RunFrame`.
+  The other `engine_mini` forwards still call the retail hook, which stays
+  unset. The host does not call this sequence yet. `client_mini` and
   `vgui2` now build from that SDK as ELF64 and link the host runtime.
   `xash_host` opens that pair after the surface factory. A missing library is
   not called. The host does not start the game. `gameui` now builds from the
@@ -437,7 +444,11 @@ the Security overview switches in the browser.
   and `1` at paint 31, both framebuffer dumps `glerr=0`. The Linux client
   preset is `linux` / `x64-linux`. The test binaries above are ELF64.
   Product identity is `xash`. Startup does not open `hw.so`.
-  `xash_engine` covers `vgui2_surface`, texture reset and text color.
+  `xash_engine` covers `vgui2_surface`, texture reset and text color, and the
+  startup sequence `csr_xash_engine_argv`, `csr_xash_engine_mode`,
+  `csr_xash_engine_init_game`, `csr_xash_engine_shutdown` and
+  `csr_xash_engine_error`. `engine_mini` binds those when the retail hook is
+  absent. `COM_InitArgv` runs. `OnGameInitializing` does not.
   `client_mini` and `vgui2` are the matched ELF64 pair and link the host runtime.
   `xash_host` loads that pair. It does not start the game.
   `gameui` is the ELF64 library from the same SDK. The host opens it after the
@@ -479,9 +490,12 @@ the Security overview switches in the browser.
   promotes `repaint` only when `+0x30` (NEEDS_REPAINT) is set and `allowForce`
   is true; `surface()->PushMakeCurrent`/`PopMakeCurrent` bracket every paint;
   VGUI alpha 0 = opaque (engine 255 = opaque).
-- **Then:** the open host still does not exec Xash3D or call `RunFrame`.
-  The command is not executed. The game does not start. The other
-  `engine_mini` retail forwards stay as they are.
+- **Then:** the open host still does not load `engine_mini`, does not call
+  `csr_xash_engine_argv`, `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
+  `csr_xash_engine_shutdown` or `csr_xash_engine_error`, does not exec Xash3D
+  and does not call `RunFrame`. `OnGameInitializing` still needs the retail
+  pointer table. The other `engine_mini` forwards still have no Xash entry.
+  The command is not executed. The client does not start and play.
 - **After the decision:** schedule the server performance backlog above
   (measurement first, then hookchain/native/per-frame work). It needs a plan gate
   entry.
@@ -519,6 +533,29 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Xash startup entry (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ xash_engine-tests
+6/6 passed
+MissingStartupCallbacksAreNotCalled
+BoundStartupCallbacksReceiveTheArguments
+StartupCallDoesNotOpenHwSo
+
+$ engine_mini-tests --gtest_filter=XashStartup.*
+3/3 passed
+AbsentHooksRecordTheSequenceAndInitArgv
+NullBindingIsNotACall
+WiredCallDoesNotOpenHwSo
+
+$ xash_host-tests --gtest_filter=HostFactory.GameMenuClickSendsTheCommandWithoutRunFrame
+1/1 passed
+```
+
+`COM_InitArgv` records `-console`. Mode, init, shutdown and the fatal error
+move a counter and keep the arguments. Neither call maps a planted `hw.so`.
+`OnGameInitializing` is not entered. The client does not start and play.
 
 ```text
 $ tests/e2e/run.sh

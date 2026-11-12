@@ -33,7 +33,16 @@ factories are not asked for the surface name.
 `csr_vgui_dispatch_messages`. `IInputInternal::RunFrame` and `CVGui::RunFrame`
 are not called, so focus cannot jump back to a stored cursor.
 `SurfaceSetCursorPos` only stores the position. A manual `csr_host_bind_input`
-remains for tests with fake callbacks.
+remains for tests with fake callbacks. The host root hit-tests its children. Paint associates that root with the
+default input context, so the hit test walks the embedded tree. A menu hover
+message carries the panel handle, because a `VPANEL` does not fit in a
+KeyValues int on LP64.
+`csr_host_activate_gameui` calls `IGameUI::ActivateGameUI` after `Start` and
+does not call `RunFrame`. A click on a laid-out `GameMenu.res` item is
+delivered through that input bind. `QuitNoConfirm` records `quit` through
+`pfnClientCmd` and does not run it. LP64 edits to the vendored SDK, including
+that menu-handle message, are `client/dep/ncl-hl1-source-sdk.patch`. Client
+configure applies the patch. The submodule pin stays the upstream commit.
 
 The `vgui2.so` built from this SDK exports `csr_vgui_dispatch_messages`. The
 host receives function pointers. Process, Steam and frame rate are stated once

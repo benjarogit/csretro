@@ -14,18 +14,38 @@ CServerList::~CServerList()
     Clear();
 }
 
+static MatchmakingServersInterface* MatchmakingServers()
+{
+    EngineMiniInterface* engine = EngineMini();
+    if (engine == nullptr)
+    {
+        return nullptr;
+    }
+    return engine->GetSteamMatchmakingServers();
+}
+
 void CServerList::RequestFavorites(MatchMakingKeyValuePair_t **ppchFilters, uint32 nFilters)
 {
     Clear();
+    MatchmakingServersInterface* servers = MatchmakingServers();
+    if (servers == nullptr || SteamUtils() == nullptr)
+    {
+        return;
+    }
 
-    server_list_request_ = EngineMini()->GetSteamMatchmakingServers()->RequestFavoritesServerList(SteamUtils()->GetAppID(), ppchFilters, nFilters, this);
+    server_list_request_ = servers->RequestFavoritesServerList(SteamUtils()->GetAppID(), ppchFilters, nFilters, this);
 }
 
 void CServerList::RequestInternet(MatchMakingKeyValuePair_t **ppchFilters, uint32 nFilters)
 {
     Clear();
+    MatchmakingServersInterface* servers = MatchmakingServers();
+    if (servers == nullptr || SteamUtils() == nullptr)
+    {
+        return;
+    }
 
-    server_list_request_ = EngineMini()->GetSteamMatchmakingServers()->RequestInternetServerList(SteamUtils()->GetAppID(), ppchFilters, nFilters, this);
+    server_list_request_ = servers->RequestInternetServerList(SteamUtils()->GetAppID(), ppchFilters, nFilters, this);
 }
 
 void CServerList::RequestUnique(MatchMakingKeyValuePair_t **ppchFilters, uint32 nFilters)

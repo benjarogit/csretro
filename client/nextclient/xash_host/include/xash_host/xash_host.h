@@ -116,6 +116,14 @@ CSR_HOST_API int csr_host_gameui_initialized(void);
 CSR_HOST_API int csr_host_start_gameui(void);
 CSR_HOST_API int csr_host_gameui_started(void);
 CSR_HOST_API int csr_host_engine_command_count(void);
+/* Last string passed to pfnClientCmd. Empty until a command is recorded. Not executed. */
+CSR_HOST_API const char* csr_host_last_client_command(void);
+/*
+ * Calls IGameUI::ActivateGameUI after Start. Shows the main menu and invalidates
+ * its layout. Does not call RunFrame and does not run recorded commands.
+ * Returns 0 when Start has not run.
+ */
+CSR_HOST_API int csr_host_activate_gameui(void);
 CSR_HOST_API int csr_host_gameui_child_count(void);
 CSR_HOST_API int csr_host_gameui_base_child_count(void);
 

@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <Color.h>
 #include <vgui/IInput.h>
+#include <vgui/IPanel.h>
 #include <vgui/IScheme.h>
 #include <vgui/ISurface.h>
 
@@ -728,5 +729,117 @@ TEST_F(HostFactory, StartsGameUiWhenTheSchemeFileIsMissing)
     EXPECT_EQ(csr_host_engine_command_count(), 5);
 
     std::remove(menu.c_str());
+    rmdir((temp.root + "/Resource").c_str());
+}
+
+vgui2::VPANEL FindPanelNamed(vgui2::IPanel* panels, vgui2::VPANEL root, const char* name)
+{
+    if (panels == nullptr || root == 0 || name == nullptr)
+    {
+        return 0;
+    }
+    const char* panel_name = panels->GetName(root);
+    if (panel_name != nullptr && std::strcmp(panel_name, name) == 0)
+    {
+        return root;
+    }
+    const int count = panels->GetChildCount(root);
+    for (int index = 0; index < count; ++index)
+    {
+        const vgui2::VPANEL found = FindPanelNamed(panels, panels->GetChild(root, index), name);
+        if (found != 0)
+        {
+            return found;
+        }
+    }
+    return 0;
+}
+
+TEST_F(HostFactory, GameMenuClickSendsTheCommandWithoutRunFrame)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    ASSERT_EQ(csr_host_load_pair(XASH_CLIENT_FILE, XASH_VGUI_FILE), 1);
+    ASSERT_EQ(csr_host_load_gameui(XASH_GAMEUI_FILE), 1);
+    EXPECT_EQ(csr_host_activate_gameui(), 0);
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/Resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/resource/schemes").c_str(), 0755), 0);
+    const std::string menu = temp.root + "/Resource/GameMenu.res";
+    const std::string scheme = temp.root + "/resource/schemes/TrackerScheme_ClassicPlus.res";
+    const char* menu_text =
+        "\"GameMenu\"\n"
+        "{\n"
+        "\t\"1\"\n"
+        "\t{\n"
+        "\t\t\"label\" \"Quit\"\n"
+        "\t\t\"command\" \"QuitNoConfirm\"\n"
+        "\t\t\"name\" \"QuitGame\"\n"
+        "\t}\n"
+        "}\n";
+    const char* scheme_text =
+        "\"Scheme\"\n"
+        "{\n"
+        "\t\"Colors\"\n"
+        "\t{\n"
+        "\t\t\"Blank\" \"0 0 0 0\"\n"
+        "\t}\n"
+        "\t\"BaseSettings\"\n"
+        "\t{\n"
+        "\t\t\"FgColor\" \"Blank\"\n"
+        "\t}\n"
+        "}\n";
+    FILE* menu_out = std::fopen(menu.c_str(), "wb");
+    ASSERT_NE(menu_out, nullptr);
+    ASSERT_EQ(std::fwrite(menu_text, 1, std::strlen(menu_text), menu_out), std::strlen(menu_text));
+    std::fclose(menu_out);
+    FILE* scheme_out = std::fopen(scheme.c_str(), "wb");
+    ASSERT_NE(scheme_out, nullptr);
+    ASSERT_EQ(std::fwrite(scheme_text, 1, std::strlen(scheme_text), scheme_out), std::strlen(scheme_text));
+    std::fclose(scheme_out);
+
+    ASSERT_EQ(csr_host_mount_filesystem(temp.root.c_str()), 1);
+    ASSERT_EQ(csr_host_connect_vgui(), 1);
+    ASSERT_EQ(csr_host_init_gameui(), 1);
+    ASSERT_EQ(csr_host_start_gameui(), 1);
+    ASSERT_EQ(csr_host_activate_gameui(), 1);
+    ASSERT_EQ(csr_host_paint_gameui(640, 480), 1);
+
+    auto* surface = static_cast<vgui2::ISurface*>(csr_host_create_interface("VGUI_Surface026", nullptr));
+    void* module = dlopen(XASH_VGUI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(module, nullptr);
+    auto create = reinterpret_cast<void* (*)(const char*, int*)>(dlsym(module, "CreateInterface"));
+    ASSERT_NE(create, nullptr);
+    int code = 1;
+    auto* panels = static_cast<vgui2::IPanel*>(create("VGUI_Panel007", &code));
+    auto* input = static_cast<vgui2::IInput*>(create("VGUI_InputInternal001", &code));
+    ASSERT_NE(surface, nullptr);
+    ASSERT_NE(panels, nullptr);
+    ASSERT_NE(input, nullptr);
+    const vgui2::VPANEL item = FindPanelNamed(panels, surface->GetEmbeddedPanel(), "QuitGame");
+    ASSERT_NE(item, 0);
+    int origin_x = 0;
+    int origin_y = 0;
+    int wide = 0;
+    int tall = 0;
+    panels->GetAbsPos(item, origin_x, origin_y);
+    panels->GetSize(item, wide, tall);
+    ASSERT_GT(wide, 0);
+    ASSERT_GT(tall, 0);
+
+    csr_host_input_move(origin_x + wide / 2, origin_y + tall / 2);
+    EXPECT_EQ(input->GetMouseOver(), item);
+    EXPECT_STRNE(csr_host_last_client_command(), "quit\n");
+    csr_host_input_button(0, 1);
+    csr_host_input_button(0, 0);
+    EXPECT_STREQ(csr_host_last_client_command(), "quit\n");
+
+    dlclose(module);
+    std::remove(menu.c_str());
+    std::remove(scheme.c_str());
+    rmdir((temp.root + "/resource/schemes").c_str());
+    rmdir((temp.root + "/resource").c_str());
     rmdir((temp.root + "/Resource").c_str());
 }

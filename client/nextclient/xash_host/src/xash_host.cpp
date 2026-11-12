@@ -64,6 +64,7 @@ namespace
     int g_gameui_initialized = 0;
     int g_gameui_started = 0;
     int g_engine_commands = 0;
+    char g_last_client_command[128] = {};
     goldsrc::cl_enginefunc_t g_engine_funcs{};
 
     int AddCommand(const char* name, void (*)())
@@ -111,8 +112,18 @@ namespace
     {
     }
 
-    int ClientCmd(const char*)
+    int ClientCmd(const char* command)
     {
+        g_last_client_command[0] = '\0';
+        if (command != nullptr)
+        {
+            std::size_t index = 0;
+            for (; command[index] != '\0' && index + 1 < sizeof(g_last_client_command); ++index)
+            {
+                g_last_client_command[index] = command[index];
+            }
+            g_last_client_command[index] = '\0';
+        }
         return 0;
     }
 
@@ -205,7 +216,44 @@ namespace
             }
         }
         void Repaint() override {}
-        vgui2::VPANEL IsWithinTraverse(int, int, bool) override { return 0; }
+        vgui2::VPANEL IsWithinTraverse(int x, int y, bool traverse_popups) override
+        {
+            if (g_pair.create == nullptr || panel_ == 0)
+            {
+                return 0;
+            }
+            int code = 1;
+            auto* panels = static_cast<vgui2::IPanel*>(g_pair.create("VGUI_Panel007", &code));
+            if (panels == nullptr || !panels->IsVisible(panel_) || !panels->IsMouseInputEnabled(panel_))
+            {
+                return 0;
+            }
+            const int count = panels->GetChildCount(panel_);
+            for (int index = count - 1; index >= 0; --index)
+            {
+                const vgui2::VPANEL child = panels->GetChild(panel_, index);
+                if (child == 0 || (!traverse_popups && panels->IsPopup(child)))
+                {
+                    continue;
+                }
+                const vgui2::VPANEL hit = panels->IsWithinTraverse(child, x, y, traverse_popups);
+                if (hit != 0)
+                {
+                    return hit;
+                }
+            }
+            int origin_x = 0;
+            int origin_y = 0;
+            int wide = 0;
+            int tall = 0;
+            panels->GetAbsPos(panel_, origin_x, origin_y);
+            panels->GetSize(panel_, wide, tall);
+            if (x >= origin_x && y >= origin_y && x < origin_x + wide && y < origin_y + tall)
+            {
+                return panel_;
+            }
+            return 0;
+        }
         void GetInset(int& top, int& left, int& right, int& bottom) override
         {
             top = left = right = bottom = 0;
@@ -213,6 +261,21 @@ namespace
         void GetClipRect(int& x0, int& y0, int& x1, int& y1) override
         {
             x0 = y0 = x1 = y1 = 0;
+            if (g_pair.create == nullptr || panel_ == 0)
+            {
+                return;
+            }
+            int code = 1;
+            auto* panels = static_cast<vgui2::IPanel*>(g_pair.create("VGUI_Panel007", &code));
+            if (panels == nullptr)
+            {
+                return;
+            }
+            int wide = 0;
+            int tall = 0;
+            panels->GetSize(panel_, wide, tall);
+            x1 = wide;
+            y1 = tall;
         }
         void OnChildAdded(vgui2::VPANEL) override {}
         void OnSizeChanged(int, int) override {}
@@ -387,6 +450,7 @@ namespace
         g_gameui_initialized = 0;
         g_gameui_started = 0;
         g_engine_commands = 0;
+        g_last_client_command[0] = '\0';
         g_engine_funcs = {};
         if (g_gameui.module != nullptr)
         {
@@ -1039,6 +1103,23 @@ int csr_host_engine_command_count(void)
     return g_engine_commands;
 }
 
+const char* csr_host_last_client_command(void)
+{
+    return g_last_client_command;
+}
+
+int csr_host_activate_gameui(void)
+{
+    if (g_gameui_started == 0 || g_gameui.gameui == nullptr)
+    {
+        return 0;
+    }
+    // Slot 5 is ActivateGameUI. RunFrame is slot 8 and is not this call.
+    auto** gameui_vtable = *reinterpret_cast<void***>(g_gameui.gameui);
+    auto activate = reinterpret_cast<int (*)(void*)>(gameui_vtable[5]);
+    return activate(g_gameui.gameui);
+}
+
 int csr_host_paint_gameui(int wide, int tall)
 {
     if (g_gameui_initialized == 0 || g_gameui_root == 0 || wide <= 0 || tall <= 0 || g_surface.surface == nullptr ||
@@ -1073,6 +1154,12 @@ int csr_host_paint_gameui(int wide, int tall)
         }
     }
     surface->SetEmbeddedPanel(g_gameui_root);
+    void* input = g_pair.create("VGUI_InputInternal001", &code);
+    if (input != nullptr)
+    {
+        static_cast<vgui2::IInputInternal*>(input)->AssociatePanelWithInputContext(
+            DEFAULT_INPUT_CONTEXT, g_gameui_root);
+    }
     const int before = g_surface.push_count(g_surface.surface);
     // GameUI loads this file during init and points panels at that scheme.
     // The placeholder scheme has no color data, so a missing file is not applied.

@@ -22,7 +22,17 @@ werden für den Surface-Namen nicht gefragt.
 `csr_vgui_dispatch_messages`. `IInputInternal::RunFrame` und `CVGui::RunFrame`
 werden nicht aufgerufen, damit der Fokus nicht auf eine gespeicherte
 Cursorposition zurückspringt. `SurfaceSetCursorPos` speichert nur die Position.
-Ein manueller `csr_host_bind_input` bleibt für Tests mit Fake-Callbacks.
+Ein manueller `csr_host_bind_input` bleibt für Tests mit Fake-Callbacks. Die
+Host-Wurzel trifft ihre Kinder. Paint verknüpft diese Wurzel mit dem
+Standard-Input-Kontext, damit der Treffertest den eingebetteten Baum läuft.
+Eine Menü-Hover-Nachricht trägt das Panel-Handle, weil ein `VPANEL` auf LP64
+nicht in ein KeyValues-Int passt. `csr_host_activate_gameui` ruft nach `Start`
+`IGameUI::ActivateGameUI` und ruft `RunFrame` nicht auf. Ein Klick auf einen
+gelegten Eintrag aus `GameMenu.res` läuft über diese Input-Bindung.
+`QuitNoConfirm` schreibt `quit` über `pfnClientCmd` und führt ihn nicht aus.
+LP64-Änderungen am vendorten SDK, einschließlich dieser Menü-Handle-Nachricht,
+stehen in `client/dep/ncl-hl1-source-sdk.patch`. Das Configure des Clients
+wendet den Patch an. Der Submodul-Pin bleibt der Upstream-Commit.
 
 Die aus dem SDK gebaute `vgui2.so` exportiert `csr_vgui_dispatch_messages`.
 Der Host bekommt Funktionszeiger. Prozess, Steam und Bildrate stehen nur im

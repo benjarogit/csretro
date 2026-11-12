@@ -8,6 +8,9 @@ using EngineMiniNetSendPacketFn = void (*)(goldsrc::netsrc_t sock, int length, v
 // Process replacement for the retail Netchan_CopyFileFragments hook. A null value is not a call.
 using EngineMiniNetchanCopyFileFragmentsFn = goldsrc::qboolean (*)(goldsrc::netchan_t* chan);
 
+// Process replacement for the retail SVC_TimeScale hook. A null value is not a call.
+using EngineMiniSvcTimeScaleFn = void (*)();
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -23,6 +26,7 @@ struct EngineMiniXashStartup
     int error_calls{};
     int net_send_calls{};
     int netchan_copy_calls{};
+    int svc_timescale_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -37,6 +41,7 @@ struct EngineMiniXashStartup
     char error[256]{};
     EngineMiniNetSendPacketFn net_send_packet{};
     EngineMiniNetchanCopyFileFragmentsFn netchan_copy{};
+    EngineMiniSvcTimeScaleFn svc_timescale{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -44,6 +49,9 @@ extern EngineMiniNetSendPacketFn g_EngineMiniNetSendPacket;
 
 // Defaults to Netchan_CopyFileFragments. Init stores the pointer and does not call it.
 extern EngineMiniNetchanCopyFileFragmentsFn g_EngineMiniNetchanCopyFileFragments;
+
+// Defaults to CL_Parse_Timescale. Init stores the pointer and does not call it.
+extern EngineMiniSvcTimeScaleFn g_EngineMiniSvcTimeScale;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

@@ -24,8 +24,12 @@ call it, so no socket is opened. A null pointer is not a call. A null hook is
 not a call. `Netchan_CopyFileFragments` is then the function in this process
 when that retail hook is absent. Init stores the pointer and does not call
 it, so no fragment file is copied and no socket is opened. A null pointer is
-not a call. A null hook is not a call. The next retail hook is
-`SVC_TimeScale`. This path returns before it. `OnGameInitialized` is not
+not a call. A null hook is not a call. `SVC_TimeScale` is then the function
+in this process when that retail hook is absent. That function is
+`CL_Parse_Timescale`. Init stores the pointer and does not call it, so the
+timescale stays unchanged and no socket is opened. A null pointer is not a
+call. A null hook is not a call. The next retail hook is `SVC_SendCvarValue`.
+This path returns before it. `OnGameInitialized` is not
 entered. Shutdown and the fatal error stay
 bound and that open does not call them. A missing library or export fails
 the load and is not

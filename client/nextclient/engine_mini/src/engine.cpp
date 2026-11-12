@@ -381,6 +381,7 @@ namespace
     bool SupplyXashEngineTable();
     void RecordXashNetSendPacket();
     void RecordXashNetchanCopyFileFragments();
+    void RecordXashSvcTimeScale();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -392,6 +393,8 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // absent. This init stores the pointer and does not send.
     // Netchan_CopyFileFragments is then the process function when that hook
     // is absent. This init stores the pointer and does not copy a fragment.
+    // SVC_TimeScale is then the process function when that hook is absent.
+    // This init stores the pointer and does not change the timescale.
     // The remaining retail hooks stay after this return.
     if (XashStartupIsActive())
     {
@@ -404,6 +407,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             }
             RecordXashNetSendPacket();
             RecordXashNetchanCopyFileFragments();
+            RecordXashSvcTimeScale();
         }
         return;
     }
@@ -824,6 +828,7 @@ static void OnGameInitialized()
 
 EngineMiniNetSendPacketFn g_EngineMiniNetSendPacket = NET_SendPacket;
 EngineMiniNetchanCopyFileFragmentsFn g_EngineMiniNetchanCopyFileFragments = Netchan_CopyFileFragments;
+EngineMiniSvcTimeScaleFn g_EngineMiniSvcTimeScale = CL_Parse_Timescale;
 
 namespace
 {
@@ -861,6 +866,22 @@ namespace
             return;
         }
         g_xash_startup.netchan_copy = g_EngineMiniNetchanCopyFileFragments;
+    }
+
+    void RecordXashSvcTimeScale()
+    {
+        // The retail site installs a replacement. It does not parse during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        g_xash_startup.svc_timescale = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->SVC_TimeScale.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniSvcTimeScale == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.svc_timescale = g_EngineMiniSvcTimeScale;
     }
 
     bool XashStartupIsActive()
@@ -1118,6 +1139,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_xash_startup.engine_is_xash = engine_is_xash;
     g_EngineMiniNetSendPacket = NET_SendPacket;
     g_EngineMiniNetchanCopyFileFragments = Netchan_CopyFileFragments;
+    g_EngineMiniSvcTimeScale = CL_Parse_Timescale;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

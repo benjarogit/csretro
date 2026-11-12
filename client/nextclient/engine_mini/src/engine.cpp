@@ -407,6 +407,7 @@ namespace
     void RecordXashSprDraw();
     void RecordXashSprDrawAdditive();
     void RecordXashSprDrawHoles();
+    void RecordXashSprDrawGeneric();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)

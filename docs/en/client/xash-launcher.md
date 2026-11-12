@@ -91,7 +91,12 @@ opened. A null pointer is not a call. A null hook is not a call.
 is absent. Init stores the pointer and does not call it, so no model is
 loaded, no model file is read, no CRC is computed and the need-CRC flag
 stays unchanged. A null pointer is not a call. A null hook is not a call.
-The next retail hook is `Mod_ForName`. This path returns before it.
+`Mod_ForName` is then the function in this process when that retail hook
+is absent. Init stores the pointer and does not call it, so no model is
+looked up or loaded, no model file is read, no model slot is allocated,
+no CRC is computed and needload stays unchanged. A null pointer is not a
+call. A null hook is not a call. The next retail hook is `Mod_Extradata`.
+This path returns before it.
 `csr_host_frame` is a later direct call and does not extend that list.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and are not called. A missing library or export fails the open and is

@@ -140,6 +140,9 @@ The authoritative version string is the `VERSION` file.
   `OnGameInitialized` is not entered. The retail hook chain
   does not run. `hw.so` stays
   unmapped. The game is not started.
+- `RunXashLauncher` opens the host the way `OpenXashLauncher` does and then
+  calls `csr_host_run`. `PresentXashLauncher` still paints one frame and
+  returns. The call does not play Counter-Strike.
 - `scripts/install-content.sh` searches a Steam library (`libraryfolders.vdf`,
   `appmanifest_10.acf`) and copies the mounted Counter-Strike 1.6 files into a
   directory outside that library. Files shipped in `client/assets` overlay

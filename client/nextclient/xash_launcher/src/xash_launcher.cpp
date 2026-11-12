@@ -198,4 +198,40 @@ int PresentXashLauncher(LauncherProcess* session, int wide, int tall)
     return 1;
 }
 
+int RunXashLauncher(
+    const char* content_root,
+    const char* host_path,
+    const char* surface_path,
+    const char* client_path,
+    const char* vgui_path,
+    const char* gameui_path,
+    const char* steam_api_path,
+    const char* engine_mini_path,
+    const char* nitro_api_path,
+    LauncherProcess* session,
+    int wide,
+    int tall,
+    double delta)
+{
+    if (session == nullptr || wide <= 0 || tall <= 0)
+    {
+        return 0;
+    }
+    if (OpenXashLauncher(
+            content_root,
+            host_path,
+            surface_path,
+            client_path,
+            vgui_path,
+            gameui_path,
+            steam_api_path,
+            engine_mini_path,
+            nitro_api_path,
+            session) == 0)
+    {
+        return 0;
+    }
+    return csr_host_run(wide, tall, delta);
+}
+
 } // namespace csr

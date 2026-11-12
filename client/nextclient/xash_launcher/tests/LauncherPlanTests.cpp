@@ -1376,3 +1376,498 @@ TEST(XashLauncher, RunKeepsTheWindowUntilQuit)
     rmdir((temp.root + "/resource").c_str());
     rmdir((temp.root + "/Resource").c_str());
 }
+
+TEST(XashLauncher, RunEntryReturnsWithoutAHost)
+{
+    double realtime = 0.0;
+    double frametime = 0.0;
+    double oldrealtime = 0.0;
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    int swaps = -1;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, nullptr, &swaps), 0);
+
+    csr::LauncherProcess session;
+    EXPECT_EQ(
+        csr::RunXashLauncher(
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            &session,
+            640,
+            480,
+            0.125),
+        0);
+    EXPECT_FALSE(session.open);
+
+    char missing[64];
+    std::snprintf(missing, sizeof(missing), "/tmp/csretro-launcher-missing-%d", static_cast<int>(getpid()));
+    EXPECT_EQ(
+        csr::RunXashLauncher(
+            missing,
+            XASH_HOST_FILE,
+            XASH_SURFACE_FILE,
+            XASH_CLIENT_FILE,
+            XASH_VGUI_FILE,
+            XASH_GAMEUI_FILE,
+            XASH_STEAM_API_FILE,
+            XASH_ENGINE_MINI_FILE,
+            XASH_NITRO_API_FILE,
+            &session,
+            0,
+            480,
+            0.125),
+        0);
+    EXPECT_FALSE(session.open);
+    EXPECT_EQ(
+        csr::RunXashLauncher(
+            missing,
+            XASH_HOST_FILE,
+            XASH_SURFACE_FILE,
+            XASH_CLIENT_FILE,
+            XASH_VGUI_FILE,
+            XASH_GAMEUI_FILE,
+            XASH_STEAM_API_FILE,
+            XASH_ENGINE_MINI_FILE,
+            XASH_NITRO_API_FILE,
+            &session,
+            640,
+            480,
+            0.125),
+        0);
+    EXPECT_FALSE(session.open);
+
+    double realtime_after = 0.0;
+    double frametime_after = 0.0;
+    double oldrealtime_after = 0.0;
+    csr_host_read_host_time(&realtime_after, &frametime_after, &oldrealtime_after);
+    EXPECT_DOUBLE_EQ(realtime_after, realtime);
+    EXPECT_DOUBLE_EQ(frametime_after, frametime);
+    EXPECT_DOUBLE_EQ(oldrealtime_after, oldrealtime);
+    int swaps_after = -1;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, nullptr, &swaps_after), 0);
+    EXPECT_EQ(swaps_after, swaps);
+    EXPECT_STREQ(csr_host_last_client_command(), "");
+}
+
+TEST(XashLauncher, EntryRunsTheHostUntilQuit)
+{
+    if (!RunInFreshProcess("entry", "XashLauncher.EntryRunsTheHostUntilQuit"))
+    {
+        return;
+    }
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/Resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/resource/schemes").c_str(), 0755), 0);
+    const std::string menu = temp.root + "/Resource/GameMenu.res";
+    const std::string scheme = temp.root + "/resource/schemes/TrackerScheme_ClassicPlus.res";
+    const char* menu_text =
+        "\"GameMenu\"\n"
+        "{\n"
+        "\t\"1\"\n"
+        "\t{\n"
+        "\t\t\"label\" \"Quit\"\n"
+        "\t\t\"command\" \"QuitNoConfirm\"\n"
+        "\t\t\"name\" \"QuitGame\"\n"
+        "\t}\n"
+        "}\n";
+    const char* scheme_text =
+        "\"Scheme\"\n"
+        "{\n"
+        "\t\"Colors\"\n"
+        "\t{\n"
+        "\t\t\"Blank\" \"0 0 0 0\"\n"
+        "\t}\n"
+        "\t\"BaseSettings\"\n"
+        "\t{\n"
+        "\t\t\"FgColor\" \"Blank\"\n"
+        "\t}\n"
+        "}\n";
+    ASSERT_TRUE(WriteTextFile(menu, menu_text));
+    ASSERT_TRUE(WriteTextFile(scheme, scheme_text));
+
+    const std::string planted_hw = temp.root + "/hw.so";
+    std::filesystem::copy_file(XASH_HOST_FILE, planted_hw);
+    EXPECT_FALSE(MapsContain(planted_hw));
+
+    VirtualDisplay display;
+    std::string display_error;
+    ASSERT_TRUE(display.Start(&display_error)) << display_error;
+
+    // The entry opens the host itself. A child measures QuitGame first so this
+    // process can click that item without a second EGL session.
+    int fds[2] = {-1, -1};
+    ASSERT_EQ(pipe(fds), 0);
+    const pid_t probe = fork();
+    ASSERT_GE(probe, 0);
+    if (probe == 0)
+    {
+        close(fds[0]);
+        csr::LauncherProcess probed;
+        if (csr::OpenXashLauncher(
+                temp.root.c_str(),
+                XASH_HOST_FILE,
+                XASH_SURFACE_FILE,
+                XASH_CLIENT_FILE,
+                XASH_VGUI_FILE,
+                XASH_GAMEUI_FILE,
+                XASH_STEAM_API_FILE,
+                XASH_ENGINE_MINI_FILE,
+                XASH_NITRO_API_FILE,
+                &probed) != 1)
+        {
+            _exit(2);
+        }
+        void* engine = dlopen(XASH_ENGINE_MINI_FILE, RTLD_NOW | RTLD_NOLOAD);
+        if (engine == nullptr)
+        {
+            _exit(3);
+        }
+        using GuardFn = void (*)(int*, int*, int*);
+        auto guard = reinterpret_cast<GuardFn>(dlsym(engine, "EngineMini_ReadFrameGuard"));
+        if (guard == nullptr)
+        {
+            _exit(4);
+        }
+        int filter_calls = -1;
+        int stored = -1;
+        int nitro = -1;
+        guard(&filter_calls, &stored, &nitro);
+        void* vgui = dlopen(XASH_VGUI_FILE, RTLD_NOW | RTLD_NOLOAD);
+        if (vgui == nullptr)
+        {
+            _exit(5);
+        }
+        auto run_frame_count = reinterpret_cast<int (*)()>(dlsym(vgui, "csr_vgui_run_frame_count"));
+        if (run_frame_count == nullptr)
+        {
+            _exit(6);
+        }
+        const int run_frames = run_frame_count();
+        if (csr_host_activate_gameui() != 1 || csr_host_paint_gameui(640, 480) != 1)
+        {
+            _exit(7);
+        }
+        auto* surface = static_cast<vgui2::ISurface*>(csr_host_create_interface("VGUI_Surface026", nullptr));
+        auto create = reinterpret_cast<void* (*)(const char*, int*)>(dlsym(vgui, "CreateInterface"));
+        if (surface == nullptr || create == nullptr)
+        {
+            _exit(8);
+        }
+        int code = 1;
+        auto* panels = static_cast<vgui2::IPanel*>(create("VGUI_Panel007", &code));
+        if (panels == nullptr)
+        {
+            _exit(9);
+        }
+        const vgui2::VPANEL item = FindPanelNamed(panels, surface->GetEmbeddedPanel(), "QuitGame");
+        if (item == 0)
+        {
+            _exit(10);
+        }
+        int origin_x = 0;
+        int origin_y = 0;
+        int item_wide = 0;
+        int item_tall = 0;
+        panels->GetAbsPos(item, origin_x, origin_y);
+        panels->GetSize(item, item_wide, item_tall);
+        if (item_wide <= 0 || item_tall <= 0)
+        {
+            _exit(11);
+        }
+        const int click_x = origin_x + item_wide / 2;
+        const int click_y = origin_y + item_tall / 2;
+        csr::CloseXashLauncher(&probed);
+        dlclose(vgui);
+        dlclose(engine);
+        char line[128];
+        const int length = std::snprintf(
+            line,
+            sizeof(line),
+            "%d %d %d %d %d %d\n",
+            click_x,
+            click_y,
+            filter_calls,
+            stored,
+            nitro,
+            run_frames);
+        if (length <= 0 || static_cast<size_t>(length) >= sizeof(line) ||
+            write(fds[1], line, static_cast<size_t>(length)) != length)
+        {
+            _exit(12);
+        }
+        close(fds[1]);
+        _exit(0);
+    }
+    close(fds[1]);
+    std::string payload;
+    char buffer[64];
+    while (true)
+    {
+        const ssize_t got = read(fds[0], buffer, sizeof(buffer));
+        if (got == 0)
+        {
+            break;
+        }
+        ASSERT_GT(got, 0);
+        payload.append(buffer, buffer + got);
+    }
+    close(fds[0]);
+    int probe_status = 0;
+    ASSERT_EQ(waitpid(probe, &probe_status, 0), probe);
+    ASSERT_TRUE(WIFEXITED(probe_status));
+    ASSERT_EQ(WEXITSTATUS(probe_status), 0) << payload;
+    int click_x = 0;
+    int click_y = 0;
+    int filter_before = -1;
+    int stored_before = -1;
+    int nitro_before = -1;
+    int run_frames_before = -1;
+    ASSERT_EQ(
+        std::sscanf(
+            payload.c_str(),
+            "%d %d %d %d %d %d",
+            &click_x,
+            &click_y,
+            &filter_before,
+            &stored_before,
+            &nitro_before,
+            &run_frames_before),
+        6);
+    EXPECT_EQ(filter_before, 0);
+    EXPECT_GT(stored_before, 0);
+    EXPECT_EQ(nitro_before, 0);
+    ASSERT_GE(click_x, 0);
+    ASSERT_LT(click_x, 640);
+    ASSERT_GE(click_y, 0);
+    ASSERT_LT(click_y, 480);
+
+    std::vector<std::string> sockets_before;
+    ASSERT_TRUE(ReadOpenSockets(&sockets_before));
+    const std::vector<std::string> children_before = ReadChildPids();
+    ASSERT_EQ(children_before.size(), 1u);
+    EXPECT_EQ(children_before[0], std::to_string(display.pid));
+
+    double realtime = 0.0;
+    double frametime = 0.0;
+    double oldrealtime = 0.0;
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    const double realtime_open = realtime;
+
+    std::atomic<unsigned long> seen_window{0};
+    std::atomic<int> saw_viewable{0};
+    std::thread injector([&seen_window, &saw_viewable, click_x, click_y] {
+        Display* view = XOpenDisplay(nullptr);
+        if (view == nullptr)
+        {
+            return;
+        }
+        const Window root = RootWindow(view, DefaultScreen(view));
+        for (int attempt = 0; attempt < 400; ++attempt)
+        {
+            unsigned long window = 0;
+            int swaps = 0;
+            csr_host_present_query(nullptr, nullptr, &window, &swaps);
+            if (swaps >= 2 && window != 0)
+            {
+                XWindowAttributes attributes{};
+                if (XGetWindowAttributes(view, static_cast<Window>(window), &attributes) != 0 &&
+                    attributes.map_state == IsViewable)
+                {
+                    saw_viewable.store(1);
+                    seen_window.store(window);
+                    const Window target = static_cast<Window>(window);
+                    XEvent motion{};
+                    motion.xmotion.type = MotionNotify;
+                    motion.xmotion.display = view;
+                    motion.xmotion.window = target;
+                    motion.xmotion.root = root;
+                    motion.xmotion.x = click_x;
+                    motion.xmotion.y = click_y;
+                    motion.xmotion.x_root = click_x;
+                    motion.xmotion.y_root = click_y;
+                    motion.xmotion.same_screen = True;
+                    XSendEvent(view, target, False, PointerMotionMask, &motion);
+                    XEvent press{};
+                    press.xbutton.type = ButtonPress;
+                    press.xbutton.display = view;
+                    press.xbutton.window = target;
+                    press.xbutton.root = root;
+                    press.xbutton.x = click_x;
+                    press.xbutton.y = click_y;
+                    press.xbutton.x_root = click_x;
+                    press.xbutton.y_root = click_y;
+                    press.xbutton.button = Button1;
+                    press.xbutton.same_screen = True;
+                    XSendEvent(view, target, False, ButtonPressMask, &press);
+                    XEvent release{};
+                    release.xbutton.type = ButtonRelease;
+                    release.xbutton.display = view;
+                    release.xbutton.window = target;
+                    release.xbutton.root = root;
+                    release.xbutton.x = click_x;
+                    release.xbutton.y = click_y;
+                    release.xbutton.x_root = click_x;
+                    release.xbutton.y_root = click_y;
+                    release.xbutton.button = Button1;
+                    release.xbutton.same_screen = True;
+                    XSendEvent(view, target, False, ButtonReleaseMask, &release);
+                    XFlush(view);
+                    break;
+                }
+            }
+            timespec delay{};
+            delay.tv_nsec = 5 * 1000 * 1000;
+            nanosleep(&delay, nullptr);
+        }
+        XCloseDisplay(view);
+    });
+
+    std::atomic<int> finished{0};
+    const pid_t xvfb_pid = display.pid;
+    std::thread watchdog([&finished, xvfb_pid] {
+        for (int step = 0; step < 150; ++step)
+        {
+            if (finished.load() != 0)
+            {
+                return;
+            }
+            timespec delay{};
+            delay.tv_nsec = 100 * 1000 * 1000;
+            nanosleep(&delay, nullptr);
+        }
+        if (xvfb_pid > 0)
+        {
+            kill(xvfb_pid, SIGTERM);
+        }
+        _exit(86);
+    });
+
+    csr::LauncherProcess session;
+    constexpr double kDelta = 0.125;
+    const int ran = csr::RunXashLauncher(
+        temp.root.c_str(),
+        XASH_HOST_FILE,
+        XASH_SURFACE_FILE,
+        XASH_CLIENT_FILE,
+        XASH_VGUI_FILE,
+        XASH_GAMEUI_FILE,
+        XASH_STEAM_API_FILE,
+        XASH_ENGINE_MINI_FILE,
+        XASH_NITRO_API_FILE,
+        &session,
+        640,
+        480,
+        kDelta);
+    finished.store(1);
+    watchdog.join();
+    injector.join();
+    ASSERT_EQ(ran, 1) << csr_host_present_error();
+    ASSERT_EQ(saw_viewable.load(), 1);
+    ASSERT_NE(seen_window.load(), 0u);
+    EXPECT_TRUE(session.open);
+
+    int moves = 0;
+    int move_x = -1;
+    int move_y = -1;
+    int presses = 0;
+    int button_code = -1;
+    csr_host_input_observed(&moves, &move_x, &move_y, &presses, &button_code);
+    EXPECT_GE(moves, 1);
+    EXPECT_EQ(move_x, click_x);
+    EXPECT_EQ(move_y, click_y);
+    EXPECT_GE(presses, 1);
+    EXPECT_EQ(button_code, 0);
+    EXPECT_STREQ(csr_host_last_client_command(), "quit\n");
+
+    unsigned long window = 1;
+    int swaps = 0;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window, &swaps), 0);
+    EXPECT_EQ(window, 0u);
+    EXPECT_GE(swaps, 2);
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    EXPECT_DOUBLE_EQ(realtime, realtime_open + (swaps * kDelta));
+    EXPECT_DOUBLE_EQ(frametime, kDelta);
+    EXPECT_DOUBLE_EQ(oldrealtime, realtime_open + (swaps * kDelta));
+    std::cerr << "entry-run swaps=" << swaps << " host=" << realtime << " move=" << move_x << "," << move_y
+              << " button=" << button_code << "\n";
+
+    void* engine = dlopen(XASH_ENGINE_MINI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(engine, nullptr);
+    using GuardFn = void (*)(int*, int*, int*);
+    auto guard = reinterpret_cast<GuardFn>(dlsym(engine, "EngineMini_ReadFrameGuard"));
+    ASSERT_NE(guard, nullptr);
+    int filter_after = -1;
+    int stored_after = -1;
+    int nitro_after = -1;
+    guard(&filter_after, &stored_after, &nitro_after);
+    EXPECT_EQ(filter_after, 0);
+    EXPECT_EQ(stored_after, stored_before);
+    EXPECT_EQ(nitro_after, 0);
+
+    void* vgui = dlopen(XASH_VGUI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(vgui, nullptr);
+    auto run_frame_count = reinterpret_cast<int (*)()>(dlsym(vgui, "csr_vgui_run_frame_count"));
+    ASSERT_NE(run_frame_count, nullptr);
+    EXPECT_EQ(run_frame_count(), run_frames_before);
+
+    EXPECT_FALSE(MapsContain(planted_hw));
+    auto steam_running = reinterpret_cast<bool (*)()>(dlsym(session.steam, "SteamAPI_IsSteamRunning"));
+    ASSERT_NE(steam_running, nullptr);
+    EXPECT_FALSE(steam_running());
+    EXPECT_EQ(ReadChildPids(), children_before);
+
+    std::vector<std::string> sockets_after;
+    ASSERT_TRUE(ReadOpenSockets(&sockets_after));
+    std::vector<std::string> added;
+    std::set_difference(
+        sockets_after.begin(),
+        sockets_after.end(),
+        sockets_before.begin(),
+        sockets_before.end(),
+        std::back_inserter(added));
+    EXPECT_TRUE(added.empty());
+
+    std::ifstream cmdline("/proc/self/cmdline", std::ios::binary);
+    std::string arguments((std::istreambuf_iterator<char>(cmdline)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(arguments.find("--surface"), std::string::npos);
+
+    Display* view = XOpenDisplay(nullptr);
+    ASSERT_NE(view, nullptr);
+    g_fixture_x_error = 0;
+    XErrorHandler previous = XSetErrorHandler(OnFixtureXError);
+    XWindowAttributes gone{};
+    const int attributes = XGetWindowAttributes(view, static_cast<Window>(seen_window.load()), &gone);
+    XSync(view, False);
+    XSetErrorHandler(previous);
+    EXPECT_EQ(attributes, 0);
+    EXPECT_EQ(g_fixture_x_error, BadWindow);
+    XCloseDisplay(view);
+
+    csr::CloseXashLauncher(&session);
+    dlclose(vgui);
+    dlclose(engine);
+    const pid_t xvfb = display.pid;
+    display.pid = -1;
+    if (xvfb > 0)
+    {
+        kill(xvfb, SIGTERM);
+        waitpid(xvfb, nullptr, 0);
+    }
+    EXPECT_TRUE(ReadChildPids().empty());
+
+    std::filesystem::remove(planted_hw);
+    std::remove(menu.c_str());
+    std::remove(scheme.c_str());
+    rmdir((temp.root + "/resource/schemes").c_str());
+    rmdir((temp.root + "/resource").c_str());
+    rmdir((temp.root + "/Resource").c_str());
+}

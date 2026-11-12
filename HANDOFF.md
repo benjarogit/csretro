@@ -317,6 +317,11 @@ implementation; the plan is the only source for the gate list.
 
 ## Open / known broken
 
+- **Actions run 43095634906 never started.** The push of `dfe17cc` created a run
+  that stays `queued` with no job. The API refuses to cancel it. That run holds
+  concurrency group `ci-refs/heads/main`. The workflow group is now `verify-`
+  plus the ref, so a later push can be scheduled. The last green run remains
+  https://github.com/benjarogit/csretro/actions/runs/43094757230 for `98bff30`.
 - **A2S under Default Public:** open decision for G07. Either adapt
   `ISteamGameServer011` to the 015 interface or write a dedicated query
   responder.

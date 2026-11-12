@@ -6,8 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Run 43095634906 still holds ci-${{ github.ref }}. GitHub lists that run as
+# queued and refuses to cancel it because no job was ever assigned. A new
+# group lets the next push start. cancel-in-progress stays on for this group.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: verify-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:

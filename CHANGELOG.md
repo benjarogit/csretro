@@ -131,6 +131,9 @@ The authoritative version string is the `VERSION` file.
 
 ### Changed
 
+- CI concurrency group is `verify-` plus the ref. Actions run 43095634906 still
+  holds the previous group and GitHub will not cancel it, so a later push would
+  not have been scheduled.
 - Root `.gitattributes` no longer reinterprets vendored binaries through the LFS
   rules; each vendored tree keeps its own attribute policy.
 - Vendored NextClient moved from `90b4bf7` to `24cc986` (G06b radar): Linux

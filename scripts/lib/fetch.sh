@@ -23,12 +23,47 @@ print(data[section][key][field])
 PY
 }
 
+# lock_optional <section> <key> <field>
+# Prints an empty line when the field is absent.
+lock_optional() {
+    python3 - "$LOCKFILE" "$1" "$2" "$3" <<'PY'
+import json
+import sys
+
+path, section, key, field = sys.argv[1:5]
+with open(path, encoding="utf-8") as handle:
+    data = json.load(handle)
+value = data.get(section, {}).get(key, {}).get(field, "")
+if value is None:
+    value = ""
+print(value)
+PY
+}
+
 # fetch_archive <section> <key>
-# Downloads the archive once, verifies its SHA-256 and prints its path.
+# Uses the vendored archive recorded in the lockfile when present. Otherwise
+# downloads once. Either way the SHA-256 is checked and the path is printed.
 fetch_archive() {
-    local section="$1" key="$2" url sha file actual
-    url="$(lock_value "$section" "$key" url)"
+    local section="$1" key="$2" url sha file actual archive
     sha="$(lock_value "$section" "$key" sha256)"
+    archive="$(lock_optional "$section" "$key" archive)"
+    if [[ -n "$archive" ]]; then
+        file="$ROOT/$archive"
+        if [[ ! -f "$file" ]]; then
+            printf 'ERROR: vendored archive missing: %s\n' "$file" >&2
+            exit 1
+        fi
+        actual="$(sha256sum "$file" | awk '{print $1}')"
+        if [[ "$actual" != "$sha" ]]; then
+            printf 'ERROR: %s has sha256 %s, expected %s\n' "$file" "$actual" "$sha" >&2
+            exit 1
+        fi
+        printf '==> %s: vendored %s\n' "$key" "$archive" >&2
+        printf '%s\n' "$file"
+        return 0
+    fi
+
+    url="$(lock_value "$section" "$key" url)"
     file="$DOWNLOADS/$(basename "${url%%\?*}")"
 
     mkdir -p "$DOWNLOADS"

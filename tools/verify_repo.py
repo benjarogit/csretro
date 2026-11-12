@@ -20,6 +20,7 @@ bare Python 3.12+ installation and in CI without a setup step.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -353,6 +354,102 @@ def check_pins(report: Report) -> None:
             report.check(fields[0] == "040000", f"upstream {name}: {prefix} is not a tree")
 
 
+def check_spent_plans(report: Report, files: list[str]) -> None:
+    for rel in files:
+        if rel.endswith(".plan.md"):
+            report.fail(f"spent work plan is tracked: {rel}")
+
+
+def check_docs_template(report: Report) -> None:
+    path = ROOT / "zensical.toml"
+    if not path.is_file():
+        return
+    text = read_text(path)
+    report.check("csretro-vgui" not in text, "zensical.toml still loads the custom vgui skin")
+    report.check("vgui-skin.js" not in text, "zensical.toml still loads the vgui skin script")
+
+
+def check_server_vendor(report: Report) -> None:
+    path = ROOT / "versions.lock.json"
+    if not path.is_file():
+        return
+    try:
+        data = json.loads(read_text(path))
+    except json.JSONDecodeError:
+        return
+
+    for section in ("server_toolchain", "server_runtime"):
+        entries = data.get(section, {})
+        if not isinstance(entries, dict):
+            continue
+        for name, entry in entries.items():
+            if not isinstance(entry, dict) or not entry.get("vendored"):
+                continue
+            archive = entry.get("archive")
+            if not archive:
+                report.fail(f"{section}.{name}: vendored entry has no archive")
+            else:
+                archive_path = ROOT / str(archive)
+                if not archive_path.is_file():
+                    report.fail(f"{section}.{name}: vendored archive missing: {archive}")
+                else:
+                    digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+                    expected = entry.get("sha256")
+                    if expected and digest != expected:
+                        report.fail(
+                            f"{section}.{name}: archive sha256 is {digest}, lock records {expected}"
+                        )
+            prefix = entry.get("source_prefix")
+            if prefix and not (ROOT / str(prefix)).is_dir():
+                report.fail(f"{section}.{name}: vendored source missing: {prefix}")
+
+    for rel in ("docs/de/build/server.md", "docs/en/build/server.md"):
+        doc = ROOT / rel
+        if not doc.is_file():
+            report.fail(f"missing server build doc: {rel}")
+            continue
+        text = read_text(doc)
+        report.check(
+            "server/vendor/amxmodx" in text,
+            f"{rel} does not name the vendored AMXX source",
+        )
+        report.check(
+            "nicht vendort" not in text and "not vendored" not in text,
+            f"{rel} still says the Pawn toolchain is not vendored",
+        )
+
+
+def check_sdk_patch(report: Report) -> None:
+    patch = ROOT / "client/dep/ncl-hl1-source-sdk.patch"
+    sdk = ROOT / "client/dep/ncl-hl1-source-sdk"
+    if not patch.is_file() or patch.stat().st_size == 0:
+        report.fail("client/dep/ncl-hl1-source-sdk.patch is missing")
+        return
+    report.check(True, "sdk patch is present")
+    if not (sdk / ".git").exists():
+        return
+    reverse = subprocess.run(
+        ["git", "apply", "--reverse", "--check", str(patch)],
+        cwd=sdk,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if reverse.returncode == 0:
+        return
+    forward = subprocess.run(
+        ["git", "apply", "--check", str(patch)],
+        cwd=sdk,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    report.check(
+        forward.returncode == 0,
+        "ncl-hl1-source-sdk patch does not match the checked-out tree",
+    )
+
+
 def check_changelog(report: Report) -> None:
     path = ROOT / "CHANGELOG.md"
     if not path.is_file():
@@ -373,6 +470,10 @@ def main() -> int:
     check_links(report, files)
     check_secrets(report, files)
     check_forbidden_paths(report, files)
+    check_spent_plans(report, files)
+    check_docs_template(report)
+    check_server_vendor(report)
+    check_sdk_patch(report)
     check_changelog(report)
 
     if report.failures:

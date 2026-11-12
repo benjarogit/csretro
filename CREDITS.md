@@ -17,13 +17,17 @@ These are imported with their history and keep their upstream licenses.
 | [ncl-hl1-source-sdk](https://github.com/CS-NextClient/ncl-hl1-source-sdk) | Fork of [tmp64/hl1_source_sdk](https://github.com/tmp64/hl1_source_sdk) | Valve Source SDK terms + third-party notices | VGUI2, tier1/tier2, Linux port, optional CEF |
 | [vcpkg](https://github.com/microsoft/vcpkg) | Microsoft and contributors | MIT | C/C++ dependency management |
 | [Half-Life 1 SDK](https://github.com/ValveSoftware/halflife) | Valve Corporation | Valve SDK license | GoldSrc interfaces and types |
+| [AMX Mod X](https://github.com/alliedmodders/amxmodx) | AlliedModders | GPL-3.0 | Server plugin runtime, source under `server/vendor/amxmodx` |
+| [ReAPI](https://github.com/rehlds/ReAPI) | ReHLDS team | GPL-3.0 | Server module API, source under `server/vendor/reapi` |
+| [ReHLDS](https://github.com/dreamstalker/rehlds) | ReHLDS team | GPL-3.0 | Server engine, source under `server/vendor/rehlds` |
+| [ReGameDLL_CS](https://github.com/s1lentq/ReGameDLL_CS) | s1lentq and contributors | GPL-3.0 | Server game library, source under `server/vendor/regamedll` |
+| [Metamod-R](https://github.com/rehlds/Metamod-R) | ReHLDS team, theAsmodai | GPL-3.0 | Plugin loader, source under `server/vendor/metamod-r` |
 
-## Documentation site assets
+## Documentation site
 
 | Project | Authors | License | What we use |
 |---|---|---|---|
-| [vgui.css](https://github.com/AlpyneDreams/vgui.css) | Jeffrey Ellison (AlpyneDreams) | MIT | `greensteam` / `blacksteam` skins for the GitHub Page (pinned under `docs/assets/vgui/`) |
-| [Zensical](https://github.com/zensical/zensical) | Zensical / Material for MkDocs team | MIT | Static site generator for `docs/de` and `docs/en` (pinned in `versions.lock.json`) |
+| [Zensical](https://github.com/zensical/zensical) | Zensical / Material for MkDocs team | MIT | Static site generator for `docs/de` and `docs/en`, default template (pinned in `versions.lock.json`) |
 
 ## Ideas and procedures only (not vendored)
 
@@ -34,18 +38,14 @@ These are imported with their history and keep their upstream licenses.
 | [Xash3D-FWGS](https://github.com/FWGS/xash3d-fwgs) | FWGS and contributors | GPL-3.0 | Evaluated as a GoldSrc engine replacement, rejected in favour of ReHLDS; kept as a reference for Linux engine layout |
 | [hlsw-portable](https://github.com/portapps/hlsw-portable) | portapps, crazy-max | MIT | Portable application layout for `csretro-server` |
 
-No code from GPL projects is copied into CSRETRO. The license of this repository
-is still undecided; see `HANDOFF.md`.
+The server stack under `server/vendor/` is vendored GPL source and keeps that
+license. No code from the idea-only GPL references above is copied. The license
+of the CSRETRO-owned code is still undecided; see `HANDOFF.md`.
 
 ## Upstream projects and libraries
 
 | Project | Authors | License | What we use |
 |---|---|---|---|
-| [ReHLDS](https://github.com/dreamstalker/rehlds) | ReHLDS team | GPL-3.0 | Test server engine |
-| [Metamod-R](https://github.com/rehlds/Metamod-R) | ReHLDS team, theAsmodai | GPL-3.0 | Test server plugin loader |
-| [ReGameDLL_CS](https://github.com/s1lentq/ReGameDLL_CS) | s1lentq and contributors | GPL-3.0 | Test server game library |
-| [AMX Mod X](https://github.com/alliedmodders/amxmodx) | AlliedModders | GPL-3.0 | Server plugin runtime |
-| [ReAPI](https://github.com/rehlds/ReAPI) | ReHLDS team | GPL-3.0 | Server module API |
 | [MetaAudio](https://github.com/MoeMod/MetaAudio) | MoeMod and contributors | GPL-3.0 | Reference for the upstream audio path |
 | [YaPB](https://github.com/jeefo/yapb) | jeefo and contributors | GPL-3.0 | Bot reference used by the upstream client |
 | [csldr](https://github.com/mikkokko/csldr) | mikkokko | – | Loader reference used by the upstream client |

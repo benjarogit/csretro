@@ -13,22 +13,27 @@ scripts/doctor.sh          # Host prüfen, inklusive -m32
 scripts/build-server.sh    # Toolchain holen, konfigurieren, bauen, testen, Manifest
 ```
 
-Das Skript lädt beim ersten Lauf die Pawn-Toolchain, konfiguriert mit Tests,
+Das Skript entpackt den vendorten Pawn-Compiler, konfiguriert mit Tests,
 baut, führt CTest aus und schreibt ein Manifest. Ein zweiter Lauf ist ein No-op.
 
 ## Pawn-Toolchain
 
-Zwei Upstream-Pakete werden gebraucht, beide sind nicht vendort:
+AMX Mod X und ReAPI liegen als Quelltext im Repo. Dieselbe Version liegt
+zusätzlich als geprüftes Linux-Release unter `server/vendor/dist/`, weil
+`amxxpc` ein gebautes Binary ist. Die Includes, gegen die Plugins übersetzt
+werden, kommen aus dem Quelltext.
 
-| Paket | Version | Zweck |
-|---|---|---|
-| AMX Mod X Base | `1.10.0.5487` | Compiler `amxxpc` und die Standard-Includes |
-| ReAPI | `5.29.0.358` | `reapi.inc` und das ReAPI-Modul |
+| Paket | Version | Quelltext | Release-Archiv |
+|---|---|---|---|
+| AMX Mod X | `1.10.0.5487` | `server/vendor/amxmodx` | `server/vendor/dist/amxmodx-1.10.0-git5487-base-linux.tar.gz` |
+| ReAPI | `5.29.0.358` | `server/vendor/reapi` | `server/vendor/dist/reapi-bin-5.29.0.358.zip` |
 
-Beide URLs und ihre SHA-256-Digests stehen in `versions.lock.json` unter
-`server_toolchain`. `scripts/fetch-server-toolchain.sh` lädt sie nach
-`.cache/downloads/`, prüft jeden Digest, entpackt sie nach `.cache/toolchain/`
-und führt die beiden Include-Verzeichnisse zu einem zusammen.
+Commit und SHA-256 stehen in `versions.lock.json` unter `server_toolchain`.
+`scripts/fetch-server-toolchain.sh` prüft das Archiv, entpackt den Compiler
+nach `.cache/toolchain/` und führt die Includes aus
+`server/vendor/amxmodx/plugins/include` und
+`server/vendor/reapi/reapi/extra/amxmodx/scripting/include` zusammen. Eine
+Änderung an diesen Includes ist die, die der Compiler sieht.
 
 `amxxpc` öffnet `amxxpc32.so` per `dlopen()` über den Namen, läuft also nur, wenn
 sein eigenes Verzeichnis in `LD_LIBRARY_PATH` liegt. Das Skript erzeugt dafür
@@ -146,7 +151,7 @@ ein Entwicklungswerkzeug, nicht das Modul.
 | Symptom | Ursache | Lösung |
 |---|---|---|
 | `compiler failed to instantiate: amxxpc32.so` | `amxxpc` ohne sein Verzeichnis in `LD_LIBRARY_PATH` | `$AMXXPC` aus `scripts/fetch-server-toolchain.sh` verwenden |
-| `SHA-256 mismatch` | beschädigter oder geänderter Download | Datei in `.cache/downloads/` löschen und erneut ausführen |
+| Archiv-SHA-256 stimmt nicht | Datei unter `server/vendor/dist/` passt nicht zum Lock | Archiv aus dem gepinnten Release ersetzen, nicht aus `.cache/` |
 | `Missing PAWN_COMPILER` | nur eine der beiden Pawn-Variablen gesetzt | beide setzen oder keine |
 | `void main must return int` | ungepatchtes Upstream-`rsa_keygen` | `patches/server-api/0001-rsa-keygen-portability.patch` anwenden |
 | `i386 architecture ... incompatible with i386:x86-64` | ein Host-Werkzeug linkt die 32-Bit-OpenSSL-Archive | derselbe Patch |

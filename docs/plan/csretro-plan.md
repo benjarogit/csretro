@@ -158,7 +158,11 @@ Valves `vgui2.so` ABI-kompatibel. NextClients `vgui2.so` hat ein anderes
 `Label::ApplySettings` (`pScheme->GetFont`, Slot 6) ab. NextClient-Binaries sind
 nur untereinander kompatibel (`client_mini.dll` + `vgui2.so`). CSRETRO baut
 Client und VGUI2 daher aus **derselben** SDK-Revision (vendored
-`ncl-hl1-source-sdk`) und mischt keine vorgebauten Fremd-Binaries.
+`ncl-hl1-source-sdk`) und mischt keine vorgebauten Fremd-Binaries. Eigene
+Änderungen an diesem Baum (LP64, der Export `csr_vgui_dispatch_messages`,
+Menü-Handles als `HPanel`) stehen in `client/dep/ncl-hl1-source-sdk.patch`.
+Das Configure des Clients wendet den Patch an. Der Submodul-Pin bleibt der
+Upstream-Commit.
 
 Xash3D liefert **FreeVGUI** (`3rdparty/freevgui`, BSD-3-Clause) mit einer
 nativen Xash3D-Platform-Surface (`platform/xash3d-fwgs/surface.cpp`). Das ist
@@ -792,7 +796,10 @@ Der erste Stand liegt in `client/nextclient/xash_surface/` (Target
   Loslassen, danach eine Zustellung. `RunFrame` bleibt leer, damit
   `UpdateMouseFocus` den Fokus nicht auf eine gespeicherte `0,0`-Position
   zurücksetzt. Der Host bildet die drei Aufrufe auf `CInputWin32` und
-  `CVGui::DispatchMessages` ab.
+  `CVGui::DispatchMessages` ab. Paint verknüpft die eingebettete Wurzel mit
+  dem Standard-Input-Kontext. Ein Klick auf einen gelegten
+  `GameMenu.res`-Eintrag läuft über diese Bindung. `QuitNoConfirm` zeichnet
+  `quit` auf und startet ihn nicht.
 - Tests: `xash_surface-tests` über das Preset `linux-tests`. Der
   Offscreen-Lauf nutzt einen EGL-Pbuffer und `LIBGL_ALWAYS_SOFTWARE=1`.
   Das Spiel wird dabei nicht gestartet.
@@ -1369,13 +1376,13 @@ docs/
 - Upstream-Doku bleibt als technische Referenz im vendorten Baum, klar markiert.
 - Jede Doku-Änderung ist Teil der Definition of Done.
 
-**Generator und Haut:**
+**Generator:**
 
 - Zensical wird gepinnt und per SHA-256 geprüft (`versions.lock.json`).
-- Hell ist `greensteam`, dunkel ist `blacksteam`, aus
-  [vgui.css](https://github.com/AlpyneDreams/vgui.css) mit festem Commit und
-  SHA-256, nicht als Roh-Link. Kredit nur in [`CREDITS.md`](../../CREDITS.md).
-- Ein Schalter tauscht die Haut. Zensical bleibt der Seitengenerator.
+- Die Page nutzt das Standard-Template von Zensical (Material, hell und dunkel
+  nach Systemeinstellung). Keine eigene Haut und kein vendortes Stylesheet.
+- Zensical bleibt der Seitengenerator. Die veröffentlichte Seite wird nicht von
+  Hand editiert.
 
 **Vier Leser**, Deutsch und Englisch, Alltagssprache:
 
@@ -1442,8 +1449,18 @@ GPL-Referenzen (Xash3D-FWGS, cs16-client, HLSW) werden nicht cherry-pickt und ni
 vendored. Man liest den Commit, schreibt die Idee in eigenem Code neu und kredited
 sie nur in `CREDITS.md`, wenn sie wirklich eingeflossen ist.
 
-Server-Werkzeuge (ReHLDS, ReGameDLL, AMXX, ReAPI) sind keine Git-Cherry-Picks. Eine
-neue Version ist ein Eintrag in `versions.lock.json` mit geprüfter SHA-256.
+Server-Grundlagen, die wir bauen und anpassen, liegen als Quelltext im Repo.
+Das sind AMX Mod X, ReAPI, ReHLDS, ReGameDLL_CS und Metamod-R unter
+`server/vendor/`, jeweils auf den Release-Commit in `versions.lock.json` gepinnt.
+Dieselben Versionen liegen als geprüfte Linux-Release-Archive unter
+`server/vendor/dist/`. Die Fetch-Skripte lesen diese Archive, sie laden sie
+nicht herunter. Includes für den Pawn-Compiler kommen aus dem vendorten
+Quelltext, damit eine Änderung dort der Build ist. `amxxpc` bleibt das
+gepinnte Release-Binary dieses Commits, bis der Compiler aus
+`server/vendor/amxmodx` gebaut wird. Die Upstream-Lizenzen bleiben an diesen
+Bäumen. Original-Spielinhalte und das SteamCMD-Image werden nicht vendort.
+GPL-Referenzen, aus denen nur Ideen stammen (FuryBaM, cs16-client, HLSW,
+Xash3D), bleiben außerhalb; ihr Code wird nicht kopiert.
 
 Jede Übernahme, die Verhalten ändert, läuft durch denselben Zyklus wie jeder andere
 Gate: Test, Doku Deutsch und Englisch, `scripts/verify.sh`, Commit, Push, grünes CI.

@@ -70,3 +70,6 @@ Bot*.db -text
 # The server API is vendored as source, so it stays diffable: -filter keeps the
 # prebuilt .a archives out of LFS, -merge still forces binary merges.
 /server/api/** -filter -merge
+# Server foundations are source plus small pinned release archives. -filter
+# keeps those blobs in git, the same way server/api keeps its prebuilt archives.
+/server/vendor/** -filter -merge

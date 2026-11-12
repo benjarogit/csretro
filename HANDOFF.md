@@ -393,8 +393,10 @@ implementation; the plan is the only source for the gate list.
   for a public server. A production server needs real Steam connectivity.
 - **E2E is not in CI yet.** The Docker job arrives with G10; the test needs
   network access for App 90.
-- **Runtime and toolchain are downloaded, not vendored.** `.cache/` is ignored
-  and removed by `scripts/clean.sh`; the first run after a clean needs network.
+- **Server stack is vendored.** Source and the pinned Linux release archives
+  live under `server/vendor/`. Fetch scripts read those archives. `.cache/`
+  only unpacks them and is removed by `scripts/clean.sh`. SteamCMD still
+  downloads Valve App 90; that content is not vendored.
 - **Vendored identity strings:** NextClient and the server API still carry
   upstream Sentry, GameAnalytics, updater and identity strings. Removed in G08.
 - **Upstream patches:** `server/api/deps/rsa_keygen/` needs two portability
@@ -408,7 +410,7 @@ implementation; the plan is the only source for the gate list.
 
 Public collaboration, SemVer from `1.0.0`, and upstream policy are in
 `docs/plan/csretro-plan.md` §11. `VERSION` is `1.0.0-dev`. No `v1.0.0` tag yet.
-The public docs site is live: Zensical + vgui.css skins, audience hubs,
+The public docs site is live: Zensical default template, audience hubs,
 `SECURITY.md`, Pages after green `ci` on `main`, Dependabot for Actions,
 weekly upstream-watch. Site: https://benjarogit.github.io/csretro/
 Pages source is GitHub Actions. Site: https://benjarogit.github.io/csretro/
@@ -496,8 +498,8 @@ the Security overview switches in the browser.
 | Multilib | works (`-m32`) |
 | Steam | installed, Default Public 1.1.2.7 |
 | Build symlink | `/tmp/csretro-src` → repository |
-| Server toolchain | AMXX `1.10.0.5487`, ReAPI `5.29.0.358` in `.cache/toolchain/` |
-| Server runtime | ReHLDS `3.15.0.896`, ReGameDLL `5.30.0.814`, Metamod-R `1.3.0.149` in `.cache/downloads/` |
+| Server toolchain | AMXX `1.10.0.5487`, ReAPI `5.29.0.358` under `server/vendor/` |
+| Server runtime | ReHLDS `3.15.0.896`, ReGameDLL `5.30.0.814`, Metamod-R `1.3.0.149` under `server/vendor/` |
 
 The retail game lives in the maintainer's Steam library. It is **not** part of the
 repository and must never be committed. CSRETRO is always installed into a separate

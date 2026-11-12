@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Fetch the server-side scripting toolchain.
 #
-# Downloads AMX Mod X (Pawn compiler + scripting includes) and ReAPI (its
-# includes), verifies every SHA-256 against versions.lock.json and unpacks them
-# under .cache/toolchain/. The cache is ignored by git.
+# The Linux compiler binary is the pinned release archive under
+# server/vendor/dist/. Plugin includes are the vendored source trees, so an
+# edit there is what the compiler sees. SHA-256 is checked against
+# versions.lock.json. The unpacked compiler lives under .cache/toolchain/.
 #
 # Prints shell assignments on stdout, so callers can eval the result:
 #
@@ -52,8 +53,10 @@ amxx_dir="$(extract_tar amxmodx "$amxx_archive")"
 reapi_dir="$(extract_zip reapi "$reapi_archive")"
 
 amxxpc="$amxx_dir/addons/amxmodx/scripting/amxxpc"
-amxx_include="$amxx_dir/addons/amxmodx/scripting/include"
-reapi_include="$reapi_dir/addons/amxmodx/scripting/include"
+# Includes come from the vendored source, not from the release archive, so a
+# change under server/vendor is what plugin compiles use.
+amxx_include="$ROOT/server/vendor/amxmodx/plugins/include"
+reapi_include="$ROOT/server/vendor/reapi/reapi/extra/amxmodx/scripting/include"
 
 if [[ ! -x "$amxxpc" ]]; then
     printf 'ERROR: Pawn compiler not found at %s\n' "$amxxpc" >&2

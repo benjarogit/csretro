@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Fetch the server runtime packages.
 #
-# Downloads ReHLDS, ReGameDLL_CS, Metamod-R, AMX Mod X and ReAPI, verifies every
-# SHA-256 against versions.lock.json and keeps them in .cache/downloads/.
+# Reads the vendored ReHLDS, ReGameDLL_CS, Metamod-R, AMX Mod X and ReAPI
+# archives under server/vendor/dist/, verifies every SHA-256 against
+# versions.lock.json and prints their paths.
 #
 # Prints shell assignments on stdout:
 #
@@ -53,5 +54,5 @@ if [[ -n "$stage" ]]; then
     printf 'staged %d archives in %s\n' "${#archives[@]}" "$stage" >&2
 fi
 
-printf 'RUNTIME_ARCHIVES_DIR=%q\n' "$DOWNLOADS"
+printf 'RUNTIME_ARCHIVES_DIR=%q\n' "$(dirname -- "${archives[0]}")"
 printf 'RUNTIME_STEAMCMD_IMAGE=%q\n' "$(lock_value server_runtime steamcmd image)"

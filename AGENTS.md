@@ -173,9 +173,15 @@ else is derived or linked, never copied.
 
 Redundancy is a defect. Concretely:
 
-1. **Reference projects are not vendored.** Only NextClient, NextClientServerApi,
-   ncl-hl1-source-sdk and vcpkg are vendored. FuryBaM/cs16-client, FWGS/cs16-client
-   and HLSW are references with credits.
+1. **Shipped foundations are vendored.** NextClient, NextClientServerApi,
+   ncl-hl1-source-sdk, vcpkg, and the server stack under `server/vendor/`
+   (AMX Mod X, ReAPI, ReHLDS, ReGameDLL_CS, Metamod-R) live in this repository.
+   Their upstream licenses stay on those trees. Edits to `ncl-hl1-source-sdk`
+   are `client/dep/ncl-hl1-source-sdk.patch`. Client configure applies that
+   patch. The submodule pin stays the upstream commit. Verification fails when
+   a checked-out tree does not match the patch. FuryBaM/cs16-client,
+   FWGS/cs16-client, HLSW and Xash3D are references with credits. Valve game
+   content and the SteamCMD image are not vendored.
 2. **No duplicated cvar defaults.** UI code reads the shared registration, never a
    second literal table.
 3. **One address provider.** A generic provider plus a build registry, not one copy
@@ -246,7 +252,8 @@ CMakeUserPresets.json  vcpkg_installed/  __pycache__/
 - Spent Cursor or agent work plans for a closed gate are deleted or archived.
   They must not pile up as a second backlog next to `docs/plan/csretro-plan.md`
   and `HANDOFF.md`. A finished plan is waste; keep only an active staging plan
-  while a gate is open.
+  while a gate is open. `tools/verify_repo.py` fails if a tracked path ends in
+  `.plan.md`.
 
 ---
 

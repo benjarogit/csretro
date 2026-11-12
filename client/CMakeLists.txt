@@ -20,6 +20,29 @@ foreach (NEXTCLIENT_LFS_FILE
     endif ()
 endforeach ()
 
+# Our LP64 edits stay in this repository. The submodule pin is the upstream
+# commit, and that remote is not ours to push. Configure applies the patch
+# when the tree does not already contain it.
+set(CSR_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk")
+set(CSR_SDK_PATCH "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk.patch")
+if(EXISTS "${CSR_SDK_PATCH}" AND EXISTS "${CSR_SDK_DIR}/.git")
+    execute_process(
+        COMMAND git apply --reverse --check "${CSR_SDK_PATCH}"
+        WORKING_DIRECTORY "${CSR_SDK_DIR}"
+        RESULT_VARIABLE CSR_SDK_PATCH_PRESENT
+    )
+    if(NOT CSR_SDK_PATCH_PRESENT EQUAL 0)
+        execute_process(
+            COMMAND git apply "${CSR_SDK_PATCH}"
+            WORKING_DIRECTORY "${CSR_SDK_DIR}"
+            RESULT_VARIABLE CSR_SDK_PATCH_RESULT
+        )
+        if(NOT CSR_SDK_PATCH_RESULT EQUAL 0)
+            message(FATAL_ERROR "Failed to apply ${CSR_SDK_PATCH}")
+        endif()
+    endif()
+endif()
+
 project(NextClient VERSION 2.6.0)
 
 set(NEXTCLIENT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})

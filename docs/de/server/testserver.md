@@ -33,9 +33,9 @@ HLDS-Basisdateien kommen als App 90 über SteamCMD.
 | `/entrypoint.sh`, `/healthcheck.py` | Start und Healthcheck |
 
 Das Image wird aus `server/pack/` gebaut. Der Build-Kontext enthält zusätzlich
-die heruntergeladenen Runtime-Archive, das gebaute Modul, das kompilierte
-Testplugin und die Testassets. `tests/e2e/run.sh` stellt diesen Kontext
-zusammen; von Hand erledigt das `scripts/build-server.sh --stage`.
+die vendorten Runtime-Archive aus `server/vendor/dist/`, das gebaute Modul,
+das kompilierte Testplugin und die Testassets. `tests/e2e/run.sh` stellt
+diesen Kontext zusammen; von Hand erledigt das `scripts/build-server.sh --stage`.
 
 ## Schnellstart
 
@@ -46,15 +46,14 @@ tests/e2e/run.sh
 Das Skript
 
 1. baut Modul und Testplugin über `scripts/build-server.sh --stage`,
-2. lädt die Runtime-Archive mit SHA-256-Prüfung,
+2. prüft die vendorten Runtime-Archive aus `server/vendor/dist/` per SHA-256,
 3. baut das Image und startet es mit Docker Compose,
 4. wartet auf den Healthcheck,
 5. prüft Log und RCON mit `tests/e2e/test_server.py`,
 6. entfernt Container und Volumes in jedem Fall.
 
 Voraussetzungen: Docker mit Compose v2 und Netzwerk beim ersten Lauf, weil
-SteamCMD App 90 herunterlädt. Danach greifen die Docker-Layer und
-`.cache/downloads/`.
+SteamCMD App 90 herunterlädt. Die Server-Binaries kommen aus `server/vendor/dist/`.
 
 | Variable | Standard | Bedeutung |
 |---|---|---|

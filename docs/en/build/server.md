@@ -13,22 +13,26 @@ scripts/doctor.sh          # host check, including -m32
 scripts/build-server.sh    # fetch toolchain, configure, build, test, manifest
 ```
 
-The script downloads the Pawn toolchain on first use, configures with tests
+The script unpacks the vendored Pawn compiler, configures with tests
 enabled, builds, runs CTest and writes a manifest. A second run is a no-op.
 
 ## Pawn toolchain
 
-Two upstream packages are needed and neither is vendored:
+AMX Mod X and ReAPI are vendored as source. The same version is also stored as
+a checked Linux release under `server/vendor/dist/`, because `amxxpc` is a
+built binary. Includes used to compile plugins come from the source tree.
 
-| Package | Version | Purpose |
-|---|---|---|
-| AMX Mod X base | `1.10.0.5487` | `amxxpc` compiler and the standard includes |
-| ReAPI | `5.29.0.358` | `reapi.inc` and the ReAPI module |
+| Package | Version | Source | Release archive |
+|---|---|---|---|
+| AMX Mod X | `1.10.0.5487` | `server/vendor/amxmodx` | `server/vendor/dist/amxmodx-1.10.0-git5487-base-linux.tar.gz` |
+| ReAPI | `5.29.0.358` | `server/vendor/reapi` | `server/vendor/dist/reapi-bin-5.29.0.358.zip` |
 
-Both URLs and their SHA-256 digests are pinned in `versions.lock.json` under
-`server_toolchain`. `scripts/fetch-server-toolchain.sh` downloads them into
-`.cache/downloads/`, verifies every digest, unpacks them into
-`.cache/toolchain/` and merges the two include directories into one.
+The commit and SHA-256 are pinned in `versions.lock.json` under
+`server_toolchain`. `scripts/fetch-server-toolchain.sh` checks the archive,
+unpacks the compiler into `.cache/toolchain/` and merges the includes from
+`server/vendor/amxmodx/plugins/include` and
+`server/vendor/reapi/reapi/extra/amxmodx/scripting/include`. An edit to those
+includes is what the compiler sees.
 
 `amxxpc` `dlopen()`s `amxxpc32.so` by name, so it only runs when its own
 directory is on `LD_LIBRARY_PATH`. The script generates a small wrapper that
@@ -146,7 +150,7 @@ helper only, not the module.
 | Symptom | Cause | Fix |
 |---|---|---|
 | `compiler failed to instantiate: amxxpc32.so` | `amxxpc` run without its directory on `LD_LIBRARY_PATH` | use `$AMXXPC` from `scripts/fetch-server-toolchain.sh` |
-| `SHA-256 mismatch` | corrupted or changed download | delete the file in `.cache/downloads/` and rerun |
+| archive SHA-256 does not match | file under `server/vendor/dist/` does not match the lock | replace the archive from the pinned release, not from `.cache/` |
 | `Missing PAWN_COMPILER` | only one of the two Pawn variables set | set both or neither |
 | `void main must return int` | an unpatched upstream `rsa_keygen` | apply `patches/server-api/0001-rsa-keygen-portability.patch` |
 | `i386 architecture ... incompatible with i386:x86-64` | a host tool linking the 32-bit OpenSSL archives | see the same patch |

@@ -18,20 +18,6 @@ exclude_docs = """
 plan/**
 """
 
-not_in_nav = """
-assets/**
-stylesheets/**
-javascripts/**
-"""
-
-extra_css = [
-  "stylesheets/csretro-vgui.css",
-]
-
-extra_javascript = [
-  "javascripts/vgui-skin.js",
-]
-
 nav = [
   { "Home" = "index.md" },
   { "Deutsch" = [
@@ -103,14 +89,14 @@ icon.repo = "fontawesome/brands/github"
 [[project.theme.palette]]
 media = "(prefers-color-scheme: light)"
 scheme = "default"
-toggle.icon = "lucide/sun"
-toggle.name = "Switch to blacksteam (dark)"
+toggle.icon = "material/brightness-7"
+toggle.name = "Switch to dark mode"
 
 [[project.theme.palette]]
 media = "(prefers-color-scheme: dark)"
 scheme = "slate"
-toggle.icon = "lucide/moon"
-toggle.name = "Switch to greensteam (light)"
+toggle.icon = "material/brightness-4"
+toggle.name = "Switch to light mode"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/github"

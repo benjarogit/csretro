@@ -49,13 +49,21 @@
       "version": "1.10.0.5487",
       "url": "https://github.com/alliedmodders/amxmodx/releases/download/1.10.0.5487/amxmodx-1.10.0-git5487-base-linux.tar.gz",
       "sha256": "d82d1d65c907f358c48bdebc07e20084e7e8c4f4d0e95af275e8b43f32815c7e",
-      "usage": "Pawn compiler and scripting includes",
+      "vendored": true,
+      "source_prefix": "server/vendor/amxmodx",
+      "source_commit": "8fc12670ea86470a0bfed4c35db5de73d3a39e8a",
+      "archive": "server/vendor/dist/amxmodx-1.10.0-git5487-base-linux.tar.gz",
+      "usage": "Pawn compiler binary and vendored scripting source",
       "gate": "G05"
     },
     "amxmodx_cstrike": {
       "version": "1.10.0.5487",
       "url": "https://github.com/alliedmodders/amxmodx/releases/download/1.10.0.5487/amxmodx-1.10.0-git5487-cstrike-linux.tar.gz",
       "sha256": "6a7541a213ef71c47c1348b3457722e95669c0135c60102d5cb5a876341aa808",
+      "vendored": true,
+      "source_prefix": "server/vendor/amxmodx",
+      "source_commit": "8fc12670ea86470a0bfed4c35db5de73d3a39e8a",
+      "archive": "server/vendor/dist/amxmodx-1.10.0-git5487-cstrike-linux.tar.gz",
       "usage": "AMXX cstrike and csx modules for the test server",
       "gate": "G06"
     },
@@ -63,7 +71,11 @@
       "version": "5.29.0.358",
       "url": "https://github.com/rehlds/ReAPI/releases/download/5.29.0.358/reapi-bin-5.29.0.358.zip",
       "sha256": "f33a7435540bea8706db3fa948e51a85b511f5b18c383b97402a204dc5419195",
-      "usage": "ReAPI scripting includes and AMXX module",
+      "vendored": true,
+      "source_prefix": "server/vendor/reapi",
+      "source_commit": "1c448d06e8c1cebaea061d6b81b94e85f6262649",
+      "archive": "server/vendor/dist/reapi-bin-5.29.0.358.zip",
+      "usage": "ReAPI source and the pinned AMXX module",
       "gate": "G05"
     }
   },
@@ -72,21 +84,33 @@
       "version": "3.15.0.896",
       "url": "https://github.com/rehlds/ReHLDS/releases/download/3.15.0.896/rehlds-bin-3.15.0.896.zip",
       "sha256": "997baeb7ef3842dab3e034d82dc651ebfe560c23b158adce660a6b97976b4e2b",
-      "usage": "Server engine",
+      "vendored": true,
+      "source_prefix": "server/vendor/rehlds",
+      "source_commit": "196300131858d1e087267fb2fb60cb935f8f8873",
+      "archive": "server/vendor/dist/rehlds-bin-3.15.0.896.zip",
+      "usage": "Server engine source and the pinned Linux build",
       "gate": "G06"
     },
     "regamedll": {
       "version": "5.30.0.814",
       "url": "https://github.com/rehlds/ReGameDLL_CS/releases/download/5.30.0.814/regamedll-bin-5.30.0.814.zip",
       "sha256": "457f5c96a4d10280fcad47f106cbd5be86363a47df1ccab91c514e9d1bc6fd18",
-      "usage": "Server game library",
+      "vendored": true,
+      "source_prefix": "server/vendor/regamedll",
+      "source_commit": "781a68ae1c6fb652cf4fbc894970b4fb4dde19f9",
+      "archive": "server/vendor/dist/regamedll-bin-5.30.0.814.zip",
+      "usage": "Server game library source and the pinned Linux build",
       "gate": "G06"
     },
     "metamod_r": {
       "version": "1.3.0.149",
       "url": "https://github.com/rehlds/Metamod-R/releases/download/1.3.0.149/metamod-bin-1.3.0.149.zip",
       "sha256": "ede7f59c4e0220afe8c02aa348a130cce527f87d36ffdb674e37a501ce57be94",
-      "usage": "Metamod plugin loader",
+      "vendored": true,
+      "source_prefix": "server/vendor/metamod-r",
+      "source_commit": "603a2574e937171aa5e737bd5e7b4a07f74e88ee",
+      "archive": "server/vendor/dist/metamod-bin-1.3.0.149.zip",
+      "usage": "Metamod plugin loader source and the pinned Linux build",
       "gate": "G06",
       "note": "Upstream publishes no digest and no signature for this release; the hash was computed from the downloaded asset and is pinned from then on."
     },
@@ -103,15 +127,7 @@
       "version": "0.1.1",
       "url_manylinux_x86_64": "https://files.pythonhosted.org/packages/ff/2f/b2b12131181d144d5c452820654f40d84e63480dcdff11de6d15f5bc0a16/zensical-0.1.1-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
       "sha256_manylinux_x86_64": "e11abaf2669c5ee780a145d114e8c3db4cd81cd3fdfc8a4513a324301fefd113",
-      "usage": "GitHub Pages generator for docs/de and docs/en"
-    },
-    "vgui_css": {
-      "repository": "https://github.com/AlpyneDreams/vgui.css",
-      "commit": "d8b12f50a89f7f0c59e3a0cb39f07cd8ca5f0ae7",
-      "prefix": "docs/assets/vgui/",
-      "tree_sha256": "bfde45642b6ec969b02b09821b5f1e596181d6361da0123d0b385b7b3a75ff9f",
-      "license": "MIT",
-      "usage": "greensteam (light) and blacksteam (dark) skins for the docs page"
+      "usage": "GitHub Pages generator for docs/de and docs/en, default template"
     }
   },
   "references": {

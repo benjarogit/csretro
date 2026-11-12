@@ -10,6 +10,11 @@ The authoritative version string is the `VERSION` file.
 
 ### Changed
 
+- The public docs site uses Zensical's default template. The vgui.css skins are
+  no longer part of the Page.
+- AMX Mod X, ReAPI, ReHLDS, ReGameDLL_CS and Metamod-R are vendored under
+  `server/vendor/`. Fetch scripts read the pinned archives in
+  `server/vendor/dist/` and compile plugins against the vendored includes.
 - GitHub Actions pins: `checkout`/`setup-python` v7, Pages deploy/upload v5.
   Dependabot groups Action updates into one weekly PR. `main` requires the
   `repository verification` check and rejects force-pushes. Spent Cursor work
@@ -29,9 +34,13 @@ The authoritative version string is the `VERSION` file.
 - `csr_host_load_pair` binds cursor, press and release to the pair's
   `VGUI_InputInternal001` and dispatches once per event without
   `IInputInternal::RunFrame` or `CVGui::RunFrame`.
+- A laid-out `GameMenu.res` item receives that bind. Paint associates the
+  embedded root with the default input context. `QuitNoConfirm` records
+  `quit` and does not run it. The LP64 SDK delta is
+  `client/dep/ncl-hl1-source-sdk.patch`, applied when the client is configured.
 - Public documentation site: Zensical (pinned) builds `docs/de` and `docs/en`
-  with four audience hubs (players, maintainers, plugins, servers). Vendored
-  vgui.css `greensteam` / `blacksteam` skins. Workflows: Pages deploy after
+  with four audience hubs (players, maintainers, plugins, servers). Workflows:
+  Pages deploy after
   green `ci` on `main`, Dependabot for Actions, weekly upstream-watch issue.
   `SECURITY.md` is the only security policy text.
 - `xash_surface.so`, a `VGUI_Surface026` the host factory can hand to `vgui2`:

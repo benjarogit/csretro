@@ -33,9 +33,9 @@ files come from App 90 through SteamCMD.
 | `/entrypoint.sh`, `/healthcheck.py` | Start and healthcheck |
 
 The image is built from `server/pack/`. The build context additionally holds the
-downloaded runtime archives, the built module, the compiled test plugin and the
-test assets. `tests/e2e/run.sh` assembles that context; by hand,
-`scripts/build-server.sh --stage` does the same.
+vendored runtime archives from `server/vendor/dist/`, the built module, the
+compiled test plugin and the test assets. `tests/e2e/run.sh` assembles that
+context; by hand, `scripts/build-server.sh --stage` does the same.
 
 ## Quick start
 
@@ -46,15 +46,14 @@ tests/e2e/run.sh
 The script
 
 1. builds the module and the test plugin through `scripts/build-server.sh --stage`,
-2. downloads the runtime archives and verifies their SHA-256,
+2. checks the vendored runtime archives from `server/vendor/dist/` by SHA-256,
 3. builds the image and starts it with Docker Compose,
 4. waits for the healthcheck,
 5. checks log and RCON with `tests/e2e/test_server.py`,
 6. removes containers and volumes on every exit path.
 
 Requirements: Docker with Compose v2 and network access on the first run, because
-SteamCMD downloads App 90. After that the Docker layers and `.cache/downloads/`
-take over.
+SteamCMD downloads App 90. The server binaries come from `server/vendor/dist/`.
 
 | Variable | Default | Meaning |
 |---|---|---|

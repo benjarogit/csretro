@@ -91,8 +91,12 @@ Aufruf. `Mod_NeedCRC` ist danach die Funktion in diesem Prozess, wenn
 dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht
 auf, daher bleibt das Need-CRC-Flag unverändert, kein Modell wird gesucht
 und kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook
-ist kein Aufruf. Der nächste Retail-Hook ist `Mod_LoadModel`. Dieser Pfad
-kehrt davor zurück.
+ist kein Aufruf. `Mod_LoadModel` ist danach die Funktion in diesem Prozess, wenn
+dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht
+auf, daher wird kein Modell geladen, keine Modelldatei gelesen, keine CRC
+berechnet und das Need-CRC-Flag bleibt unverändert. Ein Null-Zeiger ist kein
+Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist `Mod_ForName`.
+Dieser Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie

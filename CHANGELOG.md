@@ -105,8 +105,12 @@ The authoritative version string is the `VERSION` file.
   when that retail hook is absent. Init stores the pointer and does not
   call it, so the need-CRC flag stays unchanged, no model is looked up and
   no socket is opened. A null pointer is not a call. A null hook is not a
-  call. The next retail hook is `Mod_LoadModel`. This path returns before
-  it.
+  call. `Mod_LoadModel` is then the function in this process when that
+  retail hook is absent. Init stores the pointer and does not call it, so
+  no model is loaded, no model file is read, no CRC is computed and the
+  need-CRC flag stays unchanged. A null pointer is not a call. A null hook
+  is not a call. The next retail hook is `Mod_ForName`. This path returns
+  before it.
   `csr_host_frame` is a later direct call. One call opens the X11 display,
   creates a window for the EGL config's visual, calls `eglCreateWindowSurface`,
   paints one GameUI frame and calls `eglSwapBuffers`. The call adds the

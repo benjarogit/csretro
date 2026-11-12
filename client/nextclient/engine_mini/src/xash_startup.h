@@ -56,6 +56,9 @@ using EngineMiniModValidateCRCFn = goldsrc::qboolean (*)(const char* name, golds
 // Process replacement for the retail Mod_NeedCRC hook. A null value is not a call.
 using EngineMiniModNeedCRCFn = void (*)(const char* name, goldsrc::qboolean needCRC);
 
+// Process replacement for the retail Mod_LoadModel hook. A null value is not a call.
+using EngineMiniModLoadModelFn = goldsrc::model_t* (*)(goldsrc::model_t* mod, goldsrc::qboolean crash, goldsrc::qboolean trackCRC);
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -87,6 +90,7 @@ struct EngineMiniXashStartup
     int mod_print_calls{};
     int mod_validate_calls{};
     int mod_need_calls{};
+    int mod_load_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -117,6 +121,7 @@ struct EngineMiniXashStartup
     EngineMiniModPrintFn mod_print{};
     EngineMiniModValidateCRCFn mod_validate{};
     EngineMiniModNeedCRCFn mod_need{};
+    EngineMiniModLoadModelFn mod_load{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -172,6 +177,9 @@ extern EngineMiniModValidateCRCFn g_EngineMiniModValidateCRC;
 
 // Defaults to Mod_NeedCRC. Init stores the pointer and does not call it.
 extern EngineMiniModNeedCRCFn g_EngineMiniModNeedCRC;
+
+// Defaults to Mod_LoadModel. Init stores the pointer and does not call it.
+extern EngineMiniModLoadModelFn g_EngineMiniModLoadModel;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

@@ -378,8 +378,12 @@ Nebenbefunde:
   `SetCStrikeFlags` laufen. `NET_SendPacket` ist danach die Funktion in diesem
   Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und
   ruft ihn nicht auf, daher wird kein Socket geöffnet. Ein Null-Zeiger ist
-  kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
-  `Netchan_CopyFileFragments`. Dieser Pfad kehrt davor zurück.
+  kein Aufruf. Ein Null-Hook ist kein Aufruf. `Netchan_CopyFileFragments` ist
+  danach die Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der
+  Init speichert den Zeiger und ruft ihn nicht auf, daher wird keine
+  Fragmentdatei kopiert und kein Socket geöffnet. Ein Null-Zeiger ist kein
+  Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
+  `SVC_TimeScale`. Dieser Pfad kehrt davor zurück.
   `OnGameInitialized` wird nicht betreten. Die Retail-Hook-Kette läuft dabei nicht.
   `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen haben weiter
   keinen Xash3D-Einsprung.
@@ -714,8 +718,12 @@ lässt diesen Zeiger null, und `SetCStrikeFlags` wird nicht aufgerufen. Ein
 vorhandener Name lässt `SetCStrikeFlags` laufen. `NET_SendPacket` ist danach
 die Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init
 speichert den Zeiger und ruft ihn nicht auf, daher wird kein Socket geöffnet.
-Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-Retail-Hook ist `Netchan_CopyFileFragments`. Dieser Pfad kehrt davor zurück.
+Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+`Netchan_CopyFileFragments` ist danach die Funktion in diesem Prozess, wenn
+dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht
+auf, daher wird keine Fragmentdatei kopiert und kein Socket geöffnet. Ein
+Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
+Retail-Hook ist `SVC_TimeScale`. Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten. Die
 Retail-Hook-Kette und ein Xash-Frame laufen dabei nicht. `hw.so` wird nicht geöffnet.
 `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen von `engine_mini`

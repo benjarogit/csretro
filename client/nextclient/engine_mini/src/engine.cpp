@@ -380,6 +380,7 @@ namespace
     bool XashStartupIsActive();
     bool SupplyXashEngineTable();
     void RecordXashNetSendPacket();
+    void RecordXashNetchanCopyFileFragments();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -388,8 +389,10 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // are not calls, and a missing pointer is not Sys_Error. Con_Init runs
     // once that table is stored. SetCStrikeFlags runs only when pfnGetGameDir
     // is set. NET_SendPacket is then the process function when that hook is
-    // absent. This init stores the pointer and does not send. The remaining
-    // retail hooks stay after this return.
+    // absent. This init stores the pointer and does not send.
+    // Netchan_CopyFileFragments is then the process function when that hook
+    // is absent. This init stores the pointer and does not copy a fragment.
+    // The remaining retail hooks stay after this return.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -400,6 +403,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
                 SetCStrikeFlags();
             }
             RecordXashNetSendPacket();
+            RecordXashNetchanCopyFileFragments();
         }
         return;
     }
@@ -819,6 +823,7 @@ static void OnGameInitialized()
 }
 
 EngineMiniNetSendPacketFn g_EngineMiniNetSendPacket = NET_SendPacket;
+EngineMiniNetchanCopyFileFragmentsFn g_EngineMiniNetchanCopyFileFragments = Netchan_CopyFileFragments;
 
 namespace
 {
@@ -840,6 +845,22 @@ namespace
             return;
         }
         g_xash_startup.net_send_packet = g_EngineMiniNetSendPacket;
+    }
+
+    void RecordXashNetchanCopyFileFragments()
+    {
+        // The retail site installs a replacement. It does not copy during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        g_xash_startup.netchan_copy = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->Netchan_CopyFileFragments.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniNetchanCopyFileFragments == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.netchan_copy = g_EngineMiniNetchanCopyFileFragments;
     }
 
     bool XashStartupIsActive()
@@ -1096,6 +1117,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_xash_startup = {};
     g_xash_startup.engine_is_xash = engine_is_xash;
     g_EngineMiniNetSendPacket = NET_SendPacket;
+    g_EngineMiniNetchanCopyFileFragments = Netchan_CopyFileFragments;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

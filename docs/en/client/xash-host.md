@@ -21,8 +21,12 @@ An empty mount leaves that pointer null, and `SetCStrikeFlags` is not called.
 A mounted name runs `SetCStrikeFlags`. `NET_SendPacket` is the function in this
 process when that retail hook is absent. Init stores the pointer and does not
 call it, so no socket is opened. A null pointer is not a call. A null hook is
-not a call. The next retail hook is `Netchan_CopyFileFragments`. This path
-returns before it. `OnGameInitialized` is not entered. Shutdown and the fatal error stay
+not a call. `Netchan_CopyFileFragments` is then the function in this process
+when that retail hook is absent. Init stores the pointer and does not call
+it, so no fragment file is copied and no socket is opened. A null pointer is
+not a call. A null hook is not a call. The next retail hook is
+`SVC_TimeScale`. This path returns before it. `OnGameInitialized` is not
+entered. Shutdown and the fatal error stay
 bound and that open does not call them. A missing library or export fails
 the load and is not
 called. The load does not open `hw.so` and does not call `RunFrame`.

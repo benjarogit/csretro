@@ -23,8 +23,12 @@ aufgerufen. Ein vorhandener Name lässt `SetCStrikeFlags` laufen.
 `NET_SendPacket` ist die Funktion in diesem Prozess, wenn dieser Retail-Hook
 fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf, daher wird kein
 Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein
-Aufruf. Der nächste Retail-Hook ist `Netchan_CopyFileFragments`. Dieser Pfad
-kehrt davor zurück. `OnGameInitialized` wird nicht betreten.
+Aufruf. `Netchan_CopyFileFragments` ist danach die Funktion in diesem
+Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und
+ruft ihn nicht auf, daher wird keine Fragmentdatei kopiert und kein Socket
+geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+Der nächste Retail-Hook ist `SVC_TimeScale`. Dieser Pfad kehrt davor zurück.
+`OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie
 nicht. Eine fehlende Bibliothek oder ein fehlender Export lässt das Laden
 scheitern und

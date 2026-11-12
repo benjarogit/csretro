@@ -5,6 +5,9 @@
 // Process replacement for the retail NET_SendPacket hook. A null value is not a call.
 using EngineMiniNetSendPacketFn = void (*)(goldsrc::netsrc_t sock, int length, void* data, goldsrc::netadr_t to);
 
+// Process replacement for the retail Netchan_CopyFileFragments hook. A null value is not a call.
+using EngineMiniNetchanCopyFileFragmentsFn = goldsrc::qboolean (*)(goldsrc::netchan_t* chan);
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -19,6 +22,7 @@ struct EngineMiniXashStartup
     int shutdown_calls{};
     int error_calls{};
     int net_send_calls{};
+    int netchan_copy_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -32,10 +36,14 @@ struct EngineMiniXashStartup
     char basedir[256]{};
     char error[256]{};
     EngineMiniNetSendPacketFn net_send_packet{};
+    EngineMiniNetchanCopyFileFragmentsFn netchan_copy{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
 extern EngineMiniNetSendPacketFn g_EngineMiniNetSendPacket;
+
+// Defaults to Netchan_CopyFileFragments. Init stores the pointer and does not call it.
+extern EngineMiniNetchanCopyFileFragmentsFn g_EngineMiniNetchanCopyFileFragments;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

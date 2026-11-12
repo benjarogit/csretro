@@ -37,7 +37,9 @@ The authoritative version string is the `VERSION` file.
 
 - `scripts/install-content.sh` searches a Steam library (`libraryfolders.vdf`,
   `appmanifest_10.acf`) and copies the mounted Counter-Strike 1.6 files into a
-  directory outside that library. A missing Steam install or a missing game
+  directory outside that library. Files shipped in `client/assets` overlay
+  that copy: the same relative path keeps the shipped file, and a retail file
+  with no shipped replacement stays. A missing Steam install or a missing game
   fails. Personal configs, demos, screenshots, caches, Steam and VAC binaries
   and `hw.so` stay behind. The game is not started.
 - The host loads `next_engine_mini.dll` and `nitro_api2.dll` after the

@@ -27,6 +27,8 @@ vollständiges Spiel ist.
 | `destination_inside_source` | Das Ziel liegt in der Steam-Bibliothek oder im Spielbaum. |
 | `destination_not_empty` | Das Ziel enthält schon Dateien. |
 | `destination_unavailable` | Das Ziel ist eine Datei oder die Wurzel des Dateisystems. |
+| `overlay_inside_source` | Das Overlay liegt in der Steam-Bibliothek oder im Spielbaum. |
+| `overlay_missing` | Der angegebene Overlay-Pfad fehlt. |
 
 Es wird kein Pfad erfunden. Ein Fehlschlag schreibt keine Kopie.
 
@@ -48,6 +50,22 @@ Das Ziel behält das Half-Life-Layout. Die Allowlist steht in
 
 Fehlt eine dieser gemounteten Gruppen, `marlett.ttf` oder
 `BackgroundLayout.txt`, endet der Lauf mit `game_missing` und schreibt nichts.
+
+## Mitgelieferte Dateien gewinnen
+
+Die Steam-Kopie ist die nötige Basis. Dateien, die CSRETRO selbst ausliefert
+(`client/assets`), liegen als Overlay darüber. Bei demselben relativen Pfad
+löst der Client die mitgelieferte Datei auf. Das gilt für Maps, Waffen und
+jede andere mitgelieferte Datei desselben Namens: Modelle, Sounds, Sprites
+und Resources. Eine Retail-Datei ohne mitgelieferten Ersatz bleibt. Die
+Retail-Kopie überschreibt eine Datei, die wir ausliefern, nicht.
+
+`--overlay` wählt diesen Baum. Ohne den Schalter nimmt das Werkzeug
+`client/assets`, wenn das Verzeichnis existiert. Ein Test übergibt einen
+nachgebauten Auslieferungsbaum und liest keine Steam-Installation. Ein
+Overlay innerhalb der Steam-Bibliothek wird als `overlay_inside_source`
+abgelehnt und schreibt nichts. Ein fehlender Overlay-Pfad ist
+`overlay_missing`.
 
 ## Was liegen bleibt
 

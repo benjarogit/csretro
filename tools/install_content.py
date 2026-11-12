@@ -2,7 +2,9 @@
 """Copy the Counter-Strike 1.6 files the client mounts.
 
 Searches a Steam library for App 10 and copies an allowlist into a directory
-outside that library. A missing Steam install or a missing game is a failure.
+outside that library. Files shipped in ``client/assets`` are an overlay: the
+same relative path keeps the shipped file, and a retail file with no shipped
+replacement stays. A missing Steam install or a missing game is a failure.
 The tool does not invent a path, does not start Steam and does not start the
 game.
 
@@ -204,6 +206,7 @@ def _result(
     copied: list[str] | None = None,
     skipped: list[dict[str, str]] | None = None,
     missing: list[str] | None = None,
+    replaced: list[str] | None = None,
 ) -> dict:
     return {
         "ok": ok,
@@ -214,6 +217,7 @@ def _result(
         "copied": copied or [],
         "skipped": skipped or [],
         "missing": missing or [],
+        "replaced": replaced or [],
     }
 
 
@@ -451,8 +455,50 @@ def _destination_error(destination: Path, library: Path, source: Path) -> str | 
     return None
 
 
-def install_content(roots: list[Path], destination: Path) -> dict:
-    """Detect App 10 under `roots` and copy the allowlist to `destination`."""
+def shipped_asset_root() -> Path:
+    """Repository tree whose relative paths match the game root."""
+    return Path(__file__).resolve().parents[1] / "client" / "assets"
+
+
+def _overlay_files(overlay: Path) -> list[str]:
+    """Regular files under the shipped tree. Symlinks are not followed."""
+    root = _resolved(overlay)
+    found: list[str] = []
+    for directory, dir_names, file_names in os.walk(root, followlinks=False):
+        current = Path(directory)
+        dir_names[:] = [name for name in dir_names if not (current / name).is_symlink()]
+        for name in file_names:
+            path = current / name
+            if path.is_symlink() or not stat.S_ISREG(path.stat().st_mode):
+                continue
+            relative = path.relative_to(root).as_posix()
+            if any(part in ("", ".", "..") for part in relative.split("/")):
+                continue
+            if not _within(_resolved(path), root):
+                continue
+            found.append(relative)
+    found.sort()
+    return found
+
+
+def _overlay_error(overlay: Path, library: Path, source: Path) -> tuple[str | None, list[str]]:
+    if not overlay.exists():
+        return "overlay_missing", []
+    if not overlay.is_dir():
+        return "overlay_unavailable", []
+    root = _resolved(overlay)
+    if _within(root, library) or _within(root, source):
+        return "overlay_inside_source", []
+    return None, _overlay_files(overlay)
+
+
+def install_content(roots: list[Path], destination: Path, overlay: Path | None = None) -> dict:
+    """Detect App 10 under `roots` and copy the allowlist to `destination`.
+
+    When `overlay` is a directory, its files are written after the retail
+    copy. The same relative path keeps the shipped bytes. A retail file with
+    no shipped replacement stays.
+    """
     found = discover(roots)
     if not found["ok"]:
         return found
@@ -469,6 +515,18 @@ def install_content(roots: list[Path], destination: Path) -> dict:
             library=found["library"],
             destination=str(destination),
         )
+
+    shipped: list[str] = []
+    if overlay is not None:
+        overlay_error, shipped = _overlay_error(overlay, library, source)
+        if overlay_error is not None:
+            return _result(
+                False,
+                overlay_error,
+                source=found["source"],
+                library=found["library"],
+                destination=str(destination),
+            )
 
     selected, skipped = _scan(source)
     missing = _missing_required(set(selected))
@@ -498,11 +556,19 @@ def install_content(roots: list[Path], destination: Path) -> dict:
             target = staging / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source / relative, target)
+        # Shipped files land after the retail copy, so a retail file cannot
+        # replace a file CSRETRO ships at the same relative path.
+        replaced = sorted(set(selected) & set(shipped))
+        for relative in shipped:
+            target = staging / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(overlay / relative, target)
+        final = sorted(set(selected) | set(shipped))
         arrived = sorted(
             path.relative_to(staging).as_posix() for path in staging.rglob("*") if path.is_file()
         )
-        if arrived != selected:
-            raise RuntimeError("destination does not match the allowlist")
+        if arrived != final:
+            raise RuntimeError("destination does not match the allowlist plus the shipped overlay")
         if destination.exists():
             destination.rmdir()
         staging.rename(destination)
@@ -519,8 +585,9 @@ def install_content(roots: list[Path], destination: Path) -> dict:
         source=found["source"],
         library=found["library"],
         destination=str(_resolved(destination)),
-        copied=selected,
+        copied=final,
         skipped=skipped,
+        replaced=replaced,
     )
 
 
@@ -533,14 +600,25 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Steam client or library root. Repeatable. Defaults to the Linux Steam locations.",
     )
     parser.add_argument("--destination", required=True, help="Directory outside the Steam library.")
+    parser.add_argument(
+        "--overlay",
+        default=None,
+        help="Shipped asset tree. The same relative path replaces the retail copy. "
+        "Defaults to client/assets when that directory exists.",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(sys.argv[1:] if argv is None else argv)
     roots = [Path(value) for value in args.steam_root] if args.steam_root else default_steam_roots()
+    if args.overlay is not None:
+        overlay: Path | None = Path(args.overlay)
+    else:
+        candidate = shipped_asset_root()
+        overlay = candidate if candidate.is_dir() else None
     try:
-        result = install_content(roots, Path(args.destination))
+        result = install_content(roots, Path(args.destination), overlay)
     except OSError as error:
         print(f"error: copy_failed: {error}", file=sys.stderr)
         return 1

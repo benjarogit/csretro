@@ -302,6 +302,52 @@ def test_copy_is_the_allowlist_and_refuses_the_library(tmp_path: Path):
         assert banned not in names
 
 
+def test_shipped_overlay_wins_the_same_relative_path(tmp_path: Path):
+    steam = tmp_path / "Steam"
+    game = _plant_game(steam)
+    overlay = tmp_path / "shipped"
+    collisions = {
+        "cstrike/maps/de_dust2.bsp": b"shipped-map",
+        "cstrike/models/player/leet/leet.mdl": b"shipped-model",
+        "cstrike/sound/weapons/ak47.wav": b"shipped-weapon",
+        "cstrike/sprites/smoke.spr": b"shipped-sprite",
+        "cstrike/resource/GameMenu.res": b"shipped-resource",
+    }
+    for relative, payload in collisions.items():
+        path = overlay / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+    shipped_only = overlay / "cstrike/sprites/csretro_weapon.txt"
+    shipped_only.parent.mkdir(parents=True, exist_ok=True)
+    shipped_only.write_bytes(b"shipped-only")
+
+    destination = tmp_path / "csretro-copy"
+    result = install_content.install_content([steam], destination, overlay)
+    assert result["ok"] is True
+    assert result["replaced"] == sorted(collisions)
+    for relative, payload in collisions.items():
+        assert (destination / relative).read_bytes() == payload
+        assert (game / relative).read_bytes() != payload
+    assert (destination / "cstrike/maps/de_dust2.txt").read_bytes() == b"maptxt"
+    assert (destination / "cstrike/events/ak47.sc").read_bytes() == b"event"
+    assert (destination / "valve/sound/ambience/beep.wav").read_bytes() == b"beep"
+    assert (destination / "cstrike/sprites/csretro_weapon.txt").read_bytes() == b"shipped-only"
+    assert "cstrike/maps/de_dust2.txt" not in result["replaced"]
+    assert (game / "hw.so").read_bytes() == b"engine"
+    assert not (destination / "hw.so").exists()
+
+
+def test_overlay_inside_the_library_is_refused(tmp_path: Path):
+    steam = tmp_path / "Steam"
+    game = _plant_game(steam)
+    destination = tmp_path / "csretro-copy"
+    result = install_content.install_content([steam], destination, game / "cstrike")
+    assert result["ok"] is False
+    assert result["error"] == "overlay_inside_source"
+    assert not destination.exists()
+    assert (game / "cstrike/maps/de_dust2.bsp").read_bytes() == b"bsp"
+
+
 def test_incomplete_game_does_not_copy(tmp_path: Path):
     library = tmp_path / "SteamLibrary"
     game = library / "steamapps" / "common" / "Half-Life"

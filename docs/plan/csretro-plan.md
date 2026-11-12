@@ -780,7 +780,12 @@ Identitätsslot hinzu. Die Installation sucht Steam über
 (Maps, Modelle, Sounds, Sprites, Grafiken, Resource, Events, Overviews,
 Klassen, Logos, WAD-Dateien und die Spieldateien `liblist.gam` und
 `delta.lst`), `valve` einschließlich `valve/resource` mit Marlett und
-`BackgroundLayout.txt`, und `platform/resource`. Das Ziel liegt außerhalb
+`BackgroundLayout.txt`, und `platform/resource`. Dateien, die CSRETRO
+selbst ausliefert (`client/assets`), liegen als Overlay über dieser Kopie.
+Derselbe relative Pfad gewinnt für die mitgelieferte Datei: Maps, Waffen
+und jede andere mitgelieferte Datei (Modelle, Sounds, Sprites, Resources).
+Die Retail-Datei bleibt, wenn es keinen mitgelieferten Ersatz gibt. Die
+Retail-Kopie überschreibt eine mitgelieferte Datei nicht. Das Ziel liegt außerhalb
 der gefundenen Steam-Bibliothek. Ein Ziel innerhalb dieses Baums wird
 abgelehnt. Fehlt Steam oder das Spiel, ist das ein Fehlschlag, und es wird
 kein Pfad erfunden. Persönliche Konfigurationen, Demos, Screenshots, Caches,
@@ -1244,7 +1249,9 @@ testen, keine Steam-Zugangsdaten annehmen oder speichern.
 
 **Inhaltskopie (umgesetzt, Abschnitt 3.7):** `scripts/install-content.sh`
 sucht die Steam-Bibliothek und App 10, kopiert die Allowlist in ein Ziel
-außerhalb dieser Bibliothek und bricht ab, wenn Steam oder das Spiel fehlt.
+außerhalb dieser Bibliothek, legt `client/assets` darüber (gleicher
+relativer Pfad gewinnt, Retail ohne Ersatz bleibt) und bricht ab, wenn Steam
+oder das Spiel fehlt.
 Installer-Hülle, Hash-Prüfung der Retail-Binaries, `--target`, Deinstallation
 und die `.desktop`-Starter bleiben Aufgabe von G09.
 

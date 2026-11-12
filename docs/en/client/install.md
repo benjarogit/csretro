@@ -26,6 +26,8 @@ first one is a complete game.
 | `destination_inside_source` | The destination is inside the Steam library or the game tree. |
 | `destination_not_empty` | The destination already contains files. |
 | `destination_unavailable` | The destination is a file or the filesystem root. |
+| `overlay_inside_source` | The overlay is inside the Steam library or the game tree. |
+| `overlay_missing` | The overlay path that was passed does not exist. |
 
 Nothing is invented. A failure writes no copy.
 
@@ -47,6 +49,21 @@ The destination keeps the Half-Life layout. The allowlist is
 
 A tree that is missing one of those mounted groups, `marlett.ttf`, or
 `BackgroundLayout.txt` fails as `game_missing` and writes nothing.
+
+## Shipped files win
+
+The Steam copy is the required base. Files CSRETRO itself ships
+(`client/assets`) are an overlay on that copy. When the relative path is the
+same, the shipped file is the one the client resolves. That covers maps,
+weapons, and every other shipped asset with the same name: models, sounds,
+sprites, and resources. A retail file with no shipped replacement stays. The
+retail copy does not overwrite a file we ship.
+
+`--overlay` selects that tree. When the flag is omitted, the tool uses
+`client/assets` if the directory exists. A test passes a fake shipped tree
+and does not read a Steam install. An overlay inside the Steam library is
+refused as `overlay_inside_source` and writes nothing. A missing overlay path
+is `overlay_missing`.
 
 ## What stays behind
 

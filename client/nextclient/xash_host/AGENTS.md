@@ -26,15 +26,19 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
 - `csr_host_init_gameui` calls `IGameUI::Initialize` after that connection.
   A missing `next_engine_mini` module is not called. The base panel is
   visible and a child of the host root. The server list is built when
-  `resource/schemes/TrackerScheme_ClassicPlus.res` is on that root. `Start` and
-  `RunFrame` stay unused.
+  `resource/schemes/TrackerScheme_ClassicPlus.res` is on that root. `RunFrame`
+  stays unused.
+- `csr_host_start_gameui` calls `IGameUI::Start` with a host engine table.
+  It does not open `hw.so`. Cvar reads are empty, the clock stays at 0, and
+  recorded commands are not executed. A missing scheme file does not call the
+  server browser. `RunFrame` stays unused.
 - `csr_host_paint_gameui` sizes the root and its non-popup children, solves
   the tree and paints it. A paint calls `PushMakeCurrent`. When
   `resource/schemes/TrackerScheme_ClassicPlus.res` is on the root, that paint
   applies scheme settings and reads `resource/BackgroundLayout.txt`. A texture
   name with no extension is the `.tga` beside it. A missing file is not a
-  texture. Options pages and drawing the background wait for `Start`.
-  `RunFrame` stays unused.
+  texture. The background image is drawn at time 0 before `Start`. The paint
+  after `Start` builds the options pages. `RunFrame` stays unused.
 - Extra factories follow those entries. The surface name is not forwarded to them.
 - `csr_host_bind_input` forwards cursor, press and release, then one dispatch.
   `CVGui::RunFrame` is not called. `SurfaceSetCursorPos` does not dispatch.

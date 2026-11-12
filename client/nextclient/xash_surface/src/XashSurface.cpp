@@ -530,12 +530,24 @@ namespace xash
 
         void DrawTexturedRect(int x0, int y0, int x1, int y1) override
         {
+            if (current_texture_ <= 0 || current_texture_ >= static_cast<int>(textures_.size()) ||
+                !textures_[static_cast<size_t>(current_texture_)].valid)
+            {
+                return;
+            }
+            // Count the request. Upload needs a GL context and may still no-op.
+            ++textured_quad_count_;
             const Texture* texture = FindTexture(current_texture_);
             if (texture == nullptr)
             {
                 return;
             }
             DrawQuad(x0, y0, x1, y1, draw_r_, draw_g_, draw_b_, draw_a_, texture->gl_name, true, false);
+        }
+
+        int TexturedQuadCount() const
+        {
+            return textured_quad_count_;
         }
 
         bool IsTextureIDValid(int id) override
@@ -1618,6 +1630,7 @@ namespace xash
         } cursor_quad_{};
         vgui2::VPANEL embedded_{};
         int push_count_ = 0;
+        int textured_quad_count_ = 0;
         std::vector<vgui2::VPANEL> popups_;
         vgui2::VPANEL modal_{};
         vgui2::VPANEL restricted_{};
@@ -1761,6 +1774,15 @@ int csr_surface_push_count(const csr_surface_t* surface)
         return 0;
     }
     return As(surface)->PushCount();
+}
+
+int csr_surface_textured_quad_count(const csr_surface_t* surface)
+{
+    if (surface == nullptr)
+    {
+        return 0;
+    }
+    return As(surface)->TexturedQuadCount();
 }
 
 int csr_surface_cursor_quad(const csr_surface_t* surface, int* x, int* y, int* wide, int* tall, int* texture)

@@ -24,9 +24,10 @@ LauncherPlan PlanXashLauncher(
     const char* gameui_path,
     const char* steam_api_path);
 
-// Opens that plan in this process. Does not exec the command, does not start
-// the game or Steam, and does not call RunFrame. A failed open leaves the
-// host closed. steam is the libsteam_api.so handle while open is true.
+// Opens that plan in this process and calls IGameUI::Start. Does not exec the
+// command, does not start the game or Steam, and does not call RunFrame. A
+// failed open leaves the host closed. steam is the libsteam_api.so handle
+// while open is true.
 struct LauncherProcess
 {
     bool open = false;

@@ -383,7 +383,9 @@ void CGameUI::Start(goldsrc::cl_enginefunc_t* engineFuncs, int interfaceVersion,
 
     ModInfo().LoadCurrentGameInfo();
 
-    if (g_pServerBrowser)
+    // Initialize builds the browser only after the scheme exists. Calling it
+    // earlier walks a dialog that was never created.
+    if (g_pServerBrowser && vgui2::VGui_GetDefaultScheme() != 0)
     {
         g_pServerBrowser->ActiveGameName(ModInfo().GetGameDescription(), engine->pfnGetGameDirectory());
         g_pServerBrowser->Reactivate();

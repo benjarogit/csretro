@@ -495,6 +495,7 @@ TEST_F(HostFactory, PaintsTheGameUiTreeWithoutRunFrame)
     ASSERT_EQ(csr_host_connect_vgui(), 1);
     ASSERT_EQ(csr_host_init_gameui(), 1);
     ASSERT_EQ(csr_host_paint_gameui(640, 480), 1);
+    EXPECT_EQ(csr_host_textured_quad_count(), 0);
     EXPECT_EQ(csr_host_paint_gameui(0, 480), 0);
 
     std::remove(menu.c_str());
@@ -627,9 +628,18 @@ TEST_F(HostFactory, ParsesTheBackgroundLayoutAndLoadsItsTga)
     EXPECT_TRUE(quoted);
     EXPECT_EQ(files->ParseFile(next, token, &quoted), nullptr);
 
+    EXPECT_EQ(csr_host_start_gameui(), 0);
     ASSERT_EQ(csr_host_connect_vgui(), 1);
     ASSERT_EQ(csr_host_init_gameui(), 1);
+    const int quads_before = csr_host_textured_quad_count();
     ASSERT_EQ(csr_host_paint_gameui(640, 480), 1);
+    EXPECT_EQ(csr_host_textured_quad_count(), quads_before + 1);
+    ASSERT_EQ(csr_host_start_gameui(), 1);
+    EXPECT_EQ(csr_host_gameui_started(), 1);
+    EXPECT_EQ(csr_host_engine_command_count(), 5);
+    ASSERT_EQ(csr_host_paint_gameui(640, 480), 1);
+    EXPECT_GT(csr_host_textured_quad_count(), quads_before + 1);
+    EXPECT_EQ(csr_host_start_gameui(), 1);
 
     auto* vgui = static_cast<vgui2::ISurface*>(csr_host_create_interface("VGUI_Surface026", nullptr));
     ASSERT_NE(vgui, nullptr);
@@ -654,5 +664,35 @@ TEST_F(HostFactory, ParsesTheBackgroundLayoutAndLoadsItsTga)
     rmdir((temp.root + "/gfx").c_str());
     rmdir((temp.root + "/resource/schemes").c_str());
     rmdir((temp.root + "/resource").c_str());
+    rmdir((temp.root + "/Resource").c_str());
+}
+
+TEST_F(HostFactory, StartsGameUiWhenTheSchemeFileIsMissing)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    ASSERT_EQ(csr_host_load_pair(XASH_CLIENT_FILE, XASH_VGUI_FILE), 1);
+    ASSERT_EQ(csr_host_load_gameui(XASH_GAMEUI_FILE), 1);
+    EXPECT_EQ(csr_host_start_gameui(), 0);
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/Resource").c_str(), 0755), 0);
+    const std::string menu = temp.root + "/Resource/GameMenu.res";
+    FILE* out = std::fopen(menu.c_str(), "wb");
+    ASSERT_NE(out, nullptr);
+    const char* text = "\"GameMenu\"\n{\n}\n";
+    ASSERT_EQ(std::fwrite(text, 1, std::strlen(text), out), std::strlen(text));
+    std::fclose(out);
+
+    ASSERT_EQ(csr_host_mount_filesystem(temp.root.c_str()), 1);
+    ASSERT_EQ(csr_host_connect_vgui(), 1);
+    ASSERT_EQ(csr_host_init_gameui(), 1);
+    ASSERT_EQ(csr_host_start_gameui(), 1);
+    EXPECT_EQ(csr_host_gameui_started(), 1);
+    EXPECT_EQ(csr_host_engine_command_count(), 5);
+    EXPECT_EQ(csr_host_start_gameui(), 1);
+    EXPECT_EQ(csr_host_engine_command_count(), 5);
+
+    std::remove(menu.c_str());
     rmdir((temp.root + "/Resource").c_str());
 }

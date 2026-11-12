@@ -37,9 +37,8 @@ nur Dateien unter dieser Wurzel. Eine fehlende Datei ist ein Fehltreffer.
 `hw.so` wird dabei nicht geöffnet. Nach diesem Mount nimmt `IVGui::Init`
 diese Liste, sodass `vgui2` die eine Surface hält. Eine Scheme-Datei unter
 dieser Wurzel lädt derselbe Manager. Eine fehlende Datei lässt den Host
-offen. `IGameUI::Initialize` hängt das Basis-Panel danach an die Host-Wurzel. Liegt `resource/schemes/TrackerScheme_ClassicPlus.res` vor, wird das Scheme daraus gelesen und die Serverliste ein Kind des Basis-Panels. `csr_host_paint_gameui` setzt danach die Größe dieser Wurzel und zeichnet den Baum. Liegt die Scheme-Datei vor, liest dieses Paint `resource/BackgroundLayout.txt` und lädt einen Texturnamen ohne Endung aus der `.tga` daneben. Die Optionsseiten warten auf `Start`. Ein fehlendes
-Engine-Modul wird nicht aufgerufen. `Start` und `RunFrame` sind dieser
-Aufruf nicht. Der Host startet das Spiel nicht.
+offen. `IGameUI::Initialize` hängt das Basis-Panel danach an die Host-Wurzel. Liegt `resource/schemes/TrackerScheme_ClassicPlus.res` vor, wird das Scheme daraus gelesen und die Serverliste ein Kind des Basis-Panels. `csr_host_paint_gameui` setzt danach die Größe dieser Wurzel und zeichnet den Baum. Liegt die Scheme-Datei vor, liest dieses Paint `resource/BackgroundLayout.txt` und lädt einen Texturnamen ohne Endung aus der `.tga` daneben. Das Hintergrundbild wird mit Uhrzeit 0 gezeichnet. `csr_host_start_gameui` ruft danach `IGameUI::Start` auf einer Host-Engine-Tabelle, die `hw.so` nicht öffnet. Das folgende Paint baut die Optionsseiten. Ein fehlendes
+Engine-Modul wird nicht aufgerufen. `RunFrame` ist dieser Aufruf nicht. Der Host startet das Spiel nicht.
 
 Die eine `libsteam_api.so` ist ELF64 aus dem Host. Sie lädt Valves
 i386-Bibliothek nicht und startet Steam nicht. Ohne bereits laufendes,

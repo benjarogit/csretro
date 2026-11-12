@@ -20,9 +20,12 @@ then sizes the root and its non-popup children and paints the tree. A panel
 that paints calls `PushMakeCurrent`. When that scheme file is on the root,
 the same paint applies scheme settings. That reads
 `resource/BackgroundLayout.txt`. A texture name with no extension is the
-`.tga` file beside it. A missing file is not a texture. Options pages and
-drawing the background wait until `Start` has installed the engine pointer.
-`Start` and `RunFrame` are not that call. Later
+`.tga` file beside it. A missing file is not a texture. `csr_host_start_gameui`
+calls `IGameUI::Start` with a host engine table. It does not open `hw.so`.
+Cvar reads are empty, the clock stays at 0, and recorded commands are not
+executed. A missing scheme file does not call the server browser. The
+background image is drawn at time 0 before that call. The paint after it
+builds the options pages. `RunFrame` is not that call. Later
 factories are not asked for the surface name.
 
 Mouse move, press and release go to the three input calls and then to exactly

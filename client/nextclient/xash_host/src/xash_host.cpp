@@ -4,6 +4,12 @@
 #include "xash_surface/xash_surface.h"
 #include "xash_engine/xash_engine.h"
 
+#include <goldsrc/client_api.h>
+
+#include <FileSystem.h>
+
+#include <IGameUIFuncs.h>
+
 #include <vgui/IClientPanel.h>
 #include <vgui/IPanel.h>
 #include <vgui/IScheme.h>
@@ -31,6 +37,7 @@ namespace
         void (*set_panel)(csr_surface_t*, const csr_surface_panel_fns_t*) = nullptr;
         void (*begin_frame)(csr_surface_t*, int, int) = nullptr;
         int (*push_count)(const csr_surface_t*) = nullptr;
+        int (*textured_quad_count)(const csr_surface_t*) = nullptr;
         void* (*create_interface)(const char*, int*) = nullptr;
     };
 
@@ -54,6 +61,115 @@ namespace
     int g_vgui_connected = 0;
     int g_scheme_loaded = 0;
     int g_gameui_initialized = 0;
+    int g_gameui_started = 0;
+    int g_engine_commands = 0;
+    goldsrc::cl_enginefunc_t g_engine_funcs{};
+
+    int AddCommand(const char* name, void (*)())
+    {
+        if (name == nullptr || name[0] == '\0')
+        {
+            return 0;
+        }
+        ++g_engine_commands;
+        return 1;
+    }
+
+    float CvarFloat(const char*)
+    {
+        return 0.f;
+    }
+
+    char* CvarString(const char*)
+    {
+        static char empty[] = "";
+        return empty;
+    }
+
+    const char* GameDirectory()
+    {
+        return "";
+    }
+
+    const char* LevelName()
+    {
+        return "";
+    }
+
+    const char* LocalInfo(const char*)
+    {
+        return "";
+    }
+
+    const char* PlayerInfo(int, const char*)
+    {
+        return "";
+    }
+
+    void SetPlayerInfo(const char*, const char*)
+    {
+    }
+
+    int ClientCmd(const char*)
+    {
+        return 0;
+    }
+
+    void CvarSet(const char*, const char*)
+    {
+    }
+
+    void CvarSetValue(const char*, float)
+    {
+    }
+
+    double AbsoluteTime()
+    {
+        return 0.0;
+    }
+
+    int MaxClients()
+    {
+        return 0;
+    }
+
+    std::int32_t RandomLong(std::int32_t, std::int32_t)
+    {
+        return 0;
+    }
+
+    char* ParseEngineFile(const char* data, const char* token)
+    {
+        int code = 1;
+        auto* files = static_cast<IFileSystem*>(csr_host_filesystem_factory("VFileSystem009", &code));
+        if (files == nullptr || token == nullptr)
+        {
+            return nullptr;
+        }
+        bool quoted = false;
+        return files->ParseFile(const_cast<char*>(data), const_cast<char*>(token), &quoted);
+    }
+
+    void FillEngineFuncs()
+    {
+        g_engine_funcs = {};
+        g_engine_funcs.pfnAddCommand = AddCommand;
+        g_engine_funcs.pfnGetCvarFloat = CvarFloat;
+        g_engine_funcs.pfnGetCvarString = CvarString;
+        g_engine_funcs.pfnGetCvarPointer = [](const char*) -> goldsrc::cvar_t* { return nullptr; };
+        g_engine_funcs.pfnGetGameDirectory = GameDirectory;
+        g_engine_funcs.pfnGetLevelName = LevelName;
+        g_engine_funcs.LocalPlayerInfo_ValueForKey = LocalInfo;
+        g_engine_funcs.PlayerInfo_ValueForKey = PlayerInfo;
+        g_engine_funcs.PlayerInfo_SetValueForKey = SetPlayerInfo;
+        g_engine_funcs.pfnClientCmd = ClientCmd;
+        g_engine_funcs.Cvar_Set = CvarSet;
+        g_engine_funcs.Cvar_SetValue = CvarSetValue;
+        g_engine_funcs.GetAbsoluteTime = AbsoluteTime;
+        g_engine_funcs.GetMaxClients = MaxClients;
+        g_engine_funcs.pfnRandomLong = RandomLong;
+        g_engine_funcs.COM_ParseFile = ParseEngineFile;
+    }
     vgui2::IVGui* g_ivgui = nullptr;
     vgui2::VPANEL g_gameui_root = 0;
 
@@ -136,15 +252,116 @@ namespace
 
     HostEngineVGui g_engine_vgui;
 
+    // No keys are bound and no VAC server is connected. One mode keeps the
+    // video page from walking an empty list into a null pointer.
+    class HostGameUiFuncs final : public IGameUIFuncs
+    {
+    public:
+        bool IsKeyDown(const char*, bool& down) override
+        {
+            down = false;
+            return false;
+        }
+
+        const char* Key_NameForKey(EngineKey) override
+        {
+            return "";
+        }
+
+        const char* Key_BindingForKey(EngineKey) override
+        {
+            return "";
+        }
+
+        vgui2::KeyCode GetVGUI2KeyCodeForBind(const char*) override
+        {
+            return vgui2::KEY_NONE;
+        }
+
+        void GetVideoModes(vmode_t** modes, int* count) override
+        {
+            static vmode_t mode{640, 480, 32};
+            if (modes != nullptr)
+            {
+                *modes = &mode;
+            }
+            if (count != nullptr)
+            {
+                *count = 1;
+            }
+        }
+
+        void GetCurrentVideoMode(int* wide, int* tall, int* bpp) override
+        {
+            if (wide != nullptr)
+            {
+                *wide = 640;
+            }
+            if (tall != nullptr)
+            {
+                *tall = 480;
+            }
+            if (bpp != nullptr)
+            {
+                *bpp = 32;
+            }
+        }
+
+        void GetCurrentRenderer(char* name, int name_len, int* windowed, int* hd, int* addons, int* level) override
+        {
+            if (name != nullptr && name_len > 0)
+            {
+                name[0] = '\0';
+            }
+            if (windowed != nullptr)
+            {
+                *windowed = 1;
+            }
+            if (hd != nullptr)
+            {
+                *hd = 0;
+            }
+            if (addons != nullptr)
+            {
+                *addons = 0;
+            }
+            if (level != nullptr)
+            {
+                *level = 0;
+            }
+        }
+
+        bool IsConnectedToVACSecureServer() override
+        {
+            return false;
+        }
+
+        EngineKey Key_KeyStringToKeyNum(const char*) override
+        {
+            return -1;
+        }
+    };
+
+    HostGameUiFuncs g_gameui_funcs;
+
     void* EngineVGuiFactory(const char* name, int* code)
     {
+        void* found = nullptr;
         if (name != nullptr && std::strcmp(name, "VEngineVGui001") == 0)
+        {
+            found = &g_engine_vgui;
+        }
+        else if (name != nullptr && std::strcmp(name, IGAMEUIFUNCS_NAME) == 0)
+        {
+            found = &g_gameui_funcs;
+        }
+        if (found != nullptr)
         {
             if (code != nullptr)
             {
                 *code = 0;
             }
-            return &g_engine_vgui;
+            return found;
         }
         if (code != nullptr)
         {
@@ -167,6 +384,9 @@ namespace
         g_gameui.gameui = nullptr;
         g_gameui.console = nullptr;
         g_gameui_initialized = 0;
+        g_gameui_started = 0;
+        g_engine_commands = 0;
+        g_engine_funcs = {};
         if (g_gameui.module != nullptr)
         {
             dlclose(g_gameui.module);
@@ -182,6 +402,7 @@ namespace
         g_vgui_connected = 0;
         g_scheme_loaded = 0;
         g_gameui_initialized = 0;
+        g_gameui_started = 0;
         g_ivgui = nullptr;
         g_gameui_root = 0;
         g_root_client.panel_ = 0;
@@ -386,10 +607,13 @@ int csr_host_open(const char* path)
     g_surface.set_panel = LoadSymbol<decltype(g_surface.set_panel)>(module, "csr_surface_set_panel");
     g_surface.begin_frame = LoadSymbol<decltype(g_surface.begin_frame)>(module, "csr_surface_begin_frame");
     g_surface.push_count = LoadSymbol<decltype(g_surface.push_count)>(module, "csr_surface_push_count");
+    g_surface.textured_quad_count =
+        LoadSymbol<decltype(g_surface.textured_quad_count)>(module, "csr_surface_textured_quad_count");
     g_surface.create_interface = LoadSymbol<decltype(g_surface.create_interface)>(module, "csr_surface_create_interface");
     if (g_surface.create == nullptr || g_surface.destroy == nullptr || g_surface.move == nullptr || g_surface.button == nullptr ||
         g_surface.set_input == nullptr || g_surface.set_file == nullptr || g_surface.set_panel == nullptr ||
-        g_surface.begin_frame == nullptr || g_surface.push_count == nullptr || g_surface.create_interface == nullptr)
+        g_surface.begin_frame == nullptr || g_surface.push_count == nullptr || g_surface.textured_quad_count == nullptr ||
+        g_surface.create_interface == nullptr)
     {
         csr_host_close();
         return 0;
@@ -709,6 +933,37 @@ int csr_host_gameui_initialized(void)
     return g_gameui_initialized;
 }
 
+int csr_host_start_gameui(void)
+{
+    if (g_gameui_started != 0)
+    {
+        return 1;
+    }
+    if (g_gameui_initialized == 0 || g_gameui.gameui == nullptr)
+    {
+        return 0;
+    }
+
+    // The table stays in this process. It does not open hw.so and it does not
+    // run the commands it records. RunFrame is not this call.
+    FillEngineFuncs();
+    auto** gameui_vtable = *reinterpret_cast<void***>(g_gameui.gameui);
+    auto start = reinterpret_cast<void (*)(void*, goldsrc::cl_enginefunc_t*, int, void*)>(gameui_vtable[3]);
+    start(g_gameui.gameui, &g_engine_funcs, 0, nullptr);
+    g_gameui_started = 1;
+    return 1;
+}
+
+int csr_host_gameui_started(void)
+{
+    return g_gameui_started;
+}
+
+int csr_host_engine_command_count(void)
+{
+    return g_engine_commands;
+}
+
 int csr_host_paint_gameui(int wide, int tall)
 {
     if (g_gameui_initialized == 0 || g_gameui_root == 0 || wide <= 0 || tall <= 0 || g_surface.surface == nullptr ||
@@ -752,6 +1007,15 @@ int csr_host_paint_gameui(int wide, int tall)
     surface->SolveTraverse(g_gameui_root, scheme_ready);
     surface->PaintTraverse(g_gameui_root);
     return g_surface.push_count(g_surface.surface) > before ? 1 : 0;
+}
+
+int csr_host_textured_quad_count(void)
+{
+    if (g_surface.surface == nullptr || g_surface.textured_quad_count == nullptr)
+    {
+        return 0;
+    }
+    return g_surface.textured_quad_count(g_surface.surface);
 }
 
 void csr_host_close(void)

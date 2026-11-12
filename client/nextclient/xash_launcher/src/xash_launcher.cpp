@@ -149,7 +149,7 @@ int OpenXashLauncher(
     }
 
     session->steam = steam;
-    if (csr_host_init_gameui() == 0)
+    if (csr_host_init_gameui() == 0 || csr_host_start_gameui() == 0)
     {
         dlclose(steam);
         csr_host_close();

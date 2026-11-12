@@ -712,8 +712,12 @@ Nicht-Popup-Kinder und zeichnet den Baum. Ein zeichnendes Panel ruft
 `PushMakeCurrent`. Liegt die Scheme-Datei vor, wendet dieses Paint die
 Scheme-Einstellungen an und liest `resource/BackgroundLayout.txt`. Ein
 Texturname ohne Endung ist die `.tga` daneben. Eine fehlende Datei wird
-keine Textur. Optionsseiten und das Zeichnen des Hintergrunds warten auf den
-Engine-Zeiger aus `Start`. `Start` und `RunFrame` sind
+keine Textur. `csr_host_start_gameui` ruft `IGameUI::Start` mit einer
+Host-Engine-Tabelle. Sie öffnet `hw.so` nicht. Cvar-Lesen bleibt leer, die
+Uhr bleibt bei 0, und aufgezeichnete Befehle werden nicht ausgeführt. Fehlt
+die Scheme-Datei, wird der Serverbrowser nicht aufgerufen. Das
+Hintergrundbild wird davor mit Uhrzeit 0 gezeichnet. Das Paint danach baut
+die Optionsseiten. `RunFrame` ist
 dieser Aufruf nicht. Es gibt kein
 zweites Dateisystem und keine zweite Factory. Retail-Daten liegen nicht im
 Repository. Der Host startet das Spiel nicht.
@@ -735,7 +739,8 @@ fügt keine zweite Surface, keine zweite Factory und keinen zweiten
 Identitätsslot hinzu. Der Aufrufer übergibt die Inhaltswurzel. Fehlt sie,
 ist das ein Fehlschlag. Der Launcher sucht die Steam-Bibliothek nicht und
 erfindet keinen Pfad. Derselbe Prozess öffnet diese Liste über den Host
-und führt den Befehl nicht aus. `SteamAPI_IsSteamRunning` bleibt falsch.
+und führt den Befehl nicht aus. Dasselbe Öffnen ruft `IGameUI::Start`.
+`SteamAPI_IsSteamRunning` bleibt falsch.
 Er startet das Spiel nicht, führt Xash3D nicht aus und ruft `RunFrame`
 nicht auf. Ein fehlgeschlagenes Öffnen lässt den Host geschlossen. Der
 bisherige GoldSrc-Starter `nextclient.sh` und der First-Start bleiben, bis

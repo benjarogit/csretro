@@ -342,7 +342,7 @@ implementation; the plan is the only source for the gate list.
   Product process is x86_64 (plan section 3.7). The Linux client preset is
   `linux` with the vcpkg triplet `x64-linux`. There is no second 32-bit client
   preset. `engine_mini-tests` (555), `nitro_api-tests` (70),
-  `xash_surface-tests` (21), `xash_host-tests` (16), `xash_engine-tests` (3),
+  `xash_surface-tests` (21), `xash_host-tests` (17), `xash_engine-tests` (3),
   `sdk_pair-tests` (4), `player_identity-tests` (6), `steam_api-tests` (2) and
   `xash_launcher-tests` (3)
   pass as ELF64 binaries
@@ -371,8 +371,11 @@ implementation; the plan is the only source for the gate list.
   panel when `resource/schemes/TrackerScheme_ClassicPlus.res` is on the root.
   `csr_host_paint_gameui` sizes that root and paints the tree. When the scheme
   file is present, that paint reads `resource/BackgroundLayout.txt` and loads
-  an extensionless texture name from the `.tga` beside it. Options pages
-  wait for `Start`. A missing engine module is not called.
+  an extensionless texture name from the `.tga` beside it.
+  `csr_host_start_gameui` calls `IGameUI::Start` on a host engine table. It
+  does not open `hw.so`. The background image is drawn at time 0. The
+  following paint builds the options pages.
+  A missing engine module is not called.
   `Start` and `RunFrame` are
   not that call.
   The ELF64 `libsteam_api.so` reports logged out and does not start Steam.
@@ -425,8 +428,8 @@ implementation; the plan is the only source for the gate list.
   host root. The server list is built from
   `resource/schemes/TrackerScheme_ClassicPlus.res` on that root.
   `csr_host_paint_gameui` sizes that root and paints the tree. When the scheme
-  file is present, that paint reads `resource/BackgroundLayout.txt`. `Start` and
-  `RunFrame` are not that call.
+  file is present, that paint reads `resource/BackgroundLayout.txt`.
+  `csr_host_start_gameui` calls `IGameUI::Start`. `RunFrame` is not that call.
   The ELF64 `libsteam_api.so` reports logged out. It does not start Steam.
   The Xash launcher plans one command and the same process opens that list.
   It does not execute the command or call `RunFrame`. A missing content root

@@ -98,13 +98,23 @@ CSR_HOST_API int csr_host_scheme_loaded(void);
 
 /*
  * Calls IGameUI::Initialize after the vgui connection. A missing
- * next_engine_mini module is not called. Does not call Start or RunFrame
+ * next_engine_mini module is not called. Does not call RunFrame
  * and does not start the game. Returns 0 when the base panel is not a child
  * of the host root panel. The server list is built when
  * resource/schemes/TrackerScheme_ClassicPlus.res is on that root.
  */
 CSR_HOST_API int csr_host_init_gameui(void);
 CSR_HOST_API int csr_host_gameui_initialized(void);
+
+/*
+ * Calls IGameUI::Start with a host engine table. Cvar reads are empty, the
+ * clock stays at 0, and recorded commands are not executed. Does not open
+ * hw.so, does not call RunFrame, and does not start the game. Returns 0
+ * when the UI is not initialized.
+ */
+CSR_HOST_API int csr_host_start_gameui(void);
+CSR_HOST_API int csr_host_gameui_started(void);
+CSR_HOST_API int csr_host_engine_command_count(void);
 CSR_HOST_API int csr_host_gameui_child_count(void);
 CSR_HOST_API int csr_host_gameui_base_child_count(void);
 
@@ -114,6 +124,8 @@ CSR_HOST_API int csr_host_gameui_base_child_count(void);
  * paint does not reach a panel. Does not call RunFrame and does not start the game.
  */
 CSR_HOST_API int csr_host_paint_gameui(int wide, int tall);
+/* Textured quads submitted by the one surface. A missing surface returns 0. */
+CSR_HOST_API int csr_host_textured_quad_count(void);
 
 /* list[0] answers VGUI_Surface026. A mounted filesystem follows it, then extras. */
 CSR_HOST_API int csr_host_factory_list(csr_host_factory_fn* extra, int extra_count, csr_host_factories_t* out);

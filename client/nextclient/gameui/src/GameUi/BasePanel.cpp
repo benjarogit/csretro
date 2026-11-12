@@ -402,8 +402,8 @@ CBasePanel::~CBasePanel(void)
 
 void CBasePanel::PaintBackground(void)
 {
-    // The options pages and the background image read engine cvars and the
-    // engine clock. Start installs that pointer. Paint before Start still fills.
+    // Options pages read engine cvars. Start installs that pointer.
+    // The background image draws before Start, at time 0.
     if (engine != nullptr && !m_hOptionsDialog.Get())
     {
         m_hOptionsDialog = new COptionsDialog(this, m_Renderer);
@@ -413,7 +413,7 @@ void CBasePanel::PaintBackground(void)
         PositionDialog(m_hCreateMultiplayerGameDialog);
     }
 
-    if (engine != nullptr && (!GameUI().IsInLevel() || g_hLoadingDialog.Get()))
+    if (engine == nullptr || !GameUI().IsInLevel() || g_hLoadingDialog.Get())
     {
         DrawBackgroundImage();
     }
@@ -618,7 +618,7 @@ void CBasePanel::DrawBackgroundImage(void)
     int wide, tall;
     GetSize(wide, tall);
 
-    float frametime = engine->GetAbsoluteTime();
+    const float frametime = engine != nullptr ? engine->GetAbsoluteTime() : 0.0f;
     int alpha = 255;
 
     if (m_bRenderingBackgroundTransition)

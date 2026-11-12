@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `def7362` (vendored server stack, default docs template, GameMenu click)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43183361462 – success (`def7362`)
+- **Commit:** `ced5e21` (HL1 SDK vendored in-tree; upstream base `0e9be00`)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43185616744 – success (`ced5e21`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -397,6 +397,13 @@ implementation; the plan is the only source for the gate list.
   live under `server/vendor/`. Fetch scripts read those archives. `.cache/`
   only unpacks them and is removed by `scripts/clean.sh`. SteamCMD still
   downloads Valve App 90; that content is not vendored.
+- **HL1 SDK is vendored.** The source, including the LP64 edits, is the
+  tracked tree `client/dep/ncl-hl1-source-sdk/`. The rollup patch
+  `client/dep/ncl-hl1-source-sdk.patch` is gone. Configure does not apply it.
+  This path is not a submodule. `versions.lock.json` records the upstream
+  base `0e9be00fc52b66742a09c84c8f6169dc7c83ca8a`. vcpkg stays a submodule.
+  Valve game content, the SteamCMD image and the idea-only GPL references
+  are not vendored.
 - **Vendored identity strings:** NextClient and the server API still carry
   upstream Sentry, GameAnalytics, updater and identity strings. Removed in G08.
 - **Upstream patches:** `server/api/deps/rsa_keygen/` needs two portability
@@ -458,9 +465,10 @@ the Security overview switches in the browser.
   context. `HostFactory.GameMenuClickSendsTheCommandWithoutRunFrame` passes:
   a laid-out `QuitGame` item is under the cursor and `QuitNoConfirm` records
   `quit` without running it. `xash_host-tests` HostFactory 19/19. `RunFrame`
-  stays unused. The LP64 SDK delta is `client/dep/ncl-hl1-source-sdk.patch`
-  (configure applies it; the submodule pin stays the upstream commit, so the
-  working tree shows the submodule modified after configure).
+  stays unused. The HL1 SDK source is the tracked tree
+  `client/dep/ncl-hl1-source-sdk/`, including the LP64 edits. The rollup
+  patch is gone. This tree is not a submodule. The upstream base in
+  `versions.lock.json` is `0e9be00fc52b66742a09c84c8f6169dc7c83ca8a`.
   Local identity is `ResolvePlayerIdentity` (plan section 3.7).
   `player_identity-tests` 6/6, no network. The lookup does not read Steam.
   Keep the Xvfb screen equal to the game resolution.
@@ -1241,9 +1249,8 @@ position and does not dispatch.
 
 `xash_host` loads the surface and binds mouse move, press and release to
 caller-supplied function pointers, then one dispatch.
-`csr_vgui_dispatch_messages` is the product export, applied to the pinned SDK
-checkout by `patches/sdk/0001-export-vgui-dispatch.patch`. The submodule pin
-does not move. `RunFrame` is not called.
+`csr_vgui_dispatch_messages` is the product export. It lives in the tracked
+SDK tree `client/dep/ncl-hl1-source-sdk/`. `RunFrame` is not called.
 Calls do not use file offsets. REA's Ghidra provider did not bind to the
 installed Ghidra 12.2. Headless Ghidra 12.2 confirmed that the retail library
 does not export `DispatchMessages`, that the first factory returning the

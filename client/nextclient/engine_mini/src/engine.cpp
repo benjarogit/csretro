@@ -1229,6 +1229,24 @@ namespace
             return false;
         }
 
+        // The frame writes these three fields directly. A planted pointer stays.
+        if (engine->realtime == nullptr)
+        {
+            engine->realtime = csr_xash_engine_realtime_ptr();
+        }
+        if (engine->host_frametime == nullptr)
+        {
+            engine->host_frametime = csr_xash_engine_frametime_ptr();
+        }
+        if (realtime == nullptr)
+        {
+            realtime = engine->realtime;
+        }
+        if (host_frametime == nullptr)
+        {
+            host_frametime = engine->host_frametime;
+        }
+
         FillXashPointer(engine->currenttexture);
         FillXashPointer(engine->client_state);
         FillXashPointer(engine->client_static);
@@ -1488,6 +1506,114 @@ extern "C" int EngineMini_CheckParm(const char* parm)
         return 0;
     }
     return COM_CheckParm(parm);
+}
+
+void EngineMini_NoteHostFilterCall()
+{
+    ++g_xash_startup.host_filter_calls;
+}
+
+extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_functions, int* nitro_hooks)
+{
+    if (host_filter_calls != nullptr)
+    {
+        *host_filter_calls = g_xash_startup.host_filter_calls;
+    }
+    if (stored_functions != nullptr)
+    {
+        int count = 0;
+        if (g_xash_startup.net_send_packet != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.netchan_copy != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.svc_timescale != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.svc_sendcvarvalue != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.http_update != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.http_stop != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.start_resource != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.read_packets != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.request_missing != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.disconnect != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.clear_state != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.host_map != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.host_filter != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.mod_clear != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.mod_find != nullptr)
+        {
+            ++count;
+        }
+        *stored_functions = count;
+    }
+    if (nitro_hooks != nullptr)
+    {
+        int count = 0;
+        if (g_xash_engine != nullptr)
+        {
+            auto count_hook = [&count](const auto& function) {
+                if (function.GetHook() != nullptr)
+                {
+                    ++count;
+                }
+            };
+            count_hook(g_xash_engine->NET_SendPacket);
+            count_hook(g_xash_engine->Netchan_CopyFileFragments);
+            count_hook(g_xash_engine->SVC_TimeScale);
+            count_hook(g_xash_engine->SVC_SendCvarValue);
+            count_hook(g_xash_engine->CL_HTTPUpdate);
+            count_hook(g_xash_engine->CL_HTTPStop_f);
+            count_hook(g_xash_engine->CL_StartResourceDownloading);
+            count_hook(g_xash_engine->CL_ReadPackets);
+            count_hook(g_xash_engine->CL_RequestMissingResources);
+            count_hook(g_xash_engine->CL_Disconnect);
+            count_hook(g_xash_engine->CL_ClearState);
+            count_hook(g_xash_engine->Host_Map_f);
+            count_hook(g_xash_engine->Host_FilterTime);
+            count_hook(g_xash_engine->Mod_ClearAll);
+            count_hook(g_xash_engine->Mod_FindName);
+            count_hook(g_xash_engine->Mod_Print);
+        }
+        *nitro_hooks = count;
+    }
 }
 
 class EngineMini : public EngineMiniInterface

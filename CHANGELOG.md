@@ -95,6 +95,11 @@ The authoritative version string is the `VERSION` file.
   the pointer and does not call it, so no model is looked up or loaded and
   no socket is opened. A null pointer is not a call. A null hook is not a
   call. The next retail hook is `Mod_Print`. This path returns before it.
+  `csr_host_frame` is a later direct call. One call paints one GameUI frame
+  through the present path and adds the caller's delta to host time by
+  writing `realtime`, `host_frametime` and `oldrealtime`. `Host_FilterTime`
+  is not called, no hook is installed, and `CVGui::RunFrame` is not called.
+  The retail hook list is not extended.
   `OnGameInitialized` is not entered. The retail hook chain
   does not run. `hw.so` stays
   unmapped. The game is not started.

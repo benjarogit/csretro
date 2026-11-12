@@ -151,6 +151,7 @@ extern EngineMiniModFindNameFn g_EngineMiniModFindName;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();
+void EngineMini_NoteHostFilterCall();
 
 extern "C" void EngineMini_ReadXashStartup(
     int* argv_calls,
@@ -159,3 +160,4 @@ extern "C" void EngineMini_ReadXashStartup(
     int* shutdown_calls,
     int* error_calls);
 extern "C" int EngineMini_CheckParm(const char* parm);
+extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_functions, int* nitro_hooks);

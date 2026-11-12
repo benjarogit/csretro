@@ -77,6 +77,7 @@ the function in this process when that retail hook is absent. Init stores
 the pointer and does not call it, so no model is looked up or loaded and
 no socket is opened. A null pointer is not a call. A null hook is not a
 call. The next retail hook is `Mod_Print`. This path returns before it.
+`csr_host_frame` is a later direct call and does not extend that list.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and are not called. A missing library or export fails the open and is
 not called.
@@ -86,6 +87,13 @@ host closed. `PresentXashLauncher` then calls `ActivateGameUI` and paints
 that menu at the given size. `Quit` is not run. `setpause` is only recorded.
 A missing scheme leaves the options pages unbuilt, and a server browser
 without a dialog is not opened.
+
+`csr_host_frame` paints one GameUI frame through that present path and adds
+the caller's delta to host time by writing `realtime`, `host_frametime` and
+`oldrealtime`. `Host_FilterTime` stays uncalled and no retail hook is added.
+`CVGui::RunFrame` stays uncalled. The planned command is not executed, Steam
+does not start, and no socket opens. A human-visible window still needs
+`eglCreateWindowSurface` and then `eglSwapBuffers`.
 
 `nextclient.sh` and [First client start](first-start.md) remain the GoldSrc
 path until this path replaces them.

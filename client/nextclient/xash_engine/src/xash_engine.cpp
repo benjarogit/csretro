@@ -116,3 +116,46 @@ void csr_xash_engine_error(const char* message)
     }
     g_startup.error(message);
 }
+
+double oldrealtime;
+
+namespace
+{
+
+    double g_realtime = 0.0;
+    double g_frametime = 0.0;
+
+} // namespace
+
+double* csr_xash_engine_realtime_ptr(void)
+{
+    return &g_realtime;
+}
+
+double* csr_xash_engine_frametime_ptr(void)
+{
+    return &g_frametime;
+}
+
+void csr_xash_engine_advance_host_time(double delta)
+{
+    g_realtime += delta;
+    g_frametime = delta;
+    oldrealtime = g_realtime;
+}
+
+void csr_xash_engine_read_host_time(double* realtime, double* frametime, double* oldrealtime_out)
+{
+    if (realtime != nullptr)
+    {
+        *realtime = g_realtime;
+    }
+    if (frametime != nullptr)
+    {
+        *frametime = g_frametime;
+    }
+    if (oldrealtime_out != nullptr)
+    {
+        *oldrealtime_out = oldrealtime;
+    }
+}

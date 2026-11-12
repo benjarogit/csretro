@@ -85,6 +85,7 @@ Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
 daher wird kein Modell gesucht oder geladen und kein Socket geöffnet.
 Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der
 nächste Retail-Hook ist `Mod_Print`. Dieser Pfad kehrt davor zurück.
+`csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler
 bleiben gebunden und werden nicht gerufen. Eine fehlende Bibliothek oder ein
@@ -97,6 +98,14 @@ ruft danach `ActivateGameUI` und zeichnet dieses Menü in der angegebenen
 Größe. `Quit` wird nicht ausgeführt. `setpause` wird nur aufgezeichnet.
 Fehlt das Scheme, bleiben die Optionsseiten ungebaut, und ein
 Serverbrowser ohne Dialog wird nicht geöffnet.
+
+`csr_host_frame` zeichnet ein GameUI-Bild über denselben Present-Pfad und
+addiert das übergebene Delta auf die Host-Zeit, indem es `realtime`,
+`host_frametime` und `oldrealtime` direkt schreibt. `Host_FilterTime` bleibt
+ungerufen, und es kommt kein Retail-Hook dazu. `CVGui::RunFrame` bleibt
+ungerufen. Der geplante Befehl wird nicht ausgeführt, Steam startet nicht,
+und kein Socket geht auf. Ein sichtbares Fenster braucht
+`eglCreateWindowSurface` und danach `eglSwapBuffers`.
 
 `nextclient.sh` und [Erster Client-Start](first-start.md) bleiben der
 GoldSrc-Weg, bis dieser Pfad sie ersetzt.

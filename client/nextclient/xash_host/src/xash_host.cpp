@@ -1350,6 +1350,26 @@ int csr_host_textured_quad_count(void)
     return g_surface.textured_quad_count(g_surface.surface);
 }
 
+int csr_host_frame(int wide, int tall, double delta)
+{
+    if (wide <= 0 || tall <= 0)
+    {
+        return 0;
+    }
+    // Same present path as PresentXashLauncher: show the menu, then paint.
+    if (csr_host_activate_gameui() == 0 || csr_host_paint_gameui(wide, tall) == 0)
+    {
+        return 0;
+    }
+    csr_xash_engine_advance_host_time(delta);
+    return 1;
+}
+
+void csr_host_read_host_time(double* realtime, double* frametime, double* oldrealtime)
+{
+    csr_xash_engine_read_host_time(realtime, frametime, oldrealtime);
+}
+
 void csr_host_close(void)
 {
     CloseEngine();

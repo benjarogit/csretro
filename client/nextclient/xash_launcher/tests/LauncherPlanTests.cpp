@@ -6,10 +6,14 @@
 
 #include <dlfcn.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <string>
+#include <vector>
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -238,6 +242,182 @@ TEST(XashLauncher, PresentPaintsTheMenuWithoutRunFrame)
     EXPECT_EQ(csr::PresentXashLauncher(&session, 640, 480), 0);
     EXPECT_FALSE(session.open);
 
+    std::remove(menu.c_str());
+    rmdir((temp.root + "/Resource").c_str());
+}
+
+namespace
+{
+
+bool MapsContain(const std::string& fragment)
+{
+    std::ifstream maps("/proc/self/maps");
+    std::string line;
+    while (std::getline(maps, line))
+    {
+        if (line.find(fragment) != std::string::npos)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ReadOpenSockets(std::vector<std::string>* links)
+{
+    links->clear();
+    std::error_code error;
+    std::filesystem::directory_iterator it("/proc/self/fd", error);
+    if (error)
+    {
+        return false;
+    }
+    const std::filesystem::directory_iterator end;
+    for (; !error && it != end; it.increment(error))
+    {
+        std::error_code link_error;
+        const std::filesystem::path target = std::filesystem::read_symlink(it->path(), link_error);
+        if (!link_error && target.string().rfind("socket:", 0) == 0)
+        {
+            links->push_back(target.string());
+        }
+    }
+    if (error)
+    {
+        return false;
+    }
+    std::sort(links->begin(), links->end());
+    return true;
+}
+
+} // namespace
+
+TEST(XashLauncher, DirectFramePaintsGameUiAndAdvancesHostTime)
+{
+    double realtime = 0.0;
+    double frametime = 0.0;
+    double oldrealtime = 0.0;
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    const double realtime_before = realtime;
+    const double frametime_before = frametime;
+    const double oldrealtime_before = oldrealtime;
+
+    EXPECT_EQ(csr_host_frame(640, 480, 0.125), 0);
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    EXPECT_DOUBLE_EQ(realtime, realtime_before);
+    EXPECT_DOUBLE_EQ(frametime, frametime_before);
+    EXPECT_DOUBLE_EQ(oldrealtime, oldrealtime_before);
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/Resource").c_str(), 0755), 0);
+    const std::string menu = temp.root + "/Resource/GameMenu.res";
+    FILE* menu_file = std::fopen(menu.c_str(), "wb");
+    ASSERT_NE(menu_file, nullptr);
+    const char* text = "\"GameMenu\"\n{\n}\n";
+    ASSERT_EQ(std::fwrite(text, 1, std::strlen(text), menu_file), std::strlen(text));
+    std::fclose(menu_file);
+
+    const std::string planted_hw = temp.root + "/hw.so";
+    std::filesystem::copy_file(XASH_HOST_FILE, planted_hw);
+    EXPECT_FALSE(MapsContain(planted_hw));
+
+    csr::LauncherProcess session;
+    ASSERT_EQ(
+        csr::OpenXashLauncher(
+            temp.root.c_str(),
+            XASH_HOST_FILE,
+            XASH_SURFACE_FILE,
+            XASH_CLIENT_FILE,
+            XASH_VGUI_FILE,
+            XASH_GAMEUI_FILE,
+            XASH_STEAM_API_FILE,
+            XASH_ENGINE_MINI_FILE,
+            XASH_NITRO_API_FILE,
+            &session),
+        1);
+
+    void* engine = dlopen(XASH_ENGINE_MINI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(engine, nullptr);
+    using GuardFn = void (*)(int*, int*, int*);
+    auto guard = reinterpret_cast<GuardFn>(dlsym(engine, "EngineMini_ReadFrameGuard"));
+    ASSERT_NE(guard, nullptr);
+    int filter_calls = -1;
+    int stored_before = -1;
+    int nitro_hooks = -1;
+    guard(&filter_calls, &stored_before, &nitro_hooks);
+    EXPECT_EQ(filter_calls, 0);
+    EXPECT_GT(stored_before, 0);
+    EXPECT_EQ(nitro_hooks, 0);
+
+    void* vgui = dlopen(XASH_VGUI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(vgui, nullptr);
+    auto run_frame_count = reinterpret_cast<int (*)()>(dlsym(vgui, "csr_vgui_run_frame_count"));
+    ASSERT_NE(run_frame_count, nullptr);
+    const int run_frames_before = run_frame_count();
+
+    std::vector<std::string> sockets_before;
+    ASSERT_TRUE(ReadOpenSockets(&sockets_before));
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    const double realtime_open = realtime;
+
+    const csr::LauncherPlan plan = csr::PlanXashLauncher(
+        temp.root.c_str(),
+        XASH_HOST_FILE,
+        XASH_SURFACE_FILE,
+        XASH_CLIENT_FILE,
+        XASH_VGUI_FILE,
+        XASH_GAMEUI_FILE,
+        XASH_STEAM_API_FILE,
+        XASH_ENGINE_MINI_FILE,
+        XASH_NITRO_API_FILE);
+    ASSERT_TRUE(plan.ready);
+    std::ifstream cmdline("/proc/self/cmdline", std::ios::binary);
+    std::string arguments((std::istreambuf_iterator<char>(cmdline)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(arguments.find("--surface"), std::string::npos);
+
+    ASSERT_EQ(csr_host_frame(640, 480, 0.125), 1);
+    EXPECT_STREQ(csr_host_last_client_command(), "setpause");
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    EXPECT_DOUBLE_EQ(realtime, realtime_open + 0.125);
+    EXPECT_DOUBLE_EQ(frametime, 0.125);
+    EXPECT_DOUBLE_EQ(oldrealtime, realtime_open + 0.125);
+
+    int filter_after = -1;
+    int stored_after = -1;
+    int nitro_after = -1;
+    guard(&filter_after, &stored_after, &nitro_after);
+    EXPECT_EQ(filter_after, 0);
+    EXPECT_EQ(stored_after, stored_before);
+    EXPECT_EQ(nitro_after, 0);
+    EXPECT_EQ(run_frame_count(), run_frames_before);
+
+    std::vector<std::string> sockets_after;
+    ASSERT_TRUE(ReadOpenSockets(&sockets_after));
+    EXPECT_EQ(sockets_before, sockets_after);
+    EXPECT_FALSE(MapsContain(planted_hw));
+    auto steam_running = reinterpret_cast<bool (*)()>(dlsym(session.steam, "SteamAPI_IsSteamRunning"));
+    ASSERT_NE(steam_running, nullptr);
+    EXPECT_FALSE(steam_running());
+
+    const double realtime_held = realtime;
+    const double frametime_held = frametime;
+    const double oldrealtime_held = oldrealtime;
+    EXPECT_EQ(csr_host_frame(0, 480, 0.125), 0);
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    EXPECT_DOUBLE_EQ(realtime, realtime_held);
+    EXPECT_DOUBLE_EQ(frametime, frametime_held);
+    EXPECT_DOUBLE_EQ(oldrealtime, oldrealtime_held);
+    EXPECT_EQ(run_frame_count(), run_frames_before);
+    guard(&filter_after, &stored_after, &nitro_after);
+    EXPECT_EQ(filter_after, 0);
+    EXPECT_EQ(stored_after, stored_before);
+    EXPECT_EQ(nitro_after, 0);
+
+    csr::CloseXashLauncher(&session);
+    dlclose(vgui);
+    dlclose(engine);
+    std::filesystem::remove(planted_hw);
     std::remove(menu.c_str());
     rmdir((temp.root + "/Resource").c_str());
 }

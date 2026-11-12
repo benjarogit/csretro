@@ -1,11 +1,13 @@
 #include "host.h"
 
+#include "xash_startup.h"
+
+#include <xash_engine/xash_engine.h>
+
 #include <goldsrc/cvar.h>
 #include <goldsrc/engine/client_state.h>
 #include <goldsrc/engine/server_state.h>
 #include <goldsrc/types.h>
-
-double oldrealtime;
 
 goldsrc::qboolean Host_IsSinglePlayerGame()
 {
@@ -30,6 +32,8 @@ int Host_GetMaxClients()
 
 goldsrc::qboolean Host_FilterTime(float time)
 {
+	// Counts an entry. A frame that writes the clock does not come through here.
+	EngineMini_NoteHostFilterCall();
 	float fps;
 	static int command_line_ticrate = -1;
 

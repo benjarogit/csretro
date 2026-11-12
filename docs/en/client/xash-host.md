@@ -71,6 +71,7 @@ the function in this process when that retail hook is absent. Init stores
 the pointer and does not call it, so no model is looked up or loaded and
 no socket is opened. A null pointer is not a call. A null hook is not a
 call. The next retail hook is `Mod_Print`. This path returns before it.
+`csr_host_frame` is a later direct call and does not extend that list.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and that open does not call them. A missing library or export fails
 the load and is not
@@ -90,6 +91,18 @@ executed. A missing scheme file does not call the server browser. The
 background image is drawn at time 0 before that call. The paint after it
 builds the options pages. `RunFrame` is not that call. Later
 factories are not asked for the surface name.
+
+`csr_host_frame` paints one GameUI frame through that present path
+(`ActivateGameUI`, then the paint above) and adds the caller's delta to
+host time. It writes `realtime`, `host_frametime` and `oldrealtime` directly.
+`Host_FilterTime` stays uncalled and no retail hook is added.
+`CVGui::RunFrame` stays uncalled. `hw.so` stays unmapped, no Steam client
+starts, no socket opens, and the planned launcher command is not executed.
+The GameUI engine-table clock stays at 0. `OnGameInitialized` stays out,
+because that entry loads material files, resolves `vgui2` and continues into
+the rest of retail init. A human-visible window still needs
+`eglCreateWindowSurface` and then `eglSwapBuffers`. `ISurface::SwapBuffers`
+is empty. The test harness only has an EGL pbuffer in the surface tests.
 
 `csr_host_load_pair` binds mouse move, press and release to that pair's
 `VGUI_InputInternal001`. Each event ends with exactly one

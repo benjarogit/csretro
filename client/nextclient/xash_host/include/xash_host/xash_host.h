@@ -165,6 +165,17 @@ CSR_HOST_API int csr_host_paint_gameui(int wide, int tall);
 /* Textured quads submitted by the one surface. A missing surface returns 0. */
 CSR_HOST_API int csr_host_textured_quad_count(void);
 
+/*
+ * One GameUI frame. Shows the menu and paints it, then adds delta to host
+ * realtime and stores that delta as the frame interval. Writes those fields
+ * directly. Returns 0 when the paint does not reach a panel, and then the
+ * clock stays put. Does not call CVGui::RunFrame or Host_FilterTime, does
+ * not install a hook, does not open hw.so or a socket, does not start Steam,
+ * and does not exec the launcher command.
+ */
+CSR_HOST_API int csr_host_frame(int wide, int tall, double delta);
+CSR_HOST_API void csr_host_read_host_time(double* realtime, double* frametime, double* oldrealtime);
+
 /* list[0] answers VGUI_Surface026. A mounted filesystem follows it, then extras. */
 CSR_HOST_API int csr_host_factory_list(csr_host_factory_fn* extra, int extra_count, csr_host_factories_t* out);
 CSR_HOST_API void* csr_host_create_interface(const char* name, int* code);

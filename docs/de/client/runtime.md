@@ -90,6 +90,7 @@ Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
 daher wird kein Modell gesucht oder geladen und kein Socket geöffnet.
 Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der
 nächste Retail-Hook ist `Mod_Print`. Dieser Pfad kehrt davor zurück.
+`csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Die Retail-Hook-Kette läuft dabei nicht. `hw.so` wird nicht geöffnet. `RunFrame` wird
 nicht gerufen. Die übrigen `engine_mini`-Weiterleitungen bleiben am

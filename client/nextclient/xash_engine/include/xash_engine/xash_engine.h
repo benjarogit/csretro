@@ -51,6 +51,16 @@ CSR_XASH_ENGINE_API void csr_xash_engine_init_game(char* cmdline, char* basedir,
 CSR_XASH_ENGINE_API void csr_xash_engine_shutdown(void);
 CSR_XASH_ENGINE_API void csr_xash_engine_error(const char* message);
 
+/*
+ * Host clock Host_FilterTime would write: realtime, the frame interval and
+ * oldrealtime. A frame writes these fields. Host_FilterTime is not this call.
+ */
+extern CSR_XASH_ENGINE_API double oldrealtime;
+CSR_XASH_ENGINE_API double* csr_xash_engine_realtime_ptr(void);
+CSR_XASH_ENGINE_API double* csr_xash_engine_frametime_ptr(void);
+CSR_XASH_ENGINE_API void csr_xash_engine_advance_host_time(double delta);
+CSR_XASH_ENGINE_API void csr_xash_engine_read_host_time(double* realtime, double* frametime, double* oldrealtime_out);
+
 #ifdef __cplusplus
 }
 #endif

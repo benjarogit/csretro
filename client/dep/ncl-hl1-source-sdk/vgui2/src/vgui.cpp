@@ -226,6 +226,13 @@ extern "C" CSR_VGUI_EXPORT void csr_vgui_dispatch_messages()
     g_VGui.DispatchMessages();
 }
 
+int g_CsrVguiRunFrameCalls = 0;
+
+extern "C" CSR_VGUI_EXPORT int csr_vgui_run_frame_count()
+{
+    return g_CsrVguiRunFrameCalls;
+}
+
 bool IsDispatchingMessageQueue(void)
 {
     return g_VGui.IsDispatchingMessages();
@@ -377,6 +384,7 @@ void CVGui::ActivateContext(HContext context)
 //-----------------------------------------------------------------------------
 void CVGui::RunFrame()
 {
+    ++g_CsrVguiRunFrameCalls;
 #ifdef DEBUG
     //  memory allocation debug helper
     //	DPrintf( "Delete Count:%i,%i\n", m_iDeleteCount, m_iDeletePanelCount );

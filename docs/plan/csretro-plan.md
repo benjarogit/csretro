@@ -438,6 +438,7 @@ Nebenbefunde:
   Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der
   nächste Retail-Hook ist `Mod_Print`. Dieser Pfad kehrt davor zurück.
   `OnGameInitialized` wird nicht betreten. Die Retail-Hook-Kette läuft dabei nicht.
+  Der Xash-Frame ist der spätere direkte Aufruf `csr_host_frame` und verlängert diese Liste nicht.
   `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen haben weiter
   keinen Xash3D-Einsprung.
 - HTML/MOTD verlangt einen ChromeHTML-Controller/Serializer. Ohne CEF wird MOTD
@@ -831,7 +832,9 @@ daher wird kein Modell gesucht oder geladen und kein Socket geöffnet.
 Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der
 nächste Retail-Hook ist `Mod_Print`. Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten. Die
-Retail-Hook-Kette und ein Xash-Frame laufen dabei nicht. `hw.so` wird nicht geöffnet.
+Retail-Hook-Kette läuft bei diesem Init nicht. `csr_host_frame` ist hier kein
+Aufruf. Der Frame ist der spätere direkte Aufruf und verlängert die Hook-Liste
+nicht. `hw.so` wird nicht geöffnet.
 `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen von `engine_mini`
 bleiben am Retail-Hook.
 
@@ -936,6 +939,21 @@ nicht gerufen.
 es. `RunFrame` ist dieser Aufruf nicht. Aufgezeichnete Befehle werden nicht
 ausgeführt. Fehlt das Scheme, bleiben die Optionsseiten ungebaut.
 `SteamAPI_IsSteamRunning` bleibt falsch.
+`csr_host_frame` ist der Xash-Frame und ein direkter Aufruf. Ein Aufruf
+zeichnet ein GameUI-Bild über denselben Present-Pfad und addiert das
+übergebene Delta auf `realtime`, schreibt dieses Delta nach `host_frametime`
+und setzt `oldrealtime` auf die neue `realtime`. Die Felder werden direkt
+geschrieben. `Host_FilterTime` läuft dabei nicht, und es wird kein Hook
+installiert. `CVGui::RunFrame` bleibt ungerufen. `hw.so` bleibt ungemappt,
+kein Steam-Client startet, kein Socket geht auf, und der geplante
+Launcher-Befehl wird nicht ausgeführt. Die Retail-Hook-Liste wird nicht
+verlängert. Der nächste Retail-Hook bleibt `Mod_Print`.
+`OnGameInitialized` bleibt außen: der Einstieg lädt Materialdateien, löst
+`vgui2` auf und geht in die übrige Retail-Initialisierung, daher kehrt er
+nicht ohne `hw.so` zurück. Ein sichtbares Fenster braucht
+`eglCreateWindowSurface` und danach `eglSwapBuffers`. `ISurface::SwapBuffers`
+ist leer. Der Test-Harness hat nur ein EGL-Pbuffer in den Surface-Tests,
+kein X11-Fenster.
 Er startet das Spiel nicht, führt Xash3D nicht aus und ruft `RunFrame`
 nicht auf. Ein fehlgeschlagenes Öffnen lässt den Host geschlossen. Der
 bisherige GoldSrc-Starter `nextclient.sh` und der First-Start bleiben, bis

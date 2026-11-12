@@ -80,6 +80,7 @@ Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
 daher wird kein Modell gesucht oder geladen und kein Socket geöffnet.
 Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der
 nächste Retail-Hook ist `Mod_Print`. Dieser Pfad kehrt davor zurück.
+`csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie
 nicht. Eine fehlende Bibliothek oder ein fehlender Export lässt das Laden
@@ -89,6 +90,20 @@ nicht. Das Basis-Panel ist ein Kind der Host-Wurzel. Liegt
 `resource/schemes/TrackerScheme_ClassicPlus.res` auf dieser Wurzel, liest der Host das Scheme aus der Quelldatei
 und die Serverliste wird ein Kind des Basis-Panels. Fehlt die Datei, bleibt die Liste ungebaut. `csr_host_paint_gameui` setzt danach die Größe der Wurzel und ihrer Nicht-Popup-Kinder und zeichnet den Baum. Ein Panel, das zeichnet, ruft `PushMakeCurrent`. Liegt diese Scheme-Datei auf der Wurzel, wendet dasselbe Paint die Scheme-Einstellungen an. Das liest `resource/BackgroundLayout.txt`. Ein Texturname ohne Endung ist die `.tga`-Datei daneben. Eine fehlende Datei wird keine Textur. `csr_host_start_gameui` ruft `IGameUI::Start` mit einer Host-Engine-Tabelle. Sie öffnet `hw.so` nicht. Cvar-Lesen bleibt leer, die Uhr bleibt bei 0, und aufgezeichnete Befehle werden nicht ausgeführt. Fehlt die Scheme-Datei, wird der Serverbrowser nicht aufgerufen. Das Hintergrundbild wird davor mit Uhrzeit 0 gezeichnet. Das Paint danach baut die Optionsseiten. `RunFrame` ist dieser Aufruf nicht. Weitere Factories
 werden für den Surface-Namen nicht gefragt.
+
+`csr_host_frame` zeichnet ein GameUI-Bild über denselben Present-Pfad
+(`ActivateGameUI`, dann das Paint oben) und addiert das übergebene Delta
+auf die Host-Zeit. Es schreibt `realtime`, `host_frametime` und
+`oldrealtime` direkt. `Host_FilterTime` bleibt ungerufen, und es kommt kein
+Retail-Hook dazu. `CVGui::RunFrame` bleibt ungerufen. `hw.so` bleibt
+ungemappt, kein Steam-Client startet, kein Socket geht auf, und der
+geplante Launcher-Befehl wird nicht ausgeführt. Die Uhr der
+GameUI-Engine-Tabelle bleibt bei 0. `OnGameInitialized` bleibt außen, weil
+dieser Einstieg Materialdateien lädt, `vgui2` auflöst und in die übrige
+Retail-Initialisierung weitergeht. Ein sichtbares Fenster braucht
+`eglCreateWindowSurface` und danach `eglSwapBuffers`.
+`ISurface::SwapBuffers` ist leer. Der Test-Harness hat nur ein EGL-Pbuffer
+in den Surface-Tests.
 
 `csr_host_load_pair` bindet Mausbewegung, Druck und Loslassen an das
 `VGUI_InputInternal001` des Paars. Jedes Ereignis endet mit genau einem

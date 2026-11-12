@@ -135,7 +135,13 @@ speichert den Zeiger und ruft ihn nicht auf, daher bleibt das aktuelle
 Sprite am selben Zeiger, kein Sprite-Frame wird gezeichnet,
 `Draw_SpriteFrame` läuft nicht, kein Sprite wird geladen und kein Socket
 wird geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein
-Aufruf. Der nächste Retail-Hook ist `SPR_DrawAdditive`.
+Aufruf. `SPR_DrawAdditive` ist danach die Funktion in diesem Prozess, wenn
+dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht
+auf, daher bleibt das aktuelle Sprite am selben Zeiger, kein Sprite-Frame
+wird additiv gezeichnet, `Draw_SpriteFrameAdditive` läuft nicht, kein
+Sprite wird geladen und kein Socket wird geöffnet. Ein Null-Zeiger ist kein
+Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
+`SPR_DrawHoles`.
 Dieser Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.

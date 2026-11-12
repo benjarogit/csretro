@@ -405,6 +405,7 @@ namespace
     void RecordXashSprShutdownNoModelFree();
     void RecordXashSprLoad();
     void RecordXashSprDraw();
+    void RecordXashSprDrawAdditive();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -494,8 +495,12 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // SPR_Draw is then the process function when that hook is absent.
     // This init stores the pointer and does not draw a sprite. The process body draws
     // the current sprite frame when a sprite is current and the point is inside the
-    // video image, and can call Draw_SpriteFrame, so a real call does not run. The next
-    // retail hook is SPR_DrawAdditive. This path returns before it.
+    // video image, and can call Draw_SpriteFrame, so a real call does not run.
+    // SPR_DrawAdditive is then the process function when that hook is absent.
+    // This init stores the pointer and does not draw a sprite. The process body draws
+    // the current sprite additively when a sprite is current and the point is inside
+    // the video image, and can call Draw_SpriteFrameAdditive, so a real call does not
+    // run. The next retail hook is SPR_DrawHoles. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -531,6 +536,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSprShutdownNoModelFree();
             RecordXashSprLoad();
             RecordXashSprDraw();
+            RecordXashSprDrawAdditive();
         }
         return;
     }
@@ -975,6 +981,7 @@ EngineMiniSprShutdownFn g_EngineMiniSprShutdown = SPR_Shutdown;
 EngineMiniSprShutdownNoModelFreeFn g_EngineMiniSprShutdownNoModelFree = SPR_Shutdown_NoModelFree;
 EngineMiniSprLoadFn g_EngineMiniSprLoad = SPR_Load;
 EngineMiniSprDrawFn g_EngineMiniSprDraw = SPR_Draw;
+EngineMiniSprDrawAdditiveFn g_EngineMiniSprDrawAdditive = SPR_DrawAdditive;
 
 namespace
 {
@@ -1420,6 +1427,25 @@ namespace
         g_xash_startup.spr_draw = g_EngineMiniSprDraw;
     }
 
+    void RecordXashSprDrawAdditive()
+    {
+        // The retail site installs a replacement. It does not draw a sprite during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body draws the current sprite additively when a sprite is current
+        // and the point is inside the video image, and can call Draw_SpriteFrameAdditive,
+        // so this path does not call it.
+        g_xash_startup.spr_draw_additive = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->SPR_DrawAdditive.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniSprDrawAdditive == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.spr_draw_additive = g_EngineMiniSprDrawAdditive;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -1717,6 +1743,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSprShutdownNoModelFree = SPR_Shutdown_NoModelFree;
     g_EngineMiniSprLoad = SPR_Load;
     g_EngineMiniSprDraw = SPR_Draw;
+    g_EngineMiniSprDrawAdditive = SPR_DrawAdditive;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -1958,6 +1985,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
         {
             ++count;
         }
+        if (g_xash_startup.spr_draw_additive != nullptr)
+        {
+            ++count;
+        }
         *stored_functions = count;
     }
     if (nitro_hooks != nullptr)
@@ -1997,6 +2028,7 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             count_hook(g_xash_engine->SPR_Shutdown_NoModelFree);
             count_hook(g_xash_engine->SPR_Load);
             count_hook(g_xash_engine->SPR_Draw);
+            count_hook(g_xash_engine->SPR_DrawAdditive);
             count_hook(g_xash_engine->R_NewMap);
         }
         *nitro_hooks = count;

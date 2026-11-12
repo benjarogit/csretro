@@ -80,6 +80,9 @@ using EngineMiniSprLoadFn = goldsrc::HSPRITE_t (*)(const char* pTextureName);
 // Process replacement for the retail SPR_Draw hook. A null value is not a call.
 using EngineMiniSprDrawFn = void (*)(int frame, int x, int y, const goldsrc::wrect_t* prc);
 
+// Process replacement for the retail SPR_DrawAdditive hook. A null value is not a call.
+using EngineMiniSprDrawAdditiveFn = void (*)(int frame, int x, int y, const goldsrc::wrect_t* prc);
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -119,6 +122,7 @@ struct EngineMiniXashStartup
     int spr_shutdown_nomodelfree_calls{};
     int spr_load_calls{};
     int spr_draw_calls{};
+    int spr_draw_additive_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -157,6 +161,7 @@ struct EngineMiniXashStartup
     EngineMiniSprShutdownNoModelFreeFn spr_shutdown_nomodelfree{};
     EngineMiniSprLoadFn spr_load{};
     EngineMiniSprDrawFn spr_draw{};
+    EngineMiniSprDrawAdditiveFn spr_draw_additive{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -236,6 +241,9 @@ extern EngineMiniSprLoadFn g_EngineMiniSprLoad;
 
 // Defaults to SPR_Draw. Init stores the pointer and does not call it.
 extern EngineMiniSprDrawFn g_EngineMiniSprDraw;
+
+// Defaults to SPR_DrawAdditive. Init stores the pointer and does not call it.
+extern EngineMiniSprDrawAdditiveFn g_EngineMiniSprDrawAdditive;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

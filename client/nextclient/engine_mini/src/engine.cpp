@@ -404,6 +404,7 @@ namespace
     void RecordXashSprShutdown();
     void RecordXashSprShutdownNoModelFree();
     void RecordXashSprLoad();
+    void RecordXashSprDraw();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -489,7 +490,12 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not load a sprite or allocate a sprite name.
     // The process body loads a named sprite when the list is allocated, can allocate a
     // sprite name, can call Mod_ForName, and can Sys_Error when the list is full, so a
-    // real call does not run. The next retail hook is SPR_Draw. This path returns before it.
+    // real call does not run.
+    // SPR_Draw is then the process function when that hook is absent.
+    // This init stores the pointer and does not draw a sprite. The process body draws
+    // the current sprite frame when a sprite is current and the point is inside the
+    // video image, and can call Draw_SpriteFrame, so a real call does not run. The next
+    // retail hook is SPR_DrawAdditive. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -524,6 +530,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSprShutdown();
             RecordXashSprShutdownNoModelFree();
             RecordXashSprLoad();
+            RecordXashSprDraw();
         }
         return;
     }
@@ -967,6 +974,7 @@ EngineMiniSprInitFn g_EngineMiniSprInit = SPR_Init;
 EngineMiniSprShutdownFn g_EngineMiniSprShutdown = SPR_Shutdown;
 EngineMiniSprShutdownNoModelFreeFn g_EngineMiniSprShutdownNoModelFree = SPR_Shutdown_NoModelFree;
 EngineMiniSprLoadFn g_EngineMiniSprLoad = SPR_Load;
+EngineMiniSprDrawFn g_EngineMiniSprDraw = SPR_Draw;
 
 namespace
 {
@@ -1393,6 +1401,25 @@ namespace
         g_xash_startup.spr_load = g_EngineMiniSprLoad;
     }
 
+    void RecordXashSprDraw()
+    {
+        // The retail site installs a replacement. It does not draw a sprite during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body draws the current sprite frame when a sprite is current and the
+        // point is inside the video image, and can call Draw_SpriteFrame, so this path does
+        // not call it.
+        g_xash_startup.spr_draw = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->SPR_Draw.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniSprDraw == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.spr_draw = g_EngineMiniSprDraw;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -1689,6 +1716,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSprShutdown = SPR_Shutdown;
     g_EngineMiniSprShutdownNoModelFree = SPR_Shutdown_NoModelFree;
     g_EngineMiniSprLoad = SPR_Load;
+    g_EngineMiniSprDraw = SPR_Draw;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -1893,6 +1921,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
         {
             ++count;
         }
+        if (g_xash_startup.spr_draw != nullptr)
+        {
+            ++count;
+        }
         *stored_functions = count;
     }
     if (nitro_hooks != nullptr)
@@ -1931,6 +1963,7 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             count_hook(g_xash_engine->SPR_Shutdown);
             count_hook(g_xash_engine->SPR_Shutdown_NoModelFree);
             count_hook(g_xash_engine->SPR_Load);
+            count_hook(g_xash_engine->SPR_Draw);
         }
         *nitro_hooks = count;
     }

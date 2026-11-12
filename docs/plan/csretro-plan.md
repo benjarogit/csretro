@@ -486,8 +486,13 @@ Nebenbefunde:
   der Sprite-Name bleibt am selben Zeiger, kein Sprite wird geladen, kein
   Sprite-Name wird alloziert, `Mod_ForName` läuft nicht, `Sys_Error` läuft
   nicht, keine Datei wird gelesen und kein Socket geöffnet. Ein Null-Zeiger
-  ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook
-  ist `SPR_Draw`.
+  ist kein Aufruf. Ein Null-Hook ist kein Aufruf. `SPR_Draw` ist danach die
+  Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init
+  speichert den Zeiger und ruft ihn nicht auf, daher bleibt das aktuelle
+  Sprite am selben Zeiger, kein Sprite-Frame wird gezeichnet,
+  `Draw_SpriteFrame` läuft nicht, kein Sprite wird geladen und kein Socket
+  wird geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein
+  Aufruf. Der nächste Retail-Hook ist `SPR_DrawAdditive`.
   Dieser Pfad kehrt davor zurück.
   `OnGameInitialized` wird nicht betreten. Die Retail-Hook-Kette läuft dabei nicht.
   Der Xash-Frame ist der spätere direkte Aufruf `csr_host_frame` und verlängert diese Liste nicht.
@@ -932,8 +937,13 @@ allozierte Sprite-Liste bleibt am selben Zeiger, die Anzahl bleibt gleich,
 der Sprite-Name bleibt am selben Zeiger, kein Sprite wird geladen, kein
 Sprite-Name wird alloziert, `Mod_ForName` läuft nicht, `Sys_Error` läuft
 nicht, keine Datei wird gelesen und kein Socket geöffnet. Ein Null-Zeiger
-ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook
-ist `SPR_Draw`.
+ist kein Aufruf. Ein Null-Hook ist kein Aufruf. `SPR_Draw` ist danach die
+Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init
+speichert den Zeiger und ruft ihn nicht auf, daher bleibt das aktuelle
+Sprite am selben Zeiger, kein Sprite-Frame wird gezeichnet,
+`Draw_SpriteFrame` läuft nicht, kein Sprite wird geladen und kein Socket
+wird geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein
+Aufruf. Der nächste Retail-Hook ist `SPR_DrawAdditive`.
 Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten. Die
 Retail-Hook-Kette läuft bei diesem Init nicht. `csr_host_frame` ist hier kein
@@ -1065,7 +1075,7 @@ ist die Swap-Zahl N, und die Host-Zeit ist um N mal das Delta vorgerückt.
 Die X11-Verbindung ist der Socket des Fensters. Ein
 Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
 Surface-Tests behalten ihr EGL-Pbuffer. Die Retail-Hook-Liste wird nicht
-verlängert. Der nächste Retail-Hook bleibt `SPR_Draw`.
+verlängert. Der nächste Retail-Hook bleibt `SPR_DrawAdditive`.
 `OnGameInitialized` bleibt außen: der Einstieg lädt Materialdateien, löst
 `vgui2` auf und geht in die übrige Retail-Initialisierung, daher kehrt er
 nicht ohne `hw.so` zurück.

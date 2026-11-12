@@ -402,7 +402,9 @@ CBasePanel::~CBasePanel(void)
 
 void CBasePanel::PaintBackground(void)
 {
-    if (!m_hOptionsDialog.Get())
+    // The options pages and the background image read engine cvars and the
+    // engine clock. Start installs that pointer. Paint before Start still fills.
+    if (engine != nullptr && !m_hOptionsDialog.Get())
     {
         m_hOptionsDialog = new COptionsDialog(this, m_Renderer);
         m_hCreateMultiplayerGameDialog = new CCreateMultiplayerGameDialog(this);
@@ -411,7 +413,7 @@ void CBasePanel::PaintBackground(void)
         PositionDialog(m_hCreateMultiplayerGameDialog);
     }
 
-    if (!GameUI().IsInLevel() || g_hLoadingDialog.Get())
+    if (engine != nullptr && (!GameUI().IsInLevel() || g_hLoadingDialog.Get()))
     {
         DrawBackgroundImage();
     }

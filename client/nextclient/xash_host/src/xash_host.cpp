@@ -7,10 +7,12 @@
 #include <vgui/IClientPanel.h>
 #include <vgui/IPanel.h>
 #include <vgui/IScheme.h>
+#include <vgui/ISurface.h>
 #include <vgui/IVGui.h>
 
 #include <dlfcn.h>
 
+#include <cstdint>
 #include <cstring>
 
 namespace
@@ -26,6 +28,9 @@ namespace
         void (*button)(csr_surface_t*, int, int) = nullptr;
         void (*set_input)(csr_surface_t*, const csr_surface_input_fns_t*) = nullptr;
         void (*set_file)(csr_surface_t*, const csr_surface_file_fns_t*) = nullptr;
+        void (*set_panel)(csr_surface_t*, const csr_surface_panel_fns_t*) = nullptr;
+        void (*begin_frame)(csr_surface_t*, int, int) = nullptr;
+        int (*push_count)(const csr_surface_t*) = nullptr;
         void* (*create_interface)(const char*, int*) = nullptr;
     };
 
@@ -60,7 +65,28 @@ namespace
         vgui2::VPANEL GetVPanel() override { return panel_; }
         void Think() override {}
         void PerformApplySchemeSettings() override {}
-        void PaintTraverse(bool, bool) override {}
+        void PaintTraverse(bool repaint, bool allow_force) override
+        {
+            if (g_pair.create == nullptr || panel_ == 0)
+            {
+                return;
+            }
+            int code = 1;
+            auto* panels = static_cast<vgui2::IPanel*>(g_pair.create("VGUI_Panel007", &code));
+            if (panels == nullptr)
+            {
+                return;
+            }
+            const int count = panels->GetChildCount(panel_);
+            for (int index = 0; index < count; ++index)
+            {
+                const vgui2::VPANEL child = panels->GetChild(panel_, index);
+                if (child != 0 && panels->IsVisible(child))
+                {
+                    panels->PaintTraverse(child, repaint, allow_force);
+                }
+            }
+        }
         void Repaint() override {}
         vgui2::VPANEL IsWithinTraverse(int, int, bool) override { return 0; }
         void GetInset(int& top, int& left, int& right, int& bottom) override
@@ -230,6 +256,109 @@ namespace
         g_count = index;
     }
 
+    vgui2::VPANEL AsVPanel(void* panel)
+    {
+        return static_cast<vgui2::VPANEL>(reinterpret_cast<uintptr_t>(panel));
+    }
+
+    vgui2::IPanel* Panels()
+    {
+        if (g_pair.create == nullptr)
+        {
+            return nullptr;
+        }
+        int code = 1;
+        return static_cast<vgui2::IPanel*>(g_pair.create("VGUI_Panel007", &code));
+    }
+
+    int PanelVisible(void* panel, void*)
+    {
+        vgui2::IPanel* panels = Panels();
+        if (panels == nullptr || panel == nullptr)
+        {
+            return 0;
+        }
+        return panels->IsVisible(AsVPanel(panel)) ? 1 : 0;
+    }
+
+    int PanelPopup(void* panel, void*)
+    {
+        vgui2::IPanel* panels = Panels();
+        if (panels == nullptr || panel == nullptr)
+        {
+            return 0;
+        }
+        return panels->IsPopup(AsVPanel(panel)) ? 1 : 0;
+    }
+
+    int PanelChildCount(void* panel, void*)
+    {
+        vgui2::IPanel* panels = Panels();
+        if (panels == nullptr || panel == nullptr)
+        {
+            return 0;
+        }
+        return panels->GetChildCount(AsVPanel(panel));
+    }
+
+    void* PanelChildAt(void* panel, int index, void*)
+    {
+        vgui2::IPanel* panels = Panels();
+        if (panels == nullptr || panel == nullptr)
+        {
+            return nullptr;
+        }
+        const vgui2::VPANEL child = panels->GetChild(AsVPanel(panel), index);
+        return reinterpret_cast<void*>(static_cast<uintptr_t>(child));
+    }
+
+    void PanelSolve(void* panel, void*)
+    {
+        vgui2::IPanel* panels = Panels();
+        if (panels == nullptr || panel == nullptr)
+        {
+            return;
+        }
+        panels->Solve(AsVPanel(panel));
+    }
+
+    void PanelScheme(void* panel, void*)
+    {
+        vgui2::IPanel* panels = Panels();
+        if (panels == nullptr || panel == nullptr)
+        {
+            return;
+        }
+        panels->PerformApplySchemeSettings(AsVPanel(panel));
+    }
+
+    void PanelPaint(void* panel, int repaint, int allow_force, void*)
+    {
+        vgui2::IPanel* panels = Panels();
+        if (panels == nullptr || panel == nullptr)
+        {
+            return;
+        }
+        panels->PaintTraverse(AsVPanel(panel), repaint != 0, allow_force != 0);
+    }
+
+    void InstallPanelFns()
+    {
+        if (g_surface.surface == nullptr || g_surface.set_panel == nullptr)
+        {
+            return;
+        }
+        csr_surface_panel_fns_t fns{};
+        fns.is_visible = PanelVisible;
+        fns.is_popup = PanelPopup;
+        fns.child_count = PanelChildCount;
+        fns.child_at = PanelChildAt;
+        fns.solve = PanelSolve;
+        fns.apply_scheme = PanelScheme;
+        fns.paint = PanelPaint;
+        g_surface.set_panel(g_surface.surface, &fns);
+    }
+
 } // namespace
 
 int csr_host_open(const char* path)
@@ -254,9 +383,13 @@ int csr_host_open(const char* path)
     g_surface.button = LoadSymbol<decltype(g_surface.button)>(module, "csr_surface_input_button");
     g_surface.set_input = LoadSymbol<decltype(g_surface.set_input)>(module, "csr_surface_set_input");
     g_surface.set_file = LoadSymbol<decltype(g_surface.set_file)>(module, "csr_surface_set_file");
+    g_surface.set_panel = LoadSymbol<decltype(g_surface.set_panel)>(module, "csr_surface_set_panel");
+    g_surface.begin_frame = LoadSymbol<decltype(g_surface.begin_frame)>(module, "csr_surface_begin_frame");
+    g_surface.push_count = LoadSymbol<decltype(g_surface.push_count)>(module, "csr_surface_push_count");
     g_surface.create_interface = LoadSymbol<decltype(g_surface.create_interface)>(module, "csr_surface_create_interface");
     if (g_surface.create == nullptr || g_surface.destroy == nullptr || g_surface.move == nullptr || g_surface.button == nullptr ||
-        g_surface.set_input == nullptr || g_surface.set_file == nullptr || g_surface.create_interface == nullptr)
+        g_surface.set_input == nullptr || g_surface.set_file == nullptr || g_surface.set_panel == nullptr ||
+        g_surface.begin_frame == nullptr || g_surface.push_count == nullptr || g_surface.create_interface == nullptr)
     {
         csr_host_close();
         return 0;
@@ -574,6 +707,47 @@ int csr_host_gameui_base_child_count(void)
 int csr_host_gameui_initialized(void)
 {
     return g_gameui_initialized;
+}
+
+int csr_host_paint_gameui(int wide, int tall)
+{
+    if (g_gameui_initialized == 0 || g_gameui_root == 0 || wide <= 0 || tall <= 0 || g_surface.surface == nullptr ||
+        g_surface.begin_frame == nullptr || g_surface.push_count == nullptr || g_surface.set_panel == nullptr ||
+        g_surface.create_interface == nullptr || g_pair.create == nullptr)
+    {
+        return 0;
+    }
+
+    InstallPanelFns();
+    g_surface.begin_frame(g_surface.surface, wide, tall);
+
+    int code = 1;
+    auto* panels = static_cast<vgui2::IPanel*>(g_pair.create("VGUI_Panel007", &code));
+    auto* surface = static_cast<vgui2::ISurface*>(g_surface.create_interface("VGUI_Surface026", &code));
+    if (panels == nullptr || surface == nullptr)
+    {
+        return 0;
+    }
+
+    panels->SetSize(g_gameui_root, wide, tall);
+    // The base panel was laid out while the root was still 0x0. Size the
+    // non-popup children here. PerformLayout is not this call: it runs the
+    // startup mp3 command.
+    const int children = panels->GetChildCount(g_gameui_root);
+    for (int index = 0; index < children; ++index)
+    {
+        const vgui2::VPANEL child = panels->GetChild(g_gameui_root, index);
+        if (child != 0 && !panels->IsPopup(child))
+        {
+            panels->SetSize(child, wide, tall);
+        }
+    }
+    surface->SetEmbeddedPanel(g_gameui_root);
+    const int before = g_surface.push_count(g_surface.surface);
+    // Solve lays the tree out. Paint walks it. RunFrame is not this call.
+    surface->SolveTraverse(g_gameui_root, false);
+    surface->PaintTraverse(g_gameui_root);
+    return g_surface.push_count(g_surface.surface) > before ? 1 : 0;
 }
 
 void csr_host_close(void)

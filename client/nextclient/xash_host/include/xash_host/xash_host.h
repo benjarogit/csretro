@@ -108,6 +108,13 @@ CSR_HOST_API int csr_host_gameui_initialized(void);
 CSR_HOST_API int csr_host_gameui_child_count(void);
 CSR_HOST_API int csr_host_gameui_base_child_count(void);
 
+/*
+ * Solves the gameui tree and paints it through the one surface. wide and tall
+ * are the root size in pixels. Returns 0 when the UI is not initialized or the
+ * paint does not reach a panel. Does not call RunFrame and does not start the game.
+ */
+CSR_HOST_API int csr_host_paint_gameui(int wide, int tall);
+
 /* list[0] answers VGUI_Surface026. A mounted filesystem follows it, then extras. */
 CSR_HOST_API int csr_host_factory_list(csr_host_factory_fn* extra, int extra_count, csr_host_factories_t* out);
 CSR_HOST_API void* csr_host_create_interface(const char* name, int* code);

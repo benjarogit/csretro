@@ -28,6 +28,10 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   visible and a child of the host root. The server list is built when
   `resource/schemes/TrackerScheme_ClassicPlus.res` is on that root. `Start` and
   `RunFrame` stay unused.
+- `csr_host_paint_gameui` sizes the root and its non-popup children, solves
+  the tree and paints it. A paint calls `PushMakeCurrent`. Options pages and
+  the background image wait for the engine pointer from `Start`. `RunFrame`
+  stays unused.
 - Extra factories follow those entries. The surface name is not forwarded to them.
 - `csr_host_bind_input` forwards cursor, press and release, then one dispatch.
   `CVGui::RunFrame` is not called. `SurfaceSetCursorPos` does not dispatch.

@@ -14,7 +14,7 @@ Scheme-Datei unter dieser Wurzel lädt derselbe Manager. Eine fehlende Datei
 lässt den Host offen. Danach ruft der Host `IGameUI::Initialize`. Ein
 fehlendes Engine-Modul wird nicht aufgerufen. Das Basis-Panel ist ein Kind der Host-Wurzel. Liegt
 `resource/schemes/TrackerScheme_ClassicPlus.res` auf dieser Wurzel, liest der Host das Scheme aus der Quelldatei
-und die Serverliste wird ein Kind des Basis-Panels. Fehlt die Datei, bleibt die Liste ungebaut. `Start` und `RunFrame` sind dieser Aufruf nicht. Weitere Factories
+und die Serverliste wird ein Kind des Basis-Panels. Fehlt die Datei, bleibt die Liste ungebaut. `csr_host_paint_gameui` setzt danach die Größe der Wurzel und ihrer Nicht-Popup-Kinder und zeichnet den Baum. Ein Panel, das zeichnet, ruft `PushMakeCurrent`. Optionsseiten und das Hintergrundbild warten, bis `Start` den Engine-Zeiger gesetzt hat. `Start` und `RunFrame` sind dieser Aufruf nicht. Weitere Factories
 werden für den Surface-Namen nicht gefragt.
 
 Mausbewegung, Druck und Loslassen gehen an die drei Input-Aufrufe und danach

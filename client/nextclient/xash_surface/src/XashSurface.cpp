@@ -326,6 +326,12 @@ namespace xash
                 host_.panel_clip_rect(PanelKey(panel), &frame.clip_x0, &frame.clip_y0, &frame.clip_x1, &frame.clip_y1, host_.user);
             }
             stack_.push_back(frame);
+            ++push_count_;
+        }
+
+        int PushCount() const
+        {
+            return push_count_;
         }
 
         void PopMakeCurrent(vgui2::VPANEL) override
@@ -1594,6 +1600,7 @@ namespace xash
             int texture{};
         } cursor_quad_{};
         vgui2::VPANEL embedded_{};
+        int push_count_ = 0;
         std::vector<vgui2::VPANEL> popups_;
         vgui2::VPANEL modal_{};
         vgui2::VPANEL restricted_{};
@@ -1728,6 +1735,15 @@ void csr_surface_set_cursor_texture(csr_surface_t* surface, int cursor, int text
     {
         As(surface)->SetCursorTexture(cursor, texture);
     }
+}
+
+int csr_surface_push_count(const csr_surface_t* surface)
+{
+    if (surface == nullptr)
+    {
+        return 0;
+    }
+    return As(surface)->PushCount();
 }
 
 int csr_surface_cursor_quad(const csr_surface_t* surface, int* x, int* y, int* wide, int* tall, int* texture)

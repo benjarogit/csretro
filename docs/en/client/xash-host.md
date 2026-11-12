@@ -15,8 +15,11 @@ then calls `IGameUI::Initialize`. A missing engine module is not called.
 The base panel is a child of the host root. When
 `resource/schemes/TrackerScheme_ClassicPlus.res` is on that root, the default
 scheme is read from the source file and the server list becomes a child of
-the base panel. A missing scheme leaves the list unbuilt. `Start` and
-`RunFrame` are not that call. Later
+the base panel. A missing scheme leaves the list unbuilt. `csr_host_paint_gameui`
+then sizes the root and its non-popup children and paints the tree. A panel
+that paints calls `PushMakeCurrent`. Options pages and the background image
+wait until `Start` has installed the engine pointer. `Start` and `RunFrame`
+are not that call. Later
 factories are not asked for the surface name.
 
 Mouse move, press and release go to the three input calls and then to exactly

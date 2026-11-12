@@ -705,7 +705,11 @@ Das Basis-Panel ist ein Kind der Host-Wurzel. Liegt
 `resource/schemes/TrackerScheme_ClassicPlus.res` auf dieser Wurzel, liest
 `VGui_GetDefaultScheme` die Quelldatei. Die kompilierte `.i`-Datei wird nicht
 geschrieben, weil die Wurzel nur lesbar ist. Die Serverliste wird dann ein
-Kind des Basis-Panels. Fehlt die Datei, bleibt die Liste ungebaut. `Start` und `RunFrame` sind
+Kind des Basis-Panels. Fehlt die Datei, bleibt die Liste ungebaut.
+`csr_host_paint_gameui` setzt danach die Größe der Wurzel und ihrer
+Nicht-Popup-Kinder und zeichnet den Baum. Ein zeichnendes Panel ruft
+`PushMakeCurrent`. Optionsseiten und das Hintergrundbild warten auf den
+Engine-Zeiger aus `Start`. `Start` und `RunFrame` sind
 dieser Aufruf nicht. Es gibt kein
 zweites Dateisystem und keine zweite Factory. Retail-Daten liegen nicht im
 Repository. Der Host startet das Spiel nicht.

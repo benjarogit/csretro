@@ -97,6 +97,8 @@ CSR_SURFACE_API void csr_surface_set_file(csr_surface_t* surface, const csr_surf
 CSR_SURFACE_API void csr_surface_set_cursor_texture(csr_surface_t* surface, int cursor, int texture);
 // The quad from the last PaintTraverse. Returns 0 when that paint drew no cursor.
 CSR_SURFACE_API int csr_surface_cursor_quad(const csr_surface_t* surface, int* x, int* y, int* wide, int* tall, int* texture);
+// How many times PushMakeCurrent has run. A paint that reaches a panel increments it.
+CSR_SURFACE_API int csr_surface_push_count(const csr_surface_t* surface);
 CSR_SURFACE_API void* csr_surface_create_interface(const char* name, int* code);
 
 #ifdef __cplusplus

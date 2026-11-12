@@ -1,6 +1,7 @@
 #include "xash_surface/xash_surface.h"
 
 #include <gtest/gtest.h>
+#include <vgui/Cursor.h>
 #include <vgui/ISurface.h>
 
 #include <cstring>
@@ -81,6 +82,53 @@ TEST(SurfaceFile, UncompressedTgaBecomesATexture)
     vgui->DrawGetTextureSize(2, wide, tall);
     EXPECT_EQ(wide, 0);
     EXPECT_EQ(tall, 0);
+
+    csr_surface_destroy(surface);
+}
+
+TEST(SurfaceFile, ArrowCursorPaintsTheBoundTexture)
+{
+    unsigned char tga[24] = {};
+    tga[2] = 2;
+    tga[12] = 2;
+    tga[14] = 1;
+    tga[16] = 24;
+    tga[20] = 255;
+
+    csr_surface_t* surface = csr_surface_create(nullptr);
+    auto* vgui = static_cast<vgui2::ISurface*>(csr_surface_vgui(surface));
+    ASSERT_NE(vgui, nullptr);
+    csr_surface_file_fns_t file{};
+    file.read = ReadTga;
+    file.user = tga;
+    csr_surface_set_file(surface, &file);
+    vgui->DrawSetTextureFile(1, "cursor.tga", 0, false);
+
+    csr_surface_set_cursor_texture(surface, vgui2::dc_arrow, 1);
+    vgui->SetCursor(vgui2::dc_arrow);
+    vgui->SurfaceSetCursorPos(10, 20);
+    vgui->PaintTraverse(0);
+
+    int x = 0;
+    int y = 0;
+    int wide = 0;
+    int tall = 0;
+    int texture = 0;
+    EXPECT_EQ(csr_surface_cursor_quad(surface, &x, &y, &wide, &tall, &texture), 1);
+    EXPECT_EQ(x, 10);
+    EXPECT_EQ(y, 20);
+    EXPECT_EQ(wide, 2);
+    EXPECT_EQ(tall, 1);
+    EXPECT_EQ(texture, 1);
+
+    vgui->SetCursor(vgui2::dc_none);
+    vgui->PaintTraverse(0);
+    EXPECT_EQ(csr_surface_cursor_quad(surface, nullptr, nullptr, nullptr, nullptr, nullptr), 0);
+
+    vgui->SetCursor(vgui2::dc_arrow);
+    vgui->LockCursor();
+    vgui->PaintTraverse(0);
+    EXPECT_EQ(csr_surface_cursor_quad(surface, nullptr, nullptr, nullptr, nullptr, nullptr), 0);
 
     csr_surface_destroy(surface);
 }

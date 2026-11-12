@@ -37,7 +37,9 @@ Fokus-Reset auf die letzte Cursorposition den Klick überschreibt.
 `SurfaceSetCursorPos` speichert die Position und löst keine Eingabe aus.
 `DrawSetTextureFile` liest eine unkomprimierte TGA über die Datei-Rückfrage
 des Hosts. Eine fehlende Datei, eine komprimierte TGA oder keine Rückfrage
-lässt die Textur leer.
+lässt die Textur leer. Eine gebundene Cursor-Textur wird am Ende von
+`PaintTraverse` an der Cursorposition gezeichnet. `dc_none`, `dc_blank` und
+ein gesperrter Cursor zeichnen nichts. `RunFrame` zeichnet ihn weiter nicht.
 
 ## Bauen und Testen
 

@@ -693,7 +693,9 @@ Der Proxy ist eigener Code und öffnet `hw.so` nicht. Er liest nur Dateien
 unter der übergebenen Wurzel. Eine fehlende Datei oder ein Pfad außerhalb
 dieser Wurzel ist ein Fehltreffer und kein erfundener Pfad.
 `DrawSetTextureFile` liest darüber eine unkomprimierte TGA. Eine fehlende
-Datei oder eine komprimierte TGA wird keine Textur. Es gibt kein
+Datei oder eine komprimierte TGA wird keine Textur. Eine an einen Cursor
+gebundene Textur zeichnet `PaintTraverse` an der Cursorposition.
+`RunFrame` zeichnet sie nicht. Es gibt kein
 zweites Dateisystem und keine zweite Factory. Retail-Daten liegen nicht im
 Repository. Der Host startet das Spiel nicht.
 

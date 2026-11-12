@@ -34,7 +34,9 @@ release, then exactly one dispatch. Button 0 is the left button. `RunFrame`
 does nothing, so a focus reset cannot overwrite the click. `SurfaceSetCursorPos`
 stores the position and does not emit input. `DrawSetTextureFile` reads an
 uncompressed TGA through the host file callback. A missing file, a compressed
-TGA, or no callback leaves the texture empty.
+TGA, or no callback leaves the texture empty. A bound cursor texture is drawn
+at the cursor position at the end of `PaintTraverse`. `dc_none`, `dc_blank`
+and a locked cursor draw nothing. `RunFrame` still does not draw it.
 
 ## Build and tests
 

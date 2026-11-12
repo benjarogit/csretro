@@ -20,6 +20,7 @@
 #include <GL/gl.h>
 
 #include "Color.h"
+#include <vgui/Cursor.h>
 #include <vgui/ISurface.h>
 
 #if defined(__linux__)
@@ -785,18 +786,60 @@ namespace xash
         // back into PushMakeCurrent. Popups were excluded by ShouldPaintChildPanel.
         void PaintTraverse(vgui2::VPANEL panel) override
         {
-            if (!PaintNode(panel))
+            if (PaintNode(panel))
+            {
+                for (const vgui2::VPANEL popup : popups_)
+                {
+                    if (popup == panel || !IsPopup(popup))
+                    {
+                        continue;
+                    }
+                    PaintNode(popup);
+                }
+            }
+            PaintCursor();
+        }
+
+        void SetCursorTexture(int cursor, int texture)
+        {
+            if (cursor <= vgui2::dc_none || cursor >= vgui2::dc_last)
             {
                 return;
             }
-            for (const vgui2::VPANEL popup : popups_)
+            if (static_cast<int>(cursor_texture_.size()) < vgui2::dc_last)
             {
-                if (popup == panel || !IsPopup(popup))
-                {
-                    continue;
-                }
-                PaintNode(popup);
+                cursor_texture_.resize(static_cast<size_t>(vgui2::dc_last));
             }
+            cursor_texture_[static_cast<size_t>(cursor)] = texture;
+        }
+
+        int CursorQuad(int* x, int* y, int* wide, int* tall, int* texture) const
+        {
+            if (!cursor_quad_.drawn)
+            {
+                return 0;
+            }
+            if (x != nullptr)
+            {
+                *x = cursor_quad_.x;
+            }
+            if (y != nullptr)
+            {
+                *y = cursor_quad_.y;
+            }
+            if (wide != nullptr)
+            {
+                *wide = cursor_quad_.wide;
+            }
+            if (tall != nullptr)
+            {
+                *tall = cursor_quad_.tall;
+            }
+            if (texture != nullptr)
+            {
+                *texture = cursor_quad_.texture;
+            }
+            return 1;
         }
 
         void SetPanelFns(const csr_surface_panel_fns_t* panel)
@@ -1327,6 +1370,15 @@ namespace xash
             glBindTexture(GL_TEXTURE_2D, static_cast<unsigned>(previous));
         }
 
+        const Texture* TextureSlot(int id) const
+        {
+            if (id <= 0 || id >= static_cast<int>(textures_.size()) || !textures_[static_cast<size_t>(id)].valid)
+            {
+                return nullptr;
+            }
+            return &textures_[static_cast<size_t>(id)];
+        }
+
         Texture* FindTexture(int id)
         {
             if (id <= 0 || id >= static_cast<int>(textures_.size()) || !textures_[static_cast<size_t>(id)].valid)
@@ -1399,6 +1451,35 @@ namespace xash
                 return false;
             }
             return panel_.is_popup(PanelKey(panel), panel_.user) != 0;
+        }
+
+        void PaintCursor()
+        {
+            cursor_quad_ = {};
+            if (cursor_locked_ || cursor_ <= vgui2::dc_none || cursor_ >= vgui2::dc_blank)
+            {
+                return;
+            }
+            if (cursor_ >= static_cast<int>(cursor_texture_.size()))
+            {
+                return;
+            }
+            const int texture_id = cursor_texture_[static_cast<size_t>(cursor_)];
+            const Texture* texture = TextureSlot(texture_id);
+            if (texture == nullptr)
+            {
+                return;
+            }
+            cursor_quad_.drawn = true;
+            cursor_quad_.x = cursor_x_;
+            cursor_quad_.y = cursor_y_;
+            cursor_quad_.wide = texture->wide;
+            cursor_quad_.tall = texture->tall;
+            cursor_quad_.texture = texture_id;
+            const int previous = current_texture_;
+            current_texture_ = texture_id;
+            DrawTexturedRect(cursor_x_, cursor_y_, cursor_x_ + texture->wide, cursor_y_ + texture->tall);
+            current_texture_ = previous;
         }
 
         bool PaintNode(vgui2::VPANEL panel) const
@@ -1502,6 +1583,16 @@ namespace xash
         int current_texture_{};
         vgui2::HFont text_font_{};
         vgui2::HCursor cursor_{};
+        std::vector<int> cursor_texture_{};
+        struct CursorQuad
+        {
+            bool drawn{};
+            int x{};
+            int y{};
+            int wide{};
+            int tall{};
+            int texture{};
+        } cursor_quad_{};
         vgui2::VPANEL embedded_{};
         std::vector<vgui2::VPANEL> popups_;
         vgui2::VPANEL modal_{};
@@ -1629,6 +1720,23 @@ void csr_surface_set_file(csr_surface_t* surface, const csr_surface_file_fns_t* 
     {
         As(surface)->SetFileFns(file);
     }
+}
+
+void csr_surface_set_cursor_texture(csr_surface_t* surface, int cursor, int texture)
+{
+    if (surface != nullptr)
+    {
+        As(surface)->SetCursorTexture(cursor, texture);
+    }
+}
+
+int csr_surface_cursor_quad(const csr_surface_t* surface, int* x, int* y, int* wide, int* tall, int* texture)
+{
+    if (surface == nullptr)
+    {
+        return 0;
+    }
+    return As(surface)->CursorQuad(x, y, wide, tall, texture);
 }
 
 void* csr_surface_vgui(csr_surface_t* surface)

@@ -93,6 +93,10 @@ CSR_SURFACE_API void csr_surface_engine_hooks(csr_surface_t* surface, struct csr
 CSR_SURFACE_API void csr_surface_set_panel(csr_surface_t* surface, const csr_surface_panel_fns_t* panel);
 CSR_SURFACE_API void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t* input);
 CSR_SURFACE_API void csr_surface_set_file(csr_surface_t* surface, const csr_surface_file_fns_t* file);
+// Binds a loaded texture to a VGUI cursor code. Texture 0 clears it.
+CSR_SURFACE_API void csr_surface_set_cursor_texture(csr_surface_t* surface, int cursor, int texture);
+// The quad from the last PaintTraverse. Returns 0 when that paint drew no cursor.
+CSR_SURFACE_API int csr_surface_cursor_quad(const csr_surface_t* surface, int* x, int* y, int* wide, int* tall, int* texture);
 CSR_SURFACE_API void* csr_surface_create_interface(const char* name, int* code);
 
 #ifdef __cplusplus

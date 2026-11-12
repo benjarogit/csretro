@@ -431,6 +431,7 @@ namespace
     void RecordXashGLBind();
     void RecordXashDrawInit();
     void RecordXashDrawShutdown();
+    void RecordXashDrawPicFromWad();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -617,7 +618,10 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not shut down draw state. The
     // process body releases draw state and frees draw resources, so a real
     // call does not run.
-    // The next retail hook is Draw_PicFromWad. This path returns before it.
+    // Draw_PicFromWad is then the process function when that hook is absent.
+    // This init stores the pointer and does not load a WAD picture. The
+    // process body loads a WAD picture, so a real call does not run.
+    // The next retail hook is V_UpdatePalette. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -679,6 +683,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashGLBind();
             RecordXashDrawInit();
             RecordXashDrawShutdown();
+            RecordXashDrawPicFromWad();
         }
         return;
     }
@@ -1152,6 +1157,7 @@ EngineMiniGLUnloadTextureFn g_EngineMiniGLUnloadTexture = GL_UnloadTexture;
 EngineMiniGLBindFn g_EngineMiniGLBind = GL_Bind;
 EngineMiniDrawInitFn g_EngineMiniDrawInit = Draw_Init;
 EngineMiniDrawShutdownFn g_EngineMiniDrawShutdown = Draw_Shutdown;
+EngineMiniDrawPicFromWadFn g_EngineMiniDrawPicFromWad = Draw_PicFromWad;
 
 namespace
 {
@@ -2066,6 +2072,23 @@ namespace
         g_xash_startup.draw_shutdown = g_EngineMiniDrawShutdown;
     }
 
+    void RecordXashDrawPicFromWad()
+    {
+        // The retail site installs a replacement. It does not load a WAD picture during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body loads a WAD picture, so this path does not call it.
+        g_xash_startup.draw_pic_from_wad = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->Draw_PicFromWad.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniDrawPicFromWad == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.draw_pic_from_wad = g_EngineMiniDrawPicFromWad;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2389,6 +2412,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniGLBind = GL_Bind;
     g_EngineMiniDrawInit = Draw_Init;
     g_EngineMiniDrawShutdown = Draw_Shutdown;
+    g_EngineMiniDrawPicFromWad = Draw_PicFromWad;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

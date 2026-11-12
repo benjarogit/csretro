@@ -168,6 +168,9 @@ using EngineMiniDrawInitFn = void (*)();
 // Process replacement for the retail Draw_Shutdown hook. A null value is not a call.
 using EngineMiniDrawShutdownFn = void (*)();
 
+// Process replacement for the retail Draw_PicFromWad hook. A null value is not a call.
+using EngineMiniDrawPicFromWadFn = goldsrc::qpic_t* (*)(const char* name);
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -233,6 +236,7 @@ struct EngineMiniXashStartup
     int bind_calls{};
     int draw_init_calls{};
     int draw_shutdown_calls{};
+    int draw_pic_from_wad_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -297,6 +301,7 @@ struct EngineMiniXashStartup
     EngineMiniGLBindFn bind{};
     EngineMiniDrawInitFn draw_init{};
     EngineMiniDrawShutdownFn draw_shutdown{};
+    EngineMiniDrawPicFromWadFn draw_pic_from_wad{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -454,6 +459,9 @@ extern EngineMiniDrawInitFn g_EngineMiniDrawInit;
 
 // Defaults to Draw_Shutdown. Init stores the pointer and does not call it.
 extern EngineMiniDrawShutdownFn g_EngineMiniDrawShutdown;
+
+// Defaults to Draw_PicFromWad. Init stores the pointer and does not call it.
+extern EngineMiniDrawPicFromWadFn g_EngineMiniDrawPicFromWad;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

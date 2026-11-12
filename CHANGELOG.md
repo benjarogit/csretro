@@ -37,7 +37,9 @@ The authoritative version string is the `VERSION` file.
   an uncompressed TGA from that root. A missing or compressed file is not a
   texture. A cursor bound to that texture is drawn at the end of
   `PaintTraverse`. `RunFrame` does not draw it. After the root is mounted,
-  `IVGui::Init` gives `vgui2` that surface. `RunFrame` is not that call.
+  `IVGui::Init` gives `vgui2` that surface. A scheme file under that root is
+  loaded through the same manager. A missing file leaves the host open.
+  `RunFrame` is not that call.
   The proxy does not open `hw.so` and does not start the game.
 - `xash_host` opens `gameui` after the one surface factory and reads
   `GameUI007` and `GameConsole003`. It does not call into the game UI.

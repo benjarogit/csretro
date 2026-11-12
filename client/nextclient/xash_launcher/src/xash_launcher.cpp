@@ -131,6 +131,9 @@ int OpenXashLauncher(
         return 0;
     }
 
+    // The same path GameUI asks for. A root without that file stays open.
+    csr_host_load_scheme("resource/schemes/TrackerScheme_ClassicPlus.res", "ClientScheme");
+
     void* steam = dlopen(steam_api_path, RTLD_NOW | RTLD_LOCAL);
     if (steam == nullptr)
     {

@@ -87,6 +87,15 @@ CSR_HOST_API int csr_host_filesystem_mounted(void);
 CSR_HOST_API int csr_host_connect_vgui(void);
 CSR_HOST_API int csr_host_vgui_connected(void);
 
+/*
+ * Loads one scheme through the connected vgui2 scheme manager. path is
+ * relative to the mounted root. Returns 0 when vgui2 is not connected, the
+ * file is missing, or the file is not a scheme. Does not invent a path and
+ * does not call RunFrame.
+ */
+CSR_HOST_API int csr_host_load_scheme(const char* path, const char* tag);
+CSR_HOST_API int csr_host_scheme_loaded(void);
+
 /* list[0] answers VGUI_Surface026. A mounted filesystem follows it, then extras. */
 CSR_HOST_API int csr_host_factory_list(csr_host_factory_fn* extra, int extra_count, csr_host_factories_t* out);
 CSR_HOST_API void* csr_host_create_interface(const char* name, int* code);

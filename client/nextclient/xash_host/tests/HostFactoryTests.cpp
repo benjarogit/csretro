@@ -3,12 +3,15 @@
 #include "xash_engine/xash_engine.h"
 
 #include <gtest/gtest.h>
+#include <Color.h>
+#include <vgui/IScheme.h>
 #include <vgui/ISurface.h>
 
 #include <FileSystem.h>
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -379,4 +382,51 @@ TEST_F(HostFactory, ConnectsTheSurfaceIntoVguiWithoutRunFrame)
     EXPECT_EQ(csr_host_connect_vgui(), 1);
     EXPECT_NE(csr_host_vgui_dispatch(), nullptr);
     EXPECT_NE(csr_host_create_interface("VGUI_Surface026", nullptr), nullptr);
+    EXPECT_EQ(csr_host_load_scheme("resource/scheme.res", "ClientScheme"), 0);
+    EXPECT_EQ(csr_host_scheme_loaded(), 0);
+}
+
+TEST_F(HostFactory, LoadsASchemeFromTheMountedRoot)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    ASSERT_EQ(csr_host_load_pair(XASH_CLIENT_FILE, XASH_VGUI_FILE), 1);
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/resource").c_str(), 0755), 0);
+    const std::string path = temp.root + "/resource/scheme.res";
+    FILE* out = std::fopen(path.c_str(), "wb");
+    ASSERT_NE(out, nullptr);
+    const char* text =
+        "\"Scheme\"\n"
+        "{\n"
+        "\t\"Colors\"\n"
+        "\t{\n"
+        "\t\t\"Armed\" \"10 20 30 40\"\n"
+        "\t}\n"
+        "\t\"BaseSettings\"\n"
+        "\t{\n"
+        "\t\t\"Button.ArmedTextColor\" \"Armed\"\n"
+        "\t}\n"
+        "}\n";
+    ASSERT_EQ(std::fwrite(text, 1, std::strlen(text), out), std::strlen(text));
+    std::fclose(out);
+
+    ASSERT_EQ(csr_host_mount_filesystem(temp.root.c_str()), 1);
+    EXPECT_EQ(csr_host_load_scheme("resource/scheme.res", "ClientScheme"), 0);
+    ASSERT_EQ(csr_host_connect_vgui(), 1);
+    ASSERT_EQ(csr_host_load_scheme("resource/scheme.res", "ClientScheme"), 1);
+    EXPECT_EQ(csr_host_scheme_loaded(), 1);
+
+    auto* manager = static_cast<vgui2::ISchemeManager*>(csr_host_scheme());
+    ASSERT_NE(manager, nullptr);
+    vgui2::IScheme* scheme = manager->GetIScheme(manager->GetScheme("ClientScheme"));
+    ASSERT_NE(scheme, nullptr);
+    const Color color = scheme->GetColor("Armed", Color(0, 0, 0, 0));
+    EXPECT_EQ(color.r(), 10);
+    EXPECT_EQ(color.g(), 20);
+    EXPECT_EQ(color.b(), 30);
+    EXPECT_EQ(color.a(), 40);
+
+    std::remove(path.c_str());
+    rmdir((temp.root + "/resource").c_str());
 }

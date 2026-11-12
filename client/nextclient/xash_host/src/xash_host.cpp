@@ -4,6 +4,7 @@
 #include "xash_surface/xash_surface.h"
 #include "xash_engine/xash_engine.h"
 
+#include <vgui/IScheme.h>
 #include <vgui/IVGui.h>
 
 #include <dlfcn.h>
@@ -44,6 +45,7 @@ namespace
 
     PairApi g_pair;
     int g_vgui_connected = 0;
+    int g_scheme_loaded = 0;
 
     struct GameUiApi
     {
@@ -71,6 +73,7 @@ namespace
         g_pair.scheme = nullptr;
         g_pair.create = nullptr;
         g_vgui_connected = 0;
+        g_scheme_loaded = 0;
         if (g_pair.vgui != nullptr)
         {
             dlclose(g_pair.vgui);
@@ -365,6 +368,37 @@ int csr_host_connect_vgui(void)
 int csr_host_vgui_connected(void)
 {
     return g_vgui_connected;
+}
+
+int csr_host_load_scheme(const char* path, const char* tag)
+{
+    if (g_scheme_loaded != 0)
+    {
+        return 1;
+    }
+    if (g_vgui_connected == 0 || g_pair.scheme == nullptr || path == nullptr || path[0] == '\0' || tag == nullptr ||
+        tag[0] == '\0')
+    {
+        return 0;
+    }
+    if (csr_host_filesystem_read(path, nullptr, 0) <= 0)
+    {
+        return 0;
+    }
+
+    auto* manager = static_cast<vgui2::ISchemeManager*>(g_pair.scheme);
+    const vgui2::HScheme handle = manager->LoadSchemeFromFile(path, tag);
+    if (handle == 0)
+    {
+        return 0;
+    }
+    g_scheme_loaded = 1;
+    return 1;
+}
+
+int csr_host_scheme_loaded(void)
+{
+    return g_scheme_loaded;
 }
 
 void csr_host_close(void)

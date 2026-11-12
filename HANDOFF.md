@@ -342,7 +342,7 @@ implementation; the plan is the only source for the gate list.
   Product process is x86_64 (plan section 3.7). The Linux client preset is
   `linux` with the vcpkg triplet `x64-linux`. There is no second 32-bit client
   preset. `engine_mini-tests` (555), `nitro_api-tests` (70),
-  `xash_surface-tests` (21), `xash_host-tests` (11), `xash_engine-tests` (3),
+  `xash_surface-tests` (21), `xash_host-tests` (12), `xash_engine-tests` (3),
   `sdk_pair-tests` (4), `player_identity-tests` (6), `steam_api-tests` (2) and
   `xash_launcher-tests` (3)
   pass as ELF64 binaries
@@ -364,7 +364,8 @@ implementation; the plan is the only source for the gate list.
   `DrawSetTextureFile` reads an uncompressed TGA from that root. A bound
   cursor texture is drawn at the end of `PaintTraverse`. `RunFrame` does not
   draw it. `IVGui::Init` then takes that factory list. `vgui2` holds the one
-  surface. `RunFrame` is not that call.
+  surface. A scheme file under that root is loaded through the same manager.
+  A missing file leaves the host open. `RunFrame` is not that call.
   The ELF64 `libsteam_api.so` reports logged out and does not start Steam.
   A missing interface is not called.   The Xash launcher plans that command and the same process opens the list.
   It does not execute the command or call `RunFrame`. A missing content root
@@ -410,7 +411,8 @@ implementation; the plan is the only source for the gate list.
   uncompressed TGA from that root. A compressed file is not a texture. A bound
   cursor texture is drawn at the end of `PaintTraverse`. `IVGui::Init` takes
   that list after the mount, so `vgui2` holds the one surface. `RunFrame` is
-  not that call.
+  not that call. A scheme file under the root is loaded there. A missing file
+  leaves the host open.
   The ELF64 `libsteam_api.so` reports logged out. It does not start Steam.
   The Xash launcher plans one command and the same process opens that list.
   It does not execute the command or call `RunFrame`. A missing content root

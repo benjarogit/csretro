@@ -34,8 +34,9 @@ Dieselbe Factory-Liste beantwortet `VFileSystem009`, nachdem der Host eine
 Wurzel gemountet hat. Die Surface bleibt der erste Eintrag. Der Proxy liest
 nur Dateien unter dieser Wurzel. Eine fehlende Datei ist ein Fehltreffer.
 `hw.so` wird dabei nicht geöffnet. Nach diesem Mount nimmt `IVGui::Init`
-diese Liste, sodass `vgui2` die eine Surface hält. `RunFrame` ist dieser
-Aufruf nicht. Der Host startet das Spiel nicht.
+diese Liste, sodass `vgui2` die eine Surface hält. Eine Scheme-Datei unter
+dieser Wurzel lädt derselbe Manager. Eine fehlende Datei lässt den Host
+offen. `RunFrame` ist dieser Aufruf nicht. Der Host startet das Spiel nicht.
 
 Die eine `libsteam_api.so` ist ELF64 aus dem Host. Sie lädt Valves
 i386-Bibliothek nicht und startet Steam nicht. Ohne bereits laufendes,

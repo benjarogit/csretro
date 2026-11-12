@@ -20,6 +20,9 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
 - `csr_host_connect_vgui` calls `IVGui::Init` after the pair and the mount.
   `vgui2` takes the one surface, `VFileSystem009` and `VGUI_Localize003`.
   A missing piece returns 0 and is not called. `RunFrame` stays unused.
+- `csr_host_load_scheme` reads one scheme file from that root after the
+  connection. A missing file returns 0 and leaves the host open. The launcher
+  asks for `resource/schemes/TrackerScheme_ClassicPlus.res`.
 - Extra factories follow those entries. The surface name is not forwarded to them.
 - `csr_host_bind_input` forwards cursor, press and release, then one dispatch.
   `CVGui::RunFrame` is not called. `SurfaceSetCursorPos` does not dispatch.

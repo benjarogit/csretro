@@ -697,7 +697,9 @@ Datei oder eine komprimierte TGA wird keine Textur. Eine an einen Cursor
 gebundene Textur zeichnet `PaintTraverse` an der Cursorposition.
 `RunFrame` zeichnet sie nicht. Danach ruft der Host `IVGui::Init` mit
 dieser Liste. `vgui2` hält damit die eine Surface, das Dateisystem und
-`VGUI_Localize003`. `RunFrame` ist dieser Aufruf nicht. Es gibt kein
+`VGUI_Localize003`. Eine Scheme-Datei unter der Wurzel lädt derselbe
+Manager. Eine fehlende Datei lässt den Host offen. `RunFrame` ist dieser
+Aufruf nicht. Es gibt kein
 zweites Dateisystem und keine zweite Factory. Retail-Daten liegen nicht im
 Repository. Der Host startet das Spiel nicht.
 

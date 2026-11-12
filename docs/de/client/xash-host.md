@@ -9,8 +9,10 @@ Der erste Eintrag der Liste beantwortet nur `VGUI_Surface026`. Ist eine Wurzel
 gemountet, folgt `VFileSystem009` auf derselben Liste. Der Proxy liest nur
 Dateien unter dieser Wurzel. Eine fehlende Datei oder ein Pfad außerhalb ist
 ein Fehltreffer. Sind das Paar geladen und die Wurzel gemountet, nimmt
-`IVGui::Init` diese Liste. `vgui2` hält danach die eine Surface. `RunFrame`
-ist dieser Aufruf nicht. Weitere Factories werden für den Surface-Namen nicht gefragt.
+`IVGui::Init` diese Liste. `vgui2` hält danach die eine Surface. Eine
+Scheme-Datei unter dieser Wurzel lädt derselbe Manager. Eine fehlende Datei
+lässt den Host offen. `RunFrame` ist dieser Aufruf nicht. Weitere Factories
+werden für den Surface-Namen nicht gefragt.
 
 Mausbewegung, Druck und Loslassen gehen an die drei Input-Aufrufe und danach
 genau einmal an die Nachrichtenzustellung. `RunFrame` wird nicht aufgerufen,

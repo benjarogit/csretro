@@ -744,8 +744,12 @@ int csr_host_paint_gameui(int wide, int tall)
     }
     surface->SetEmbeddedPanel(g_gameui_root);
     const int before = g_surface.push_count(g_surface.surface);
-    // Solve lays the tree out. Paint walks it. RunFrame is not this call.
-    surface->SolveTraverse(g_gameui_root, false);
+    // GameUI loads this file during init and points panels at that scheme.
+    // The placeholder scheme has no color data, so a missing file is not applied.
+    // Panels keep the scheme flag until this solve. RunFrame is not that call.
+    const bool scheme_ready =
+        csr_host_filesystem_read("resource/schemes/TrackerScheme_ClassicPlus.res", nullptr, 0) > 0;
+    surface->SolveTraverse(g_gameui_root, scheme_ready);
     surface->PaintTraverse(g_gameui_root);
     return g_surface.push_count(g_surface.surface) > before ? 1 : 0;
 }

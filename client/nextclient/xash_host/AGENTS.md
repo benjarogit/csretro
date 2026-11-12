@@ -29,9 +29,12 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   `resource/schemes/TrackerScheme_ClassicPlus.res` is on that root. `Start` and
   `RunFrame` stay unused.
 - `csr_host_paint_gameui` sizes the root and its non-popup children, solves
-  the tree and paints it. A paint calls `PushMakeCurrent`. Options pages and
-  the background image wait for the engine pointer from `Start`. `RunFrame`
-  stays unused.
+  the tree and paints it. A paint calls `PushMakeCurrent`. When
+  `resource/schemes/TrackerScheme_ClassicPlus.res` is on the root, that paint
+  applies scheme settings and reads `resource/BackgroundLayout.txt`. A texture
+  name with no extension is the `.tga` beside it. A missing file is not a
+  texture. Options pages and drawing the background wait for `Start`.
+  `RunFrame` stays unused.
 - Extra factories follow those entries. The surface name is not forwarded to them.
 - `csr_host_bind_input` forwards cursor, press and release, then one dispatch.
   `CVGui::RunFrame` is not called. `SurfaceSetCursorPos` does not dispatch.

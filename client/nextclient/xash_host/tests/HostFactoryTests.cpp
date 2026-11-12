@@ -362,6 +362,20 @@ TEST_F(HostFactory, TextureFileReadsUncompressedTgaFromTheRoot)
     EXPECT_EQ(wide, 0);
     EXPECT_EQ(tall, 0);
 
+    vgui->DrawSetTextureFile(6, "cursor", 0, false);
+    wide = 0;
+    tall = 0;
+    vgui->DrawGetTextureSize(6, wide, tall);
+    EXPECT_EQ(wide, 2);
+    EXPECT_EQ(tall, 1);
+
+    vgui->DrawSetTextureFile(7, "../cursor", 0, false);
+    wide = 7;
+    tall = 7;
+    vgui->DrawGetTextureSize(7, wide, tall);
+    EXPECT_EQ(wide, 0);
+    EXPECT_EQ(tall, 0);
+
     std::remove(path.c_str());
 }
 
@@ -530,6 +544,114 @@ TEST_F(HostFactory, BuildsTheServerListWhenTheDefaultSchemeIsPresent)
 
     std::remove(menu.c_str());
     std::remove(scheme.c_str());
+    rmdir((temp.root + "/resource/schemes").c_str());
+    rmdir((temp.root + "/resource").c_str());
+    rmdir((temp.root + "/Resource").c_str());
+}
+
+TEST_F(HostFactory, ParsesTheBackgroundLayoutAndLoadsItsTga)
+{
+    ASSERT_EQ(csr_host_open(XASH_SURFACE_FILE), 1);
+    ASSERT_EQ(csr_host_load_pair(XASH_CLIENT_FILE, XASH_VGUI_FILE), 1);
+    ASSERT_EQ(csr_host_load_gameui(XASH_GAMEUI_FILE), 1);
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/Resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/resource/schemes").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/gfx").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/gfx/vgui").c_str(), 0755), 0);
+
+    const std::string menu = temp.root + "/Resource/GameMenu.res";
+    const std::string scheme = temp.root + "/resource/schemes/TrackerScheme_ClassicPlus.res";
+    const std::string layout = temp.root + "/resource/BackgroundLayout.txt";
+    const std::string image = temp.root + "/gfx/vgui/round_corner_nw.tga";
+    FILE* menu_out = std::fopen(menu.c_str(), "wb");
+    ASSERT_NE(menu_out, nullptr);
+    const char* menu_text = "\"GameMenu\"\n{\n}\n";
+    ASSERT_EQ(std::fwrite(menu_text, 1, std::strlen(menu_text), menu_out), std::strlen(menu_text));
+    std::fclose(menu_out);
+
+    FILE* scheme_out = std::fopen(scheme.c_str(), "wb");
+    ASSERT_NE(scheme_out, nullptr);
+    const char* scheme_text =
+        "\"Scheme\"\n"
+        "{\n"
+        "\t\"Colors\"\n"
+        "\t{\n"
+        "\t\t\"Blank\" \"0 0 0 0\"\n"
+        "\t}\n"
+        "\t\"BaseSettings\"\n"
+        "\t{\n"
+        "\t\t\"FgColor\" \"Blank\"\n"
+        "\t}\n"
+        "}\n";
+    ASSERT_EQ(std::fwrite(scheme_text, 1, std::strlen(scheme_text), scheme_out), std::strlen(scheme_text));
+    std::fclose(scheme_out);
+
+    FILE* layout_out = std::fopen(layout.c_str(), "wb");
+    ASSERT_NE(layout_out, nullptr);
+    const char* layout_text =
+        "resolution\t640\t480\n"
+        "gfx/vgui/round_corner_nw.tga\tscaled\t0\t0\n"
+        "gfx/vgui/missing.tga\tscaled\t1\t1\n";
+    ASSERT_EQ(std::fwrite(layout_text, 1, std::strlen(layout_text), layout_out), std::strlen(layout_text));
+    std::fclose(layout_out);
+
+    unsigned char tga[24] = {};
+    tga[2] = 2;
+    tga[12] = 2;
+    tga[14] = 1;
+    tga[16] = 24;
+    tga[20] = 255;
+    FILE* image_out = std::fopen(image.c_str(), "wb");
+    ASSERT_NE(image_out, nullptr);
+    ASSERT_EQ(std::fwrite(tga, 1, sizeof(tga), image_out), sizeof(tga));
+    std::fclose(image_out);
+
+    ASSERT_EQ(csr_host_mount_filesystem(temp.root.c_str()), 1);
+    auto* files = static_cast<IFileSystem*>(csr_host_create_interface("VFileSystem009", nullptr));
+    ASSERT_NE(files, nullptr);
+    char bytes[] = "resolution 640 // note\n\"gfx/vgui/round_corner_nw.tga\"";
+    char token[512];
+    bool quoted = false;
+    char* next = files->ParseFile(bytes, token, &quoted);
+    ASSERT_NE(next, nullptr);
+    EXPECT_STREQ(token, "resolution");
+    EXPECT_FALSE(quoted);
+    next = files->ParseFile(next, token, &quoted);
+    EXPECT_STREQ(token, "640");
+    next = files->ParseFile(next, token, &quoted);
+    EXPECT_STREQ(token, "gfx/vgui/round_corner_nw.tga");
+    EXPECT_TRUE(quoted);
+    EXPECT_EQ(files->ParseFile(next, token, &quoted), nullptr);
+
+    ASSERT_EQ(csr_host_connect_vgui(), 1);
+    ASSERT_EQ(csr_host_init_gameui(), 1);
+    ASSERT_EQ(csr_host_paint_gameui(640, 480), 1);
+
+    auto* vgui = static_cast<vgui2::ISurface*>(csr_host_create_interface("VGUI_Surface026", nullptr));
+    ASSERT_NE(vgui, nullptr);
+    int matches = 0;
+    for (int id = 1; id < 64; ++id)
+    {
+        int wide = 0;
+        int tall = 0;
+        vgui->DrawGetTextureSize(id, wide, tall);
+        if (wide == 2 && tall == 1)
+        {
+            ++matches;
+        }
+    }
+    EXPECT_EQ(matches, 1);
+
+    std::remove(menu.c_str());
+    std::remove(scheme.c_str());
+    std::remove(layout.c_str());
+    std::remove(image.c_str());
+    rmdir((temp.root + "/gfx/vgui").c_str());
+    rmdir((temp.root + "/gfx").c_str());
     rmdir((temp.root + "/resource/schemes").c_str());
     rmdir((temp.root + "/resource").c_str());
     rmdir((temp.root + "/Resource").c_str());

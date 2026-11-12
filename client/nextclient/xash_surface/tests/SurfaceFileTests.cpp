@@ -75,6 +75,13 @@ TEST(SurfaceFile, UncompressedTgaBecomesATexture)
     EXPECT_EQ(wide, 2);
     EXPECT_EQ(tall, 1);
 
+    vgui->DrawSetTextureFile(3, "cursor", 0, false);
+    wide = 0;
+    tall = 0;
+    vgui->DrawGetTextureSize(3, wide, tall);
+    EXPECT_EQ(wide, 2);
+    EXPECT_EQ(tall, 1);
+
     tga[2] = 10;
     vgui->DrawSetTextureFile(2, "cursor.tga", 0, false);
     wide = 4;

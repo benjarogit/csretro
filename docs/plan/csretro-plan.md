@@ -693,7 +693,8 @@ der Host eine Wurzel gemountet hat. Die Surface bleibt der erste Eintrag.
 Der Proxy ist eigener Code und öffnet `hw.so` nicht. Er liest nur Dateien
 unter der übergebenen Wurzel. Eine fehlende Datei oder ein Pfad außerhalb
 dieser Wurzel ist ein Fehltreffer und kein erfundener Pfad.
-`DrawSetTextureFile` liest darüber eine unkomprimierte TGA. Eine fehlende
+`DrawSetTextureFile` liest darüber eine unkomprimierte TGA. Ein Name ohne
+Endung wird als `.tga` gelesen. Eine fehlende
 Datei oder eine komprimierte TGA wird keine Textur. Eine an einen Cursor
 gebundene Textur zeichnet `PaintTraverse` an der Cursorposition.
 `RunFrame` zeichnet sie nicht. Danach ruft der Host `IVGui::Init` mit
@@ -708,7 +709,10 @@ geschrieben, weil die Wurzel nur lesbar ist. Die Serverliste wird dann ein
 Kind des Basis-Panels. Fehlt die Datei, bleibt die Liste ungebaut.
 `csr_host_paint_gameui` setzt danach die Größe der Wurzel und ihrer
 Nicht-Popup-Kinder und zeichnet den Baum. Ein zeichnendes Panel ruft
-`PushMakeCurrent`. Optionsseiten und das Hintergrundbild warten auf den
+`PushMakeCurrent`. Liegt die Scheme-Datei vor, wendet dieses Paint die
+Scheme-Einstellungen an und liest `resource/BackgroundLayout.txt`. Ein
+Texturname ohne Endung ist die `.tga` daneben. Eine fehlende Datei wird
+keine Textur. Optionsseiten und das Zeichnen des Hintergrunds warten auf den
 Engine-Zeiger aus `Start`. `Start` und `RunFrame` sind
 dieser Aufruf nicht. Es gibt kein
 zweites Dateisystem und keine zweite Factory. Retail-Daten liegen nicht im

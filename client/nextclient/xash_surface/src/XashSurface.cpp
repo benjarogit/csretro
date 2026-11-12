@@ -464,26 +464,43 @@ namespace xash
 
         void DeleteHTMLWindow(vgui2::IHTML*) override {}
 
-        void DrawSetTextureFile(int id, const char* filename, int hardwareFilter, bool) override
+        bool ReadTextureFile(const char* path, std::vector<unsigned char>* bytes) const
         {
-            if (filename == nullptr || filename[0] == '\0' || file_.read == nullptr)
+            if (path == nullptr || path[0] == '\0' || bytes == nullptr || file_.read == nullptr)
             {
-                return;
+                return false;
             }
-            const int size = file_.read(filename, nullptr, 0, file_.user);
+            const int size = file_.read(path, nullptr, 0, file_.user);
             if (size <= 0 || size > kMaxTextureFile)
             {
-                return;
+                return false;
             }
-            std::vector<unsigned char> bytes(static_cast<size_t>(size));
-            if (file_.read(filename, bytes.data(), size, file_.user) != size)
+            bytes->assign(static_cast<size_t>(size), 0);
+            return file_.read(path, bytes->data(), size, file_.user) == size;
+        }
+
+        void DrawSetTextureFile(int id, const char* filename, int hardwareFilter, bool) override
+        {
+            // GameUI strips ".tga" and asks for the stem. The file on disk keeps it.
+            std::vector<unsigned char> bytes;
+            if (!ReadTextureFile(filename, &bytes))
             {
-                return;
+                const char* slash = filename == nullptr ? nullptr : std::strrchr(filename, '/');
+                const char* dot = filename == nullptr ? nullptr : std::strrchr(filename, '.');
+                if (filename == nullptr || (dot != nullptr && (slash == nullptr || dot > slash)))
+                {
+                    return;
+                }
+                const std::string with_tga = std::string(filename) + ".tga";
+                if (!ReadTextureFile(with_tga.c_str(), &bytes))
+                {
+                    return;
+                }
             }
             std::vector<unsigned char> rgba;
             int wide = 0;
             int tall = 0;
-            if (!DecodeUncompressedTga(bytes.data(), size, &rgba, &wide, &tall))
+            if (!DecodeUncompressedTga(bytes.data(), static_cast<int>(bytes.size()), &rgba, &wide, &tall))
             {
                 return;
             }

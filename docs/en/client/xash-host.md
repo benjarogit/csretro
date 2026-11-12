@@ -17,9 +17,12 @@ The base panel is a child of the host root. When
 scheme is read from the source file and the server list becomes a child of
 the base panel. A missing scheme leaves the list unbuilt. `csr_host_paint_gameui`
 then sizes the root and its non-popup children and paints the tree. A panel
-that paints calls `PushMakeCurrent`. Options pages and the background image
-wait until `Start` has installed the engine pointer. `Start` and `RunFrame`
-are not that call. Later
+that paints calls `PushMakeCurrent`. When that scheme file is on the root,
+the same paint applies scheme settings. That reads
+`resource/BackgroundLayout.txt`. A texture name with no extension is the
+`.tga` file beside it. A missing file is not a texture. Options pages and
+drawing the background wait until `Start` has installed the engine pointer.
+`Start` and `RunFrame` are not that call. Later
 factories are not asked for the surface name.
 
 Mouse move, press and release go to the three input calls and then to exactly

@@ -35,7 +35,7 @@ A missing file is a miss. It does not open `hw.so`. After that mount,
 `IVGui::Init` takes this list so `vgui2` holds the one surface. A scheme
 file under that root is loaded through that manager. A missing file leaves
 the host open. `IGameUI::Initialize` then parents the base panel to the host root. The default scheme is read from `resource/schemes/TrackerScheme_ClassicPlus.res` when that file is present, and the server list is then a child of the base panel. A missing
-engine module is not called. `csr_host_paint_gameui` then sizes that root and paints the tree. Options pages wait for `Start`. `Start` and `RunFrame` are not that call. The
+engine module is not called. `csr_host_paint_gameui` then sizes that root and paints the tree. When the scheme file is present, that paint reads `resource/BackgroundLayout.txt` and loads a texture name with no extension from the `.tga` beside it. Options pages wait for `Start`. `Start` and `RunFrame` are not that call. The
 host does not start the game.
 
 The one `libsteam_api.so` is the ELF64 host library. It does not load Valve's

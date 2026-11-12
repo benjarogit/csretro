@@ -40,7 +40,7 @@ The authoritative version string is the `VERSION` file.
   `IVGui::Init` gives `vgui2` that surface. A scheme file under that root is
   loaded through the same manager. A missing file leaves the host open.
   `IGameUI::Initialize` parents the base panel to the host root and builds the server list once `resource/schemes/TrackerScheme_ClassicPlus.res` can be read. A missing engine module is
-  not called. `csr_host_paint_gameui` sizes that root and paints the tree. Options pages wait for `Start`. `Start` and `RunFrame` are not that call.
+  not called. `csr_host_paint_gameui` sizes that root and paints the tree. When the scheme file is present, that paint reads `resource/BackgroundLayout.txt` and loads an extensionless texture name from the `.tga` beside it. Options pages wait for `Start`. `Start` and `RunFrame` are not that call.
   The proxy does not open `hw.so` and does not start the game.
 - `xash_host` opens `gameui` after the one surface factory and reads
   `GameUI007` and `GameConsole003`. It does not call into the game UI.

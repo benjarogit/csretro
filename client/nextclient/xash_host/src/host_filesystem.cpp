@@ -416,6 +416,8 @@ namespace
 
         char* ParseFile(char* pFileBytes, char* pToken, bool* pWasQuoted) override
         {
+            // Callers such as the background layout pass a 512-byte token.
+            constexpr int kTokenCap = 511;
             if (pWasQuoted != nullptr)
             {
                 *pWasQuoted = false;
@@ -424,7 +426,70 @@ namespace
             {
                 pToken[0] = '\0';
             }
-            return pFileBytes;
+            if (pFileBytes == nullptr)
+            {
+                return nullptr;
+            }
+
+            unsigned char* cursor = reinterpret_cast<unsigned char*>(pFileBytes);
+            for (;;)
+            {
+                while (*cursor != '\0' && *cursor <= ' ')
+                {
+                    ++cursor;
+                }
+                if (*cursor == '/' && cursor[1] == '/')
+                {
+                    while (*cursor != '\0' && *cursor != '\n')
+                    {
+                        ++cursor;
+                    }
+                    continue;
+                }
+                break;
+            }
+            if (*cursor == '\0')
+            {
+                return nullptr;
+            }
+
+            const bool quoted = *cursor == '"';
+            if (pWasQuoted != nullptr)
+            {
+                *pWasQuoted = quoted;
+            }
+            if (quoted)
+            {
+                ++cursor;
+            }
+
+            int length = 0;
+            while (*cursor != '\0')
+            {
+                if (quoted)
+                {
+                    if (*cursor == '"')
+                    {
+                        ++cursor;
+                        break;
+                    }
+                }
+                else if (*cursor <= ' ')
+                {
+                    break;
+                }
+                if (pToken != nullptr && length < kTokenCap)
+                {
+                    pToken[length] = static_cast<char>(*cursor);
+                    ++length;
+                }
+                ++cursor;
+            }
+            if (pToken != nullptr)
+            {
+                pToken[length] = '\0';
+            }
+            return reinterpret_cast<char*>(cursor);
         }
 
         bool FullPathToRelativePath(const char* pFullpath, char* pRelative) override

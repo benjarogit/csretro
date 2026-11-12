@@ -6,6 +6,7 @@
 
 #include "../engine.h"
 #include "sys_dll.h"
+#include "xash_startup.h"
 #include "cvar.h"
 #include "filesystem.h"
 #include "../console/console.h"
@@ -27,6 +28,7 @@ void Host_Map(goldsrc::qboolean bIsDemo, const char* mapstring, const char* mapN
 
 void Host_Map_f()
 {
+    EngineMini_NoteHostMapCall();
     char mapstring[64];
     char name[64];
     goldsrc::CareerStateType careerState = *p_g_careerState;

@@ -145,10 +145,10 @@ advanced by N times the delta. `csr_host_run` keeps that window mapped and repea
 opened. `ISurface::SwapBuffers` stays empty. The surface tests still use an
 EGL pbuffer.
 
-A human runs this command. `$CONTENT_ROOT` is the copy from [Install game content](install.md). It stays outside the Steam library and is not in this repository. The command does not start Steam, does not exec the planned launcher command, does not load a map and does not play Counter-Strike. `main` calls `RunXashLauncher`.
+A human runs this command. `$CONTENT_ROOT` is the copy from [Install game content](install.md). It stays outside the Steam library and is not in this repository. `<map>` is the map name, without a directory and without `.bsp`. The command does not start Steam and does not exec the planned launcher command. With a map name, `main` passes that name to `RunXashLauncher`, which reads `cstrike/maps/<map>.bsp` from the content root before the quit loop. Without a map name the call does not load a map. The command does not play Counter-Strike.
 
 ```bash
-client/build/linux/out/bin/Release/xash_launcher "$CONTENT_ROOT"
+client/build/linux/out/bin/Release/xash_launcher "$CONTENT_ROOT" <map>
 ```
 
 `nextclient.sh` and [First client start](first-start.md) remain the GoldSrc

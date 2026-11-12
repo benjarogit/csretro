@@ -4,10 +4,10 @@ project(xash_launcher)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_library(xash_launcher STATIC src/xash_launcher.cpp)
+add_library(xash_launcher STATIC src/xash_launcher.cpp src/map_load.cpp)
 add_library(xash::launcher ALIAS xash_launcher)
 target_include_directories(xash_launcher PUBLIC include)
-target_link_libraries(xash_launcher PUBLIC xash::host ${CMAKE_DL_LIBS})
+target_link_libraries(xash_launcher PUBLIC xash::host goldsrc::abi ${CMAKE_DL_LIBS})
 
 add_executable(xash_launcher_entry src/main.cpp)
 set_target_properties(xash_launcher_entry PROPERTIES OUTPUT_NAME "xash_launcher")

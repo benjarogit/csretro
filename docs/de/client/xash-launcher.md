@@ -162,10 +162,10 @@ Host-Zeit ist um N mal das Delta vorgerückt. `csr_host_run` hält dieses Fenste
 Ein Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
 Surface-Tests behalten ihr EGL-Pbuffer.
 
-Ein Mensch startet diesen Befehl. `$CONTENT_ROOT` ist die Kopie aus [Spielinhalte installieren](install.md). Sie bleibt außerhalb der Steam-Bibliothek und liegt nicht in diesem Repository. Der Befehl startet Steam nicht, führt den geplanten Launcher-Befehl nicht aus, lädt keine Map und spielt kein Counter-Strike. `main` ruft `RunXashLauncher`.
+Ein Mensch startet diesen Befehl. `$CONTENT_ROOT` ist die Kopie aus [Spielinhalte installieren](install.md). Sie bleibt außerhalb der Steam-Bibliothek und liegt nicht in diesem Repository. `<map>` ist der Mapname, ohne Verzeichnis und ohne `.bsp`. Der Befehl startet Steam nicht und führt den geplanten Launcher-Befehl nicht aus. Mit einem Mapnamen gibt `main` diesen Namen an `RunXashLauncher`, das vor dem Quit-Loop `cstrike/maps/<map>.bsp` aus der Inhaltswurzel liest. Ohne Mapname lädt der Aufruf keine Map. Der Befehl spielt kein Counter-Strike.
 
 ```bash
-client/build/linux/out/bin/Release/xash_launcher "$CONTENT_ROOT"
+client/build/linux/out/bin/Release/xash_launcher "$CONTENT_ROOT" <map>
 ```
 
 `nextclient.sh` und [Erster Client-Start](first-start.md) bleiben der

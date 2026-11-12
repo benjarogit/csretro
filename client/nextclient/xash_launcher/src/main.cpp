@@ -45,6 +45,11 @@ int CSRETRO_ENTRY_NAME(int argc, char** argv)
     {
         content_root = argv[1];
     }
+    const char* map_name = nullptr;
+    if (argc > 2 && argv != nullptr && argv[2] != nullptr && argv[2][0] != '\0')
+    {
+        map_name = argv[2];
+    }
 
     const std::string directory = ExecutableDirectory();
     const std::string host = Beside(directory, "xash_host.so");
@@ -70,7 +75,8 @@ int CSRETRO_ENTRY_NAME(int argc, char** argv)
         &session,
         640,
         480,
-        0.125);
+        0.125,
+        map_name);
     csr::CloseXashLauncher(&session);
     return ran == 1 ? 0 : 1;
 }

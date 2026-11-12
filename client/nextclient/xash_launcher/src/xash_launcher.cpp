@@ -2,6 +2,8 @@
 
 #include "xash_host/xash_host.h"
 
+#include <goldsrc/engine/client_state.h>
+
 #include <dlfcn.h>
 #include <sys/stat.h>
 
@@ -211,7 +213,8 @@ int RunXashLauncher(
     LauncherProcess* session,
     int wide,
     int tall,
-    double delta)
+    double delta,
+    const char* map_name)
 {
     if (session == nullptr || wide <= 0 || tall <= 0)
     {
@@ -230,6 +233,23 @@ int RunXashLauncher(
             session) == 0)
     {
         return 0;
+    }
+    if (map_name != nullptr && map_name[0] != '\0')
+    {
+        void* engine = dlopen(engine_mini_path, RTLD_NOW | RTLD_NOLOAD);
+        using StateFn = goldsrc::client_state_t* (*)();
+        auto state_of = engine == nullptr ? nullptr : reinterpret_cast<StateFn>(dlsym(engine, "EngineMini_ClientState"));
+        goldsrc::client_state_t* state = state_of == nullptr ? nullptr : state_of();
+        const int loaded = LoadXashMap(content_root, map_name, state);
+        if (engine != nullptr)
+        {
+            dlclose(engine);
+        }
+        if (loaded == 0)
+        {
+            CloseXashLauncher(session);
+            return 0;
+        }
     }
     return csr_host_run(wide, tall, delta);
 }

@@ -2,6 +2,11 @@
 
 #include <string>
 
+namespace goldsrc
+{
+struct client_state_t;
+}
+
 // Plans the Xash launcher command from the pieces that already exist.
 // Does not exec, does not start the game, and does not start Steam.
 // A missing content root is a failure and is not replaced with another path.
@@ -55,13 +60,22 @@ int OpenXashLauncher(
 // executed.
 int PresentXashLauncher(LauncherProcess* session, int wide, int tall);
 
-// Opens the host the way OpenXashLauncher does, then calls csr_host_run.
+// Reads cstrike/maps/<map_name>.bsp under content_root. A version 30 header
+// whose lumps sit inside the file records map_name in state->levelname and
+// the checksum of the bytes read in state->mapCRC. A missing file, a short
+// file, or another version leaves state unchanged and returns 0. Host_Map_f
+// is not this call.
+int LoadXashMap(const char* content_root, const char* map_name, goldsrc::client_state_t* state);
+
+// Opens the host the way OpenXashLauncher does. A map name loads that file
+// onto the client state before csr_host_run. An empty map name skips the
+// load. A failed load closes the session and does not enter the quit loop.
 // The window stays mapped until the recorded client command is quit, and
 // the call then destroys that window. PresentXashLauncher is the one-frame
 // present and is not this call. Does not exec the planned command, does not
 // call RunFrame, and does not start Steam. Returns 0 when the session is
-// missing, the size is empty, the open fails, or a frame fails. This call
-// does not play Counter-Strike.
+// missing, the size is empty, the open fails, the map load fails, or a
+// frame fails. This call does not play Counter-Strike.
 int RunXashLauncher(
     const char* content_root,
     const char* host_path,
@@ -75,7 +89,8 @@ int RunXashLauncher(
     LauncherProcess* session,
     int wide,
     int tall,
-    double delta);
+    double delta,
+    const char* map_name = nullptr);
 
 void CloseXashLauncher(LauncherProcess* session);
 

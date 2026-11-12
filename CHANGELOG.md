@@ -35,6 +35,7 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- `RunXashLauncher` reads `cstrike/maps/<name>.bsp` from the content root when a map name is given, records that name and a checksum of the bytes it read on the client state, and does this before the quit loop. A missing file, a short file, or a BSP that is not version 30 fails and leaves the previous map name unchanged. No map name leaves the previous behaviour. `Host_Map_f` is not that call.
 - `OnGameInitializing` reads an engine pointer table from this process when
   the retail hook is absent. Null function pointers are not calls, and
   `Sys_Error` is not called on that table. `Con_Init` then runs. It reads

@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <goldsrc/engine/client_state.h>
+
 #include <vgui/IPanel.h>
 #include <vgui/ISurface.h>
 
@@ -19,8 +21,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <ctime>
+#include <memory>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -1906,5 +1910,273 @@ TEST(XashLauncher, EntryRunsTheHostUntilQuit)
     std::remove(scheme.c_str());
     rmdir((temp.root + "/resource/schemes").c_str());
     rmdir((temp.root + "/resource").c_str());
+    rmdir((temp.root + "/Resource").c_str());
+}
+
+std::uint32_t FileChecksum(const unsigned char* data, std::size_t size)
+{
+    std::uint32_t crc = 0xffffffffu;
+    for (std::size_t index = 0; index < size; ++index)
+    {
+        crc ^= data[index];
+        for (int bit = 0; bit < 8; ++bit)
+        {
+            const std::uint32_t mask = 0u - (crc & 1u);
+            crc = (crc >> 1) ^ (0xedb88320u & mask);
+        }
+    }
+    return ~crc;
+}
+
+bool WriteBytes(const std::string& path, const std::vector<unsigned char>& bytes)
+{
+    FILE* file = std::fopen(path.c_str(), "wb");
+    if (file == nullptr)
+    {
+        return false;
+    }
+    const bool wrote = std::fwrite(bytes.data(), 1, bytes.size(), file) == bytes.size();
+    std::fclose(file);
+    return wrote;
+}
+
+std::vector<unsigned char> FixtureBsp(int version)
+{
+    std::vector<unsigned char> bytes(124 + 4, 0);
+    std::memcpy(bytes.data(), &version, sizeof(version));
+    bytes[124] = 'C';
+    bytes[125] = 'S';
+    bytes[126] = 'R';
+    bytes[127] = 'T';
+    return bytes;
+}
+
+TEST(XashLauncher, LoadReadsTheMapFileOntoClientState)
+{
+    const unsigned char known[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    EXPECT_EQ(FileChecksum(known, sizeof(known)), 0xCBF43926u);
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/cstrike").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/cstrike/maps").c_str(), 0755), 0);
+    const std::string map_path = temp.root + "/cstrike/maps/fixture.bsp";
+    const std::vector<unsigned char> bytes = FixtureBsp(30);
+    ASSERT_TRUE(WriteBytes(map_path, bytes));
+    const std::uint32_t checksum = FileChecksum(bytes.data(), bytes.size());
+
+    auto state = std::make_unique<goldsrc::client_state_t>();
+    std::memset(state.get(), 0, sizeof(*state));
+    std::memcpy(state->levelname, "csretro-keep", sizeof("csretro-keep"));
+    state->mapCRC = 0x11111111u;
+    state->max_edicts = 42;
+    state->servercount = 7;
+
+    ASSERT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 1);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->mapCRC, checksum);
+    EXPECT_EQ(state->max_edicts, 42);
+    EXPECT_EQ(state->servercount, 7);
+    int header_version = 0;
+    std::memcpy(&header_version, bytes.data(), sizeof(header_version));
+    EXPECT_EQ(header_version, 30);
+
+    const std::uint32_t loaded_crc = state->mapCRC;
+    EXPECT_EQ(csr::LoadXashMap(temp.root.c_str(), "missing", state.get()), 0);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->mapCRC, loaded_crc);
+    EXPECT_EQ(state->max_edicts, 42);
+
+    ASSERT_TRUE(WriteBytes(map_path, FixtureBsp(29)));
+    EXPECT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 0);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->mapCRC, loaded_crc);
+
+    ASSERT_TRUE(WriteBytes(map_path, std::vector<unsigned char>(123, 0)));
+    EXPECT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 0);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->mapCRC, loaded_crc);
+
+    std::remove(map_path.c_str());
+    EXPECT_EQ(csr::LoadXashMap(temp.root.c_str(), "fixture", state.get()), 0);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->mapCRC, loaded_crc);
+
+    rmdir((temp.root + "/cstrike/maps").c_str());
+    rmdir((temp.root + "/cstrike").c_str());
+}
+
+TEST(XashLauncher, RunLoadsTheMapBeforeTheQuitLoop)
+{
+    if (!RunInFreshProcess("map", "XashLauncher.RunLoadsTheMapBeforeTheQuitLoop"))
+    {
+        return;
+    }
+
+    TempRoot temp;
+    ASSERT_FALSE(temp.root.empty());
+    ASSERT_EQ(mkdir((temp.root + "/Resource").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/cstrike").c_str(), 0755), 0);
+    ASSERT_EQ(mkdir((temp.root + "/cstrike/maps").c_str(), 0755), 0);
+    const std::string menu = temp.root + "/Resource/GameMenu.res";
+    ASSERT_TRUE(WriteTextFile(menu, "\"GameMenu\"\n{\n}\n"));
+    const std::string map_path = temp.root + "/cstrike/maps/fixture.bsp";
+    const std::vector<unsigned char> bytes = FixtureBsp(30);
+    ASSERT_TRUE(WriteBytes(map_path, bytes));
+    const std::uint32_t checksum = FileChecksum(bytes.data(), bytes.size());
+
+    const std::string planted_hw = temp.root + "/hw.so";
+    std::filesystem::copy_file(XASH_HOST_FILE, planted_hw);
+    EXPECT_FALSE(MapsContain(planted_hw));
+
+    std::vector<std::string> sockets_before;
+    ASSERT_TRUE(ReadOpenSockets(&sockets_before));
+    const std::vector<std::string> children_before = ReadChildPids();
+    double realtime = 0.0;
+    double frametime = 0.0;
+    double oldrealtime = 0.0;
+    csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
+    int swaps = -1;
+    unsigned long window = 1;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window, &swaps), 0);
+
+    csr::LauncherProcess missing;
+    EXPECT_EQ(
+        csr::RunXashLauncher(
+            temp.root.c_str(),
+            XASH_HOST_FILE,
+            XASH_SURFACE_FILE,
+            XASH_CLIENT_FILE,
+            XASH_VGUI_FILE,
+            XASH_GAMEUI_FILE,
+            XASH_STEAM_API_FILE,
+            XASH_ENGINE_MINI_FILE,
+            XASH_NITRO_API_FILE,
+            &missing,
+            640,
+            480,
+            0.125,
+            "no-such-map"),
+        0);
+    EXPECT_FALSE(missing.open);
+    int swaps_after = -1;
+    unsigned long window_after = 1;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window_after, &swaps_after), 0);
+    EXPECT_EQ(swaps_after, swaps);
+    EXPECT_EQ(window_after, 0u);
+
+    const char* saved_display = std::getenv("DISPLAY");
+    const bool had_display = saved_display != nullptr;
+    const std::string previous_display = had_display ? saved_display : "";
+    ASSERT_EQ(setenv("DISPLAY", "csretro-no-display", 1), 0);
+
+    std::atomic<int> finished{0};
+    std::thread watchdog([&finished] {
+        for (int step = 0; step < 50; ++step)
+        {
+            if (finished.load() != 0)
+            {
+                return;
+            }
+            timespec delay{};
+            delay.tv_nsec = 100 * 1000 * 1000;
+            nanosleep(&delay, nullptr);
+        }
+        _exit(87);
+    });
+
+    csr::LauncherProcess session;
+    const int ran = csr::RunXashLauncher(
+        temp.root.c_str(),
+        XASH_HOST_FILE,
+        XASH_SURFACE_FILE,
+        XASH_CLIENT_FILE,
+        XASH_VGUI_FILE,
+        XASH_GAMEUI_FILE,
+        XASH_STEAM_API_FILE,
+        XASH_ENGINE_MINI_FILE,
+        XASH_NITRO_API_FILE,
+        &session,
+        640,
+        480,
+        0.125,
+        "fixture");
+    finished.store(1);
+    watchdog.join();
+    if (had_display)
+    {
+        ASSERT_EQ(setenv("DISPLAY", previous_display.c_str(), 1), 0);
+    }
+    else
+    {
+        unsetenv("DISPLAY");
+    }
+
+    EXPECT_EQ(ran, 0);
+    EXPECT_TRUE(session.open);
+    EXPECT_NE(session.steam, nullptr);
+    auto steam_running = reinterpret_cast<bool (*)()>(dlsym(session.steam, "SteamAPI_IsSteamRunning"));
+    ASSERT_NE(steam_running, nullptr);
+    EXPECT_FALSE(steam_running());
+
+    void* engine = dlopen(XASH_ENGINE_MINI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(engine, nullptr);
+    void* vgui = dlopen(XASH_VGUI_FILE, RTLD_NOW | RTLD_NOLOAD);
+    ASSERT_NE(vgui, nullptr);
+    auto client_state = reinterpret_cast<goldsrc::client_state_t* (*)()>(dlsym(engine, "EngineMini_ClientState"));
+    auto host_map_calls = reinterpret_cast<int (*)()>(dlsym(engine, "EngineMini_HostMapCalls"));
+    using GuardFn = void (*)(int*, int*, int*);
+    auto guard = reinterpret_cast<GuardFn>(dlsym(engine, "EngineMini_ReadFrameGuard"));
+    auto run_frame_count = reinterpret_cast<int (*)()>(dlsym(vgui, "csr_vgui_run_frame_count"));
+    ASSERT_NE(client_state, nullptr);
+    ASSERT_NE(host_map_calls, nullptr);
+    ASSERT_NE(guard, nullptr);
+    ASSERT_NE(run_frame_count, nullptr);
+    goldsrc::client_state_t* state = client_state();
+    ASSERT_NE(state, nullptr);
+    EXPECT_STREQ(state->levelname, "fixture");
+    EXPECT_EQ(state->mapCRC, checksum);
+    EXPECT_EQ(host_map_calls(), 0);
+    int filter_calls = -1;
+    int stored = -1;
+    int nitro = -1;
+    guard(&filter_calls, &stored, &nitro);
+    EXPECT_EQ(filter_calls, 0);
+    EXPECT_GT(stored, 0);
+    EXPECT_EQ(nitro, 0);
+    EXPECT_EQ(run_frame_count(), 0);
+
+    window_after = 1;
+    swaps_after = -1;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window_after, &swaps_after), 0);
+    EXPECT_EQ(window_after, 0u);
+    EXPECT_EQ(swaps_after, swaps);
+    double realtime_after = 1.0;
+    double frametime_after = 1.0;
+    double oldrealtime_after = 1.0;
+    csr_host_read_host_time(&realtime_after, &frametime_after, &oldrealtime_after);
+    EXPECT_DOUBLE_EQ(realtime_after, realtime);
+    EXPECT_DOUBLE_EQ(frametime_after, frametime);
+    EXPECT_DOUBLE_EQ(oldrealtime_after, oldrealtime);
+
+    std::vector<std::string> sockets_after;
+    ASSERT_TRUE(ReadOpenSockets(&sockets_after));
+    EXPECT_EQ(sockets_after, sockets_before);
+    EXPECT_EQ(ReadChildPids(), children_before);
+    EXPECT_FALSE(MapsContain(planted_hw));
+
+    csr::CloseXashLauncher(&session);
+    dlclose(vgui);
+    dlclose(engine);
+    EXPECT_FALSE(session.open);
+    window_after = 1;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, &window_after, &swaps_after), 0);
+    EXPECT_EQ(window_after, 0u);
+
+    std::filesystem::remove(planted_hw);
+    std::remove(map_path.c_str());
+    std::remove(menu.c_str());
+    rmdir((temp.root + "/cstrike/maps").c_str());
+    rmdir((temp.root + "/cstrike").c_str());
     rmdir((temp.root + "/Resource").c_str());
 }

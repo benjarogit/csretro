@@ -8,9 +8,9 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `d4f7ff5` (pair input bind)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43178042357 – success (`d4f7ff5`)
-- **Pages:** https://github.com/benjarogit/csretro/actions/runs/43177510852 – success; site https://benjarogit.github.io/csretro/
+- **Commit:** `def7362` (vendored server stack, default docs template, GameMenu click)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43183361462 – success (`def7362`)
+- **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
 
@@ -454,8 +454,13 @@ the Security overview switches in the browser.
   Next: that open host still does not exec Xash3D or call `RunFrame`.
   The game still does not start.
   `csr_host_load_pair` binds `VGUI_InputInternal001` (cursor/press/release +
-  one dispatch). `xash_host-tests` 18/18, including
-  `PairInputReceivesTheCursorWithoutRunFrame`. `RunFrame` stays unused.
+  one dispatch). Paint associates the embedded root with the default input
+  context. `HostFactory.GameMenuClickSendsTheCommandWithoutRunFrame` passes:
+  a laid-out `QuitGame` item is under the cursor and `QuitNoConfirm` records
+  `quit` without running it. `xash_host-tests` HostFactory 19/19. `RunFrame`
+  stays unused. The LP64 SDK delta is `client/dep/ncl-hl1-source-sdk.patch`
+  (configure applies it; the submodule pin stays the upstream commit, so the
+  working tree shows the submodule modified after configure).
   Local identity is `ResolvePlayerIdentity` (plan section 3.7).
   `player_identity-tests` 6/6, no network. The lookup does not read Steam.
   Keep the Xvfb screen equal to the game resolution.

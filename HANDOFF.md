@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `0e2af63` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`, `CL_ClearState`, `Host_Map_f`, `Host_FilterTime`, `Mod_ClearAll`, `Mod_FindName`, `Mod_Print` and `Mod_ValidateCRC` are the process functions and are not called; no socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected, client state stays unchanged, no map is loaded, init leaves host time unchanged, the model list stays unchanged, no model is looked up or loaded, the model list is not printed and no CRC is validated; `hw.so` stays unmapped; `csr_host_frame` is a later direct call that paints one GameUI frame and advances host time by the caller delta; `Host_FilterTime` and `CVGui::RunFrame` stay uncalled; that frame installs no retail hook; no window is presented)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43222067576 – success (`0e2af63`)
+- **Commit:** `7bed0a3` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`, `CL_ClearState`, `Host_Map_f`, `Host_FilterTime`, `Mod_ClearAll`, `Mod_FindName`, `Mod_Print` and `Mod_ValidateCRC` are the process functions and are not called; no game socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected, client state stays unchanged, no map is loaded, init leaves host time unchanged, the model list stays unchanged, no model is looked up or loaded, the model list is not printed and no CRC is validated; `hw.so` stays unmapped; `csr_host_frame` is a later direct call that paints one GameUI frame, creates an X11 window surface, calls `eglSwapBuffers` and advances host time by the caller delta; `Host_FilterTime` and `CVGui::RunFrame` stay uncalled; that frame installs no retail hook; the window exists only for the test on Xvfb)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43222460398 – success (`7bed0a3`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -763,13 +763,20 @@ the Security overview switches in the browser.
   The next retail hook in `OnGameInitializing` is `eng()->Mod_NeedCRC`
   (`Mod_NeedCRC`). The Xash path returns before that install.
   `OnGameInitialized` is not entered.
-  `csr_host_frame` paints one offscreen GameUI frame and advances host
-  time by the caller delta. `CVGui::RunFrame` stays uncalled.
-  `ISurface::SwapBuffers` is empty. The `linux-tests-release` harness has
-  an EGL pbuffer inside the surface tests and no X11 window. Before a
-  human can start and play, the missing call is `eglCreateWindowSurface`
-  on a real X11/EGL window, then `eglSwapBuffers`. The planned command is
-  not executed. The game was not started. The client is not playable.
+  `csr_host_frame` paints one GameUI frame, creates an X11 window whose
+  visual matches the EGL config, calls `eglCreateWindowSurface` and then
+  `eglSwapBuffers`, and advances host time by the caller delta.
+  `CVGui::RunFrame` stays uncalled. `ISurface::SwapBuffers` stays empty.
+  The surface tests still use an EGL pbuffer. The proof window lives only
+  inside the test, on that test's Xvfb with Mesa llvmpipe, and dies with
+  the test. Before a human can start and play, the missing piece is a
+  process that stays open, repeats `csr_host_frame` and forwards X11 input
+  (`csr_host_input_move`, `csr_host_input_button`). The current session
+  display does not host this window: a parent visual makes
+  `eglCreateWindowSurface` return `0x3005` (`EGL_BAD_CONFIG`), and
+  `XCreateWindow` with the EGL visual returns BadMatch. The planned
+  command is not executed. The game was not started. The client is not
+  playable.
 - **After the decision:** schedule the server performance backlog above
   (measurement first, then hookchain/native/per-frame work). It needs a plan gate
   entry.
@@ -807,6 +814,59 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+EGL window present for one GameUI frame (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ xash_launcher-tests --gtest_filter=XashLauncher.*
+5/5 passed
+MissingRootIsAFailure
+PlanNamesTheExistingPieces
+OpenLoadsThePlanAndDoesNotCallRunFrame
+PresentPaintsTheMenuWithoutRunFrame
+DirectFramePaintsGameUiAndAdvancesHostTime
+
+$ xash_host-tests
+20/20 passed
+
+$ xash_surface-tests
+21/21 passed
+```
+
+`csr_host_frame(640, 480, 0.125)` returns 1. It activates GameUI, opens the
+X11 display the caller already set, creates a mapped 640x480 window whose
+visual is `EGL_NATIVE_VISUAL_ID`, calls `eglCreateWindowSurface`, makes
+that GL 2.1 context current, paints one GameUI frame, then
+`eglSwapBuffers`. The swap count is 1. `eglGetCurrentDisplay` and
+`eglGetCurrentSurface(EGL_DRAW)` are the objects just created.
+`eglQuerySurface` reports 640x480. `XGetWindowAttributes` reports the same
+size and `IsViewable`. After the paint, the present path clears an 8x8
+scissor at the GL origin to red and then swaps. `XGetImage` of that
+bottom-left corner contains `0xff0000`. That pixel is the swapped buffer,
+not a faked counter. Host realtime advances by `0.125`, `host_frametime`
+is `0.125` and `oldrealtime` equals the new realtime. A later
+`csr_host_frame(0, 480, 0.125)` returns 0, leaves the swap count at 1 and
+does not move the clock. `Host_FilterTime` stays at 0 calls.
+`CVGui::RunFrame` is not entered. No new retail hook is stored. Nitro hooks
+stay null. A planted `hw.so` stays unmapped. Steam stays not running.
+`ISurface::SwapBuffers` stays empty. The surface tests still use their
+pbuffer. The new sockets' peers are `/tmp/.X11-unix/X<display>` for the
+test's own Xvfb (`Xvfb -nolisten tcp -screen 0 640x480x24`). That is the
+window connection. No game socket is opened. The test sets
+`LIBGL_ALWAYS_SOFTWARE=1` and its own `DISPLAY`. The product library does
+not spawn Xvfb and does not force software GL. On the current session
+display, the same window is not created: a parent visual makes
+`eglCreateWindowSurface` return `0x3005` (`EGL_BAD_CONFIG`), and
+`XCreateWindow` with the EGL visual returns BadMatch. The vendor there is
+NVIDIA. The proof vendor is Mesa. The test window dies with the test.
+Nothing repeats the frame or forwards X11 input. The planned command is
+not executed. `OnGameInitialized` is not entered. The next retail hook
+remains `Mod_NeedCRC` and this path does not install it. The game was not
+started. The client is not playable.
+
+CI: https://github.com/benjarogit/csretro/actions/runs/43222460398 success (`7bed0a3`).
+
+`scripts/verify.sh`: 68 checks passed.
 
 Process `Mod_ValidateCRC` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

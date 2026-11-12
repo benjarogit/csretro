@@ -12,8 +12,15 @@ addresses are not hooks. A call does not jump through a null trampoline.
 
 `vgui2_surface`, `VGUI2_ResetCurrentTexture` and `VGUI2_Draw_SetTextColor` go
 through `xash_engine` to the one surface. `VGUI2_Draw_Init` has no entry
-there. A missing function pointer is not called. The other `engine_mini`
-forwards stay on the retail hook.
+there. A missing function pointer is not called.
+`csr_xash_engine_argv`, `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
+`csr_xash_engine_shutdown` and `csr_xash_engine_error` take arguments, video
+mode, game init, shutdown and a fatal error. When the matching retail hook is
+present, that call stays. When it is absent, `engine_mini` records the values
+and records that the engine is Xash. `COM_InitArgv` runs. `OnGameInitializing`
+stays out because the retail pointer table is missing. `hw.so` is not opened.
+`RunFrame` is not called. The other `engine_mini` forwards stay on the retail
+hook.
 
 `client_mini` and `vgui2` come from the same SDK revision. Both are ELF64 and
 link the host `libtier0.so`, `libvstdlib.so` and `libsteam_api.so`. Both carry

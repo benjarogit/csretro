@@ -20,6 +20,6 @@ if (NEXTCLIENT_BUILD_TESTS)
     include(GoogleTest)
 
     add_executable(xash_engine-tests tests/XashEngineTests.cpp)
-    target_link_libraries(xash_engine-tests PRIVATE xash_engine GTest::gtest_main)
+    target_link_libraries(xash_engine-tests PRIVATE xash_engine GTest::gtest_main ${CMAKE_DL_LIBS})
     gtest_discover_tests(xash_engine-tests)
 endif ()

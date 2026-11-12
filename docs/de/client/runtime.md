@@ -13,8 +13,16 @@ Null-Trampolin.
 
 `vgui2_surface`, `VGUI2_ResetCurrentTexture` und `VGUI2_Draw_SetTextColor`
 gehen über `xash_engine` an die eine Surface. `VGUI2_Draw_Init` hat dort
-keinen Einstieg. Ein fehlender Funktionszeiger wird nicht aufgerufen. Die
-übrigen `engine_mini`-Weiterleitungen bleiben am Retail-Hook.
+keinen Einstieg. Ein fehlender Funktionszeiger wird nicht aufgerufen.
+`csr_xash_engine_argv`, `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
+`csr_xash_engine_shutdown` und `csr_xash_engine_error` nehmen Argumente,
+Videomodus, Spielstart, Herunterfahren und einen fatalen Fehler entgegen.
+Liegt der passende Retail-Hook vor, bleibt dieser Aufruf. Fehlt er, zeichnet
+`engine_mini` die Angaben auf und merkt sich, dass die Engine Xash ist.
+`COM_InitArgv` läuft dabei. `OnGameInitializing` bleibt aus, weil die
+Retail-Zeigertabelle fehlt. `hw.so` wird nicht geöffnet. `RunFrame` wird
+nicht gerufen. Die übrigen `engine_mini`-Weiterleitungen bleiben am
+Retail-Hook.
 
 `client_mini` und `vgui2` kommen aus derselben SDK-Revision. Beide sind ELF64
 und linken `libtier0.so`, `libvstdlib.so` und `libsteam_api.so` aus dem

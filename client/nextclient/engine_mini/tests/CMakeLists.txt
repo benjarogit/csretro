@@ -58,6 +58,7 @@ add_executable(${TARGET_NAME}
         #CmdCheckerBindTests.cpp
 
         ResourceDescriptorTests.cpp
+        XashStartupTests.cpp
         PreviewModelBridgeTests.cpp
         StudioModelCacheTests.cpp
         StudioModelTestFiles.cpp

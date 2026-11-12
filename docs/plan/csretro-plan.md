@@ -364,8 +364,14 @@ Offener Rest daraus: der Push/Pop-Offset. Fonts sind separat in 3.6.4 gemessen
 Nebenbefunde:
 
 - `engine_mini` reicht Engine-Aufrufe über `nitro_api` weiter. Der Produktprozess
-  öffnet, hasht und hookt `hw.so` nicht (Abschnitt 3.7). Die Aufrufe haben noch
-  keinen Xash3D-Einsprung; das ist der nächste Adapter.
+  öffnet, hasht und hookt `hw.so` nicht (Abschnitt 3.7). Die Startfolge
+  `COM_InitArgv`, `GL_SetMode`, `Sys_InitGame`, `Host_Shutdown` und `Sys_Error`
+  hat einen Host-Einstieg auf `xash_engine`. Ein vorhandener Retail-Hook bleibt
+  der bisherige Aufruf. Fehlt der Hook, zeichnet `engine_mini` die Argumente
+  auf. `COM_InitArgv` läuft dabei. `OnGameInitializing` bleibt an der
+  Retail-Zeigertabelle und wird auf diesem Pfad nicht betreten. `RunFrame`
+  wird nicht gerufen. Die übrigen Weiterleitungen haben weiter keinen
+  Xash3D-Einsprung.
 - HTML/MOTD verlangt einen ChromeHTML-Controller/Serializer. Ohne CEF wird MOTD
   in CSRETRO deaktiviert oder durch eine einfache Text-Ansicht ersetzt.
 - Ein x86_64-Client setzt quelloffenen 64-Bit-Client-Gamecode voraus. Valves
@@ -676,8 +682,17 @@ Offline-Prüfung und ist nicht der Produktpfad.
 Sonst ruft der Adapter nur gesetzte Funktionszeiger der einen Surface.
 `VGUI2_Draw_Init` hat an dieser Surface keinen eigenen Einstieg und ist dann
 kein Aufruf. Textfarbe geht mit VGUI-Alpha 0 an `DrawSetTextColor`. Ein
-fehlender Zeiger wird nicht aufgerufen. Die übrigen Weiterleitungen von
-`engine_mini` bleiben unverändert.
+fehlender Zeiger wird nicht aufgerufen. Dieselbe Bibliothek nimmt die
+Startfolge entgegen: `csr_xash_engine_argv`, `csr_xash_engine_mode`,
+`csr_xash_engine_init_game`, `csr_xash_engine_shutdown` und
+`csr_xash_engine_error`. `EngineMini::Init` bindet jeden Zeiger nur, wenn der
+passende Retail-Hook fehlt, und merkt sich dabei, dass die Engine Xash ist.
+Der Host kann die Folge danach aufrufen. `COM_InitArgv` läuft. Modus, Init,
+Shutdown und der fatale Fehler werden aufgezeichnet. `OnGameInitializing`
+läuft nicht, weil die Retail-Zeigertabelle fehlt und ein Aufruf mit
+Nullzeigern in `Sys_Error` endet. `hw.so` wird nicht geöffnet. `RunFrame`
+wird nicht gerufen. Die übrigen Weiterleitungen von `engine_mini` bleiben am
+Retail-Hook.
 
 **Client-Paar.** `client_mini` und `vgui2` werden aus derselben vendorten
 SDK-Revision als ELF64 gebaut. Beide linken die Host-Laufzeit

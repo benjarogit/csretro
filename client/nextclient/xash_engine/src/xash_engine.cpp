@@ -4,6 +4,7 @@ namespace
 {
 
     csr_xash_engine_surface_t g_surface{};
+    csr_xash_engine_startup_t g_startup{};
 
     void Call(void (*function)(void*), void* object)
     {
@@ -14,13 +15,18 @@ namespace
         function(object);
     }
 
+    void ClearSurface()
+    {
+        g_surface = {};
+    }
+
 } // namespace
 
 void csr_xash_engine_bind(const csr_xash_engine_surface_t* surface)
 {
     if (surface == nullptr || surface->object == nullptr)
     {
-        csr_xash_engine_clear();
+        ClearSurface();
         return;
     }
     g_surface = *surface;
@@ -28,7 +34,8 @@ void csr_xash_engine_bind(const csr_xash_engine_surface_t* surface)
 
 void csr_xash_engine_clear(void)
 {
-    g_surface = {};
+    ClearSurface();
+    g_startup = {};
 }
 
 const csr_xash_engine_surface_t* csr_xash_engine_surface(void)
@@ -53,4 +60,59 @@ void csr_xash_engine_set_text_color(int r, int g, int b)
         return;
     }
     g_surface.set_text_color(g_surface.object, r, g, b);
+}
+
+void csr_xash_engine_bind_startup(const csr_xash_engine_startup_t* startup)
+{
+    if (startup == nullptr)
+    {
+        g_startup = {};
+        return;
+    }
+    g_startup = *startup;
+}
+
+void csr_xash_engine_argv(int argc, char** argv)
+{
+    if (g_startup.argv == nullptr)
+    {
+        return;
+    }
+    g_startup.argv(argc, argv);
+}
+
+void csr_xash_engine_mode(void* window, void* device, void* context, const char* driver, const char* cmdline, int result)
+{
+    if (g_startup.mode == nullptr)
+    {
+        return;
+    }
+    g_startup.mode(window, device, context, driver, cmdline, result);
+}
+
+void csr_xash_engine_init_game(char* cmdline, char* basedir, void* window, int dedicated, int result)
+{
+    if (g_startup.init_game == nullptr)
+    {
+        return;
+    }
+    g_startup.init_game(cmdline, basedir, window, dedicated, result);
+}
+
+void csr_xash_engine_shutdown(void)
+{
+    if (g_startup.shutdown == nullptr)
+    {
+        return;
+    }
+    g_startup.shutdown();
+}
+
+void csr_xash_engine_error(const char* message)
+{
+    if (g_startup.error == nullptr)
+    {
+        return;
+    }
+    g_startup.error(message);
 }

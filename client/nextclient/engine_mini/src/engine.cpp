@@ -1,5 +1,7 @@
 #include "engine.h"
 
+#include <cstdio>
+
 #include <IGameConsole.h>
 #include <Registry.h>
 #include <easylogging++.h>
@@ -31,6 +33,9 @@
 #include <goldsrc/types.h>
 #include <goldsrc/view.h>
 #include "graphics/render/render_device.h"
+#include "xash_startup.h"
+
+#include <xash_engine/xash_engine.h>
 
 #include "common/common.h"
 #include "common/net_chan.h"
@@ -779,6 +784,106 @@ static void OnGameInitialized()
     DiscordPresence_Init();
 }
 
+namespace
+{
+
+    EngineMiniXashStartup g_xash_startup{};
+
+    void CopyField(char* dest, size_t size, const char* src)
+    {
+        if (size == 0)
+        {
+            return;
+        }
+        if (src == nullptr)
+        {
+            dest[0] = '\0';
+            return;
+        }
+        std::snprintf(dest, size, "%s", src);
+    }
+
+    void XashAcceptArgv(int argc, char** argv)
+    {
+        ++g_xash_startup.argv_calls;
+        g_xash_startup.argc = argc;
+        // Argv parsing does not read the retail pointer table.
+        COM_InitArgv(argc, argv);
+    }
+
+    void XashAcceptMode(void* window, void* device, void* context, const char* driver, const char* cmdline, int result)
+    {
+        ++g_xash_startup.mode_calls;
+        g_xash_startup.window = window;
+        g_xash_startup.device = device;
+        g_xash_startup.context = context;
+        g_xash_startup.mode_result = result;
+        CopyField(g_xash_startup.driver, sizeof(g_xash_startup.driver), driver);
+        CopyField(g_xash_startup.mode_cmdline, sizeof(g_xash_startup.mode_cmdline), cmdline);
+        // OnGameInitializing walks the retail pointer table and ends in Sys_Error
+        // when those pointers are null. Record the mode and stop.
+    }
+
+    void XashAcceptInitGame(char* cmdline, char* basedir, void* window, int dedicated, int result)
+    {
+        ++g_xash_startup.init_calls;
+        g_xash_startup.window = window;
+        g_xash_startup.dedicated = dedicated;
+        g_xash_startup.init_result = result;
+        CopyField(g_xash_startup.init_cmdline, sizeof(g_xash_startup.init_cmdline), cmdline);
+        CopyField(g_xash_startup.basedir, sizeof(g_xash_startup.basedir), basedir);
+    }
+
+    void XashAcceptShutdown()
+    {
+        ++g_xash_startup.shutdown_calls;
+    }
+
+    void XashAcceptError(const char* message)
+    {
+        ++g_xash_startup.error_calls;
+        CopyField(g_xash_startup.error, sizeof(g_xash_startup.error), message);
+    }
+
+} // namespace
+
+void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash)
+{
+    g_xash_startup = {};
+    g_xash_startup.engine_is_xash = engine_is_xash;
+
+    csr_xash_engine_startup_t startup{};
+    if (engine != nullptr)
+    {
+        if (engine->COM_InitArgv.GetHook() == nullptr)
+        {
+            startup.argv = XashAcceptArgv;
+        }
+        if (engine->GL_SetMode.GetHook() == nullptr)
+        {
+            startup.mode = XashAcceptMode;
+        }
+        if (engine->Sys_InitGame.GetHook() == nullptr)
+        {
+            startup.init_game = XashAcceptInitGame;
+        }
+        if (engine->Host_Shutdown.GetHook() == nullptr)
+        {
+            startup.shutdown = XashAcceptShutdown;
+        }
+        if (engine->Sys_Error.GetHook() == nullptr)
+        {
+            startup.error = XashAcceptError;
+        }
+    }
+    csr_xash_engine_bind_startup(&startup);
+}
+
+const EngineMiniXashStartup* EngineMini_XashStartup()
+{
+    return &g_xash_startup;
+}
+
 class EngineMini : public EngineMiniInterface
 {
     std::vector<std::shared_ptr<nitroapi::Unsubscriber>> unsubs_{};
@@ -793,43 +898,65 @@ public:
         EngineMiniInitialize(nitro_api, client_version, analytics);
 
         nitroapi::EngineData* engine_data = nitro_api->GetEngineData();
+        const nitroapi::BuildVersion* build = nitro_api->GetBuildVersion();
+        const bool engine_is_xash = build != nullptr && build->family == nitroapi::BuildFamily::Xash;
 
-        unsubs_.emplace_back(engine_data->COM_InitArgv |= [](int argc, char** argv, const auto& next) {
-            COM_InitArgv(argc, argv);
-            next->Invoke(argc, argv);
-        });
+        if (engine_data->COM_InitArgv.GetHook() != nullptr)
+        {
+            unsubs_.emplace_back(engine_data->COM_InitArgv |= [](int argc, char** argv, const auto& next) {
+                COM_InitArgv(argc, argv);
+                next->Invoke(argc, argv);
+            });
+        }
 
-        unsubs_.emplace_back(engine_data->GL_SetMode += [](void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result) {
-            OnGameInitializing(mainwindow, pmaindc, pbaseRC, pszDriver, pszCmdLine, result);
-        });
+        if (engine_data->GL_SetMode.GetHook() != nullptr)
+        {
+            unsubs_.emplace_back(engine_data->GL_SetMode += [](void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result) {
+                OnGameInitializing(mainwindow, pmaindc, pbaseRC, pszDriver, pszCmdLine, result);
+            });
+        }
 
-        unsubs_.emplace_back(engine_data->Sys_InitGame += [](char* lpOrgCmdLine, char* pBaseDir, void* pwnd, int bIsDedicated, bool ret) {
-            OnGameInitialized();
-        });
+        if (engine_data->Sys_InitGame.GetHook() != nullptr)
+        {
+            unsubs_.emplace_back(engine_data->Sys_InitGame += [](char* lpOrgCmdLine, char* pBaseDir, void* pwnd, int bIsDedicated, bool ret) {
+                OnGameInitialized();
+            });
+        }
 
-        unsubs_.emplace_back(engine_data->Host_Shutdown |= [this](const auto& next) {
-            if (!is_uninitializing_)
-            {
-                is_uninitializing_ = true;
-                OnGameUninitializing();
-            }
+        if (engine_data->Host_Shutdown.GetHook() != nullptr)
+        {
+            unsubs_.emplace_back(engine_data->Host_Shutdown |= [this](const auto& next) {
+                if (!is_uninitializing_)
+                {
+                    is_uninitializing_ = true;
+                    OnGameUninitializing();
+                }
 
-            next->Invoke();
+                next->Invoke();
 
-            SPR_ResetState();
-            Mod_ResetState();
-        });
-        unsubs_.emplace_back(engine_data->Sys_Error |= [](const char* error, const auto& next) {
-            render::GetLifecycle().OnFatalShutdown();
-            CL_DeleteHttpDownloadManager();
-            EngineMiniStopWorkers();
-            ncl_perf::Profiling_Stop();
-            next->Invoke(error);
-        });
+                SPR_ResetState();
+                Mod_ResetState();
+            });
+        }
+
+        if (engine_data->Sys_Error.GetHook() != nullptr)
+        {
+            unsubs_.emplace_back(engine_data->Sys_Error |= [](const char* error, const auto& next) {
+                render::GetLifecycle().OnFatalShutdown();
+                CL_DeleteHttpDownloadManager();
+                EngineMiniStopWorkers();
+                ncl_perf::Profiling_Stop();
+                next->Invoke(error);
+            });
+        }
+
+        EngineMini_BindXashStartup(engine_data, engine_is_xash);
     }
 
     void Uninitialize() override
     {
+        EngineMini_BindXashStartup(nullptr, false);
+
         if (g_Analytics)
             g_Analytics->AddBreadcrumb("info", BREADCRUMBS_TAG " EngineMini::Uninitialize");
 

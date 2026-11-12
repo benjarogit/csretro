@@ -35,6 +35,13 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- `xash_engine` takes the startup sequence through `csr_xash_engine_argv`,
+  `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
+  `csr_xash_engine_shutdown` and `csr_xash_engine_error`. A present retail
+  hook keeps the retail call. A missing hook is recorded by `engine_mini`,
+  which also records that the engine is Xash. `COM_InitArgv` runs. The call
+  does not open `hw.so` and does not call `RunFrame`. `OnGameInitializing`
+  still needs the retail pointer table.
 - `csr_host_load_pair` binds cursor, press and release to the pair's
   `VGUI_InputInternal001` and dispatches once per event without
   `IInputInternal::RunFrame` or `CVGui::RunFrame`.

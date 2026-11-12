@@ -14,7 +14,7 @@ These are imported with their history and keep their upstream licenses.
 |---|---|---|---|
 | [NextClient](https://github.com/CS-NextClient/NextClient) | Next21 Team and contributors | **No license file** (default copyright) | The client: engine patching, HUD, radar, GameUI, launcher, tooling |
 | [NextClientServerApi](https://github.com/CS-NextClient/NextClientServerApi) | Next21 Team and contributors | MIT | AMXX module, natives, client verification |
-| [ncl-hl1-source-sdk](https://github.com/CS-NextClient/ncl-hl1-source-sdk) | Fork of [tmp64/hl1_source_sdk](https://github.com/tmp64/hl1_source_sdk) | Valve Source SDK terms + third-party notices | VGUI2, tier1/tier2, Linux port, optional CEF |
+| [ncl-hl1-source-sdk](https://github.com/CS-NextClient/ncl-hl1-source-sdk) | Fork of [tmp64/hl1_source_sdk](https://github.com/tmp64/hl1_source_sdk) | Valve Source SDK terms + third-party notices | Source tree `client/dep/ncl-hl1-source-sdk`. Upstream base `0e9be00`. VGUI2, tier1/tier2, Linux port, optional CEF. Our edits are those files |
 | [vcpkg](https://github.com/microsoft/vcpkg) | Microsoft and contributors | MIT | C/C++ dependency management |
 | [Half-Life 1 SDK](https://github.com/ValveSoftware/halflife) | Valve Corporation | Valve SDK license | GoldSrc interfaces and types |
 | [AMX Mod X](https://github.com/alliedmodders/amxmodx) | AlliedModders | GPL-3.0 | Server plugin runtime, source under `server/vendor/amxmodx` |
@@ -39,7 +39,9 @@ These are imported with their history and keep their upstream licenses.
 | [hlsw-portable](https://github.com/portapps/hlsw-portable) | portapps, crazy-max | MIT | Portable application layout for `csretro-server` |
 
 The server stack under `server/vendor/` is vendored GPL source and keeps that
-license. No code from the idea-only GPL references above is copied. The license
+license. The HL1 SDK under `client/dep/ncl-hl1-source-sdk/` is vendored source
+as well; its upstream license stays on that tree. No code from the idea-only
+GPL references above is copied. The license
 of the CSRETRO-owned code is still undecided; see `HANDOFF.md`.
 
 ## Upstream projects and libraries

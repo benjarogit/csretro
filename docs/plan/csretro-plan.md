@@ -51,10 +51,18 @@ committet und gepusht, bevor das nächste beginnt.
 |---|---|---|
 | `CS-NextClient/NextClient` | `24cc98637998640086fda54c341d6842bbd292c5` | main nach 2.6.0-preview.2, Linux-Maps-Pfadfix |
 | `CS-NextClient/NextClientServerApi` | `1da463e0548c3bdb69e441caf2a39caae31edffa` | main, nach v1.6.0, Material-API |
-| `CS-NextClient/ncl-hl1-source-sdk` | `0e9be00fc52b66742a09c84c8f6169dc7c83ca8a` | Fork von `tmp64/hl1_source_sdk` |
+| `CS-NextClient/ncl-hl1-source-sdk` | `0e9be00fc52b66742a09c84c8f6169dc7c83ca8a` | Upstream-Basis; Quellbaum `client/dep/ncl-hl1-source-sdk/`, eigene Änderungen sind die Dateien |
 
 Der API-Tag `v1.6.0` (Juli 2026) kennt die Material-Synchronisation noch nicht.
 Deshalb wird `main` gepinnt.
+
+Das HL1-SDK ist kein Submodul. Der Commit in der Tabelle ist die Upstream-Basis,
+von der der Quellbaum im Repository ausgeht. vcpkg bleibt Submodul und
+Paketmanager-Pin und wird nicht als Quellbaum übernommen. Valve-Spielinhalte,
+das SteamCMD-Image und die GPL-Referenzen (Xash3D, FuryBaM, FWGS/cs16-client,
+HLSW) werden nicht vendort. Die übrigen Bibliotheken unter `client/dep/` liegen
+schon im NextClient-Subtree. Kein weiterer Baum wird hier per Configure-Patch
+angepasst.
 
 ### 3.2 System
 
@@ -160,9 +168,10 @@ nur untereinander kompatibel (`client_mini.dll` + `vgui2.so`). CSRETRO baut
 Client und VGUI2 daher aus **derselben** SDK-Revision (vendored
 `ncl-hl1-source-sdk`) und mischt keine vorgebauten Fremd-Binaries. Eigene
 Änderungen an diesem Baum (LP64, der Export `csr_vgui_dispatch_messages`,
-Menü-Handles als `HPanel`) stehen in `client/dep/ncl-hl1-source-sdk.patch`.
-Das Configure des Clients wendet den Patch an. Der Submodul-Pin bleibt der
-Upstream-Commit.
+Menü-Handles als `HPanel`) stehen in den Dateien unter
+`client/dep/ncl-hl1-source-sdk/`. Der Commit `0e9be00fc52b66742a09c84c8f6169dc7c83ca8a`
+in `versions.lock.json` ist die Upstream-Basis, von der dieser Baum ausgeht.
+Das Configure wendet keinen SDK-Patch an.
 
 Xash3D liefert **FreeVGUI** (`3rdparty/freevgui`, BSD-3-Clause) mit einer
 nativen Xash3D-Platform-Surface (`platform/xash3d-fwgs/surface.cpp`). Das ist
@@ -646,7 +655,9 @@ C++-Schnittstelle. Die erste Factory, die `VGUI_Surface026` liefert, wird
 
 **Prozess.** Der Produktprozess ist x86_64. Valves `client.so`, `vgui2.so`
 und `hw.so` sind i386 und werden nicht in diesen Prozess geladen. Client und
-`vgui2` kommen aus dem vendorten SDK, die Engine ist Xash3D. Der Client-Build
+`vgui2` kommen aus dem vendorten SDK-Quellbaum
+`client/dep/ncl-hl1-source-sdk/`. Die eigenen Änderungen, einschließlich LP64,
+sind diese Dateien. Die Engine ist Xash3D. Der Client-Build
 ist das Preset `linux` mit dem vcpkg-Triplet `x64-linux`. Es gibt kein
 zweites 32-bit-Client-Preset. Das Server-Modul bleibt i386, weil ReHLDS es
 so lädt. Es gibt keine zweite Surface.
@@ -826,8 +837,8 @@ csretro/
 ├─ client/                       # vendorter NextClient (Historie)
 │  ├─ CMakeLists.txt
 │  ├─ CMakePresets.json
-│  ├─ dep/ncl-hl1-source-sdk/    # Submodul
-│  ├─ vcpkg/                     # Submodul
+│  ├─ dep/ncl-hl1-source-sdk/    # vendorter Quellbaum, Upstream-Basis 0e9be00
+│  ├─ vcpkg/                     # Submodul, Paketmanager-Pin
 │  ├─ nextclient/                # wird in G08 zu csretro/
 │  └─ assets/
 ├─ server/
@@ -855,7 +866,7 @@ csretro/
 │  ├─ proto_sync.py
 │  ├─ keygen.sh
 │  └─ release.py
-├─ patches/                      # Arch-/CMake-4-Patches mit Begründung
+├─ patches/                      # Abweichungen mit Begründung; das SDK-Delta steht schon im Quellbaum
 └─ .github/workflows/
    ├─ ci.yml
    ├─ docs.yml
@@ -1023,7 +1034,9 @@ Template:
 **Aufgaben:**
 - `git subtree add --prefix=client` (NextClient, Commit `90b4bf7`)
 - `git subtree add --prefix=server/api` (ServerApi, Commit `1da463e`)
-- Submodule `client/vcpkg` und `client/dep/ncl-hl1-source-sdk` initialisieren
+- Submodule `client/vcpkg` und damals `client/dep/ncl-hl1-source-sdk` initialisieren.
+  Das SDK ist seitdem Quelltext im Repo (`client/dep/ncl-hl1-source-sdk/`), kein
+  Submodul mehr. vcpkg bleibt der Paketmanager-Pin.
 - Git LFS konfigurieren und pullen
 - `scripts/sync-upstream.sh`: fetch, Diff-Report, Cherry-Pick-Hilfe
 - `versions.lock.json`: SHAs, Release-Checksums, SDK-Pin
@@ -1439,14 +1452,23 @@ Ein Mensch entscheidet pro Fund eine von drei Antworten:
 
 1. **Liegen lassen.** Das Issue nennt den Grund.
 2. **Pin nachziehen.** Nur für vendored Bäume: NextClient und die Server-API als
-   Subtree, das SDK und vcpkg als Submodule. Danach müssen die Dateien unter
-   [`patches/`](../../patches/README.md) wieder sauber anliegen. Schlägt ein Patch
-   fehl, ist der Zug nicht fertig. Der Submodule-Gitlink wird nicht versehentlich mit
-   committed.
+   Subtree, vcpkg weiter als Submodul. Das HL1-SDK ist der Quellbaum
+   `client/dep/ncl-hl1-source-sdk/`. Der Pin
+   `0e9be00fc52b66742a09c84c8f6169dc7c83ca8a` ist die Upstream-Basis, die eigenen
+   Änderungen sind die Dateien. Ein Refresh kopiert den neuen Upstream in diesen
+   Baum und übernimmt unsere Änderungen wieder in die Dateien. Die Notizen unter
+   `patches/sdk/` beschreiben das Delta zur Basis und werden vom Configure nicht
+   angewendet. Server-API-Patches unter [`patches/`](../../patches/README.md)
+   müssen nach einem Refresh wieder sauber anliegen. Schlägt das fehl, ist der Zug
+   nicht fertig. Der vcpkg-Gitlink wird nicht versehentlich mit einem anderen
+   Commit committed. vcpkg bleibt der Paketmanager-Pin und wird nicht als
+   Quellbaum übernommen.
 3. **Als eigenen Patch nachbauen.** Ein einzelner Upstream-Commit, den wir wollen,
-   ohne den ganzen Pin zu bewegen, wird eine neue Datei unter `patches/`, mit Grund,
-   genau wie `0004-lp64-focus-message.patch`. Der Upstream-Commit wird zitiert. Die
-   Commit-Nachricht bleibt unsere.
+   ohne den ganzen Pin zu bewegen, wird für Subtree-Bäume eine neue Datei unter
+   `patches/`, mit Grund. Beim HL1-SDK landet dieselbe Änderung in den Dateien
+   des Quellbaums. `patches/sdk/` bleibt die lesbare Differenz zur Upstream-Basis,
+   so wie `0004-lp64-focus-message.patch` das Fokus-Delta festhält. Der
+   Upstream-Commit wird zitiert. Die Commit-Nachricht bleibt unsere.
 
 GPL-Referenzen (Xash3D-FWGS, cs16-client, HLSW) werden nicht cherry-pickt und nicht
 vendored. Man liest den Commit, schreibt die Idee in eigenem Code neu und kredited
@@ -1455,6 +1477,9 @@ sie nur in `CREDITS.md`, wenn sie wirklich eingeflossen ist.
 Server-Grundlagen, die wir bauen und anpassen, liegen als Quelltext im Repo.
 Das sind AMX Mod X, ReAPI, ReHLDS, ReGameDLL_CS und Metamod-R unter
 `server/vendor/`, jeweils auf den Release-Commit in `versions.lock.json` gepinnt.
+Das HL1-SDK liegt ebenso als Quelltext im Repo, unter
+`client/dep/ncl-hl1-source-sdk/`. Die Upstream-Basis ist der Commit in
+`versions.lock.json`. Eigene Änderungen sind diese Dateien.
 Dieselben Versionen liegen als geprüfte Linux-Release-Archive unter
 `server/vendor/dist/`. Die Fetch-Skripte lesen diese Archive, sie laden sie
 nicht herunter. Includes für den Pawn-Compiler kommen aus dem vendorten

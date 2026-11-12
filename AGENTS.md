@@ -174,14 +174,16 @@ else is derived or linked, never copied.
 Redundancy is a defect. Concretely:
 
 1. **Shipped foundations are vendored.** NextClient, NextClientServerApi,
-   ncl-hl1-source-sdk, vcpkg, and the server stack under `server/vendor/`
-   (AMX Mod X, ReAPI, ReHLDS, ReGameDLL_CS, Metamod-R) live in this repository.
-   Their upstream licenses stay on those trees. Edits to `ncl-hl1-source-sdk`
-   are `client/dep/ncl-hl1-source-sdk.patch`. Client configure applies that
-   patch. The submodule pin stays the upstream commit. Verification fails when
-   a checked-out tree does not match the patch. FuryBaM/cs16-client,
-   FWGS/cs16-client, HLSW and Xash3D are references with credits. Valve game
-   content and the SteamCMD image are not vendored.
+   ncl-hl1-source-sdk, and the server stack under `server/vendor/`
+   (AMX Mod X, ReAPI, ReHLDS, ReGameDLL_CS, Metamod-R) live in this repository
+   as source we build on. Their upstream licenses stay on those trees. The HL1
+   SDK source is the tracked tree `client/dep/ncl-hl1-source-sdk/`. Our edits
+   are those files. `versions.lock.json` records the upstream base commit the
+   tree started from. vcpkg stays a submodule: it is the package manager pin,
+   not code we adapt. Verification fails when the SDK path is a gitlink or the
+   rollup patch file is present. FuryBaM/cs16-client, FWGS/cs16-client, HLSW
+   and Xash3D are references with credits. Valve game content and the SteamCMD
+   image are not vendored.
 2. **No duplicated cvar defaults.** UI code reads the shared registration, never a
    second literal table.
 3. **One address provider.** A generic provider plus a build registry, not one copy

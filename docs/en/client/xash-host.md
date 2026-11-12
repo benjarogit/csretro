@@ -41,8 +41,8 @@ KeyValues int on LP64.
 does not call `RunFrame`. A click on a laid-out `GameMenu.res` item is
 delivered through that input bind. `QuitNoConfirm` records `quit` through
 `pfnClientCmd` and does not run it. LP64 edits to the vendored SDK, including
-that menu-handle message, are `client/dep/ncl-hl1-source-sdk.patch`. Client
-configure applies the patch. The submodule pin stays the upstream commit.
+that menu-handle message, are the files under `client/dep/ncl-hl1-source-sdk/`.
+The commit in `versions.lock.json` is the upstream base this tree started from.
 
 The `vgui2.so` built from this SDK exports `csr_vgui_dispatch_messages`. The
 host receives function pointers. Process, Steam and frame rate are stated once

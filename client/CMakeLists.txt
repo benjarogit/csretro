@@ -20,29 +20,7 @@ foreach (NEXTCLIENT_LFS_FILE
     endif ()
 endforeach ()
 
-# Our LP64 edits stay in this repository. The submodule pin is the upstream
-# commit, and that remote is not ours to push. Configure applies the patch
-# when the tree does not already contain it.
-set(CSR_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk")
-set(CSR_SDK_PATCH "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk.patch")
-if(EXISTS "${CSR_SDK_PATCH}" AND EXISTS "${CSR_SDK_DIR}/.git")
-    execute_process(
-        COMMAND git apply --reverse --check "${CSR_SDK_PATCH}"
-        WORKING_DIRECTORY "${CSR_SDK_DIR}"
-        RESULT_VARIABLE CSR_SDK_PATCH_PRESENT
-    )
-    if(NOT CSR_SDK_PATCH_PRESENT EQUAL 0)
-        execute_process(
-            COMMAND git apply "${CSR_SDK_PATCH}"
-            WORKING_DIRECTORY "${CSR_SDK_DIR}"
-            RESULT_VARIABLE CSR_SDK_PATCH_RESULT
-        )
-        if(NOT CSR_SDK_PATCH_RESULT EQUAL 0)
-            message(FATAL_ERROR "Failed to apply ${CSR_SDK_PATCH}")
-        endif()
-    endif()
-endif()
-
+# The HL1 SDK tree is tracked source. Our edits are those files.
 project(NextClient VERSION 2.6.0)
 
 set(NEXTCLIENT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
@@ -145,31 +123,6 @@ set(FUNCHOOK_BUILD_SHARED OFF)
 set(FUNCHOOK_BUILD_TESTS OFF)
 set(FUNCHOOK_INSTALL OFF)
 set(FUNCHOOK_CPU "x86")
-
-# The SDK pin stays on the upstream commit. These patches are applied in the
-# checkout. A configure that finds a patch already applied leaves that file alone.
-set(CSR_SDK_PATCHES
-        "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0001-export-vgui-dispatch.patch"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0002-lp64-tier1.patch"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0003-lp64-host-libs.patch"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../patches/sdk/0004-lp64-focus-message.patch")
-foreach (CSR_SDK_PATCH IN LISTS CSR_SDK_PATCHES)
-    if (NOT EXISTS "${CSR_SDK_PATCH}")
-        message(FATAL_ERROR "Missing ${CSR_SDK_PATCH}")
-    endif ()
-    execute_process(
-            COMMAND git apply --check "${CSR_SDK_PATCH}"
-            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk"
-            RESULT_VARIABLE CSR_SDK_PATCH_NEEDED
-            OUTPUT_QUIET
-            ERROR_QUIET)
-    if (CSR_SDK_PATCH_NEEDED EQUAL 0)
-        execute_process(
-                COMMAND git apply "${CSR_SDK_PATCH}"
-                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dep/ncl-hl1-source-sdk"
-                COMMAND_ERROR_IS_FATAL ANY)
-    endif ()
-endforeach ()
 
 # The prebuilt libtier0.so, libvstdlib.so and libsteam_api.so under the SDK are
 # i386. The product process does not load them. These shared libraries satisfy

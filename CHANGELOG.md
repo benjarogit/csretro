@@ -10,6 +10,10 @@ The authoritative version string is the `VERSION` file.
 
 ### Changed
 
+- The HL1 SDK source is tracked at `client/dep/ncl-hl1-source-sdk/`, including
+  the LP64 edits. The upstream base remains
+  `0e9be00fc52b66742a09c84c8f6169dc7c83ca8a`. The rollup patch and the SDK
+  submodule gitlink are gone. vcpkg stays a submodule.
 - The public docs site uses Zensical's default template. The vgui.css skins are
   no longer part of the Page.
 - AMX Mod X, ReAPI, ReHLDS, ReGameDLL_CS and Metamod-R are vendored under
@@ -36,8 +40,8 @@ The authoritative version string is the `VERSION` file.
   `IInputInternal::RunFrame` or `CVGui::RunFrame`.
 - A laid-out `GameMenu.res` item receives that bind. Paint associates the
   embedded root with the default input context. `QuitNoConfirm` records
-  `quit` and does not run it. The LP64 SDK delta is
-  `client/dep/ncl-hl1-source-sdk.patch`, applied when the client is configured.
+  `quit` and does not run it. LP64 edits to the SDK are the files under
+  `client/dep/ncl-hl1-source-sdk/`.
 - `PresentXashLauncher` activates that menu and paints one frame. The planned
   command is not executed and `RunFrame` is not called. `setpause` is only
   recorded.
@@ -105,8 +109,8 @@ The authoritative version string is the `VERSION` file.
 - CI workflow for structure, documentation, secrets and shell checks.
 - Vendored NextClient at `90b4bf7` with full history (`client/`).
 - Vendored NextClientServerApi at `1da463e` with full history (`server/api/`).
-- Pinned submodules `client/vcpkg` at `b5d1a94` and
-  `client/dep/ncl-hl1-source-sdk` at `0e9be00`.
+- Vendored HL1 SDK source at `client/dep/ncl-hl1-source-sdk/`. The upstream
+  base is `0e9be00`. vcpkg stays the submodule at `b5d1a94`.
 - `scripts/bootstrap.sh` for hooks, LFS and submodules.
 - `scripts/sync-upstream.sh` to report upstream changes since the pins.
 - `scripts/doctor.sh`: read-only host check with real 32-bit compile-and-link

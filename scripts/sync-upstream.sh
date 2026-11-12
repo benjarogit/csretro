@@ -65,7 +65,8 @@ for row in "${rows[@]}"; do
             printf '%s\n' "$commits" | sed 's/^/   /'
             printf '   ... see `git log %s..FETCH_HEAD` for the full list\n' "$pin"
         fi
-    elif [[ "$method" == "git-submodule" ]]; then
+    elif [[ "$method" == "git-submodule" || "$method" == "vendored-tree" ]]; then
+        # vendored-tree is an in-repo snapshot. The pin is still the upstream base.
         remote_head="$(git ls-remote "$repo" HEAD | awk '{print $1}')"
         printf '   pinned: %s\n' "$pin"
         printf '   head:   %s\n' "${remote_head:0:40}"

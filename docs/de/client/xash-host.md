@@ -31,8 +31,8 @@ nicht in ein KeyValues-Int passt. `csr_host_activate_gameui` ruft nach `Start`
 gelegten Eintrag aus `GameMenu.res` läuft über diese Input-Bindung.
 `QuitNoConfirm` schreibt `quit` über `pfnClientCmd` und führt ihn nicht aus.
 LP64-Änderungen am vendorten SDK, einschließlich dieser Menü-Handle-Nachricht,
-stehen in `client/dep/ncl-hl1-source-sdk.patch`. Das Configure des Clients
-wendet den Patch an. Der Submodul-Pin bleibt der Upstream-Commit.
+stehen in den Dateien unter `client/dep/ncl-hl1-source-sdk/`. Der Commit in
+`versions.lock.json` ist die Upstream-Basis, von der dieser Baum ausgeht.
 
 Die aus dem SDK gebaute `vgui2.so` exportiert `csr_vgui_dispatch_messages`.
 Der Host bekommt Funktionszeiger. Prozess, Steam und Bildrate stehen nur im

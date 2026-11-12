@@ -238,7 +238,7 @@ def check_links(report: Report, files: list[str]) -> None:
             continue
         # Upstream snapshots keep their own documents. A broken wiki link or a
         # typo in a vendored changelog is not a CSRETRO docs defect.
-        if rel.startswith("server/vendor/"):
+        if rel.startswith(("server/vendor/", "client/dep/ncl-hl1-source-sdk/")):
             continue
         path = ROOT / rel
         if not path.is_file():
@@ -423,34 +423,56 @@ def check_server_vendor(report: Report) -> None:
         )
 
 
-def check_sdk_patch(report: Report) -> None:
+def check_sdk_tree(report: Report) -> None:
+    """The HL1 SDK is tracked source in this repository, not a submodule."""
     patch = ROOT / "client/dep/ncl-hl1-source-sdk.patch"
-    sdk = ROOT / "client/dep/ncl-hl1-source-sdk"
-    if not patch.is_file() or patch.stat().st_size == 0:
-        report.fail("client/dep/ncl-hl1-source-sdk.patch is missing")
-        return
-    report.check(True, "sdk patch is present")
-    if not (sdk / ".git").exists():
-        return
-    reverse = subprocess.run(
-        ["git", "apply", "--reverse", "--check", str(patch)],
-        cwd=sdk,
-        capture_output=True,
-        text=True,
-        check=False,
+    cmake_file = ROOT / "client/dep/ncl-hl1-source-sdk/CMakeLists.txt"
+    report.check(not patch.exists(), "client/dep/ncl-hl1-source-sdk.patch must be gone")
+    report.check(
+        cmake_file.is_file(),
+        "client/dep/ncl-hl1-source-sdk/CMakeLists.txt is missing",
     )
-    if reverse.returncode == 0:
+
+    gitmodules = ROOT / ".gitmodules"
+    if gitmodules.is_file() and "client/dep/ncl-hl1-source-sdk" in read_text(gitmodules):
+        report.fail(".gitmodules still lists the HL1 SDK")
+
+    try:
+        staged = subprocess.run(
+            ["git", "ls-files", "--stage", "--", "client/dep/ncl-hl1-source-sdk"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        tracked_patch = subprocess.run(
+            ["git", "ls-files", "--", "client/dep/ncl-hl1-source-sdk.patch"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        report.fail("cannot read the index for the HL1 SDK")
         return
-    forward = subprocess.run(
-        ["git", "apply", "--check", str(patch)],
-        cwd=sdk,
-        capture_output=True,
-        text=True,
-        check=False,
+
+    lines = [line for line in staged.stdout.splitlines() if line.strip()]
+    report.check(bool(lines), "HL1 SDK is not tracked in the parent repository")
+    report.check(
+        not any(line.startswith("160000 ") for line in lines),
+        "HL1 SDK path is a submodule gitlink (mode 160000)",
     )
     report.check(
-        forward.returncode == 0,
-        "ncl-hl1-source-sdk patch does not match the checked-out tree",
+        any(
+            not line.startswith("160000 ")
+            and line.split("\t", 1)[-1] == "client/dep/ncl-hl1-source-sdk/CMakeLists.txt"
+            for line in lines
+        ),
+        "HL1 SDK CMakeLists.txt is not tracked content in the parent",
+    )
+    report.check(
+        not tracked_patch.stdout.strip(),
+        "client/dep/ncl-hl1-source-sdk.patch is still tracked",
     )
 
 
@@ -477,7 +499,7 @@ def main() -> int:
     check_spent_plans(report, files)
     check_docs_template(report)
     check_server_vendor(report)
-    check_sdk_patch(report)
+    check_sdk_tree(report)
     check_changelog(report)
 
     if report.failures:

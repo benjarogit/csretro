@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `f0c07f4` (host loads `engine_mini` and calls argv, mode and init_game; `hw.so` stays closed)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43191564494 – success (`f0c07f4`)
+- **Commit:** `acf3481` (install copy searches Steam and copies the mounted content outside the library)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43193924471 – success (`acf3481`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -272,11 +272,12 @@ or replaced by a simple text view. Details: `.local/xash-spike.md` (ignored).
   SteamCMD; no Steam account, no ownership, no login. That is what the image
   build does and what a self-hosted server install will do.
 - **Client files are not free.** CS 1.6 is the paid App 10. CSRETRO never logs
-  into Steam and never asks for credentials. The installer discovers the local
-  Steam libraries (`steamapps/libraryfolders.vdf`, `appmanifest_10.acf`), verifies
-  the stock files and copies them into the separate CSRETRO directory; a manual
-  `--source <dir>` works too. The vendored code for this is
-  `client/installer/import_game.py`.
+  into Steam and never asks for credentials. `scripts/install-content.sh`
+  discovers the local Steam libraries (`steamapps/libraryfolders.vdf`,
+  `appmanifest_10.acf`) and copies the allowlist in `tools/install_content.py`
+  into a directory outside that library. A missing Steam install or a missing
+  game fails. Tests use a fake library. The vendored NextClient installer
+  `client/installer/import_game.py` is not this copy.
 - **Manual copy stays possible.** `scripts/install.sh` (G09) is a convenience
   around copy, hashes and backups; a user who already has a valid game folder can
   point CSRETRO at it.
@@ -441,6 +442,14 @@ the Security overview switches in the browser.
 
 - **Gate:** G07 – Default Public runtime, in progress.
 - **Engine decided:** Option A from `docs/plan/csretro-plan.md` section 3.6.
+- **Install copy:** `scripts/install-content.sh` searches `libraryfolders.vdf`
+  and `appmanifest_10.acf`, copies the mounted `cstrike`, `valve` and
+  `platform/resource` files, and refuses a destination inside that library.
+  Missing Steam is `steam_missing`. Missing App 10 is `game_missing`.
+  `hw.so`, Steam binaries, personal configs, demos, screenshots and caches
+  stay behind. `tests/install_content` 13/13 on a fake library. The game was
+  not started. CI https://github.com/benjarogit/csretro/actions/runs/43193924471
+  success (`acf3481`).
 - **Next step:** `xash_surface` answers `VGUI_Surface026` and draws fills,
   texture quads and FreeType glyphs from a packed atlas (plan section 3.7).
   The spike team-click was reproduced on 2026-11-11: exit 137, `Button/terbutton`
@@ -540,6 +549,21 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Install copy (2026-11-12, fake library, game not started):
+
+```text
+$ uv run --with pytest pytest tests/install_content/test_install_content.py -q
+13 passed
+```
+
+`scripts/install-content.sh` reads `libraryfolders.vdf` and
+`appmanifest_10.acf`, copies the allowlist, and refuses a destination inside
+the source library. Missing Steam is `steam_missing`. Missing App 10 is
+`game_missing`. `hw.so`, Steam binaries, personal configs, demos, screenshots
+and caches are not copied. The game was not started.
+
+CI: https://github.com/benjarogit/csretro/actions/runs/43193924471 success (`acf3481`).
 
 Host calls the Xash startup entries (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

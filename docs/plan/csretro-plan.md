@@ -701,7 +701,7 @@ dieser Liste. `vgui2` hält damit die eine Surface, das Dateisystem und
 `VGUI_Localize003`. Eine Scheme-Datei unter der Wurzel lädt derselbe
 Manager. Eine fehlende Datei lässt den Host offen. Danach ruft der Host
 `IGameUI::Initialize`. Ein fehlendes Engine-Modul wird nicht aufgerufen.
-Das Basis-Panel ist sichtbar und hat noch kein Engine-Elternpanel. Die
+Das Basis-Panel ist ein Kind der Host-Wurzel. Die
 Serverliste wartet auf ein geladenes Scheme. `Start` und `RunFrame` sind
 dieser Aufruf nicht. Es gibt kein
 zweites Dateisystem und keine zweite Factory. Retail-Daten liegen nicht im

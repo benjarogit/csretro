@@ -25,7 +25,7 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   asks for `resource/schemes/TrackerScheme_ClassicPlus.res`.
 - `csr_host_init_gameui` calls `IGameUI::Initialize` after that connection.
   A missing `next_engine_mini` module is not called. The base panel is
-  visible and unparented. The server list waits for a scheme. `Start` and
+  visible and a child of the host root. The server list waits for a scheme. `Start` and
   `RunFrame` stay unused.
 - Extra factories follow those entries. The surface name is not forwarded to them.
 - `csr_host_bind_input` forwards cursor, press and release, then one dispatch.

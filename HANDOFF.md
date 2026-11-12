@@ -367,7 +367,8 @@ implementation; the plan is the only source for the gate list.
   draw it. `IVGui::Init` then takes that factory list. `vgui2` holds the one
   surface. A scheme file under that root is loaded through the same manager.
   A missing file leaves the host open. `IGameUI::Initialize` builds the base
-  panel. A missing engine module is not called. `Start` and `RunFrame` are
+  panel and parents it to the host root. A missing engine module is not called.
+  `Start` and `RunFrame` are
   not that call.
   The ELF64 `libsteam_api.so` reports logged out and does not start Steam.
   A missing interface is not called.   The Xash launcher plans that command and the same process opens the list.
@@ -415,7 +416,8 @@ implementation; the plan is the only source for the gate list.
   cursor texture is drawn at the end of `PaintTraverse`. `IVGui::Init` takes
   that list after the mount, so `vgui2` holds the one surface. `RunFrame` is
   not that call. A scheme file under the root is loaded there. A missing file
-  leaves the host open. `IGameUI::Initialize` builds the base panel. The
+  leaves the host open. `IGameUI::Initialize` parents the base panel to the
+  host root. The
   server list waits for a scheme. `Start` and `RunFrame` are not that call.
   The ELF64 `libsteam_api.so` reports logged out. It does not start Steam.
   The Xash launcher plans one command and the same process opens that list.

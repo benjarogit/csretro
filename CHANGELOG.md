@@ -39,7 +39,7 @@ The authoritative version string is the `VERSION` file.
   `PaintTraverse`. `RunFrame` does not draw it. After the root is mounted,
   `IVGui::Init` gives `vgui2` that surface. A scheme file under that root is
   loaded through the same manager. A missing file leaves the host open.
-  `IGameUI::Initialize` builds the base panel. A missing engine module is
+  `IGameUI::Initialize` parents the base panel to the host root. A missing engine module is
   not called. `Start` and `RunFrame` are not that call.
   The proxy does not open `hw.so` and does not start the game.
 - `xash_host` opens `gameui` after the one surface factory and reads

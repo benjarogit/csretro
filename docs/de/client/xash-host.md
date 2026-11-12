@@ -12,8 +12,7 @@ ein Fehltreffer. Sind das Paar geladen und die Wurzel gemountet, nimmt
 `IVGui::Init` diese Liste. `vgui2` hält danach die eine Surface. Eine
 Scheme-Datei unter dieser Wurzel lädt derselbe Manager. Eine fehlende Datei
 lässt den Host offen. Danach ruft der Host `IGameUI::Initialize`. Ein
-fehlendes Engine-Modul wird nicht aufgerufen. Das Basis-Panel ist sichtbar
-und hat noch kein Engine-Elternpanel. Die Serverliste wartet, bis ein
+fehlendes Engine-Modul wird nicht aufgerufen. Das Basis-Panel ist ein Kind der Host-Wurzel. Die Serverliste wartet, bis ein
 Scheme geladen ist. `Start` und `RunFrame` sind dieser Aufruf nicht. Weitere Factories
 werden für den Surface-Namen nicht gefragt.
 

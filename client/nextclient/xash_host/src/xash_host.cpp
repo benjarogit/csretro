@@ -4,6 +4,8 @@
 #include "xash_surface/xash_surface.h"
 #include "xash_engine/xash_engine.h"
 
+#include <vgui/IClientPanel.h>
+#include <vgui/IPanel.h>
 #include <vgui/IScheme.h>
 #include <vgui/IVGui.h>
 
@@ -48,18 +50,61 @@ namespace
     int g_scheme_loaded = 0;
     int g_gameui_initialized = 0;
     vgui2::IVGui* g_ivgui = nullptr;
+    vgui2::VPANEL g_gameui_root = 0;
+
+    // The engine root is a VPanel plus this client. SetParent asks the client
+    // whether the parent is proportional. A panel with no client crashes there.
+    class RootClient final : public vgui2::IClientPanel
+    {
+    public:
+        vgui2::VPANEL GetVPanel() override { return panel_; }
+        void Think() override {}
+        void PerformApplySchemeSettings() override {}
+        void PaintTraverse(bool, bool) override {}
+        void Repaint() override {}
+        vgui2::VPANEL IsWithinTraverse(int, int, bool) override { return 0; }
+        void GetInset(int& top, int& left, int& right, int& bottom) override
+        {
+            top = left = right = bottom = 0;
+        }
+        void GetClipRect(int& x0, int& y0, int& x1, int& y1) override
+        {
+            x0 = y0 = x1 = y1 = 0;
+        }
+        void OnChildAdded(vgui2::VPANEL) override {}
+        void OnSizeChanged(int, int) override {}
+        void InternalFocusChanged(bool) override {}
+        bool RequestInfo(KeyValues*) override { return false; }
+        void RequestFocus(int) override {}
+        bool RequestFocusPrev(vgui2::VPANEL) override { return false; }
+        bool RequestFocusNext(vgui2::VPANEL) override { return false; }
+        void OnMessage(const KeyValues*, vgui2::VPANEL) override {}
+        vgui2::VPANEL GetCurrentKeyFocus() override { return 0; }
+        int GetTabPosition() override { return 0; }
+        const char* GetName() override { return "GameUIRoot"; }
+        const char* GetClassName() override { return "HostPanel"; }
+        vgui2::HScheme GetScheme() override { return 0; }
+        bool IsProportional() override { return false; }
+        bool IsAutoDeleteSet() override { return false; }
+        void DeletePanel() override {}
+        void* QueryInterface(vgui2::EInterfaceID) override { return nullptr; }
+        vgui2::Panel* GetPanel() override { return nullptr; }
+        const char* GetModuleName() override { return "xash_host"; }
+
+        vgui2::VPANEL panel_ = 0;
+    };
+
+    RootClient g_root_client;
 
     // Same slots as IEngineVGui: two destructor entries, then GetPanel.
-    // A bare AllocPanel has no client object, and SetParent would crash on it.
-    // Zero leaves the base panel unparented until a real root panel exists.
     class HostEngineVGui
     {
     public:
         virtual ~HostEngineVGui() = default;
 
-        virtual vgui2::VPANEL GetPanel(int)
+        virtual vgui2::VPANEL GetPanel(int type)
         {
-            return 0;
+            return type == 2 ? g_gameui_root : 0;
         }
     };
 
@@ -112,6 +157,8 @@ namespace
         g_scheme_loaded = 0;
         g_gameui_initialized = 0;
         g_ivgui = nullptr;
+        g_gameui_root = 0;
+        g_root_client.panel_ = 0;
         if (g_pair.vgui != nullptr)
         {
             dlclose(g_pair.vgui);
@@ -459,6 +506,19 @@ int csr_host_init_gameui(void)
         return 0;
     }
 
+    if (g_gameui_root == 0)
+    {
+        g_gameui_root = g_ivgui->AllocPanel();
+        g_root_client.panel_ = g_gameui_root;
+        auto* panels = static_cast<vgui2::IPanel*>(g_pair.create("VGUI_Panel007", &code));
+        if (g_gameui_root == 0 || panels == nullptr)
+        {
+            g_gameui_root = 0;
+            return 0;
+        }
+        panels->Init(g_gameui_root, &g_root_client);
+    }
+
     CreateInterfaceFn list[4] = {
         reinterpret_cast<CreateInterfaceFn>(g_surface.create_interface),
         reinterpret_cast<CreateInterfaceFn>(csr_host_filesystem_factory),
@@ -472,12 +532,27 @@ int csr_host_init_gameui(void)
     auto initialize = reinterpret_cast<void (*)(void*, CreateInterfaceFn*, int)>(gameui_vtable[2]);
     auto active = reinterpret_cast<bool (*)(void*)>(gameui_vtable[12]);
     initialize(g_gameui.gameui, list, 4);
-    if (!active(g_gameui.gameui))
+    if (!active(g_gameui.gameui) || csr_host_gameui_child_count() < 1)
     {
         return 0;
     }
     g_gameui_initialized = 1;
     return 1;
+}
+
+int csr_host_gameui_child_count(void)
+{
+    if (g_gameui_root == 0 || g_pair.create == nullptr)
+    {
+        return 0;
+    }
+    int code = 1;
+    auto* panels = static_cast<vgui2::IPanel*>(g_pair.create("VGUI_Panel007", &code));
+    if (panels == nullptr)
+    {
+        return 0;
+    }
+    return panels->GetChildCount(g_gameui_root);
 }
 
 int csr_host_gameui_initialized(void)

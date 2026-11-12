@@ -452,6 +452,7 @@ TEST_F(HostFactory, InitializesGameUiWithoutRunFrame)
     ASSERT_EQ(csr_host_connect_vgui(), 1);
     ASSERT_EQ(csr_host_init_gameui(), 1);
     EXPECT_EQ(csr_host_gameui_initialized(), 1);
+    EXPECT_GE(csr_host_gameui_child_count(), 1);
     EXPECT_EQ(csr_host_init_gameui(), 1);
 
     std::remove(menu.c_str());

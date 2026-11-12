@@ -226,8 +226,12 @@ Aufruf. `GL_SelectTexture` ist danach die Funktion in diesem Prozess, wenn diese
 Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf, daher
 wird keine Textur-Einheit gewählt, kein GL-Kontext aus diesem Init geöffnet, kein
 Sprite geladen und kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein
-Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist `CL_ConnectClient`. Dieser
-Pfad kehrt davor zurück.
+Null-Hook ist kein Aufruf. `CL_ConnectClient` ist danach die Funktion in diesem
+Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft
+ihn nicht auf, daher wird kein Client verbunden, kein Netzwerkpfad aus diesem
+Init geöffnet, kein Sprite geladen und kein Socket geöffnet. Ein Null-Zeiger ist
+kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
+`CL_ClearClientState`. Dieser Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 Ein Aufruf öffnet das X11-Display, wählt eine EGL-Config, deren natives Visual
 ein Kind des Root-Fensters sein kann, erzeugt mit `eglCreateWindowSurface` eine

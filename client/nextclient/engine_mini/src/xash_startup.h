@@ -139,6 +139,9 @@ using EngineMiniGLConfigFn = void (*)();
 // Process replacement for the retail GL_SelectTexture hook. A null value is not a call.
 using EngineMiniGLSelectTextureFn = void (*)(unsigned int target);
 
+// Process replacement for the retail CL_ConnectClient hook. A null value is not a call.
+using EngineMiniCLConnectClientFn = void (*)();
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -195,6 +198,7 @@ struct EngineMiniXashStartup
     int gl_init_calls{};
     int gl_config_calls{};
     int gl_select_texture_calls{};
+    int connect_client_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -250,6 +254,7 @@ struct EngineMiniXashStartup
     EngineMiniGLInitFn gl_init{};
     EngineMiniGLConfigFn gl_config{};
     EngineMiniGLSelectTextureFn gl_select_texture{};
+    EngineMiniCLConnectClientFn connect_client{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -380,6 +385,9 @@ extern EngineMiniGLConfigFn g_EngineMiniGLConfig;
 
 // Defaults to GL_SelectTexture. Init stores the pointer and does not call it.
 extern EngineMiniGLSelectTextureFn g_EngineMiniGLSelectTexture;
+
+// Defaults to CL_ConnectClient. Init stores the pointer and does not call it.
+extern EngineMiniCLConnectClientFn g_EngineMiniCLConnectClient;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

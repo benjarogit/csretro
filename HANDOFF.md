@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `57e5e7e` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket` is the process function and is not called; no socket is opened; `hw.so` stays unmapped)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43200642517 – success (`57e5e7e`)
+- **Commit:** `84d36a0` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket` and `Netchan_CopyFileFragments` are the process functions and are not called; no socket is opened and no fragment file is copied; `hw.so` stays unmapped)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43201806432 – success (`84d36a0`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -346,7 +346,7 @@ implementation; the plan is the only source for the gate list.
   process; original maps, models, sounds and `valve/resource` stay required.
   Product process is x86_64 (plan section 3.7). The Linux client preset is
   `linux` with the vcpkg triplet `x64-linux`. There is no second 32-bit client
-  preset. `engine_mini-tests` (`XashStartup` 6/6; full run 561), `nitro_api-tests` (70),
+  preset. `engine_mini-tests` (`XashStartup` 7/7; full run 562), `nitro_api-tests` (70),
   `xash_surface-tests` (21), `xash_host-tests` (20), `xash_engine-tests` (6),
   `sdk_pair-tests` (4), `player_identity-tests` (6), `steam_api-tests` (2) and
   `xash_launcher-tests` (4)
@@ -356,7 +356,7 @@ implementation; the plan is the only source for the gate list.
   or `vgui2.so`. Product identity is `xash`. `NitroApi::Initialize` does not
   open, hash, or hook `hw.so`. `nitro_api-tests` 70/70, including
   `XashIdentity.InitializeDoesNotOpenOrHashTheRetailEngine`. `engine_mini-tests`
-  filter `XashStartup` is 6/6. Full `engine_mini-tests` is 561/561. Missing engine addresses are not hooks and are not called.
+  filter `XashStartup` is 7/7. Full `engine_mini-tests` is 562/562. Missing engine addresses are not hooks and are not called.
   `xash_engine` forwards `vgui2_surface`, texture reset and text color to that
   one surface. `VGUI2_Draw_Init` has no entry there. The same library takes
   `csr_xash_engine_argv`, `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
@@ -370,9 +370,13 @@ implementation; the plan is the only source for the gate list.
   `SetCStrikeFlags` is not called. A mounted name runs `SetCStrikeFlags`.
   `NET_SendPacket` is the function in this process when that retail hook is
   absent. Init stores the pointer and does not call it, so no socket is
-  opened. A null pointer is not a call. A null hook is not a call. The next
-  retail hook is `eng()->Netchan_CopyFileFragments`. This path returns before
-  it. `OnGameInitialized` is not entered.
+  opened. A null pointer is not a call. A null hook is not a call.
+  `Netchan_CopyFileFragments` is then the function in this process when that
+  retail hook is absent. Init stores the pointer and does not call it, so no
+  fragment file is copied and no socket is opened. A null pointer is not a
+  call. A null hook is not a call. The next retail hook is
+  `eng()->SVC_TimeScale`. This path returns before it.
+  `OnGameInitialized` is not entered.
   The retail hook chain does not run.
   Shutdown and the fatal error stay uncalled on that path. A null function
   is not a call. The call does not open `hw.so` and does not call `RunFrame`.
@@ -485,8 +489,12 @@ the Security overview switches in the browser.
   `SetCStrikeFlags`. `NET_SendPacket` is the function in this process when that
   retail hook is absent. Init stores the pointer and does not call it, so no
   socket is opened. A null pointer is not a call. A null hook is not a call.
-  The next retail hook is `eng()->Netchan_CopyFileFragments`. This path
-  returns before it. `OnGameInitialized` is not entered. The retail hook
+  `Netchan_CopyFileFragments` is then the function in this process when that
+  retail hook is absent. Init stores the pointer and does not call it, so no
+  fragment file is copied and no socket is opened. A null pointer is not a
+  call. A null hook is not a call. The next retail hook is
+  `eng()->SVC_TimeScale`. This path returns before it. `OnGameInitialized`
+  is not entered. The retail hook
   chain does not run.
   `client_mini` and `vgui2` are the matched ELF64 pair and link the host runtime.
   `xash_host` loads that pair. It does not start the game.
@@ -516,8 +524,11 @@ the Security overview switches in the browser.
   runs for that name. An empty mount is not a call. `NET_SendPacket` is the
   function in this process. Init stores that pointer and does not call it.
   A null pointer is not a call. A null hook is not a call. No socket is
-  opened. The next retail hook is `eng()->Netchan_CopyFileFragments`. This
-  path returns before it. `OnGameInitialized` is not entered. The retail
+  opened. `Netchan_CopyFileFragments` is then the function in this process.
+  Init stores that pointer and does not call it. A null pointer is not a
+  call. A null hook is not a call. No fragment file is copied and no socket
+  is opened. The next retail hook is `eng()->SVC_TimeScale`. This path
+  returns before it. `OnGameInitialized` is not entered. The retail
   hook chain and a real Xash frame still do not run.
   `csr_host_load_pair` binds `VGUI_InputInternal001` (cursor/press/release +
   one dispatch). Paint associates the embedded root with the default input
@@ -551,8 +562,11 @@ the Security overview switches in the browser.
   error. The open does not exec Xash3D and does not call `RunFrame`.
   `NET_SendPacket` is the function in this process. Init stores that pointer
   and does not call it. A null pointer is not a call. A null hook is not a
-  call. No socket is opened. The next retail hook in `OnGameInitializing` is
-  `eng()->Netchan_CopyFileFragments`. The Xash path returns before that
+  call. No socket is opened. `Netchan_CopyFileFragments` is the function in
+  this process. Init stores that pointer and does not call it. A null
+  pointer is not a call. A null hook is not a call. No fragment file is
+  copied. The next retail hook in `OnGameInitializing` is
+  `eng()->SVC_TimeScale`. The Xash path returns before that
   install. `OnGameInitialized` is not entered. A real GL/Xash frame and
   `CVGui::RunFrame` are still missing. The planned command is not executed.
   The game was not started.
@@ -593,6 +607,51 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Process `Netchan_CopyFileFragments` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ engine_mini-tests --gtest_filter=XashStartup.*
+7/7 passed
+AbsentHooksRecordTheSequenceAndInitArgv
+NullBindingIsNotACall
+ConInitReadsCondebugAndLeavesTheLog
+WiredCallDoesNotOpenHwSo
+SetCStrikeFlagsReadsTheMountedDirectory
+NetSendPacketUsesTheProcessFunction
+NetchanCopyFileFragmentsUsesTheProcessFunction
+
+$ engine_mini-tests
+562/562 passed
+
+$ xash_host-tests
+20/20 passed
+
+$ xash_launcher-tests
+4/4 passed
+```
+
+`OnGameInitializing` stores a pointer table in this process and then calls
+`Con_Init`. `pfnGetGameDir` writes the mounted directory name and
+`SetCStrikeFlags` runs for that name. An empty mount leaves that pointer
+null. `NET_SendPacket` is the function in this process when the retail hook
+is absent. Init stores that pointer and does not call it. `net_send_calls`
+stays 0. `Netchan_CopyFileFragments` is then the function in this process
+when that retail hook is absent. Init stores that pointer and does not call
+it. `netchan_copy_calls` stays 0. A null pointer leaves the recorded pointer
+null and is not a call. A null hook is not a call. The open-socket list in
+`/proc/self/fd` is unchanged, so no socket was opened. A planted fragment
+file is unchanged, so no fragment file was read or written. The next retail
+hook is `eng()->SVC_TimeScale`. That hook stays null. The Xash path returns
+before it. `OnGameInitialized` is not entered. `Sys_Error` is not called.
+`initializing_calls` is 1. Shutdown and the fatal error stay 0 until the
+test calls them. A planted `hw.so` is not mapped. `RunFrame` is not called.
+Steam is not started. The planned command is not executed. The game was not
+started.
+
+CI: https://github.com/benjarogit/csretro/actions/runs/43201806432 success (`84d36a0`).
+
+`scripts/verify.sh`: 68 checks passed.
 
 Process `NET_SendPacket` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

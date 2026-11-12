@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `b052069` (shipped files overlay the cleaned Steam copy; the same relative path keeps the shipped file)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43195336643 – success (`b052069`)
+- **Commit:** `8f15927` (`OnGameInitializing` reads a process engine table and does not call `Sys_Error`; `hw.so` stays unmapped)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43195855883 – success (`8f15927`)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -362,8 +362,9 @@ implementation; the plan is the only source for the gate list.
   `csr_xash_engine_argv`, `csr_xash_engine_mode`, `csr_xash_engine_init_game`,
   `csr_xash_engine_shutdown` and `csr_xash_engine_error`. `EngineMini::Init`
   binds each one only when that retail hook is absent, and records that the
-  engine is Xash. `COM_InitArgv` runs. Mode, init, shutdown and the fatal
-  error are recorded. `OnGameInitializing` is not entered. A null function
+  engine is Xash. `COM_InitArgv` runs. Mode and init run. `OnGameInitializing`
+  reads a pointer table from this process and does not call `Sys_Error`.
+  Shutdown and the fatal error stay uncalled on that path. A null function
   is not a call. The call does not open `hw.so` and does not call `RunFrame`.
   The other `engine_mini` forwards still call the retail hook, which stays
   unset. After `IGameUI::Start` the host loads `next_engine_mini.dll` and
@@ -466,7 +467,9 @@ the Security overview switches in the browser.
   startup sequence `csr_xash_engine_argv`, `csr_xash_engine_mode`,
   `csr_xash_engine_init_game`, `csr_xash_engine_shutdown` and
   `csr_xash_engine_error`. `engine_mini` binds those when the retail hook is
-  absent. `COM_InitArgv` runs. `OnGameInitializing` does not.
+  absent. `COM_InitArgv` runs. `OnGameInitializing` reads a pointer table from
+  this process and does not call `Sys_Error`. The retail hook chain and
+  `Con_Init` do not run.
   `client_mini` and `vgui2` are the matched ELF64 pair and link the host runtime.
   `xash_host` loads that pair. It does not start the game.
   `gameui` is the ELF64 library from the same SDK. The host opens it after the
@@ -489,8 +492,9 @@ the Security overview switches in the browser.
   is a failure. `nextclient.sh` stays the GoldSrc starter.
   Next: that open now loads `engine_mini` and calls argv, mode and init_game.
   It still does not exec Xash3D or call `RunFrame`. The game still does not
-  start. `OnGameInitializing` still needs an engine table that is not retail
-  `hw.so`.
+  start. `OnGameInitializing` reads a pointer table from this process, not
+  from `hw.so`, and does not call `Sys_Error`. The retail hook chain, `Con_Init`
+  and a real Xash frame still do not run.
   `csr_host_load_pair` binds `VGUI_InputInternal001` (cursor/press/release +
   one dispatch). Paint associates the embedded root with the default input
   context. `HostFactory.GameMenuClickSendsTheCommandWithoutRunFrame` passes:
@@ -511,12 +515,13 @@ the Security overview switches in the browser.
   is true; `surface()->PushMakeCurrent`/`PopMakeCurrent` bracket every paint;
   VGUI alpha 0 = opaque (engine 255 = opaque).
 - **Then:** the client still does not start and play. `OnGameInitializing`
-  still needs an engine table that is not retail `hw.so`. The host now loads
-  `next_engine_mini.dll` and `nitro_api2.dll` after `IGameUI::Start` and calls
-  argv, mode and init_game. `COM_InitArgv` runs. A successful open does not
-  call shutdown or the fatal error. The open does not exec Xash3D and does
-  not call `RunFrame`. The other `engine_mini` forwards still have no Xash
-  entry. The command is not executed.
+  returns on a pointer table in this process and does not call `Sys_Error`.
+  The host loads `next_engine_mini.dll` and `nitro_api2.dll` after
+  `IGameUI::Start` and calls argv, mode and init_game. `COM_InitArgv` runs.
+  A successful open does not call shutdown or the fatal error. The open does
+  not exec Xash3D and does not call `RunFrame`. `Con_Init`, the retail hook
+  chain and a real frame loop still have no Xash entry. The command is not
+  executed.
 - **After the decision:** schedule the server performance backlog above
   (measurement first, then hookchain/native/per-frame work). It needs a plan gate
   entry.
@@ -554,6 +559,27 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Process engine table (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ engine_mini-tests --gtest_filter=XashStartup.*
+3/3 passed
+AbsentHooksRecordTheSequenceAndInitArgv
+NullBindingIsNotACall
+WiredCallDoesNotOpenHwSo
+
+$ xash_host-tests --gtest_filter=HostFactory.EngineStartupRunsArgvWithoutHwSo
+1/1 passed
+```
+
+`OnGameInitializing` reads a pointer table stored in this process. Null
+function pointers are not calls. `Sys_Error` is not called on that path.
+`initializing_calls` is 1, and shutdown and the fatal error stay 0 until the
+test calls them. A planted `hw.so` is not mapped. `Con_Init`, the retail hook
+chain and `RunFrame` do not run. The game was not started.
+
+CI: https://github.com/benjarogit/csretro/actions/runs/43195855883 success (`8f15927`).
 
 Install copy (2026-11-12, fake library, game not started):
 

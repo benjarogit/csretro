@@ -24,7 +24,10 @@ is not called. A successful open does not call shutdown or the fatal error;
 both stay bound. `COM_InitArgv` runs. `OnGameInitializing` reads a pointer
 table from this process. A null function pointer is not a call, and
 `Sys_Error` is not called. `Con_Init` then runs. It reads `-condebug` through
-`COM_CheckParm` and does not call a null filesystem. The retail hook chain
+`COM_CheckParm` and does not call a null filesystem. `pfnGetGameDir` then
+writes the name of the mounted directory. An empty mount leaves that pointer
+null, and `SetCStrikeFlags` is not called. A mounted name runs
+`SetCStrikeFlags`. The retail hook chain
 does not run. `hw.so` is not opened.
 `RunFrame` is not called. The other `engine_mini` forwards stay on the retail
 hook.

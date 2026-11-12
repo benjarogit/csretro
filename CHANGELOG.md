@@ -39,7 +39,10 @@ The authoritative version string is the `VERSION` file.
   the retail hook is absent. Null function pointers are not calls, and
   `Sys_Error` is not called on that table. `Con_Init` then runs. It reads
   `-condebug` through `COM_CheckParm` and does not call a null filesystem, so
-  `qconsole.log` stays. The retail hook chain does not run. `hw.so` stays
+  `qconsole.log` stays. `pfnGetGameDir` then writes the mounted directory
+  name. An empty mount leaves that pointer null, and `SetCStrikeFlags` is
+  not called. A mounted name runs `SetCStrikeFlags`. The retail hook chain
+  does not run. `hw.so` stays
   unmapped. The game is not started.
 - `scripts/install-content.sh` searches a Steam library (`libraryfolders.vdf`,
   `appmanifest_10.acf`) and copies the mounted Counter-Strike 1.6 files into a

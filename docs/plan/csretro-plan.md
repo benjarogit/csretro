@@ -372,7 +372,10 @@ Nebenbefunde:
   Zeigertabelle aus diesem Prozess, nicht aus `hw.so`. Ein Null-Funktionszeiger
   wird nicht aufgerufen, und `Sys_Error` läuft auf dieser Tabelle nicht.
   `Con_Init` läuft danach. Es liest `-condebug` über `COM_CheckParm` und ruft
-  ein Null-Dateisystem nicht auf. Die Retail-Hook-Kette läuft dabei nicht.
+  ein Null-Dateisystem nicht auf. `pfnGetGameDir` schreibt danach den Namen
+  des gemounteten Verzeichnisses. Ein leeres Mount lässt diesen Zeiger null,
+  und `SetCStrikeFlags` wird nicht aufgerufen. Ein vorhandener Name lässt
+  `SetCStrikeFlags` laufen. Die Retail-Hook-Kette läuft dabei nicht.
   `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen haben weiter
   keinen Xash3D-Einsprung.
 - HTML/MOTD verlangt einen ChromeHTML-Controller/Serializer. Ohne CEF wird MOTD
@@ -700,7 +703,10 @@ Shutdown und den fatalen Fehler nicht; beide bleiben gebunden.
 `OnGameInitializing` liest eine Zeigertabelle aus diesem Prozess, nicht aus
 `hw.so`. Ein Null-Funktionszeiger wird nicht aufgerufen. `Sys_Error` wird auf
 dieser Tabelle nicht gerufen. `Con_Init` läuft danach. Es liest `-condebug`
-über `COM_CheckParm` und ruft ein Null-Dateisystem nicht auf. Die
+über `COM_CheckParm` und ruft ein Null-Dateisystem nicht auf. `pfnGetGameDir`
+schreibt danach den Namen des gemounteten Verzeichnisses. Ein leeres Mount
+lässt diesen Zeiger null, und `SetCStrikeFlags` wird nicht aufgerufen. Ein
+vorhandener Name lässt `SetCStrikeFlags` laufen. Die
 Retail-Hook-Kette und ein Xash-Frame laufen dabei nicht. `hw.so` wird nicht geöffnet.
 `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen von `engine_mini`
 bleiben am Retail-Hook.

@@ -22,7 +22,9 @@ Then `libsteam_api.so`.
 loads `engine_mini`, calls `EngineMini::Init`, then argv, mode and init_game.
 `COM_InitArgv` runs. `OnGameInitializing` reads a pointer table from this
 process, runs `Con_Init`, and does not call `Sys_Error`. `-condebug` does not
-call a null filesystem. Shutdown and the fatal error stay
+call a null filesystem. `pfnGetGameDir` writes the mounted directory name.
+An empty mount leaves that pointer null, and `SetCStrikeFlags` is not called.
+A mounted name runs `SetCStrikeFlags`. Shutdown and the fatal error stay
 bound and are not called. A missing library or export fails the open and is
 not called.
 The planned command is not executed. The launcher does not start the game, does not exec Xash3D,

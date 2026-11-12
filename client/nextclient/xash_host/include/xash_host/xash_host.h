@@ -78,6 +78,14 @@ CSR_HOST_API void* csr_host_game_console(void);
  */
 CSR_HOST_API int csr_host_mount_filesystem(const char* root);
 CSR_HOST_API int csr_host_filesystem_mounted(void);
+/*
+ * Copies the mounted root into buffer. Returns 0 when the mount is missing,
+ * the directory is empty, or the buffer cannot hold it. Does not invent a path.
+ */
+CSR_HOST_API int csr_host_filesystem_directory(char* buffer, int maxlen);
+/* Mounts that same root. Returns 0 when root is not a directory. Does not invent a path. */
+CSR_HOST_API int csr_host_filesystem_set_root(const char* root);
+CSR_HOST_API void csr_host_filesystem_clear(void);
 
 /*
  * Calls IVGui::Init with this factory list after the pair is loaded and a
@@ -122,6 +130,8 @@ CSR_HOST_API int csr_host_gameui_started(void);
  * or export returns 0 and is not called. A successful load does not call
  * shutdown or the fatal error, does not open hw.so, does not call RunFrame
  * and does not start Steam. basedir is copied into the init record.
+ * pfnGetGameDir writes the mounted directory name. An empty mount leaves
+ * that pointer null, so SetCStrikeFlags is not called.
  */
 CSR_HOST_API int csr_host_load_engine(const char* engine_path, const char* nitro_path, const char* basedir);
 CSR_HOST_API int csr_host_engine_loaded(void);

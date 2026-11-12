@@ -17,6 +17,9 @@ Host `next_engine_mini.dll` und `nitro_api2.dll`, ruft `EngineMini::Init`
 und danach argv, Modus und Init. `COM_InitArgv` läuft. `OnGameInitializing`
 liest eine Zeigertabelle aus diesem Prozess, ruft `Con_Init` und ruft
 `Sys_Error` nicht. `-condebug` ruft ein Null-Dateisystem nicht auf.
+`pfnGetGameDir` schreibt den Namen des gemounteten Verzeichnisses. Ein
+leeres Mount lässt diesen Zeiger null, und `SetCStrikeFlags` wird nicht
+aufgerufen. Ein vorhandener Name lässt `SetCStrikeFlags` laufen.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie
 nicht. Eine fehlende Bibliothek oder ein fehlender Export lässt das Laden
 scheitern und

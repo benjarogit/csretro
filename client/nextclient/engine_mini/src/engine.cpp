@@ -18,6 +18,7 @@
 #include <taskcoro/impl/TaskCoroImpl.h>
 #include <tier2/tier2.h>
 #include <goldsrc/client_api.h>
+#include <goldsrc/limits.h>
 #include <goldsrc/cvar.h>
 #include <goldsrc/engine/client_state.h>
 #include <goldsrc/engine/cmd.h>
@@ -83,6 +84,12 @@
 #include "performance/performance_integration.h"
 #include "performance/PerformanceMonitor.h"
 #include <ncl_perf/profiler.h>
+
+#include <cstring>
+
+#ifndef _WIN32
+#include <dlfcn.h>
+#endif
 
 NextClientVersion g_NextClientVersion;
 
@@ -378,12 +385,17 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
 {
     // The Xash table is storage in this process. Null function pointers in it
     // are not calls, and a missing pointer is not Sys_Error. Con_Init runs
-    // once that table is stored. The retail hook chain stays after this return.
+    // once that table is stored. SetCStrikeFlags runs only when pfnGetGameDir
+    // is set. The retail hook chain stays after this return.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
         {
             Con_Init();
+            if (g_engfuncs.pfnGetGameDir != nullptr)
+            {
+                SetCStrikeFlags();
+            }
         }
         return;
     }
@@ -825,8 +837,61 @@ namespace
         }
     }
 
+    bool CopyMountedGameDirectory(char* buffer, int capacity)
+    {
+        if (buffer == nullptr || capacity <= 1)
+        {
+            return false;
+        }
+        buffer[0] = '\0';
+#ifndef _WIN32
+        using DirectoryFn = int (*)(char*, int);
+        auto directory = reinterpret_cast<DirectoryFn>(dlsym(RTLD_DEFAULT, "csr_host_filesystem_directory"));
+        if (directory == nullptr)
+        {
+            return false;
+        }
+        char path[4096];
+        if (directory(path, static_cast<int>(sizeof(path))) == 0 || path[0] == '\0')
+        {
+            return false;
+        }
+        const char* slash = std::strrchr(path, '/');
+        const char* leaf = path;
+        if (slash != nullptr)
+        {
+            if (slash[1] == '\0')
+            {
+                return false;
+            }
+            leaf = slash + 1;
+        }
+        if (leaf[0] == '\0')
+        {
+            return false;
+        }
+        std::snprintf(buffer, static_cast<size_t>(capacity), "%s", leaf);
+        return buffer[0] != '\0';
+#else
+        return false;
+#endif
+    }
+
+    void XashGetGameDir(char* buffer)
+    {
+        if (buffer == nullptr)
+        {
+            return;
+        }
+        if (!CopyMountedGameDirectory(buffer, goldsrc::MAX_OSPATH))
+        {
+            buffer[0] = '\0';
+        }
+    }
+
     bool SupplyXashEngineTable()
     {
+        g_engfuncs.pfnGetGameDir = nullptr;
         nitroapi::EngineData* engine = g_xash_engine;
         if (engine == nullptr)
         {
@@ -925,8 +990,20 @@ namespace
             }
         }
 
-        // Function pointers inside the tables stay null. This return does not
-        // call them, does not call Sys_Error, and does not run the retail hooks.
+        // Other function pointers in the table stay null. pfnGetGameDir is the
+        // mounted directory name from this process. An empty mount leaves it
+        // null. This return does not call it, does not call Sys_Error, and
+        // does not run the retail hooks.
+        char mounted_game[goldsrc::MAX_OSPATH];
+        if (engine->enginefuncs != nullptr && CopyMountedGameDirectory(mounted_game, goldsrc::MAX_OSPATH))
+        {
+            engine->enginefuncs->pfnGetGameDir = XashGetGameDir;
+            g_engfuncs.pfnGetGameDir = XashGetGameDir;
+        }
+        else if (engine->enginefuncs != nullptr)
+        {
+            engine->enginefuncs->pfnGetGameDir = nullptr;
+        }
         ++g_xash_startup.initializing_calls;
         return true;
     }

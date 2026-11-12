@@ -1,6 +1,6 @@
-#include "host_filesystem.h"
-
 #include "xash_host/xash_host.h"
+
+#include "host_filesystem.h"
 
 #include <FileSystem.h>
 
@@ -789,6 +789,25 @@ int csr_host_filesystem_set_root(const char* root)
 void csr_host_filesystem_clear()
 {
     Instance().Clear();
+}
+
+int csr_host_filesystem_directory(char* buffer, int maxlen)
+{
+    if (buffer == nullptr || maxlen <= 0)
+    {
+        return 0;
+    }
+    buffer[0] = '\0';
+    if (!Instance().mounted())
+    {
+        return 0;
+    }
+    if (!Instance().GetCurrentDirectory(buffer, maxlen) || buffer[0] == '\0')
+    {
+        buffer[0] = '\0';
+        return 0;
+    }
+    return 1;
 }
 
 int csr_host_filesystem_mounted(void)

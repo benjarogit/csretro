@@ -1,6 +1,11 @@
 #include "xash_startup.h"
 
+#include "xash_host/xash_host.h"
+
 #include <xash_engine/xash_engine.h>
+
+#include <goldsrc/limits.h>
+#include <goldsrc/server_api.h>
 
 #include <dlfcn.h>
 
@@ -18,6 +23,13 @@ void COM_InitArgv(int argc, char* argv[]);
 extern bool con_initialized;
 extern bool con_debuglog;
 extern bool g_bCS_CZ_Flags_Initialized;
+extern bool g_bIsCStrike;
+extern bool g_bIsCZero;
+extern bool g_bIsCZeroRitual;
+extern bool g_bIsTerrorStrike;
+extern bool g_bIsTFC;
+extern bool g_bIsHL1;
+extern goldsrc::enginefuncs_t g_engfuncs;
 
 namespace
 {
@@ -62,6 +74,15 @@ namespace
         {
             con_initialized = false;
             con_debuglog = false;
+            g_bCS_CZ_Flags_Initialized = false;
+            g_bIsCStrike = false;
+            g_bIsCZero = false;
+            g_bIsCZeroRitual = false;
+            g_bIsTerrorStrike = false;
+            g_bIsTFC = false;
+            g_bIsHL1 = false;
+            g_engfuncs.pfnGetGameDir = nullptr;
+            csr_host_filesystem_clear();
             COM_InitArgv(0, nullptr);
             EngineMini_BindXashStartup(nullptr, false);
         }
@@ -110,6 +131,7 @@ TEST_F(XashStartup, AbsentHooksRecordTheSequenceAndInitArgv)
     EXPECT_TRUE(con_initialized);
     EXPECT_FALSE(con_debuglog);
     EXPECT_FALSE(g_bCS_CZ_Flags_Initialized);
+    EXPECT_EQ(g_engfuncs.pfnGetGameDir, nullptr);
     EXPECT_NE(engine->client_state, nullptr);
     EXPECT_NE(engine->cl_enginefunc, nullptr);
     EXPECT_EQ(engine->Sys_Error.GetHook(), nullptr);
@@ -207,6 +229,7 @@ TEST_F(XashStartup, ConInitReadsCondebugAndLeavesTheLog)
         EXPECT_EQ(engine->Sys_Error.GetHook(), nullptr);
         EXPECT_EQ(engine->CL_Init.GetHook(), nullptr);
         EXPECT_FALSE(g_bCS_CZ_Flags_Initialized);
+        EXPECT_EQ(g_engfuncs.pfnGetGameDir, nullptr);
         EXPECT_FALSE(MapsContain(root / "hw.so"));
 
         std::ifstream kept(log);
@@ -263,6 +286,7 @@ TEST_F(XashStartup, WiredCallDoesNotOpenHwSo)
         EXPECT_TRUE(con_initialized);
         EXPECT_FALSE(con_debuglog);
         EXPECT_FALSE(g_bCS_CZ_Flags_Initialized);
+        EXPECT_EQ(g_engfuncs.pfnGetGameDir, nullptr);
         EXPECT_EQ(EngineMini_XashStartup()->shutdown_calls, 0);
         EXPECT_EQ(EngineMini_XashStartup()->error_calls, 0);
         EXPECT_FALSE(MapsContain(root / "hw.so"));
@@ -282,5 +306,111 @@ TEST_F(XashStartup, WiredCallDoesNotOpenHwSo)
     {
         ASSERT_EQ(setenv("LD_LIBRARY_PATH", saved_path.c_str(), 1), 0);
     }
+    std::filesystem::remove_all(root);
+}
+
+TEST_F(XashStartup, SetCStrikeFlagsReadsTheMountedDirectory)
+{
+    Dl_info info{};
+    ASSERT_NE(dladdr(reinterpret_cast<void*>(csr_xash_engine_argv), &info), 0);
+    ASSERT_NE(info.dli_fname, nullptr);
+
+    const std::filesystem::path root = std::filesystem::temp_directory_path() / "csretro-xash-gamedir";
+    std::filesystem::remove_all(root);
+    std::filesystem::create_directories(root);
+    std::filesystem::copy_file(info.dli_fname, root / "hw.so");
+    const std::filesystem::path game = root / "cstrike";
+    std::filesystem::create_directory(game);
+
+    const char* previous_path = std::getenv("LD_LIBRARY_PATH");
+    const std::string saved_path = previous_path != nullptr ? previous_path : "";
+    ASSERT_EQ(setenv("LD_LIBRARY_PATH", root.c_str(), 1), 0);
+
+    auto engine = std::make_unique<nitroapi::EngineData>();
+    EngineMini_BindXashStartup(engine.get(), true);
+    csr_host_filesystem_clear();
+
+    {
+        const WorkingDirectory directory(root);
+        char arg0[] = "xash";
+        char arg1[] = "-console";
+        char* argv[] = {arg0, arg1, nullptr};
+        int window = 0;
+        csr_xash_engine_argv(2, argv);
+
+        EXPECT_EQ(csr_host_filesystem_set_root(""), 0);
+        EXPECT_EQ(csr_host_filesystem_set_root("/no/such/csretro-content-root"), 0);
+        EXPECT_EQ(csr_host_filesystem_mounted(), 0);
+
+        g_bCS_CZ_Flags_Initialized = false;
+        g_bIsCStrike = false;
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+
+        EXPECT_EQ(EngineMini_XashStartup()->initializing_calls, 1);
+        EXPECT_TRUE(con_initialized);
+        EXPECT_EQ(g_engfuncs.pfnGetGameDir, nullptr);
+        EXPECT_FALSE(g_bCS_CZ_Flags_Initialized);
+        EXPECT_FALSE(g_bIsCStrike);
+        EXPECT_EQ(EngineMini_XashStartup()->shutdown_calls, 0);
+        EXPECT_EQ(EngineMini_XashStartup()->error_calls, 0);
+        EXPECT_EQ(engine->Sys_Error.GetHook(), nullptr);
+        EXPECT_FALSE(MapsContain(root / "hw.so"));
+
+        ASSERT_EQ(csr_host_filesystem_set_root(root.c_str()), 1);
+        g_bCS_CZ_Flags_Initialized = false;
+        g_bIsCStrike = false;
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+
+        ASSERT_NE(g_engfuncs.pfnGetGameDir, nullptr);
+        Dl_info game_dir{};
+        ASSERT_NE(dladdr(reinterpret_cast<void*>(g_engfuncs.pfnGetGameDir), &game_dir), 0);
+        ASSERT_NE(game_dir.dli_fname, nullptr);
+        EXPECT_EQ(std::string(game_dir.dli_fname).find("hw.so"), std::string::npos);
+
+        char written[goldsrc::MAX_OSPATH];
+        written[0] = '\0';
+        g_engfuncs.pfnGetGameDir(written);
+        EXPECT_EQ(std::string(written), root.filename().string());
+        EXPECT_NE(std::string(written), "cstrike");
+        EXPECT_TRUE(g_bCS_CZ_Flags_Initialized);
+        EXPECT_FALSE(g_bIsCStrike);
+        EXPECT_FALSE(g_bIsCZero);
+        EXPECT_FALSE(g_bIsHL1);
+
+        ASSERT_EQ(csr_host_filesystem_set_root(game.c_str()), 1);
+        g_bCS_CZ_Flags_Initialized = false;
+        g_bIsCStrike = false;
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+
+        ASSERT_NE(g_engfuncs.pfnGetGameDir, nullptr);
+        g_engfuncs.pfnGetGameDir(written);
+        EXPECT_STREQ(written, "cstrike");
+        EXPECT_TRUE(g_bCS_CZ_Flags_Initialized);
+        EXPECT_TRUE(g_bIsCStrike);
+        EXPECT_FALSE(g_bIsHL1);
+        EXPECT_EQ(engine->Sys_Error.GetHook(), nullptr);
+        EXPECT_EQ(engine->CL_Init.GetHook(), nullptr);
+        EXPECT_EQ(EngineMini_XashStartup()->shutdown_calls, 0);
+        EXPECT_EQ(EngineMini_XashStartup()->error_calls, 0);
+        EXPECT_FALSE(MapsContain(root / "hw.so"));
+
+        csr_host_filesystem_clear();
+        g_bCS_CZ_Flags_Initialized = false;
+        g_bIsCStrike = false;
+        csr_xash_engine_mode(&window, nullptr, nullptr, "gl", "-windowed", 1);
+        EXPECT_EQ(g_engfuncs.pfnGetGameDir, nullptr);
+        EXPECT_FALSE(g_bCS_CZ_Flags_Initialized);
+        EXPECT_FALSE(g_bIsCStrike);
+    }
+
+    if (previous_path == nullptr)
+    {
+        ASSERT_EQ(unsetenv("LD_LIBRARY_PATH"), 0);
+    }
+    else
+    {
+        ASSERT_EQ(setenv("LD_LIBRARY_PATH", saved_path.c_str(), 1), 0);
+    }
+    csr_host_filesystem_clear();
     std::filesystem::remove_all(root);
 }

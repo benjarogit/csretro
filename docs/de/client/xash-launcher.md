@@ -22,7 +22,10 @@ geladen. Fehlt sie, bleibt der Host offen. Danach folgt
 Öffnen `engine_mini`, ruft `EngineMini::Init` und danach argv, Modus und
 Init. `COM_InitArgv` läuft. `OnGameInitializing` liest eine Zeigertabelle aus
 diesem Prozess, ruft `Con_Init` und ruft `Sys_Error` nicht. `-condebug` ruft
-ein Null-Dateisystem nicht auf. Shutdown und der fatale Fehler
+ein Null-Dateisystem nicht auf. `pfnGetGameDir` schreibt den Namen des
+gemounteten Verzeichnisses. Ein leeres Mount lässt diesen Zeiger null, und
+`SetCStrikeFlags` wird nicht aufgerufen. Ein vorhandener Name lässt
+`SetCStrikeFlags` laufen. Shutdown und der fatale Fehler
 bleiben gebunden und werden nicht gerufen. Eine fehlende Bibliothek oder ein
 fehlender
 Export lässt das Öffnen scheitern und ist kein Aufruf. Der geplante

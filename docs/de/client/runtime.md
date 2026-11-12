@@ -27,6 +27,9 @@ bleiben gebunden. `COM_InitArgv` läuft dabei. `OnGameInitializing` liest eine
 Zeigertabelle aus diesem Prozess. Ein Null-Funktionszeiger ist kein Aufruf,
 und `Sys_Error` wird nicht gerufen. `Con_Init` läuft danach. Es liest
 `-condebug` über `COM_CheckParm` und ruft ein Null-Dateisystem nicht auf.
+`pfnGetGameDir` schreibt danach den Namen des gemounteten Verzeichnisses.
+Ein leeres Mount lässt diesen Zeiger null, und `SetCStrikeFlags` wird nicht
+aufgerufen. Ein vorhandener Name lässt `SetCStrikeFlags` laufen.
 Die Retail-Hook-Kette läuft dabei nicht. `hw.so` wird nicht geöffnet. `RunFrame` wird
 nicht gerufen. Die übrigen `engine_mini`-Weiterleitungen bleiben am
 Retail-Hook.

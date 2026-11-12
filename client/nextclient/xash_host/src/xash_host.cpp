@@ -1234,7 +1234,9 @@ int csr_host_load_engine(const char* engine_path, const char* nitro_path, const 
 
     // Pointers stay in this process for COM_CheckParm. Shutdown and the fatal
     // error stay bound and are not called here. OnGameInitializing reads the
-    // Xash table, runs Con_Init, and does not call Sys_Error.
+    // Xash table, runs Con_Init, then SetCStrikeFlags when pfnGetGameDir is
+    // set from the mounted directory. A null pointer is not a call, and
+    // Sys_Error is not called.
     char* argv[] = {g_engine_arg0, g_engine_arg1};
     csr_xash_engine_argv(2, argv);
     csr_xash_engine_mode(&g_engine_window, nullptr, nullptr, "gl", g_engine_mode_line, 1);

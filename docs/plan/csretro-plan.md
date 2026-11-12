@@ -411,8 +411,12 @@ Nebenbefunde:
   `CL_RequestMissingResources` ist danach die Funktion in diesem Prozess,
   wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn
   nicht auf, daher wird keine Ressource angefordert und kein Socket geöffnet.
-  Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-  Retail-Hook ist `CL_Disconnect`. Dieser Pfad kehrt davor zurück.
+  Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+  `CL_Disconnect` ist danach die Funktion in diesem Prozess, wenn dieser
+  Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
+  daher wird nicht getrennt und kein Socket geöffnet. Ein Null-Zeiger ist
+  kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
+  `CL_ClearState`. Dieser Pfad kehrt davor zurück.
   `OnGameInitialized` wird nicht betreten. Die Retail-Hook-Kette läuft dabei nicht.
   `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen haben weiter
   keinen Xash3D-Einsprung.
@@ -780,8 +784,12 @@ ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
 `CL_RequestMissingResources` ist danach die Funktion in diesem Prozess,
 wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn
 nicht auf, daher wird keine Ressource angefordert und kein Socket geöffnet.
-Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-Retail-Hook ist `CL_Disconnect`. Dieser Pfad kehrt davor zurück.
+Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf.
+`CL_Disconnect` ist danach die Funktion in diesem Prozess, wenn dieser
+Retail-Hook fehlt. Der Init speichert den Zeiger und ruft ihn nicht auf,
+daher wird nicht getrennt und kein Socket geöffnet. Ein Null-Zeiger ist
+kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
+`CL_ClearState`. Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten. Die
 Retail-Hook-Kette und ein Xash-Frame laufen dabei nicht. `hw.so` wird nicht geöffnet.
 `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen von `engine_mini`

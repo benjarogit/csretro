@@ -58,8 +58,11 @@ opened. A null pointer is not a call. A null hook is not a call.
 `CL_RequestMissingResources` is then the function in this process when that
 retail hook is absent. Init stores the pointer and does not call it, so no
 resource is requested and no socket is opened. A null pointer is not a
-call. A null hook is not a call. The next retail hook is `CL_Disconnect`.
-This path returns before it.
+call. A null hook is not a call. `CL_Disconnect` is then the function in
+this process when that retail hook is absent. Init stores the pointer and
+does not call it, so no disconnect runs and no socket is opened. A null
+pointer is not a call. A null hook is not a call. The next retail hook is
+`CL_ClearState`. This path returns before it.
 `OnGameInitialized` is not entered. The retail hook chain
 does not run. `hw.so` is not opened.
 `RunFrame` is not called. The other `engine_mini` forwards stay on the retail

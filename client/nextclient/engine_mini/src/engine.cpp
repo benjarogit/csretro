@@ -388,6 +388,7 @@ namespace
     void RecordXashStartResourceDownloading();
     void RecordXashReadPackets();
     void RecordXashRequestMissingResources();
+    void RecordXashDisconnect();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -413,7 +414,10 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not read a packet.
     // CL_RequestMissingResources is then the process function when that hook
     // is absent. This init stores the pointer and does not request a resource.
-    // The next retail hook is CL_Disconnect. This path returns before it.
+    // CL_Disconnect is then the process function when that hook is absent.
+    // This init stores the pointer and does not disconnect. The retail body
+    // reads client state and can transmit, so a real call does not run.
+    // The next retail hook is CL_ClearState. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -432,6 +436,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashStartResourceDownloading();
             RecordXashReadPackets();
             RecordXashRequestMissingResources();
+            RecordXashDisconnect();
         }
         return;
     }
@@ -859,6 +864,7 @@ EngineMiniHttpStopFn g_EngineMiniHttpStop = CL_HTTPStop_f;
 EngineMiniStartResourceDownloadingFn g_EngineMiniStartResourceDownloading = CL_StartResourceDownloading;
 EngineMiniReadPacketsFn g_EngineMiniReadPackets = CL_ReadPackets;
 EngineMiniRequestMissingResourcesFn g_EngineMiniRequestMissingResources = CL_RequestMissingResources;
+EngineMiniDisconnectFn g_EngineMiniDisconnect = CL_Disconnect;
 
 namespace
 {
@@ -1008,6 +1014,23 @@ namespace
             return;
         }
         g_xash_startup.request_missing = g_EngineMiniRequestMissingResources;
+    }
+
+    void RecordXashDisconnect()
+    {
+        // The retail site installs a replacement. It does not disconnect during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The retail body reads client state and can transmit, so this path does not call it.
+        g_xash_startup.disconnect = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->CL_Disconnect.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniDisconnect == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.disconnect = g_EngineMiniDisconnect;
     }
 
     bool XashStartupIsActive()
@@ -1272,6 +1295,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniStartResourceDownloading = CL_StartResourceDownloading;
     g_EngineMiniReadPackets = CL_ReadPackets;
     g_EngineMiniRequestMissingResources = CL_RequestMissingResources;
+    g_EngineMiniDisconnect = CL_Disconnect;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

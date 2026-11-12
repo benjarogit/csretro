@@ -190,8 +190,12 @@ ist danach die Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der In
 speichert den Zeiger und ruft ihn nicht auf, daher bleiben gesetzte Studio- und
 Skin-Felder unverändert, keine Studio-Skin wird neu geladen, keine Textur wird
 berührt, kein Sprite wird geladen und kein Socket wird geöffnet. Ein Null-Zeiger
-ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
-`SetCrosshair`. Dieser Pfad kehrt davor zurück.
+ist kein Aufruf. Ein Null-Hook ist kein Aufruf. `SetCrosshair` ist danach die
+Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den
+Zeiger und ruft ihn nicht auf, daher bleiben gesetztes Crosshair-Sprite, Farbe und
+Rechteck unverändert, kein Crosshair wird gesetzt, kein Sprite wird geladen und
+kein Socket wird geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein
+Aufruf. Der nächste Retail-Hook ist `DrawCrosshair`. Dieser Pfad kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie

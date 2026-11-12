@@ -416,6 +416,7 @@ namespace
     void RecordXashSprFrames();
     void RecordXashSprGetModelPointer();
     void RecordXashRStudioReloadSkin();
+    void RecordXashSetCrosshair();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -548,7 +549,10 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // R_StudioReloadSkin is then the process function when that hook is absent.
     // This init stores the pointer and does not reload a studio skin. The process body
     // can load a model texture and write skin fields, so a real call does not run.
-    // The next retail hook is SetCrosshair. This path returns before it.
+    // SetCrosshair is then the process function when that hook is absent.
+    // This init stores the pointer and does not set the crosshair. The process body
+    // can write the crosshair sprite, color and rectangle, so a real call does not run.
+    // The next retail hook is DrawCrosshair. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -595,6 +599,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashSprFrames();
             RecordXashSprGetModelPointer();
             RecordXashRStudioReloadSkin();
+            RecordXashSetCrosshair();
         }
         return;
     }
@@ -1050,6 +1055,7 @@ EngineMiniSprHeightFn g_EngineMiniSprHeight = SPR_Height;
 EngineMiniSprFramesFn g_EngineMiniSprFrames = SPR_Frames;
 EngineMiniSprGetModelPointerFn g_EngineMiniSprGetModelPointer = SPR_GetModelPointer;
 EngineMiniRStudioReloadSkinFn g_EngineMiniRStudioReloadSkin = R_StudioReloadSkin;
+EngineMiniSetCrosshairFn g_EngineMiniSetCrosshair = SetCrosshair;
 
 namespace
 {
@@ -1696,6 +1702,24 @@ namespace
         g_xash_startup.studio_reload_skin = g_EngineMiniRStudioReloadSkin;
     }
 
+    void RecordXashSetCrosshair()
+    {
+        // The retail site installs a replacement. It does not set the crosshair during init.
+        // A null function pointer is not a call. A null hook is not a call.
+        // The process body can write the crosshair sprite, color and rectangle,
+        // so this path does not call it.
+        g_xash_startup.set_crosshair = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->SetCrosshair.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniSetCrosshair == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.set_crosshair = g_EngineMiniSetCrosshair;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2004,6 +2028,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniSprFrames = SPR_Frames;
     g_EngineMiniSprGetModelPointer = SPR_GetModelPointer;
     g_EngineMiniRStudioReloadSkin = R_StudioReloadSkin;
+    g_EngineMiniSetCrosshair = SetCrosshair;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)
@@ -2372,6 +2397,10 @@ extern "C" void EngineMini_ReadFrameGuard(int* host_filter_calls, int* stored_fu
             ++count;
         }
         if (g_xash_startup.studio_reload_skin != nullptr)
+        {
+            ++count;
+        }
+        if (g_xash_startup.set_crosshair != nullptr)
         {
             ++count;
         }

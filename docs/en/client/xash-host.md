@@ -169,8 +169,12 @@ not a call. `R_StudioReloadSkin` is then the function in this process when that
 retail hook is absent. Init stores the pointer and does not call it, so planted
 studio and skin fields stay unchanged, no studio skin is reloaded, no texture is
 touched, no sprite is loaded and no socket is opened. A null pointer is not a
-call. A null hook is not a call. The next retail hook is `SetCrosshair`. This
-path returns before it.
+call. A null hook is not a call. `SetCrosshair` is then the function in this
+process when that retail hook is absent. Init stores the pointer and does not
+call it, so planted crosshair sprite, color and rectangle stay unchanged, no
+crosshair is set, no sprite is loaded and no socket is opened. A null pointer is
+not a call. A null hook is not a call. The next retail hook is `DrawCrosshair`.
+This path returns before it.
 `csr_host_frame` is a later direct call and does not extend that list.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and that open does not call them. A missing library or export fails

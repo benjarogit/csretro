@@ -547,8 +547,12 @@ Nebenbefunde:
   speichert den Zeiger und ruft ihn nicht auf, daher bleiben gesetzte Studio- und
   Skin-Felder unverändert, keine Studio-Skin wird neu geladen, keine Textur wird
   berührt, kein Sprite wird geladen und kein Socket wird geöffnet. Ein Null-Zeiger
-  ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
-  `SetCrosshair`. Dieser Pfad kehrt davor zurück.
+  ist kein Aufruf. Ein Null-Hook ist kein Aufruf. `SetCrosshair` ist danach die
+  Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den
+  Zeiger und ruft ihn nicht auf, daher bleiben gesetztes Crosshair-Sprite, Farbe und
+  Rechteck unverändert, kein Crosshair wird gesetzt, kein Sprite wird geladen und
+  kein Socket wird geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein
+  Aufruf. Der nächste Retail-Hook ist `DrawCrosshair`. Dieser Pfad kehrt davor zurück.
   `OnGameInitialized` wird nicht betreten. Die Retail-Hook-Kette läuft dabei nicht.
   Der Xash-Frame ist der spätere direkte Aufruf `csr_host_frame` und verlängert diese Liste nicht.
   `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen haben weiter
@@ -1053,8 +1057,12 @@ ist danach die Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der In
 speichert den Zeiger und ruft ihn nicht auf, daher bleiben gesetzte Studio- und
 Skin-Felder unverändert, keine Studio-Skin wird neu geladen, keine Textur wird
 berührt, kein Sprite wird geladen und kein Socket wird geöffnet. Ein Null-Zeiger
-ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
-`SetCrosshair`. Dieser Pfad kehrt davor zurück.
+ist kein Aufruf. Ein Null-Hook ist kein Aufruf. `SetCrosshair` ist danach die
+Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den
+Zeiger und ruft ihn nicht auf, daher bleiben gesetztes Crosshair-Sprite, Farbe und
+Rechteck unverändert, kein Crosshair wird gesetzt, kein Sprite wird geladen und
+kein Socket wird geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein
+Aufruf. Der nächste Retail-Hook ist `DrawCrosshair`. Dieser Pfad kehrt davor zurück.
 `OnGameInitialized` wird nicht betreten. Die
 Retail-Hook-Kette läuft bei diesem Init nicht. `csr_host_frame` ist hier kein
 Aufruf. Der Frame ist der spätere direkte Aufruf und verlängert die Hook-Liste
@@ -1185,7 +1193,7 @@ ist die Swap-Zahl N, und die Host-Zeit ist um N mal das Delta vorgerückt.
 Die X11-Verbindung ist der Socket des Fensters. Ein
 Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
 Surface-Tests behalten ihr EGL-Pbuffer. Die Retail-Hook-Liste wird nicht
-verlängert. Der nächste Retail-Hook bleibt `SetCrosshair`.
+verlängert. Der nächste Retail-Hook bleibt `DrawCrosshair`.
 `OnGameInitialized` bleibt außen: der Einstieg lädt Materialdateien, löst
 `vgui2` auf und geht in die übrige Retail-Initialisierung, daher kehrt er
 nicht ohne `hw.so` zurück.

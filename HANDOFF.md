@@ -8,8 +8,8 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-12
 - **Gate:** G07 – Default Public runtime, **in progress** (G07a–G07c done, G07d fixed; the Xash3D spike proved text, fills, textures, layout, fonts and a team-menu click; engine direction Option A; `xash_surface.so` is a host-factory `VGUI_Surface026` with fills, texture quads, a FreeType glyph atlas, a panel solve/paint entry, mouse dispatch and an `xash_host` factory; the Xash client does not start a Steam process, original game content stays required; local identity is one lookup, `player_identity-tests` 6/6)
 - **Branch:** `main`
-- **Commit:** `9645d67` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`, `CL_ClearState`, `Host_Map_f`, `Host_FilterTime`, `Mod_ClearAll`, `Mod_FindName`, `Mod_Print`, `Mod_ValidateCRC`, `Mod_NeedCRC`, `Mod_LoadModel`, `Mod_ForName` and `Mod_Extradata` are the process functions and are not called; no game socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected, client state stays unchanged, no map is loaded, init leaves host time unchanged, the model list stays unchanged, no model is looked up or loaded, the model list is not printed, no CRC is validated, the need-CRC flag stays unchanged, no model file is read and no model is looked up; `Mod_Extradata` is stored and not called, so no extradata is read and `Sys_Error` does not run; the next retail hook is `SPR_Init`; `hw.so` stays unmapped; `csr_host_frame` chooses an EGL config whose native visual can be a child of the root, prefers the root depth, sets a border pixel, creates that window, calls `eglSwapBuffers` and advances host time by the caller delta; `csr_host_pump` repeats that frame N times on the same mapped window, forwards X11 motion and button events, then destroys the window; after N frames the swap count is N and host time has advanced by N times the delta; `Host_FilterTime` and `CVGui::RunFrame` stay uncalled; the pump installs no retail hook; `csr_host_run` keeps that window mapped and repeats the frame until the recorded client command is `quit`; `QuitNoConfirm` records it through `pfnClientCmd` and does not run it; motion and button input still reach `csr_host_input_move` and `csr_host_input_button`; after quit the call returns, the window is destroyed, the swap count is the frame count and host time has advanced by that count times the delta; `PresentXashLauncher` paints one frame and does not call the loop; `csr::RunXashLauncher` opens the host the way `OpenXashLauncher` does and then calls `csr_host_run`; that call does not play Counter-Strike; the proof is the test's own Xvfb)
-- **CI:** https://github.com/benjarogit/csretro/actions/runs/43226017035 – success (`842a59d`); `Mod_LoadModel` https://github.com/benjarogit/csretro/actions/runs/43225899556 – success (`974a190`); handoff https://github.com/benjarogit/csretro/actions/runs/43226390114 – success (`3ea0358`); `Mod_ForName` https://github.com/benjarogit/csretro/actions/runs/43227746022 – success (`45a0e26`); `Mod_ForName` handoff https://github.com/benjarogit/csretro/actions/runs/43228015064 – success (`dc043ce`); run loop https://github.com/benjarogit/csretro/actions/runs/43228562464 – success (`3360574`); run-loop handoff https://github.com/benjarogit/csretro/actions/runs/43228788174 – success (`811a39e`); `Mod_Extradata` https://github.com/benjarogit/csretro/actions/runs/43229319615 – success (`ad368de`); `Mod_Extradata` handoff https://github.com/benjarogit/csretro/actions/runs/43229606700 – success (`295302a`); launcher entry https://github.com/benjarogit/csretro/actions/runs/43231309656 – success (`9645d67`); launcher-entry handoff https://github.com/benjarogit/csretro/actions/runs/43231552938 – success (`c21d8ff`)
+- **Commit:** `0b881c4` (`OnGameInitializing` stores a process engine table, then `Con_Init` and `SetCStrikeFlags` run; `NET_SendPacket`, `Netchan_CopyFileFragments`, `SVC_TimeScale` (`CL_Parse_Timescale`), `SVC_SendCvarValue` (`CL_Send_CvarValue`), `CL_HTTPUpdate`, `CL_HTTPStop_f`, `CL_StartResourceDownloading`, `CL_ReadPackets`, `CL_RequestMissingResources`, `CL_Disconnect`, `CL_ClearState`, `Host_Map_f`, `Host_FilterTime`, `Mod_ClearAll`, `Mod_FindName`, `Mod_Print`, `Mod_ValidateCRC`, `Mod_NeedCRC`, `Mod_LoadModel`, `Mod_ForName` and `Mod_Extradata` are the process functions and are not called; no game socket is opened, no fragment file is copied, the timescale stays unchanged, no cvar is sent, no HTTP request is made, no download is stopped, no resource download is started, no packet is read, no resource is requested, no session is disconnected, client state stays unchanged, no map is loaded, init leaves host time unchanged, the model list stays unchanged, no model is looked up or loaded, the model list is not printed, no CRC is validated, the need-CRC flag stays unchanged, no model file is read and no model is looked up; `Mod_Extradata` is stored and not called, so no extradata is read and `Sys_Error` does not run; `SPR_Init` is stored and not called, so an empty sprite list stays unallocated; the next retail hook is `SPR_Shutdown`; `hw.so` stays unmapped; `csr_host_frame` chooses an EGL config whose native visual can be a child of the root, prefers the root depth, sets a border pixel, creates that window, calls `eglSwapBuffers` and advances host time by the caller delta; `csr_host_pump` repeats that frame N times on the same mapped window, forwards X11 motion and button events, then destroys the window; after N frames the swap count is N and host time has advanced by N times the delta; `Host_FilterTime` and `CVGui::RunFrame` stay uncalled; the pump installs no retail hook; `csr_host_run` keeps that window mapped and repeats the frame until the recorded client command is `quit`; `QuitNoConfirm` records it through `pfnClientCmd` and does not run it; motion and button input still reach `csr_host_input_move` and `csr_host_input_button`; after quit the call returns, the window is destroyed, the swap count is the frame count and host time has advanced by that count times the delta; `PresentXashLauncher` paints one frame and does not call the loop; `csr::RunXashLauncher` opens the host the way `OpenXashLauncher` does and then calls `csr_host_run`; that call does not play Counter-Strike; the proof is the test's own Xvfb)
+- **CI:** https://github.com/benjarogit/csretro/actions/runs/43226017035 – success (`842a59d`); `Mod_LoadModel` https://github.com/benjarogit/csretro/actions/runs/43225899556 – success (`974a190`); handoff https://github.com/benjarogit/csretro/actions/runs/43226390114 – success (`3ea0358`); `Mod_ForName` https://github.com/benjarogit/csretro/actions/runs/43227746022 – success (`45a0e26`); `Mod_ForName` handoff https://github.com/benjarogit/csretro/actions/runs/43228015064 – success (`dc043ce`); run loop https://github.com/benjarogit/csretro/actions/runs/43228562464 – success (`3360574`); run-loop handoff https://github.com/benjarogit/csretro/actions/runs/43228788174 – success (`811a39e`); `Mod_Extradata` https://github.com/benjarogit/csretro/actions/runs/43229319615 – success (`ad368de`); `Mod_Extradata` handoff https://github.com/benjarogit/csretro/actions/runs/43229606700 – success (`295302a`); launcher entry https://github.com/benjarogit/csretro/actions/runs/43231309656 – success (`9645d67`); launcher-entry handoff https://github.com/benjarogit/csretro/actions/runs/43231552938 – success (`c21d8ff`); launcher-entry CI record https://github.com/benjarogit/csretro/actions/runs/43231699713 – success (`edf4ee1`); `SPR_Init` is in https://github.com/benjarogit/csretro/actions/runs/43231699713 – success (`edf4ee1`, contains `0b881c4`; direct run https://github.com/benjarogit/csretro/actions/runs/43231637585 was cancelled)
 - **Pages:** https://github.com/benjarogit/csretro/actions/runs/43183431937 – success; site https://benjarogit.github.io/csretro/ uses the Zensical default template
 - **Version:** `1.0.0-dev` (`VERSION`; first release tag `v1.0.0` only at G14 when playable)
 - **Repo visibility:** `public` (`versions.lock.json`); collaboration, Page, SemVer and upstream policy live in `docs/plan/csretro-plan.md` §11
@@ -775,9 +775,11 @@ the Security overview switches in the browser.
   and does not call it. A null pointer is not a call. A null hook is not a
   call. No extradata is read, no model is loaded, no model file is read,
   no CRC is computed, needload stays unchanged and `Sys_Error` does not run.
-  The next retail hook in `OnGameInitializing` is `eng()->SPR_Init`
-  (`SPR_Init`). The process body allocates the sprite list when it is empty.
-  The Xash path returns before that install. This gate does not install it.
+  `SPR_Init` is the function in this process. Init stores that pointer
+  and does not call it. A null pointer is not a call. A null hook is not a
+  call. An empty sprite list stays unallocated, no sprite is loaded and no
+  file is read. The next retail hook is `SPR_Shutdown`. The Xash path
+  returns before that install.
   `OnGameInitialized` is not entered.
   `csr_host_frame` chooses an EGL config whose native visual can be a child
   of the root window, prefers a visual at the root depth, sets a border
@@ -850,6 +852,45 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Process `SPR_Init` on the Xash path (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
+
+```text
+$ engine_mini-tests --gtest_filter=XashStartup.*
+27/27 passed
+SprInitUsesTheProcessFunction
+
+$ engine_mini-tests
+582/582 passed
+
+$ xash_host-tests
+20/20 passed
+
+$ xash_launcher-tests
+10/10 passed
+RunKeepsTheWindowUntilQuit
+```
+
+`OnGameInitializing` stores `SPR_Init` from this process when that retail
+hook is absent and does not call it. `spr_init_calls` stays 0. A null
+pointer leaves the recorded pointer null and is not a call. A null hook is
+not a call. The process body allocates the sprite list when it is empty. It
+was not called. The sprite list stayed unallocated, `gSpriteCount` stayed 0,
+no sprite was loaded and no file was read. A planted brush CRC stays
+`shouldCRC` 1, `firstCRCDone` 1, `initialCRC` `0xC5C5C5C5`, and a planted
+sprite CRC stays `shouldCRC` 0, `firstCRCDone` 0, `initialCRC` `0x11111111`.
+Brush `maps/csretro_keep.bsp` stays `NL_PRESENT` and sprite
+`sprites/csretro_keep.spr` stays `NL_NEEDS_LOADED`, each with the same cache
+pointer. `levelname` stays `csretro-keep`. Host time stays `9.25` and the
+frame interval stays `0.05`. `/proc/self/fd` stays unchanged. The next retail
+hook is `eng()->SPR_Shutdown` (`SPR_Shutdown`). That hook stays null. The
+Xash path returns before it. `OnGameInitialized` is not entered.
+`csr_host_frame` is not this init. The game was not started.
+The client is not playable.
+
+The direct feature run https://github.com/benjarogit/csretro/actions/runs/43231637585 (`0b881c4`) was cancelled by the later handoff push. The green tip that contains `0b881c4` is https://github.com/benjarogit/csretro/actions/runs/43231699713 success (`edf4ee1`).
+
+`scripts/verify.sh`: 68 checks passed.
 
 Launcher entry runs until quit (2026-11-12, preset `linux-tests-release`, ELF64, game not started):
 

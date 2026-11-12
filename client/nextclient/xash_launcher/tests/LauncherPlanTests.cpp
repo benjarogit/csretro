@@ -4,18 +4,30 @@
 
 #include <gtest/gtest.h>
 
+#include <EGL/egl.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+
 #include <dlfcn.h>
 
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstddef>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <sstream>
 #include <string>
 #include <vector>
 
+#include <signal.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 namespace
@@ -290,6 +302,160 @@ bool ReadOpenSockets(std::vector<std::string>* links)
     return true;
 }
 
+bool PeerSocketPath(const std::string& link, std::string* path)
+{
+    std::error_code error;
+    const std::filesystem::directory_iterator end;
+    for (std::filesystem::directory_iterator it("/proc/self/fd", error); !error && it != end; it.increment(error))
+    {
+        std::error_code link_error;
+        const std::filesystem::path target = std::filesystem::read_symlink(it->path(), link_error);
+        if (link_error || target.string() != link)
+        {
+            continue;
+        }
+        const int fd = std::atoi(it->path().filename().string().c_str());
+        sockaddr_un peer = {};
+        socklen_t length = sizeof(peer);
+        if (getpeername(fd, reinterpret_cast<sockaddr*>(&peer), &length) != 0)
+        {
+            return false;
+        }
+        const socklen_t path_offset = offsetof(sockaddr_un, sun_path);
+        if (length <= path_offset)
+        {
+            return false;
+        }
+        if (peer.sun_path[0] == '\0')
+        {
+            path->assign(peer.sun_path + 1, static_cast<size_t>(length - path_offset - 1));
+        }
+        else
+        {
+            path->assign(peer.sun_path);
+        }
+        return true;
+    }
+    return false;
+}
+
+// The frame opens whatever DISPLAY names. This server is that display for the
+// test, at the same size as the frame. It is not the game process.
+struct VirtualDisplay
+{
+    pid_t pid = -1;
+    std::string number;
+    std::string previous_display;
+    bool changed_display = false;
+    std::string previous_software;
+    bool had_software = false;
+    bool changed_software = false;
+
+    bool Start(std::string* error)
+    {
+        int chosen = -1;
+        for (int candidate = 20; candidate < 60; ++candidate)
+        {
+            const std::string probe_name = ":" + std::to_string(candidate);
+            Display* probe = XOpenDisplay(probe_name.c_str());
+            if (probe != nullptr)
+            {
+                XCloseDisplay(probe);
+                continue;
+            }
+            chosen = candidate;
+            break;
+        }
+        if (chosen < 0)
+        {
+            *error = "Xvfb";
+            return false;
+        }
+        number = std::to_string(chosen);
+        const std::string name = ":" + number;
+        pid = fork();
+        if (pid < 0)
+        {
+            *error = "fork";
+            return false;
+        }
+        if (pid == 0)
+        {
+            unsetenv("LD_LIBRARY_PATH");
+            execlp("Xvfb", "Xvfb", name.c_str(), "-nolisten", "tcp", "-screen", "0", "640x480x24", "+extension", "GLX", nullptr);
+            _exit(127);
+        }
+        bool ready = false;
+        for (int attempt = 0; attempt < 50; ++attempt)
+        {
+            Display* opened = XOpenDisplay(name.c_str());
+            if (opened != nullptr)
+            {
+                XCloseDisplay(opened);
+                ready = true;
+                break;
+            }
+            timespec delay = {};
+            delay.tv_nsec = 20 * 1000 * 1000;
+            nanosleep(&delay, nullptr);
+        }
+        if (!ready)
+        {
+            *error = "Xvfb";
+            return false;
+        }
+        const char* old_display = std::getenv("DISPLAY");
+        previous_display = old_display == nullptr ? "" : old_display;
+        if (setenv("DISPLAY", name.c_str(), 1) != 0)
+        {
+            *error = "setenv DISPLAY";
+            return false;
+        }
+        changed_display = true;
+        const char* software = std::getenv("LIBGL_ALWAYS_SOFTWARE");
+        had_software = software != nullptr;
+        previous_software = had_software ? software : "";
+        if (setenv("LIBGL_ALWAYS_SOFTWARE", "1", 1) != 0)
+        {
+            *error = "setenv LIBGL_ALWAYS_SOFTWARE";
+            return false;
+        }
+        changed_software = true;
+        return true;
+    }
+
+    ~VirtualDisplay()
+    {
+        if (changed_display)
+        {
+            if (previous_display.empty())
+            {
+                unsetenv("DISPLAY");
+            }
+            else
+            {
+                setenv("DISPLAY", previous_display.c_str(), 1);
+            }
+        }
+        if (changed_software)
+        {
+            if (!had_software)
+            {
+                unsetenv("LIBGL_ALWAYS_SOFTWARE");
+            }
+            else
+            {
+                setenv("LIBGL_ALWAYS_SOFTWARE", previous_software.c_str(), 1);
+            }
+        }
+        if (pid > 0)
+        {
+            kill(pid, SIGTERM);
+            waitpid(pid, nullptr, 0);
+        }
+    }
+};
+
 } // namespace
 
 TEST(XashLauncher, DirectFramePaintsGameUiAndAdvancesHostTime)
@@ -302,7 +468,9 @@ TEST(XashLauncher, DirectFramePaintsGameUiAndAdvancesHostTime)
     const double frametime_before = frametime;
     const double oldrealtime_before = oldrealtime;
 
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, nullptr, nullptr), 0);
     EXPECT_EQ(csr_host_frame(640, 480, 0.125), 0);
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, nullptr, nullptr), 0);
     csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
     EXPECT_DOUBLE_EQ(realtime, realtime_before);
     EXPECT_DOUBLE_EQ(frametime, frametime_before);
@@ -358,6 +526,9 @@ TEST(XashLauncher, DirectFramePaintsGameUiAndAdvancesHostTime)
 
     std::vector<std::string> sockets_before;
     ASSERT_TRUE(ReadOpenSockets(&sockets_before));
+    VirtualDisplay display;
+    std::string display_error;
+    ASSERT_TRUE(display.Start(&display_error)) << display_error;
     csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
     const double realtime_open = realtime;
 
@@ -376,7 +547,65 @@ TEST(XashLauncher, DirectFramePaintsGameUiAndAdvancesHostTime)
     std::string arguments((std::istreambuf_iterator<char>(cmdline)), std::istreambuf_iterator<char>());
     EXPECT_EQ(arguments.find("--surface"), std::string::npos);
 
-    ASSERT_EQ(csr_host_frame(640, 480, 0.125), 1);
+    ASSERT_EQ(csr_host_frame(640, 480, 0.125), 1) << csr_host_present_error();
+    void* egl_display = nullptr;
+    void* egl_surface = nullptr;
+    unsigned long window = 0;
+    int swaps = 0;
+    ASSERT_EQ(csr_host_present_query(&egl_display, &egl_surface, &window, &swaps), 1);
+    EXPECT_NE(egl_display, nullptr);
+    EXPECT_NE(egl_surface, nullptr);
+    EXPECT_NE(window, 0u);
+    EXPECT_EQ(swaps, 1);
+    EXPECT_EQ(eglGetCurrentDisplay(), egl_display);
+    EXPECT_EQ(eglGetCurrentSurface(EGL_DRAW), egl_surface);
+    EGLint surface_wide = 0;
+    EGLint surface_tall = 0;
+    EXPECT_EQ(
+        eglQuerySurface(static_cast<EGLDisplay>(egl_display), static_cast<EGLSurface>(egl_surface), EGL_WIDTH, &surface_wide),
+        static_cast<EGLBoolean>(EGL_TRUE)
+    );
+    EXPECT_EQ(
+        eglQuerySurface(static_cast<EGLDisplay>(egl_display), static_cast<EGLSurface>(egl_surface), EGL_HEIGHT, &surface_tall),
+        static_cast<EGLBoolean>(EGL_TRUE)
+    );
+    EXPECT_EQ(surface_wide, 640);
+    EXPECT_EQ(surface_tall, 480);
+    Display* view = XOpenDisplay(nullptr);
+    ASSERT_NE(view, nullptr) << "XOpenDisplay";
+    XWindowAttributes attributes = {};
+    ASSERT_NE(XGetWindowAttributes(view, static_cast<Window>(window), &attributes), 0);
+    EXPECT_EQ(attributes.width, 640);
+    EXPECT_EQ(attributes.height, 480);
+    EXPECT_EQ(attributes.map_state, IsViewable);
+    XImage* image = XGetImage(
+        view,
+        static_cast<Window>(window),
+        0,
+        0,
+        static_cast<unsigned int>(attributes.width),
+        static_cast<unsigned int>(attributes.height),
+        AllPlanes,
+        ZPixmap
+    );
+    ASSERT_NE(image, nullptr) << "XGetImage";
+    const int sample_y = attributes.height - 1;
+    const unsigned long corner = XGetPixel(image, 1, sample_y);
+    bool presented = false;
+    for (int y = sample_y - 7; y <= sample_y && !presented; ++y)
+    {
+        for (int x = 0; x < 8; ++x)
+        {
+            if (XGetPixel(image, x, y) == 0xff0000)
+            {
+                presented = true;
+            }
+        }
+    }
+    XDestroyImage(image);
+    XCloseDisplay(view);
+    const char* shown = std::getenv("DISPLAY");
+    EXPECT_TRUE(presented) << "DISPLAY=" << (shown == nullptr ? "" : shown) << " corner=0x" << std::hex << corner;
     EXPECT_STREQ(csr_host_last_client_command(), "setpause");
     csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
     EXPECT_DOUBLE_EQ(realtime, realtime_open + 0.125);
@@ -394,7 +623,16 @@ TEST(XashLauncher, DirectFramePaintsGameUiAndAdvancesHostTime)
 
     std::vector<std::string> sockets_after;
     ASSERT_TRUE(ReadOpenSockets(&sockets_after));
-    EXPECT_EQ(sockets_before, sockets_after);
+    std::vector<std::string> added;
+    std::set_difference(sockets_after.begin(), sockets_after.end(), sockets_before.begin(), sockets_before.end(), std::back_inserter(added));
+    ASSERT_FALSE(added.empty());
+    const std::string x11_path = "/tmp/.X11-unix/X" + display.number;
+    for (const std::string& link : added)
+    {
+        std::string path;
+        ASSERT_TRUE(PeerSocketPath(link, &path)) << link;
+        EXPECT_NE(path.find(x11_path), std::string::npos) << path;
+    }
     EXPECT_FALSE(MapsContain(planted_hw));
     auto steam_running = reinterpret_cast<bool (*)()>(dlsym(session.steam, "SteamAPI_IsSteamRunning"));
     ASSERT_NE(steam_running, nullptr);
@@ -404,6 +642,9 @@ TEST(XashLauncher, DirectFramePaintsGameUiAndAdvancesHostTime)
     const double frametime_held = frametime;
     const double oldrealtime_held = oldrealtime;
     EXPECT_EQ(csr_host_frame(0, 480, 0.125), 0);
+    int swaps_held = 0;
+    EXPECT_EQ(csr_host_present_query(nullptr, nullptr, nullptr, &swaps_held), 1);
+    EXPECT_EQ(swaps_held, 1);
     csr_host_read_host_time(&realtime, &frametime, &oldrealtime);
     EXPECT_DOUBLE_EQ(realtime, realtime_held);
     EXPECT_DOUBLE_EQ(frametime, frametime_held);

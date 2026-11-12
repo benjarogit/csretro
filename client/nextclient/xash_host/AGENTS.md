@@ -48,12 +48,15 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   name with no extension is the `.tga` beside it. A missing file is not a
   texture. The background image is drawn at time 0 before `Start`. The paint
   after `Start` builds the options pages. `RunFrame` stays unused.
-- `csr_host_frame` is one direct call. It shows the menu and paints it through
-  that same path, then adds the caller's delta to `realtime`, stores that
-  delta as `host_frametime`, and sets `oldrealtime` to the new realtime.
-  `Host_FilterTime` stays uncalled. No retail hook is added. `CVGui::RunFrame`
-  stays uncalled. `hw.so`, Steam, sockets and the planned command stay out.
-  `OnGameInitialized` stays out.
+- `csr_host_frame` is one direct call. It opens the X11 display, creates an
+  EGL window surface, shows the menu and paints it through that same path,
+  then calls `eglSwapBuffers`. It adds the caller's delta to `realtime`,
+  stores that delta as `host_frametime`, and sets `oldrealtime` to the new
+  realtime. A failed surface or swap leaves the clock where it is.
+  `ISurface::SwapBuffers` stays empty. `Host_FilterTime` stays uncalled. No
+  retail hook is added. `CVGui::RunFrame` stays uncalled. `hw.so`, Steam and
+  the planned command stay out. The X11 display connection is the window's
+  socket. `OnGameInitialized` stays out.
 - Extra factories follow those entries. The surface name is not forwarded to them.
 - `csr_host_bind_input` forwards cursor, press and release, then one dispatch.
   `CVGui::RunFrame` is not called. `SurfaceSetCursorPos` does not dispatch.

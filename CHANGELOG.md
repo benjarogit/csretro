@@ -103,11 +103,15 @@ The authoritative version string is the `VERSION` file.
   rejected and no socket is opened. A null pointer is not a call. A null
   hook is not a call. The next retail hook is `Mod_NeedCRC`. This path
   returns before it.
-  `csr_host_frame` is a later direct call. One call paints one GameUI frame
-  through the present path and adds the caller's delta to host time by
-  writing `realtime`, `host_frametime` and `oldrealtime`. `Host_FilterTime`
-  is not called, no hook is installed, and `CVGui::RunFrame` is not called.
-  The retail hook list is not extended.
+  `csr_host_frame` is a later direct call. One call opens the X11 display,
+  creates a window for the EGL config's visual, calls `eglCreateWindowSurface`,
+  paints one GameUI frame and calls `eglSwapBuffers`. The call adds the
+  caller's delta to host time by writing `realtime`, `host_frametime` and
+  `oldrealtime`. A failed surface or swap does not move that clock.
+  `ISurface::SwapBuffers` stays empty. The surface tests still use an EGL
+  pbuffer. `Host_FilterTime` is not called, no hook is installed, and
+  `CVGui::RunFrame` is not called. The retail hook list is not extended.
+  The X11 display connection is the window's socket. No game socket is opened.
   `OnGameInitialized` is not entered. The retail hook chain
   does not run. `hw.so` stays
   unmapped. The game is not started.

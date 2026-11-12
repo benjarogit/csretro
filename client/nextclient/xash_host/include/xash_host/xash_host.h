@@ -166,15 +166,21 @@ CSR_HOST_API int csr_host_paint_gameui(int wide, int tall);
 CSR_HOST_API int csr_host_textured_quad_count(void);
 
 /*
- * One GameUI frame. Shows the menu and paints it, then adds delta to host
+ * One GameUI frame. Opens the X11 display, creates an EGL window surface,
+ * shows the menu, paints it, then calls eglSwapBuffers. Adds delta to host
  * realtime and stores that delta as the frame interval. Writes those fields
- * directly. Returns 0 when the paint does not reach a panel, and then the
- * clock stays put. Does not call CVGui::RunFrame or Host_FilterTime, does
- * not install a hook, does not open hw.so or a socket, does not start Steam,
- * and does not exec the launcher command.
+ * directly. Returns 0 when the window surface, the swap or the paint fails,
+ * and then the clock stays put. Does not call CVGui::RunFrame,
+ * ISurface::SwapBuffers or Host_FilterTime, does not install a hook, does
+ * not open hw.so, does not start Steam, and does not exec the launcher
+ * command. The X11 display connection is the window's socket.
  */
 CSR_HOST_API int csr_host_frame(int wide, int tall, double delta);
 CSR_HOST_API void csr_host_read_host_time(double* realtime, double* frametime, double* oldrealtime);
+/* The live EGL window surface. Returns 0 until csr_host_frame creates one. */
+CSR_HOST_API int csr_host_present_query(void** egl_display, void** egl_surface, unsigned long* window, int* swaps);
+/* The X11 or EGL call that failed, or null when the present is healthy. */
+CSR_HOST_API const char* csr_host_present_error(void);
 
 /* list[0] answers VGUI_Surface026. A mounted filesystem follows it, then extras. */
 CSR_HOST_API int csr_host_factory_list(csr_host_factory_fn* extra, int extra_count, csr_host_factories_t* out);

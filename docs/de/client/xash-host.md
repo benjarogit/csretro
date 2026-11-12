@@ -105,14 +105,16 @@ werden für den Surface-Namen nicht gefragt.
 auf die Host-Zeit. Es schreibt `realtime`, `host_frametime` und
 `oldrealtime` direkt. `Host_FilterTime` bleibt ungerufen, und es kommt kein
 Retail-Hook dazu. `CVGui::RunFrame` bleibt ungerufen. `hw.so` bleibt
-ungemappt, kein Steam-Client startet, kein Socket geht auf, und der
-geplante Launcher-Befehl wird nicht ausgeführt. Die Uhr der
-GameUI-Engine-Tabelle bleibt bei 0. `OnGameInitialized` bleibt außen, weil
-dieser Einstieg Materialdateien lädt, `vgui2` auflöst und in die übrige
-Retail-Initialisierung weitergeht. Ein sichtbares Fenster braucht
-`eglCreateWindowSurface` und danach `eglSwapBuffers`.
-`ISurface::SwapBuffers` ist leer. Der Test-Harness hat nur ein EGL-Pbuffer
-in den Surface-Tests.
+ungemappt, kein Steam-Client startet, und der geplante Launcher-Befehl
+wird nicht ausgeführt. Der Frame öffnet das X11-Display, legt ein Fenster
+mit dem Visual der EGL-Config an, ruft `eglCreateWindowSurface`, zeichnet
+und ruft danach `eglSwapBuffers`. Schlägt ein Aufruf fehl, gibt es keinen
+Swap und die Host-Zeit bleibt stehen. Die X11-Verbindung ist der
+Socket des Fensters. Ein Spiel-Socket geht nicht auf.
+`ISurface::SwapBuffers` bleibt leer. Die Surface-Tests behalten ihr
+EGL-Pbuffer. Die Uhr der GameUI-Engine-Tabelle bleibt bei 0.
+`OnGameInitialized` bleibt außen, weil dieser Einstieg Materialdateien
+lädt, `vgui2` auflöst und in die übrige Retail-Initialisierung weitergeht.
 
 `csr_host_load_pair` bindet Mausbewegung, Druck und Loslassen an das
 `VGUI_InputInternal001` des Paars. Jedes Ereignis endet mit genau einem

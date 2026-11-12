@@ -98,9 +98,13 @@ without a dialog is not opened.
 `csr_host_frame` paints one GameUI frame through that present path and adds
 the caller's delta to host time by writing `realtime`, `host_frametime` and
 `oldrealtime`. `Host_FilterTime` stays uncalled and no retail hook is added.
-`CVGui::RunFrame` stays uncalled. The planned command is not executed, Steam
-does not start, and no socket opens. A human-visible window still needs
-`eglCreateWindowSurface` and then `eglSwapBuffers`.
+`CVGui::RunFrame` stays uncalled. The planned command is not executed and
+Steam does not start. The frame opens the X11 display, creates a window
+with the EGL config's visual, calls `eglCreateWindowSurface`, paints, then
+calls `eglSwapBuffers`. A failed call does not swap and does not move host
+time. The X11 display connection is the window's socket. No game socket is
+opened. `ISurface::SwapBuffers` stays empty. The surface tests still use an
+EGL pbuffer.
 
 `nextclient.sh` and [First client start](first-start.md) remain the GoldSrc
 path until this path replaces them.

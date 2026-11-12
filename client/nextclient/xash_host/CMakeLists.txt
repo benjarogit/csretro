@@ -6,7 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(xash_host SHARED
         src/xash_host.cpp
-        src/host_filesystem.cpp)
+        src/host_filesystem.cpp
+        src/host_present.cpp)
 add_library(xash::host ALIAS xash_host)
 
 target_include_directories(xash_host
@@ -19,6 +20,11 @@ target_include_directories(xash_host
 
 target_link_libraries(xash_host PRIVATE xash::engine goldsrc::abi ${CMAKE_DL_LIBS})
 if (UNIX AND NOT APPLE)
+    find_package(X11 REQUIRED)
+    find_package(OpenGL REQUIRED)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(EGL REQUIRED IMPORTED_TARGET egl)
+    target_link_libraries(xash_host PRIVATE X11::X11 OpenGL::GL PkgConfig::EGL)
     target_compile_definitions(xash_host PRIVATE GNUC POSIX LINUX _LINUX)
 endif ()
 

@@ -112,9 +112,13 @@ Serverbrowser ohne Dialog wird nicht geöffnet.
 addiert das übergebene Delta auf die Host-Zeit, indem es `realtime`,
 `host_frametime` und `oldrealtime` direkt schreibt. `Host_FilterTime` bleibt
 ungerufen, und es kommt kein Retail-Hook dazu. `CVGui::RunFrame` bleibt
-ungerufen. Der geplante Befehl wird nicht ausgeführt, Steam startet nicht,
-und kein Socket geht auf. Ein sichtbares Fenster braucht
-`eglCreateWindowSurface` und danach `eglSwapBuffers`.
+ungerufen. Der geplante Befehl wird nicht ausgeführt und Steam startet
+nicht. Der Frame öffnet das X11-Display, legt ein Fenster mit dem Visual
+der EGL-Config an, ruft `eglCreateWindowSurface`, zeichnet und ruft danach
+`eglSwapBuffers`. Schlägt ein Aufruf fehl, gibt es keinen Swap und die
+Host-Zeit bleibt stehen. Die X11-Verbindung ist der Socket des Fensters.
+Ein Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
+Surface-Tests behalten ihr EGL-Pbuffer.
 
 `nextclient.sh` und [Erster Client-Start](first-start.md) bleiben der
 GoldSrc-Weg, bis dieser Pfad sie ersetzt.

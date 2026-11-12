@@ -104,12 +104,15 @@ factories are not asked for the surface name.
 host time. It writes `realtime`, `host_frametime` and `oldrealtime` directly.
 `Host_FilterTime` stays uncalled and no retail hook is added.
 `CVGui::RunFrame` stays uncalled. `hw.so` stays unmapped, no Steam client
-starts, no socket opens, and the planned launcher command is not executed.
+starts, and the planned launcher command is not executed. The frame opens
+the X11 display, creates a window with the EGL config's visual, calls
+`eglCreateWindowSurface`, paints, then calls `eglSwapBuffers`. A failed
+call does not swap and does not move host time. The X11 display connection
+is the window's socket. No game socket is opened. `ISurface::SwapBuffers`
+stays empty. The surface tests still use an EGL pbuffer.
 The GameUI engine-table clock stays at 0. `OnGameInitialized` stays out,
 because that entry loads material files, resolves `vgui2` and continues into
-the rest of retail init. A human-visible window still needs
-`eglCreateWindowSurface` and then `eglSwapBuffers`. `ISurface::SwapBuffers`
-is empty. The test harness only has an EGL pbuffer in the surface tests.
+the rest of retail init.
 
 `csr_host_load_pair` binds mouse move, press and release to that pair's
 `VGUI_InputInternal001`. Each event ends with exactly one

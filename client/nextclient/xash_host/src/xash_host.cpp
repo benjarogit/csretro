@@ -1,6 +1,7 @@
 #include "xash_host/xash_host.h"
 
 #include "host_filesystem.h"
+#include "host_present.h"
 #include "xash_surface/xash_surface.h"
 #include "xash_engine/xash_engine.h"
 
@@ -1356,8 +1357,14 @@ int csr_host_frame(int wide, int tall, double delta)
     {
         return 0;
     }
-    // Same present path as PresentXashLauncher: show the menu, then paint.
-    if (csr_host_activate_gameui() == 0 || csr_host_paint_gameui(wide, tall) == 0)
+    // Show the menu first. A closed host never opens a window.
+    if (csr_host_activate_gameui() == 0)
+    {
+        return 0;
+    }
+    // The paint draws into this window surface. A failed create or swap
+    // leaves host time where it is. ISurface::SwapBuffers is not this call.
+    if (csr_host_present_begin(wide, tall) == 0 || csr_host_paint_gameui(wide, tall) == 0 || csr_host_present_swap() == 0)
     {
         return 0;
     }
@@ -1381,6 +1388,8 @@ void csr_host_close(void)
     {
         g_surface.destroy(g_surface.surface);
     }
+    // Texture release above still needs the EGL context.
+    csr_host_present_shutdown();
     if (g_surface.module != nullptr)
     {
         dlclose(g_surface.module);

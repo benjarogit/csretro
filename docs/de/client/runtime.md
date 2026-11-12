@@ -100,6 +100,9 @@ Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein
 Aufruf. Der nächste Retail-Hook ist `Mod_NeedCRC`. Dieser Pfad kehrt davor
 zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
+Ein Aufruf öffnet das X11-Display, erzeugt mit `eglCreateWindowSurface` eine
+EGL-Fensterfläche, zeichnet ein GameUI-Bild und ruft `eglSwapBuffers`.
+`ISurface::SwapBuffers` bleibt leer. Die Surface-Tests behalten ihr EGL-Pbuffer.
 `OnGameInitialized` wird nicht betreten.
 Die Retail-Hook-Kette läuft dabei nicht. `hw.so` wird nicht geöffnet. `RunFrame` wird
 nicht gerufen. Die übrigen `engine_mini`-Weiterleitungen bleiben am

@@ -963,15 +963,18 @@ zeichnet ein GameUI-Bild über denselben Present-Pfad und addiert das
 und setzt `oldrealtime` auf die neue `realtime`. Die Felder werden direkt
 geschrieben. `Host_FilterTime` läuft dabei nicht, und es wird kein Hook
 installiert. `CVGui::RunFrame` bleibt ungerufen. `hw.so` bleibt ungemappt,
-kein Steam-Client startet, kein Socket geht auf, und der geplante
-Launcher-Befehl wird nicht ausgeführt. Die Retail-Hook-Liste wird nicht
+kein Steam-Client startet, und der geplante
+Launcher-Befehl wird nicht ausgeführt. Der Frame öffnet das X11-Display,
+legt ein Fenster mit dem Visual der EGL-Config an, ruft
+`eglCreateWindowSurface`, zeichnet und ruft danach `eglSwapBuffers`.
+Schlägt einer dieser Aufrufe fehl, gibt es keinen Swap und die Host-Zeit
+bleibt stehen. Die X11-Verbindung ist der Socket des Fensters. Ein
+Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
+Surface-Tests behalten ihr EGL-Pbuffer. Die Retail-Hook-Liste wird nicht
 verlängert. Der nächste Retail-Hook bleibt `Mod_NeedCRC`.
 `OnGameInitialized` bleibt außen: der Einstieg lädt Materialdateien, löst
 `vgui2` auf und geht in die übrige Retail-Initialisierung, daher kehrt er
-nicht ohne `hw.so` zurück. Ein sichtbares Fenster braucht
-`eglCreateWindowSurface` und danach `eglSwapBuffers`. `ISurface::SwapBuffers`
-ist leer. Der Test-Harness hat nur ein EGL-Pbuffer in den Surface-Tests,
-kein X11-Fenster.
+nicht ohne `hw.so` zurück.
 Er startet das Spiel nicht, führt Xash3D nicht aus und ruft `RunFrame`
 nicht auf. Ein fehlgeschlagenes Öffnen lässt den Host geschlossen. Der
 bisherige GoldSrc-Starter `nextclient.sh` und der First-Start bleiben, bis

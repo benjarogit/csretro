@@ -1,0 +1,7 @@
+# Original CS client bridge
+
+This Linux bridge is the initial port's game-library entry. It exports the existing `F` callback-table ABI using `goldsrc::cldll_func_t`; do not declare a parallel stock ABI. The shipping entry accepts only the registered Default Public i386 game library beside it as `client.valve.so`. The fingerprint registry and SHA-256 implementation are shared with NitroApi. Never open `hw.so` to recognize this game module, and never add fixture fingerprints to the product registry.
+
+The original library owns every supplied callback, including movement, prediction, input, HUD and shutdown. Keep its module alive until the engine has stopped calling that table. Missing required callbacks fail atomically; optional entries remain unchanged. Do not add no-op gameplay exports, replace original movement or call initialization while obtaining the table. The `F` boundary must not propagate C++ exceptions.
+
+This bridge does not bind VGUI globals, run Xash or initialize NextClient extensions. Those runtime connections must be implemented and proven before marking the port runnable. No constructor may start a game or load the original library. Native fixtures are our own synthetic test code and do not establish real CS behavior. `tests/xash_client/run.py` builds the same bridge and tests without game files, SDK or vcpkg; product builds use the client presets. Automation never loads the original game library.

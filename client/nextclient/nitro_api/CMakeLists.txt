@@ -15,6 +15,8 @@ find_package(OpenGL REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
 find_package(xbyak CONFIG REQUIRED)
 
+add_subdirectory(registry)
+
 add_library(nitro_api SHARED
         dep/easyloggingpp/src/easylogging++.cc
         dep/easyloggingpp/src/easylogging++.h
@@ -48,7 +50,6 @@ add_library(nitro_api SHARED
         src/SearchConfig.cpp
         src/SearchConfig.h
         include/nitroapi/BuildVersion.h
-        src/build_registry.cpp
         src/build_registry.h
         include/nitroapi/modules/client/ClientData.h
         src/modules/sdl2/SDL2Module.cpp
@@ -81,6 +82,7 @@ target_include_directories(nitro_api PRIVATE
 )
 
 target_link_libraries(nitro_api PRIVATE
+        nitro_build_registry
         hl1_source_sdk::hl1_source_sdk
         goldsrc::abi
         OpenGL::GL

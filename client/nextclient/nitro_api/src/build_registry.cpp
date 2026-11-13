@@ -93,6 +93,21 @@ namespace nitroapi
         return std::nullopt;
     }
 
+    bool IsRegisteredClient(const std::string& platform, const std::string& client_sha256)
+    {
+        const std::string normalized_platform = ToLower(platform);
+        const std::string normalized_hash = ToLower(client_sha256);
+        if (normalized_platform.empty() || normalized_hash.empty())
+            return false;
+
+        for (const BuildRecord& record : kBuilds)
+        {
+            if (normalized_platform == record.platform && normalized_hash == record.client_sha256)
+                return true;
+        }
+        return false;
+    }
+
     std::string HashFileSha256(const std::string& path)
     {
         std::ifstream file(path, std::ios::binary);

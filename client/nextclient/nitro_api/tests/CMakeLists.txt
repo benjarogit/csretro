@@ -6,7 +6,6 @@ add_executable(nitro_api-tests
         StudioDirectCallTests.cpp
         StudioDispatchTests.cpp
         BuildRegistryTests.cpp
-        ../src/build_registry.cpp
         ../../client_mini/src/studio/StudioAnimation.cpp
         ../../client_mini/src/studio/studio_pose.cpp
         ../src/modules/client/studio_animation.cpp
@@ -36,6 +35,7 @@ target_include_directories(nitro_api-tests PRIVATE
         ../../client_mini/tests
 )
 target_link_libraries(nitro_api-tests PRIVATE
+        nitro_build_registry
         GTest::gtest_main
         nitro_utils::nitro_utils
         data_encoding::data_encoding

@@ -18,7 +18,9 @@ Exit 0 establishes only these core exports. It proves neither callback signature
 
 ## Verify the integration
 
-The existing `linux` and `linux-tests` presets build/test x64 components; they do not yet assemble the historical i386 port. Keep port-stage artifacts architecture-matched and record their build path separately. Check the actual shared artifacts, not just static test libraries. A real engine must obtain the game callbacks and pass its own engine table to them. Document the native game-code origin and compatible license before importing source. The [plan](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md) defines the permitted upstream boundaries.
+The `linux`/`linux-tests` presets build/test x64 components; `linux-port`/`linux-port-tests` supply the initial i386 components. See [build profiles](../build/client.md). Neither assembles the complete runtime yet. Keep port-stage artifacts architecture-matched and record their build path separately. Check the actual shared artifacts, not just static test libraries. A real engine must obtain the game callbacks and pass its own engine table to them. Document the native game-code origin and compatible license before importing source. The [plan](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md) defines the permitted upstream boundaries.
+
+The `xash_client` bridge now preserves the original `F` callback table and checks the game identity before loading. Its native fixture tests cover delegation and failure cases. The bridge still needs the original VGUI binding and actual NextClient/runtime assembly; these tests do not run the original game or certify its movement.
 
 A supplied address, factory lookup, no-op or recorded primitive is only evidence for that operation. It cannot close a gameplay milestone. Retain failure cases for missing callbacks, wrong architecture, failed initialization, input, map changes, disconnects and shutdown.
 

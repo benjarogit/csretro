@@ -16,6 +16,7 @@ Vendored NextClient extensions for Counter-Strike 1.6. The historical retail pat
 | [`nextclient/nitro_api`](nextclient/nitro_api/AGENTS.md) | `nitro_api2.dll` | engine address and hook layer |
 | [`nextclient/goldsrc_abi`](nextclient/goldsrc_abi/AGENTS.md) | headers only | clean-room declarations of the stock engine ABI, namespace `goldsrc` |
 | `dep/ncl-hl1-source-sdk` | `vgui2.dll` (Windows), `vgui2.so` (Linux) | HL1 SDK fork: `tier1`, `tier2`, `vgui2`, `mathlib`, `cef`, HLTV |
+| [`nextclient/xash_client`](nextclient/xash_client/AGENTS.md) | `csretro_client.so` | initial-port original game callback bridge; VGUI/runtime assembly remains open |
 | `assets/` | copied into the game directory | resources, schemes, localization, shaders |
 | `tools/matgen` | `matgen` development utility | Studio UV templates, material validation, and edge baking |
 | `test_support/plugins/` | test server plugins | AMX Mod X test fixtures: `nextclient_testlab`, `nextclient_materials_test` |

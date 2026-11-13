@@ -41,6 +41,14 @@ cmake --build --preset linux-port-release --target verify-nitro-api-factory gold
 
 Die Surface-Tests verwenden einen eigenen Offscreen-Kontext. Der Factory-Probe lädt unseren Provider, das Golden-Target kompiliert ABI-Assertions. Keiner davon startet ein Spiel. Die Buildskript-Regressionen laufen mit `python3 -m unittest discover -s tests/build_scripts -v` aus dem Repository-Hauptverzeichnis und auch in CI. Spielnachweise folgen der [Laufzeit-Abnahme](../maintainers/runtime-readiness.md).
 
+## Original-Client-Brücke
+
+Mit `scripts/build-client.sh --preset linux-port --target xash_client` bauen. Die Ausgabe `csretro_client.so` stellt den ursprünglichen Callback-Tabelleneinstieg bereit. Sie ist für den Spielclientpfad der Engine vorgesehen, neben der lokal bereitgestellten und in `client.valve.so` umbenannten Originalbibliothek. Laufzeitbereitstellung und Installer sind noch nicht verbunden. Keine Dateien in Steam ersetzen oder diesen unvollständigen Komponentensatz als fertigen Port starten.
+
+Beim Tabellenabruf prüft die Brücke i386-ELF und den Spielhash aus der gemeinsamen Default-Public-Registry vor dem Laden. Sie erhält die gelieferten Callbacks und hält ihre Bibliothek bis zum Entladen der Brücke geladen. Fehlende Pflichtcallbacks lassen den Abruf scheitern; optionale bleiben erhalten. Die Brücke liefert noch keine VGUI-Bindung und initialisiert NextClient nicht. Siehe [Laufzeit-Abnahme](../maintainers/runtime-readiness.md).
+
+`xash_client-tests` läuft über das passende Testpreset. CI verwendet zusätzlich `python3 tests/xash_client/run.py --profile linux-port --gtest-source /usr/src/googletest` auf einem Multilib-Host mit GoogleTest-Quellen. Dabei werden dieselbe Brücke und künstliche Callback-Tests ohne SDK, vcpkg oder lizenzierte Spieldateien gebaut. Ohne `--gtest-source` wird ein passendes installiertes GoogleTest-Paket verwendet; `--profile linux` prüft native x64-Weitergabe und lehnt den nur für i386 vorgesehenen produktiven Spielvertrag ab.
+
 ## Pfade und Bereinigung
 
 Abhängigkeitsbuilds wie OpenSSL scheitern an Quellpfaden mit Leerzeichen. Der Wrapper verwendet den Symlink `${TMPDIR:-/tmp}/csretro-src` ohne Leerzeichen; die Dateien bleiben im Repository. Für manuelle CMake-Befehle dessen `client`-Verzeichnis betreten. Einen konfigurierten Build nicht zwischen echtem Pfad und Symlink verschieben: CMake speichert absolute Pfade.

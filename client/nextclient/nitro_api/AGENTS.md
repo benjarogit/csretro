@@ -16,8 +16,9 @@ This subtree owns build-specific addresses, stock function signatures and hook r
   Check enum values when adding a hook because many IDs are implicit increments.
 - The product identity is Xash3D (`BuildFamily::Xash`). Startup does not open, hash, or hook
   `hw.so`. `EngineAddressProviderXash` is the only runtime provider and it has no retail symbol
-  table. `build_registry.cpp` still records the public-linux fingerprint for the offline check;
-  it is not the startup path. Missing addresses are not hooks and must not be called.
+  table. `build_registry.cpp` records the public-linux fingerprint in one shared static target.
+  The original-client bridge checks only the game hash through `IsRegisteredClient`;
+  this does not identify a retail engine or enable its provider during NitroApi startup. Missing addresses are not hooks and must not be called.
 - A chained hook's `next` controls execution of the remaining chain. Call it according to the
   intended replacement/forwarding contract and preserve the return value; duplicate forwarding
   can repeat engine work, while an omitted call can suppress unrelated subscribers.

@@ -18,7 +18,9 @@ Exit 0 belegt nur diese Kern-Exporte. Damit sind weder Callback-Signaturen noch 
 
 ## Integration prüfen
 
-Die vorhandenen Presets `linux` und `linux-tests` bauen/testen x64-Komponenten; sie setzen den historischen i386-Port noch nicht zusammen. Halte Port-Artefakte architekturgleich und dokumentiere ihren Buildpfad getrennt. Prüfe die tatsächlichen Shared-Artefakte und nicht nur statische Testbibliotheken. Eine echte Engine muss die Spiel-Callbacks erhalten und ihre eigene Engine-Tabelle übergeben. Herkunft und passende Lizenz des nativen Spielcodes werden vor einem Quellimport dokumentiert. Die zulässigen Upstream-Grenzen stehen im [Plan](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
+Die Presets `linux`/`linux-tests` bauen/testen x64-Komponenten; `linux-port`/`linux-port-tests` liefern die ersten i386-Komponenten. Siehe [Buildprofile](../build/client.md). Keines stellt bereits die vollständige Laufzeit zusammen. Halte Port-Artefakte architekturgleich und dokumentiere ihren Buildpfad getrennt. Prüfe die tatsächlichen Shared-Artefakte und nicht nur statische Testbibliotheken. Eine echte Engine muss die Spiel-Callbacks erhalten und ihre eigene Engine-Tabelle übergeben. Herkunft und passende Lizenz des nativen Spielcodes werden vor einem Quellimport dokumentiert. Die zulässigen Upstream-Grenzen stehen im [Plan](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
+
+Die Brücke `xash_client` erhält jetzt die originale `F`-Callback-Tabelle und prüft die Spielidentität vor dem Laden. Ihre nativen Fixture-Tests prüfen Weitergabe und Fehlerfälle. Original-VGUI-Bindung und tatsächliche NextClient-/Laufzeitbereitstellung fehlen weiterhin; diese Tests starten das Originalspiel nicht und bescheinigen dessen Movement nicht.
 
 Ein gelieferter Zeiger, Factory-Aufruf, No-op oder aufgezeichnetes Primitive belegt nur diesen Vorgang und schließt keinen Gameplay-Meilenstein. Erhalte Fehlerfälle für fehlende Callbacks, falsche Architektur, gescheiterte Initialisierung, Eingabe, Kartenwechsel, Trennung und Shutdown.
 

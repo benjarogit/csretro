@@ -8,11 +8,11 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-13
 - **Gate:** G07 — in progress. The first runnable version is not achieved.
 - **Branch:** `main` is the integration target; changes use gate pull requests.
-- **Validated baseline:** `d53a97de` (PR #8 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43384295627 and Pages https://github.com/benjarogit/csretro/actions/runs/43384377246 — success.
+- **Validated baseline:** `10475b20` (PR #9 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43387698772 and Pages https://github.com/benjarogit/csretro/actions/runs/43387856761 — success.
 - **Product sequence:** Port existing NextClient/CS behavior to Xash3D first; then exclusively Linux x86_64 and at least 60 FPS in gameplay without a 60 FPS cap; additional features later. Original licensed game files stay in a separate copy, and the port starts no Steam process. Rules and decisions live in the authoritative plan, sections 3.7–3.8.
 - **Actual runtime boundary:** The host builds and presents native VGUI2 UI, reads content and records world primitives/callbacks. It does not execute Xash3D gameplay. `client_mini` is an extension of an existing game client, not a native CS game implementation. The SDK builds the UI foundation, not the missing CS gameplay implementation.
 - **Critical next port work:** Integrate the existing NextClient extensions with a real architecture-matched Xash3D/CS runtime, using the locally supplied original game library as the i386 spike does. A native x64 game library is the following phase, not a demand to rewrite CS before porting. The x64-only export screen still fails on the extension module as expected; it is not a gate against the initial i386 port.
-- **Current work:** Isolated architecture-matched i386 build of the existing NextClient extensions and Surface. Local component checks pass; the actual Xash3D/game callback integration remains next. See the latest command results below.
+- **Current work:** Original-game callback bridge: registered i386 client identity, unchanged original F table and module lifetime. Fixtures pass in both architectures. Actual VGUI binding, NextClient extension initialization and engine/runtime assembly remain open. See the latest command results below.
 - **Clarified scope:** No CS rewrite or reference-client feature import before the existing NextClient-to-Xash3D port. The original game library can be supplied locally for that first port; a later exclusively x64 phase must solve its own architecture constraints. Existing GPL reference rules remain unchanged.
 - **Historical evidence:** Earlier i386 spikes and test-only host results remain below. They do not establish x64 gameplay, production Steam authentication or measured scene FPS.
 
@@ -352,7 +352,7 @@ the Security overview switches in the browser.
 
 Continue G07 with the existing NextClient-to-Xash3D port first, following the clarified plan section 3.8.
 
-1. Use the isolated `linux-port`/`linux-port-tests` profiles for the existing i386 Xash/original-CS-client reference and NextClient extensions. Resolve the actual game callback table and the VGUI ABI/surface seam. Keep local original binaries and external engine artifacts out of the repository.
+1. Use the isolated `linux-port`/`linux-port-tests` profiles for the existing i386 Xash/original-CS-client reference and NextClient extensions. The new `xash_client` target delegates the original F table without replacing movement or other callbacks. Bind the original VGUI interfaces/globals to the product Surface, then connect the existing NextClient behavior to the real Xash callbacks. Keep local original binaries and external engine artifacts out of the repository.
 2. Replace the test-only host path with the real Xash3D engine loop and bind the existing NextClient behavior there. Preserve CS movement and validate input, collision, weapons, HUD/sound and a local/test-server session. Automation never starts the game; prepare a human run with hashes and clear acceptance steps.
 3. After the functional port, make the complete runtime exclusively x64 and measure at least 60 FPS in a named real scene. Do not mix ELF32 game libraries with ELF64 components or call a menu benchmark gameplay evidence.
 4. Additional features from reference clients follow the working port/x64/performance baseline. Keep DE/EN player/plugin docs, harness, handoff and authoritative backlog aligned. Exact generated references remain useful documentation work, not a replacement for runtime integration.
@@ -391,6 +391,22 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Original game callback bridge (2026-11-13, source `22a8f677`, baseline `10475b20`):
+
+- PR https://github.com/benjarogit/csretro/pull/10; CI https://github.com/benjarogit/csretro/actions/runs/43389652085 — success, including actual native callback tests in both `linux` and `linux-port` profiles.
+- `nm -D --defined-only` on the shipping i386 bridge lists only `F`; internal registry/hash symbols stay private.
+
+- `xash_client` builds `csretro_client.so`. Its F export verifies an adjacent `client.valve.so` as i386 and against the sole Default Public client registry before loading. `hw.so` is neither opened nor hashed. Original files are not shipped or automatically loaded by tests.
+- All 43 original table entries are retained; 37 required entries are checked before exposing any of them. No movement, prediction, input or game callback is replaced. The bridge owns the original module until unload. Runtime VGUI binding, NextClient initialization and installer assembly are still absent, so this is not a playable port.
+- Shared registry target replaces separately compiled registry sources in NitroApi/tests. Pair-based engine identity still requires both hashes; the game-only check does not enable a retail engine provider.
+- `xash_client-tests`: 8/8 passed in native i386 and x64 test profiles. Complete table comparison, real fixture initialization/return values, movement/input argument effects, required/optional callback cases, missing library/export and shipping entry failure paths are covered. Synthetic movement arithmetic is only a forwarding test, not a CS movement claim.
+- `python3 tests/xash_client/run.py` and the same runner with `--profile linux-port --gtest-source <local GoogleTest source>`: 8/8 each. This standalone path builds the actual bridge, shared registry and tests without vcpkg, SDK or Valve files. CI runs both profiles. A trap-on-load unknown library proves i386 rejection before its constructor can execute.
+- Native i386 `nitro_api-tests --gtest_brief=1`: 71/71 passed after sharing the registry, including existing build-identity and Xash startup boundaries.
+- `cmake --build --preset linux-port-release --target verify-nitro-api-factory -j 6`: exit 0 after the registry extraction, `PASS NITRO_FRAME_LIFECYCLE_001` with subscription IDs 1 and 2 and repeated removal.
+- `scripts/build-client.sh --preset linux-port --reconfigure --target xash_client --target nitro_api --target engine_mini --target client_mini --target gameui --jobs 6`: exit 0, architecture-checked shared manifest produced.
+- `scripts/verify.sh`: 68 checks passed. `scripts/build-docs.sh`: strict DE/EN site build passed. No game started. G07 remains open.
+
 
 Architecture-matched port build (2026-11-13, source `3558c1ed`, baseline `d53a97de`):
 

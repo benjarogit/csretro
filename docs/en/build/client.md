@@ -41,6 +41,14 @@ cmake --build --preset linux-port-release --target verify-nitro-api-factory gold
 
 The Surface tests use their own offscreen context. The factory probe loads our provider, and the golden target compiles ABI assertions. Neither starts a game. The build-script regression suite runs with `python3 -m unittest discover -s tests/build_scripts -v` from the repository root and is also part of CI. Gameplay evidence follows [runtime acceptance](../maintainers/runtime-readiness.md).
 
+## Original-client bridge
+
+Build it with `scripts/build-client.sh --preset linux-port --target xash_client`. The output `csretro_client.so` exposes the original callback-table entry. It is intended for the engine's game-client location, beside the locally supplied original library renamed `client.valve.so`. The runtime assembly/installer is not connected yet. Do not replace files in Steam or launch this incomplete component set as a finished port.
+
+At callback lookup, the bridge checks i386 ELF identity and the shared Default Public game hash before loading. It preserves the supplied callbacks and keeps their library loaded until the bridge unloads. Missing required callbacks fail the lookup; optional callbacks are preserved. It does not provide the VGUI binding or initialize NextClient. See [runtime acceptance](../maintainers/runtime-readiness.md).
+
+`xash_client-tests` runs through the matching test preset. CI additionally uses `python3 tests/xash_client/run.py --profile linux-port --gtest-source /usr/src/googletest` on a multilib host with GoogleTest sources. This builds the same bridge and synthetic callback tests without SDK, vcpkg or licensed game files. Omitting `--gtest-source` uses a matching installed GoogleTest package; `--profile linux` tests native x64 delegation and rejects use of the i386-only production game contract.
+
 ## Paths and cleanup
 
 Dependency builds such as OpenSSL fail with source paths containing spaces. The wrapper uses a space-free symlink `${TMPDIR:-/tmp}/csretro-src`; files remain in the repository. For manual CMake commands, enter its `client` directory. Do not move a configured build between the real path and this symlink: CMake caches absolute paths.

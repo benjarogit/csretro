@@ -52,3 +52,26 @@ jobs:
 
       - name: Test client build profiles and assembler ABI
         run: python3 -m unittest discover -s tests/build_scripts -v
+
+  client_callbacks:
+    name: client callbacks (${{ matrix.profile }})
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        profile: [linux, linux-port]
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          lfs: false
+          submodules: false
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install fixture build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake ninja-build g++-multilib libgtest-dev
+      - name: Test original callback delegation without game files
+        run: python3 tests/xash_client/run.py --profile "${{ matrix.profile }}" --gtest-source /usr/src/googletest

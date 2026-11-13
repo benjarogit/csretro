@@ -201,6 +201,9 @@ using EngineMiniCLStopPlaybackFn = void (*)();
 // Stored for startup inspection only; the body still requires the retail chain.
 using EngineMiniHostShutdownServerFn = void (*)(goldsrc::qboolean crash);
 
+// Process Steam termination entry. Startup records it without calling Steam.
+using EngineMiniSteamTerminateFn = void (*)(uint32_t ip, uint16_t port);
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -351,6 +354,7 @@ struct EngineMiniXashStartup
     EngineMiniCbufAddFilteredTextFn add_filtered_text{};
     EngineMiniCLStopPlaybackFn stop_playback{};
     EngineMiniHostShutdownServerFn shutdown_server{};
+    EngineMiniSteamTerminateFn steam_terminate{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -541,6 +545,9 @@ extern EngineMiniCLStopPlaybackFn g_EngineMiniCLStopPlayback;
 
 // Defaults to Host_ShutdownServer. Init stores this pointer and never calls it.
 extern EngineMiniHostShutdownServerFn g_EngineMiniHostShutdownServer;
+
+// Defaults to Steam_GSTerminateGameConnection; startup never calls it.
+extern EngineMiniSteamTerminateFn g_EngineMiniSteamTerminate;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

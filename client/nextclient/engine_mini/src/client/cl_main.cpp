@@ -190,7 +190,7 @@ void CL_Disconnect()
             cur_addr = p_g_GameServerAddress;
         }
 
-        SteamUser()->TerminateGameConnection(NET_ToTier1(*cur_addr).GetIPHostByteOrder(), NET_ToTier1(*cur_addr).GetPortHostByteOrder());
+        Steam_GSTerminateGameConnection(NET_ToTier1(*cur_addr).GetIPHostByteOrder(), NET_ToTier1(*cur_addr).GetPortHostByteOrder());
         V_memset(p_g_GameServerAddress, 0, sizeof(goldsrc::netadr_t));
 
         if (Host_IsServerActive())
@@ -643,4 +643,9 @@ void CL_StopPlayback()
     cls->demofile = nullptr;
     cls->demoheader = nullptr;
     cls->demowaiting = false;
+}
+
+void Steam_GSTerminateGameConnection(uint32_t ip, uint16_t port)
+{
+    SteamUser()->TerminateGameConnection(ip, port);
 }

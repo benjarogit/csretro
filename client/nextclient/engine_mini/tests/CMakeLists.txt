@@ -59,6 +59,7 @@ add_executable(${TARGET_NAME}
 
         ResourceDescriptorTests.cpp
         XashStartupTests.cpp
+        XashSteamStartupTests.cpp
         PreviewModelBridgeTests.cpp
         StudioModelCacheTests.cpp
         StudioModelTestFiles.cpp

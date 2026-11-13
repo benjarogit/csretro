@@ -392,7 +392,10 @@ copy outside the Steam library.
 
 ## Last commands and results
 
-Original game callback bridge (2026-11-13, baseline `10475b20`):
+Original game callback bridge (2026-11-13, source `22a8f677`, baseline `10475b20`):
+
+- PR https://github.com/benjarogit/csretro/pull/10; CI https://github.com/benjarogit/csretro/actions/runs/43389652085 — success, including actual native callback tests in both `linux` and `linux-port` profiles.
+- `nm -D --defined-only` on the shipping i386 bridge lists only `F`; internal registry/hash symbols stay private.
 
 - `xash_client` builds `csretro_client.so`. Its F export verifies an adjacent `client.valve.so` as i386 and against the sole Default Public client registry before loading. `hw.so` is neither opened nor hashed. Original files are not shipped or automatically loaded by tests.
 - All 43 original table entries are retained; 37 required entries are checked before exposing any of them. No movement, prediction, input or game callback is replaced. The bridge owns the original module until unload. Runtime VGUI binding, NextClient initialization and installer assembly are still absent, so this is not a playable port.

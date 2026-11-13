@@ -1300,8 +1300,13 @@ kein Aufruf.
 aber nicht aufgerufen. Sein bestehender Funktionskörper leitet weiterhin an
 die Retail-Kette weiter; ein Xash-Server-Shutdown ist damit nicht umgesetzt.
 Ein fehlender Zeiger bleibt null. Der Retail-Hook wird nicht installiert.
-Der nächste unbearbeitete Engine-Tabelleneintrag ist
-`Steam_GSTerminateGameConnection`. Der Client ist noch nicht spielbar.
+`Steam_GSTerminateGameConnection` wird ebenfalls gespeichert, ohne die
+Steam-Weiterleitung aufzurufen. Ein fehlender Zeiger löscht den gespeicherten
+Eintrag auch bei wiederholter Initialisierung. Die bestehende Weiterleitung
+an `SteamUser()->TerminateGameConnection` bleibt der eine Funktionskörper;
+der Start beendet keine Steam-Verbindung und installiert keinen Retail-Hook.
+Der nächste unbearbeitete Engine-Tabelleneintrag ist `CL_Stop_f`.
+Der Client ist noch nicht spielbar.
 
 `OnGameInitialized` wird nicht betreten. Die
 Retail-Hook-Kette läuft bei diesem Init nicht. `csr_host_frame` ist hier kein
@@ -1433,7 +1438,7 @@ ist die Swap-Zahl N, und die Host-Zeit ist um N mal das Delta vorgerückt.
 Die X11-Verbindung ist der Socket des Fensters. Ein
 Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
 Surface-Tests behalten ihr EGL-Pbuffer. Die Retail-Hook-Liste wird nicht
-verlängert. Der nächste unbearbeitete Engine-Tabelleneintrag ist `Steam_GSTerminateGameConnection`.
+verlängert. Der nächste unbearbeitete Engine-Tabelleneintrag ist `CL_Stop_f`.
 `OnGameInitialized` bleibt außen: der Einstieg lädt Materialdateien, löst
 `vgui2` auf und geht in die übrige Retail-Initialisierung, daher kehrt er
 nicht ohne `hw.so` zurück.

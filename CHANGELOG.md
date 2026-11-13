@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Changed
 
+- Record `Steam_GSTerminateGameConnection` without invoking Steam during Xash startup.
+
 - Store `Host_ShutdownServer` during Xash startup without calling its retail chain.
 
 - The HL1 SDK source is tracked at `client/dep/ncl-hl1-source-sdk/`, including

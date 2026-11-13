@@ -325,8 +325,13 @@ kein Aufruf.
 aber nicht aufgerufen. Sein bestehender Funktionskörper leitet weiterhin an
 die Retail-Kette weiter; ein Xash-Server-Shutdown ist damit nicht umgesetzt.
 Ein fehlender Zeiger bleibt null. Der Retail-Hook wird nicht installiert.
-Der nächste unbearbeitete Engine-Tabelleneintrag ist
-`Steam_GSTerminateGameConnection`. Der Client ist noch nicht spielbar.
+`Steam_GSTerminateGameConnection` wird ebenfalls gespeichert, ohne die
+Steam-Weiterleitung aufzurufen. Ein fehlender Zeiger löscht den gespeicherten
+Eintrag auch bei wiederholter Initialisierung. Die bestehende Weiterleitung
+an `SteamUser()->TerminateGameConnection` bleibt der eine Funktionskörper;
+der Start beendet keine Steam-Verbindung und installiert keinen Retail-Hook.
+Der nächste unbearbeitete Engine-Tabelleneintrag ist `CL_Stop_f`.
+Der Client ist noch nicht spielbar.
 
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 Ein Aufruf öffnet das X11-Display, wählt eine EGL-Config, deren natives Visual

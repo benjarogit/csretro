@@ -443,6 +443,7 @@ namespace
     void RecordXashCbufAddFilteredText();
     void RecordXashCLStopPlayback();
     void RecordXashHostShutdownServer();
+    void RecordXashSteamTerminate();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -666,7 +667,8 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // This init stores the pointer and does not stop demo playback. The
     // process body stops demo playback, so a real call does not run.
     // Host_ShutdownServer is stored next and never called: its body still
-    // requires the retail chain. Steam_GSTerminateGameConnection remains out.
+    // requires the retail chain. Steam_GSTerminateGameConnection is also stored
+    // without calling Steam. CL_Stop_f remains the next unhandled entry.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -739,6 +741,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashCbufAddFilteredText();
             RecordXashCLStopPlayback();
             RecordXashHostShutdownServer();
+            RecordXashSteamTerminate();
         }
         return;
     }
@@ -1223,6 +1226,7 @@ EngineMiniRForceCVarsPartFn g_EngineMiniRForceCVarsPart = R_ForceCVars_part;
 EngineMiniCbufAddFilteredTextFn g_EngineMiniCbufAddFilteredText = Cbuf_AddFilteredText;
 EngineMiniCLStopPlaybackFn g_EngineMiniCLStopPlayback = CL_StopPlayback;
 EngineMiniHostShutdownServerFn g_EngineMiniHostShutdownServer = Host_ShutdownServer;
+EngineMiniSteamTerminateFn g_EngineMiniSteamTerminate = Steam_GSTerminateGameConnection;
 
 namespace
 {
@@ -2326,6 +2330,16 @@ namespace
         }
     }
 
+    void RecordXashSteamTerminate()
+    {
+        g_xash_startup.steam_terminate = nullptr;
+        if (g_xash_engine != nullptr &&
+            g_xash_engine->Steam_GSTerminateGameConnection.GetHook() == nullptr)
+        {
+            g_xash_startup.steam_terminate = g_EngineMiniSteamTerminate;
+        }
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2660,6 +2674,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniCbufAddFilteredText = Cbuf_AddFilteredText;
     g_EngineMiniCLStopPlayback = CL_StopPlayback;
     g_EngineMiniHostShutdownServer = Host_ShutdownServer;
+    g_EngineMiniSteamTerminate = Steam_GSTerminateGameConnection;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

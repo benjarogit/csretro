@@ -290,8 +290,12 @@ call.
 Xash startup stores the `Host_ShutdownServer` function pointer without calling
 it. Its existing body still forwards to the retail chain; this does not
 implement a Xash server shutdown backend. A missing pointer stays null, and
-the retail hook is not installed. The next unhandled engine-table entry is
-`Steam_GSTerminateGameConnection`. The client is not playable yet.
+the retail hook is not installed. Startup also stores
+`Steam_GSTerminateGameConnection` without invoking its Steam forwarding body.
+A missing pointer clears the record on repeated initialization. The existing
+`SteamUser()->TerminateGameConnection` forwarding remains the single body;
+startup terminates no Steam connection and installs no retail hook. The next
+unhandled engine-table entry is `CL_Stop_f`. The client is not playable yet.
 
 `csr_host_frame` is a later direct call and does not extend that list.
 One call opens the X11 display, chooses an EGL config whose native visual can

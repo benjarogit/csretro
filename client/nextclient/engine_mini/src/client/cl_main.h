@@ -17,4 +17,5 @@ void CL_ClearClientState();
 void CL_ClearState(goldsrc::qboolean quiet);
 void CL_Disconnect();
 void CL_StopPlayback();
+void Steam_GSTerminateGameConnection(uint32_t ip, uint16_t port);
 void SetCareerAudioState(int state);

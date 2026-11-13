@@ -392,7 +392,9 @@ copy outside the Steam library.
 
 ## Last commands and results
 
-Original VGUI startup binding (2026-11-13, baseline `c2ed9d61`):
+Original VGUI startup binding (2026-11-13, source `377363f9`, baseline `c2ed9d61`):
+
+- PR https://github.com/benjarogit/csretro/pull/11; CI https://github.com/benjarogit/csretro/actions/runs/43394137242 — success, including 16 native callback/VGUI fixture tests per architecture.
 
 - The bridge now forwards the real original Initialize with its actual engine table/version before starting UI. A failed original initializer never starts VGUI; a failed UI stage returns a failed engine handshake. Shutdown forwards to the original, restores client globals and keeps the UI libraries/Surface alive until the original client unloads.
 - A registered client/VGUI pair is required. Original VGUI SHA-256 remains `f0291c95ec420d65a8f174ccb0e144be831d101b9d2650bb29c6da6bd96bcd3f`. The original client, `vgui2.valve.so`, `xash_surface.so` and Surface fonts are companion files beside the physical bridge. Runtime/installer assembly is still not implemented.

@@ -4,7 +4,7 @@ CSRETRO copies the Counter-Strike 1.6 files the client mounts into a directory
 outside the Steam library. The copy does not install into the Steam folder,
 does not start Steam, and does not start the game.
 
-You need a retail Counter-Strike 1.6 install (App 10). The files are not in
+You need your own licensed Counter-Strike 1.6 install (App 10). The files are not in
 this repository. Never point the destination at the Steam library, and never
 join a VAC-secured server with the modified client.
 
@@ -36,6 +36,18 @@ Without it, the tool uses the Linux Steam locations: `~/.steam/steam`,
 `~/.local/share/Steam`, and the Steam flatpak data directory. Tests pass a
 fake library and do not read a real Steam install.
 
+## Select an original game folder yourself
+
+When Steam is not detected or automatic selection does not fit, use `--source`:
+
+```bash
+scripts/install-content.sh --source /path/to/original-game --destination /path/to/csretro-copy
+```
+
+You can also select `/path/to/original-game/valve` or `/path/to/original-game/cstrike`. The installer then uses their common game root. Both sibling folders and the required resources including `platform/resource` are still needed; an isolated `cstrike` folder is insufficient. A complete manual source needs no Steam metadata. Your own licensed game installation remains a prerequisite.
+
+The explicit selection takes precedence. An invalid or incomplete selection is not silently replaced with another installation, and nothing is copied. `source_missing` means the supplied directory is missing or is not a directory source. `source_layout_invalid` means `valve` or `cstrike` is absent; missing required assets are individually reported with `game_missing`. This path also protects the source and known Steam libraries against destination/overlay writes, applies the same allowlist and starts neither Steam nor the game.
+
 ## What is copied
 
 The destination keeps the Half-Life layout. The allowlist is
@@ -52,7 +64,7 @@ A tree that is missing one of those mounted groups, `marlett.ttf`, or
 
 ## Shipped files win
 
-The Steam copy is the required base. Files CSRETRO itself ships
+The validated original-game copy is the required base. Files CSRETRO itself ships
 (`client/assets`) are an overlay on that copy. When the relative path is the
 same, the shipped file is the one the client resolves. That covers maps,
 weapons, and every other shipped asset with the same name: models, sounds,

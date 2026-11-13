@@ -37,6 +37,18 @@ stehen. Ohne ihn gelten die Linux-Steam-Orte: `~/.steam/steam`,
 `~/.local/share/Steam` und das Datenverzeichnis der Steam-Flatpak. Tests
 übergeben eine nachgebaute Bibliothek und lesen keine echte Steam-Installation.
 
+## Einen Originalspielordner selbst auswählen
+
+Wenn Steam nicht gefunden wird oder die automatische Auswahl nicht passt, nutze `--source`:
+
+```bash
+scripts/install-content.sh --source /pfad/zum/Originalspiel --destination /pfad/zur/csretro-kopie
+```
+
+Du kannst auch `/pfad/zum/Originalspiel/valve` oder `/pfad/zum/Originalspiel/cstrike` wählen. Der Installer nimmt dann den gemeinsamen Spiel-Hauptordner. Er braucht weiterhin beide Nachbarordner und die Pflichtressourcen einschließlich `platform/resource`; ein einzelner isolierter `cstrike`-Ordner reicht nicht. Ein vollständiger manueller Quellbaum braucht keine Steam-Metadaten. Voraussetzung bleibt deine eigene lizenzierte Spielinstallation.
+
+Die manuelle Auswahl hat Vorrang. Ist sie falsch oder unvollständig, wird keine andere Installation still gewählt und nichts kopiert. `source_missing` bedeutet, dass der angegebene Ordner fehlt oder keine Verzeichnisquelle ist. `source_layout_invalid` bedeutet, dass `valve` oder `cstrike` fehlen; fehlende Pflichtdateien werden mit `game_missing` einzeln gemeldet. Auch dieser Weg schützt Quelle und bekannte Steam-Bibliotheken vor Ziel-/Overlay-Schreibzugriff, verwendet dieselbe Allowlist und startet weder Steam noch das Spiel.
+
 ## Was kopiert wird
 
 Das Ziel behält das Half-Life-Layout. Die Allowlist steht in
@@ -53,7 +65,7 @@ Fehlt eine dieser gemounteten Gruppen, `marlett.ttf` oder
 
 ## Mitgelieferte Dateien gewinnen
 
-Die Steam-Kopie ist die nötige Basis. Dateien, die CSRETRO selbst ausliefert
+Die geprüfte Originalspiel-Kopie ist die nötige Basis. Dateien, die CSRETRO selbst ausliefert
 (`client/assets`), liegen als Overlay darüber. Bei demselben relativen Pfad
 löst der Client die mitgelieferte Datei auf. Das gilt für Maps, Waffen und
 jede andere mitgelieferte Datei desselben Namens: Modelle, Sounds, Sprites

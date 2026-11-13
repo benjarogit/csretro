@@ -46,3 +46,6 @@ jobs:
 
       - name: Test native game-client export screen
         run: python3 -m unittest discover -s tests/game_client -v
+
+      - name: Test manual original-content selection
+        run: python3 -m unittest discover -s tests/install_content -p 'test_manual_source.py' -v

@@ -1,6 +1,6 @@
 # What CSRETRO provides
 
-The client is not playable yet. CSRETRO builds on the vendored NextClient source and is being ported to Linux x86_64 with Xash3D. Original Counter-Strike 1.6 content is required. Source code being present does not mean a feature has passed the Xash runtime checks.
+The client is not playable yet. CSRETRO builds on the vendored NextClient source and is first being ported to Xash3D with the existing CS behavior. Exclusively Linux x86_64 execution and measured gameplay performance follow; additional features come later. Original Counter-Strike 1.6 content is required. Source code being present does not mean a feature has passed the Xash runtime checks.
 
 ## HUD and radar
 

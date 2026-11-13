@@ -10,10 +10,14 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Manual original-content selection through `install-content.sh --source`, accepting the game root or its valve/cstrike folder without Steam metadata.
+
 - Read-only game-client export screen and native regression fixtures; passing the screen does not certify ABI or gameplay.
 - DE/EN feature, settings and runtime acceptance guides.
 
 ### Changed
+
+- Restore the port-first sequence: existing NextClient behavior on Xash3D, then exclusively x64 and measured performance, then additional features.
 
 - Separate player, contributor, plugin-author and server documentation tasks; remove repeated startup transcripts from public component guides.
 - Define real x64 gameplay acceptance separately from callback recording, UI presentation and static export inspection.

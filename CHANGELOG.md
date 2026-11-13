@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Changed
 
+- Store `Host_ShutdownServer` during Xash startup without calling its retail chain.
+
 - The HL1 SDK source is tracked at `client/dep/ncl-hl1-source-sdk/`, including
   the LP64 edits. The upstream base remains
   `0e9be00fc52b66742a09c84c8f6169dc7c83ca8a`. The rollup patch and the SDK

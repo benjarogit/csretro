@@ -285,8 +285,14 @@ this process when that retail hook is absent. Init stores the pointer and
 does not call it, so demo playback is not stopped, planted playback state
 stays unchanged, no GL context is opened from this init, no sprite is loaded
 and no socket is opened. A null pointer is not a call. A null hook is not a
-call. The next retail hook is `Host_ShutdownServer`. This path returns before
-it.
+call.
+
+Xash startup stores the `Host_ShutdownServer` function pointer without calling
+it. Its existing body still forwards to the retail chain; this does not
+implement a Xash server shutdown backend. A missing pointer stays null, and
+the retail hook is not installed. The next unhandled engine-table entry is
+`Steam_GSTerminateGameConnection`. The client is not playable yet.
+
 `csr_host_frame` is a later direct call and does not extend that list.
 One call opens the X11 display, chooses an EGL config whose native visual can
 be a child of the root window, creates that window surface with

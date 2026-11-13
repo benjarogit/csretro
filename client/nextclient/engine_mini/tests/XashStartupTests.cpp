@@ -34568,3 +34568,40 @@ TEST_F(XashStartup, CL_StopPlaybackUsesTheProcessFunction)
     }
     std::filesystem::remove_all(root);
 }
+
+
+TEST_F(XashStartup, HostShutdownServerIsStoredWithoutCallingTheRetailChain)
+{
+    auto engine = std::make_unique<nitroapi::EngineData>();
+    EngineMini_BindXashStartup(engine.get(), true);
+    extern void Host_ShutdownServer(goldsrc::qboolean crash);
+    EXPECT_EQ(g_EngineMiniHostShutdownServer, Host_ShutdownServer);
+
+    // If init accidentally executes a stored function, this spy observes it.
+    static int calls;
+    calls = 0;
+    const auto spy = +[](goldsrc::qboolean) { ++calls; };
+    g_EngineMiniHostShutdownServer = spy;
+    csr_xash_engine_mode(nullptr, nullptr, nullptr, "gl", "", 1);
+    EXPECT_EQ(EngineMini_XashStartup()->shutdown_server, spy);
+    EXPECT_EQ(calls, 0);
+    EXPECT_EQ(engine->Host_ShutdownServer.GetHook(), nullptr);
+    EXPECT_EQ(engine->Steam_GSTerminateGameConnection.GetHook(), nullptr);
+
+    // A repeated initialization must clear the recorded address after a miss.
+    g_EngineMiniHostShutdownServer = nullptr;
+    csr_xash_engine_mode(nullptr, nullptr, nullptr, "gl", "", 1);
+    EXPECT_EQ(EngineMini_XashStartup()->shutdown_server, nullptr);
+    EXPECT_EQ(calls, 0);
+
+    // The default address is also only recorded. Executing it without a retail
+    // engine would enter an absent hook chain rather than a Xash backend.
+    EngineMini_BindXashStartup(engine.get(), true);
+    csr_xash_engine_mode(nullptr, nullptr, nullptr, "gl", "", 1);
+    EXPECT_EQ(EngineMini_XashStartup()->shutdown_server, Host_ShutdownServer);
+    EXPECT_EQ(EngineMini_XashStartup()->shutdown_calls, 0);
+    EXPECT_EQ(EngineMini_XashStartup()->error_calls, 0);
+
+    EngineMini_BindXashStartup(engine.get(), false);
+    EXPECT_EQ(EngineMini_XashStartup()->shutdown_server, nullptr);
+}

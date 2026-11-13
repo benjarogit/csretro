@@ -18,7 +18,10 @@ This subtree owns build-specific addresses, stock function signatures and hook r
   `hw.so`. `EngineAddressProviderXash` is the only runtime provider and it has no retail symbol
   table. `build_registry.cpp` records the public-linux fingerprint in one shared static target.
   The original-client bridge checks only the game hash through `IsRegisteredClient`;
-  this does not identify a retail engine or enable its provider during NitroApi startup. Missing addresses are not hooks and must not be called.
+  this does not identify a retail engine or enable its provider during NitroApi startup.
+  The registered VGUI companion is paired with that client in the same registry.
+  `native_symbols` owns the shared borrowed-module ELF lookup used by SearchConfig
+  and the original VGUI binder; do not introduce a second parser or offset table. Missing addresses are not hooks and must not be called.
 - A chained hook's `next` controls execution of the remaining chain. Call it according to the
   intended replacement/forwarding contract and preserve the return value; duplicate forwarding
   can repeat engine work, while an omitted call can suppress unrelated subscribers.

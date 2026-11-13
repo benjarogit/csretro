@@ -66,6 +66,8 @@ Bot*.db -text
 /client/nextclient/xash_host/** text diff merge eol=lf
 /client/nextclient/xash_client/** text diff merge eol=lf
 /client/nextclient/nitro_api/registry/** text diff merge eol=lf
+/client/nextclient/nitro_api/native_symbols/** text diff merge eol=lf
+/client/nextclient/nitro_api/src/elf_symbols.* text diff merge eol=lf
 /client/nextclient/packages/player_identity/** text diff merge eol=lf
 # Shipped face files are binaries. The rule above would otherwise force a text diff.
 /client/nextclient/xash_surface/fonts/** -text -diff

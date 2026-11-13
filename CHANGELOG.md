@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Original VGUI startup binding after the real client Initialize callback, with a paired VGUI fingerprint, shared symbol lookup and owned shutdown; frame/input/GameUI integration remains open.
+
 - Original-game callback bridge for the initial i386 Xash port, preserving the registered client's callback table and refusing unknown libraries before loading; runtime/VGUI assembly remains open.
 
 - Isolated i386 `linux-port` build/test presets for the first Xash3D port, with architecture-checked manifests and selective build cleanup; x64 remains the default.

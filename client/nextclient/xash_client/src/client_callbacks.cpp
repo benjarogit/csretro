@@ -4,6 +4,17 @@
 
 namespace csr::client
 {
+    int InitializeWithVgui(goldsrc::INITIALIZE_FUNC original, goldsrc::cl_enginefunc_t* engine,
+                           int version, BindVgui bind, void* owner)
+    {
+        if (!original || !bind)
+            return 0;
+        const int result = original(engine, version);
+        if (!result)
+            return result;
+        return bind(owner, engine) ? result : 0;
+    }
+
     bool ReadCallbacks(void* module, goldsrc::cldll_func_t& out, std::string& error)
     {
         out = {};

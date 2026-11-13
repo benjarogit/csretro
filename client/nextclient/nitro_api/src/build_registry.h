@@ -24,6 +24,7 @@ namespace nitroapi
     // Validates only a locally supplied game library for the initial Xash port.
     // This does not identify or authorize a retail engine for this process.
     bool IsRegisteredClient(const std::string& platform, const std::string& client_sha256);
+    bool IsRegisteredClientVgui(const std::string& client_sha256, const std::string& vgui_sha256);
 
     // Returns the lowercase SHA-256 of a file, or an empty string when the file
     // cannot be read.

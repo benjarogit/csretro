@@ -9,6 +9,8 @@ namespace
     int missing{};
     int hud_init_count{};
     int shutdown_count{};
+    int initialize_count{};
+    void* last_engine{};
     template <typename T> struct Default;
     template <typename R, typename... Args> struct Default<R (*)(Args...)>
     {
@@ -16,6 +18,9 @@ namespace
     };
     int Initialize(goldsrc::cl_enginefunc_t* engine, int version)
     {
+        ++initialize_count;
+        last_engine = engine;
+        if (missing == 5) return 0;
         return version + (engine ? 1000 : 0);
     }
     void HudInit() { ++hud_init_count; }
@@ -35,9 +40,13 @@ extern "C" void FixtureConfigure(int value)
 {
     missing = value;
     hud_init_count = shutdown_count = 0;
+    initialize_count = 0;
+    last_engine = nullptr;
 }
 extern "C" int FixtureHudInitCount() { return hud_init_count; }
 extern "C" int FixtureShutdownCount() { return shutdown_count; }
+extern "C" int FixtureInitializeCount() { return initialize_count; }
+extern "C" void* FixtureLastEngine() { return last_engine; }
 extern "C" void F(goldsrc::cldll_func_t* out)
 {
     *out = {};
@@ -100,4 +109,68 @@ extern "C" void F(goldsrc::cldll_func_t* out)
         out->pGetPlayerTeam = nullptr;
         out->pClientFactory = nullptr;
     }
+}
+
+namespace
+{
+    int original_globals;
+    int filesystem_token;
+    int viewport_init_count;
+    int viewport_start_count;
+}
+namespace vgui2
+{
+    __attribute__((visibility("hidden"))) void* g_pVGuiInterface = &original_globals;
+    __attribute__((visibility("hidden"))) void* g_pInputInterface = &original_globals;
+    __attribute__((visibility("hidden"))) void* g_pPanelInterface = &original_globals;
+    __attribute__((visibility("hidden"))) void* g_pSchemeInterface = &original_globals;
+    __attribute__((visibility("hidden"))) void* g_pSystemInterface = &original_globals;
+    __attribute__((visibility("hidden"))) void* g_pSurfaceInterface = &original_globals;
+    __attribute__((visibility("hidden"))) void* g_pLocalizeInterface = &original_globals;
+    __attribute__((visibility("hidden"))) void* g_pFileSystemInterface = &original_globals;
+}
+__attribute__((visibility("hidden"))) void* g_pKeyValuesInterface = &original_globals;
+__attribute__((visibility("hidden"))) void* g_pFileSystem = &filesystem_token;
+
+class __attribute__((visibility("hidden"))) CounterStrikeViewport
+{
+public:
+    void Initialize(void* (**factories)(const char*, int*), int count);
+    void Start();
+};
+void CounterStrikeViewport::Initialize(void* (**factories)(const char*, int*), int count)
+{
+    if (count == 2 && factories &&
+        factories[0]("VGUI_Surface026", nullptr) == vgui2::g_pSurfaceInterface &&
+        factories[0]("VFileSystem009", nullptr) == vgui2::g_pFileSystemInterface)
+        ++viewport_init_count;
+}
+void CounterStrikeViewport::Start()
+{
+    if (viewport_init_count == 1)
+        ++viewport_start_count;
+}
+namespace { CounterStrikeViewport viewport; }
+__attribute__((visibility("hidden"))) void* gViewPortInterface = &viewport;
+extern "C" void FixtureClientBindingReset()
+{
+    viewport_init_count = viewport_start_count = 0;
+    g_pFileSystem = &filesystem_token;
+    gViewPortInterface = &viewport;
+}
+extern "C" int FixtureViewportInitCount() { return viewport_init_count; }
+extern "C" int FixtureViewportStartCount() { return viewport_start_count; }
+extern "C" void* FixtureClientGlobal(int slot)
+{
+    void* values[] = {vgui2::g_pVGuiInterface, vgui2::g_pInputInterface,
+        vgui2::g_pPanelInterface, vgui2::g_pSchemeInterface, vgui2::g_pSystemInterface,
+        vgui2::g_pSurfaceInterface, vgui2::g_pLocalizeInterface,
+        vgui2::g_pFileSystemInterface, g_pKeyValuesInterface};
+    return slot >= 0 && slot < 9 ? values[slot] : nullptr;
+}
+extern "C" void* FixtureClientFilesystem() { return g_pFileSystem; }
+extern "C" void FixtureClientAvailability(int files, int view)
+{
+    g_pFileSystem = files ? &filesystem_token : nullptr;
+    gViewPortInterface = view ? &viewport : nullptr;
 }

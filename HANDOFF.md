@@ -8,11 +8,11 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-13
 - **Gate:** G07 — in progress. The first runnable version is not achieved.
 - **Branch:** `main` is the integration target; changes use gate pull requests.
-- **Validated baseline:** `10475b20` (PR #9 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43387698772 and Pages https://github.com/benjarogit/csretro/actions/runs/43387856761 — success.
+- **Validated baseline:** `c2ed9d61` (PR #10 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43390101465 and Pages https://github.com/benjarogit/csretro/actions/runs/43390251131 — success.
 - **Product sequence:** Port existing NextClient/CS behavior to Xash3D first; then exclusively Linux x86_64 and at least 60 FPS in gameplay without a 60 FPS cap; additional features later. Original licensed game files stay in a separate copy, and the port starts no Steam process. Rules and decisions live in the authoritative plan, sections 3.7–3.8.
 - **Actual runtime boundary:** The host builds and presents native VGUI2 UI, reads content and records world primitives/callbacks. It does not execute Xash3D gameplay. `client_mini` is an extension of an existing game client, not a native CS game implementation. The SDK builds the UI foundation, not the missing CS gameplay implementation.
 - **Critical next port work:** Integrate the existing NextClient extensions with a real architecture-matched Xash3D/CS runtime, using the locally supplied original game library as the i386 spike does. A native x64 game library is the following phase, not a demand to rewrite CS before porting. The x64-only export screen still fails on the extension module as expected; it is not a gate against the initial i386 port.
-- **Current work:** Original-game callback bridge: registered i386 client identity, unchanged original F table and module lifetime. Fixtures pass in both architectures. Actual VGUI binding, NextClient extension initialization and engine/runtime assembly remain open. See the latest command results below.
+- **Current work:** VGUI startup binding in the original-client bridge: real Initialize forwarding, registered original VGUI companion, one product Surface, named-symbol binding and owned shutdown. Fixture tests cover both architectures; no original binary was executed. Live rendering/input/file bindings, GameUI, NextClient extension initialization and engine/runtime assembly remain open. See the latest command results below.
 - **Clarified scope:** No CS rewrite or reference-client feature import before the existing NextClient-to-Xash3D port. The original game library can be supplied locally for that first port; a later exclusively x64 phase must solve its own architecture constraints. Existing GPL reference rules remain unchanged.
 - **Historical evidence:** Earlier i386 spikes and test-only host results remain below. They do not establish x64 gameplay, production Steam authentication or measured scene FPS.
 
@@ -352,7 +352,7 @@ the Security overview switches in the browser.
 
 Continue G07 with the existing NextClient-to-Xash3D port first, following the clarified plan section 3.8.
 
-1. Use the isolated `linux-port`/`linux-port-tests` profiles for the existing i386 Xash/original-CS-client reference and NextClient extensions. The new `xash_client` target delegates the original F table without replacing movement or other callbacks. Bind the original VGUI interfaces/globals to the product Surface, then connect the existing NextClient behavior to the real Xash callbacks. Keep local original binaries and external engine artifacts out of the repository.
+1. Use the isolated `linux-port`/`linux-port-tests` profiles for the existing i386 Xash/original-CS-client reference and NextClient extensions. The `xash_client` target retains original movement/input/game callbacks and wraps initialization/shutdown for VGUI startup. Connect live original panel traversal, painting, mouse/keyboard and file/font callbacks to Surface; finish GameUI initialization before a real run. Then connect existing NextClient behavior to the real Xash callbacks. Keep local original binaries and external engine artifacts out of the repository.
 2. Replace the test-only host path with the real Xash3D engine loop and bind the existing NextClient behavior there. Preserve CS movement and validate input, collision, weapons, HUD/sound and a local/test-server session. Automation never starts the game; prepare a human run with hashes and clear acceptance steps.
 3. After the functional port, make the complete runtime exclusively x64 and measure at least 60 FPS in a named real scene. Do not mix ELF32 game libraries with ELF64 components or call a menu benchmark gameplay evidence.
 4. Additional features from reference clients follow the working port/x64/performance baseline. Keep DE/EN player/plugin docs, harness, handoff and authoritative backlog aligned. Exact generated references remain useful documentation work, not a replacement for runtime integration.
@@ -391,6 +391,21 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Original VGUI startup binding (2026-11-13, baseline `c2ed9d61`):
+
+- The bridge now forwards the real original Initialize with its actual engine table/version before starting UI. A failed original initializer never starts VGUI; a failed UI stage returns a failed engine handshake. Shutdown forwards to the original, restores client globals and keeps the UI libraries/Surface alive until the original client unloads.
+- A registered client/VGUI pair is required. Original VGUI SHA-256 remains `f0291c95ec420d65a8f174ccb0e144be831d101b9d2650bb29c6da6bd96bcd3f`. The original client, `vgui2.valve.so`, `xash_surface.so` and Surface fonts are companion files beside the physical bridge. Runtime/installer assembly is still not implemented.
+- The shared `native_symbols` target is the existing SearchConfig ELF lookup moved to one owner. It resolves original client globals and original `CVGui::Init`/shutdown and viewport Initialize/Start by names; no fixed offsets or vendored VGUI-class casts are used.
+- Standalone native fixture builds: 16/16 tests in i386 and 16/16 in x64. Coverage includes complete callback forwarding, initialization arguments/result/order, original VGUI startup, client-global restore, exclusive binding/reopen, missing symbols/interfaces/modules/filesystem/viewport, failed initialization and client/VGUI fingerprint pairing. Real OriginalUi loading is not exercised because automation must not run original game code.
+- Native i386 `nitro_api-tests --gtest_brief=1`: 71/71 passed after the resolver extraction; existing export/symtab/pattern and Xash identity behavior remain covered.
+- The first expanded standalone x64 link reproduced a missing-PIC error in the static encoding dependency. Standalone fixtures now enable PIC like the product build; both architecture builds pass. No production package flags were changed.
+- `scripts/build-client.sh --preset linux-port --reconfigure --target xash_client --target nitro_api --jobs 6`: exit 0, matching ELF32 shared artifacts and manifest. No game was started.
+- `verify-nitro-api-factory`: `PASS NITRO_FRAME_LIFECYCLE_001`; shipping bridge dynamic exports contain only `F`. `scripts/verify.sh`: 68 checks passed on 9,349 tracked files; strict DE/EN docs build passed.
+- Static inspection through `nm`/`objdump` confirmed the old VGUI versions and named methods in the supplied original files. REA CLI was available, but its pwntools provider was not configured; these observations are shell evidence, not REA Evidence records. No tool configuration or analysis engine was installed or changed.
+- Static inspection of the old owned `kvshim.so` also found a return-zero patch to the reference GameUI's `CCareerGame::IsPlayingMatch`. The current bridge contains no such patch. Real GameUI startup and interaction still need integration and a human run; the historical patched spike does not close this requirement.
+- Still open: original panel traversal/rendering/input/file/font callbacks, GameUI/NextClient runtime integration, actual Xash loop and installation assembly. Passing fixture startup is not gameplay or movement evidence. G07 remains open.
+
 
 Original game callback bridge (2026-11-13, source `22a8f677`, baseline `10475b20`):
 

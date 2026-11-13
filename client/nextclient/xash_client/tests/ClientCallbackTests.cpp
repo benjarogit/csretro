@@ -149,6 +149,17 @@ TEST(ClientIdentity, RecognizesOnlyTheRegisteredGameWithoutAnEngineFingerprint)
     EXPECT_FALSE(nitroapi::IsRegisteredClient("linux", nitroapi::HashFileSha256(CLIENT_CALLBACK_FIXTURE)));
 }
 
+TEST(ClientIdentity, RequiresTheMatchingOriginalVguiCompanion)
+{
+    const std::string client = "2e799ef31931c0f4372ff31ad30f0aab529b16461ed3b0928dfbd958183b2e5a";
+    const std::string vgui = "f0291c95ec420d65a8f174ccb0e144be831d101b9d2650bb29c6da6bd96bcd3f";
+    EXPECT_TRUE(nitroapi::IsRegisteredClientVgui(client, vgui));
+    EXPECT_FALSE(nitroapi::IsRegisteredClientVgui(client, std::string(64, 'a')));
+    EXPECT_FALSE(nitroapi::IsRegisteredClientVgui(std::string(64, 'a'), vgui));
+    EXPECT_FALSE(nitroapi::IsRegisteredClientVgui("", vgui));
+    EXPECT_FALSE(nitroapi::IsRegisteredClientVgui(client, ""));
+}
+
 TEST(ClientCallbacksFailure, ShippingBridgeRejectsUnknownLibraryBeforeRunningItsConstructor)
 {
     // The x64 bridge rejects the i386-only production contract immediately.
@@ -172,4 +183,54 @@ TEST(ClientCallbacksFailure, ShippingBridgeRejectsUnknownLibraryBeforeRunningIts
     fill(&table);
     EXPECT_EQ(table.pInitFunc, nullptr);
     EXPECT_EQ(table.pClientMove, nullptr);
+}
+
+TEST_F(ClientCallbacks, OriginalInitializationPrecedesVguiAndPreservesItsArgumentsAndResult)
+{
+    goldsrc::cldll_func_t table{};
+    std::string error;
+    ASSERT_TRUE(csr::client::ReadCallbacks(module.get(), table, error)) << error;
+    struct Context
+    {
+        void* module;
+        goldsrc::cl_enginefunc_t* expected_engine;
+        int calls{};
+    };
+    int token{};
+    auto* engine = reinterpret_cast<goldsrc::cl_enginefunc_t*>(&token);
+    Context context{module.get(), engine};
+    const auto bind = [](void* owner, goldsrc::cl_enginefunc_t* engine) -> bool {
+        auto& context = *static_cast<Context*>(owner);
+        ++context.calls;
+        auto count = reinterpret_cast<int (*)()>(dlsym(context.module, "FixtureInitializeCount"));
+        auto last = reinterpret_cast<void* (*)()>(dlsym(context.module, "FixtureLastEngine"));
+        EXPECT_EQ(count(), 1);
+        EXPECT_EQ(last(), context.expected_engine);
+        EXPECT_EQ(engine, context.expected_engine);
+        return true;
+    };
+    EXPECT_EQ(csr::client::InitializeWithVgui(table.pInitFunc, engine, 7, bind, &context), 1007);
+    EXPECT_EQ(context.calls, 1);
+}
+
+TEST_F(ClientCallbacks, FailedInitializationSkipsVguiAndFailedVguiFailsTheEngineHandshake)
+{
+    goldsrc::cldll_func_t table{};
+    std::string error;
+    ASSERT_TRUE(csr::client::ReadCallbacks(module.get(), table, error)) << error;
+    int calls{};
+    auto bind = [](void* owner, goldsrc::cl_enginefunc_t*) {
+        ++*static_cast<int*>(owner);
+        return false;
+    };
+    configure(5);
+    EXPECT_EQ(csr::client::InitializeWithVgui(table.pInitFunc, nullptr, 7, bind, &calls), 0);
+    EXPECT_EQ(calls, 0);
+    EXPECT_EQ(Count("FixtureInitializeCount"), 1);
+    configure(0);
+    EXPECT_EQ(csr::client::InitializeWithVgui(table.pInitFunc, nullptr, 7, bind, &calls), 0);
+    EXPECT_EQ(calls, 1);
+    EXPECT_EQ(Count("FixtureInitializeCount"), 1);
+    EXPECT_EQ(csr::client::InitializeWithVgui(nullptr, nullptr, 7, bind, &calls), 0);
+    EXPECT_EQ(calls, 1);
 }

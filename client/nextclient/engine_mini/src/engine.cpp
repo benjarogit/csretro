@@ -438,6 +438,7 @@ namespace
     void RecordXashDTSetRenderState();
     void RecordXashDTLoadDetailTexture();
     void RecordXashRForceCVars();
+    void RecordXashRForceCVarsPart();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -649,7 +650,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // R_ForceCVars is then the process function when that hook is absent.
     // This init stores the pointer and does not force cvars. The process
     // body forces cvars for multiplayer, so a real call does not run.
-    // The next retail hook is R_ForceCVars_part. This path returns before it.
+    // R_ForceCVars_part is then the process function when that hook is
+    // absent. This init stores the pointer and does not force cvars. The
+    // process body forces cvars for multiplayer, so a real call does not
+    // run.
+    // The next retail hook is Cbuf_AddFilteredText. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -718,6 +723,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashDTSetRenderState();
             RecordXashDTLoadDetailTexture();
             RecordXashRForceCVars();
+            RecordXashRForceCVarsPart();
         }
         return;
     }
@@ -942,7 +948,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     g_Unsubs.emplace_back(eng()->R_ForceCVars                |= [](goldsrc::qboolean mp, const auto& next)                                      { R_ForceCVars(mp); });
 #ifndef _WIN32
     // R_Clear and R_SetupFrame call this split-out body directly, and only in multiplayer
-    g_Unsubs.emplace_back(eng()->R_ForceCVars_part           |= [](const auto& next)                                                   { R_ForceCVars(true); });
+    g_Unsubs.emplace_back(eng()->R_ForceCVars_part           |= [](const auto& next)                                                   { R_ForceCVars_part(); });
 #endif
 
     //
@@ -1198,6 +1204,7 @@ EngineMiniBuildGammaTableFn g_EngineMiniBuildGammaTable = BuildGammaTable;
 EngineMiniDTSetRenderStateFn g_EngineMiniDTSetRenderState = DT_SetRenderState;
 EngineMiniDTLoadDetailTextureFn g_EngineMiniDTLoadDetailTexture = DT_LoadDetailTexture;
 EngineMiniRForceCVarsFn g_EngineMiniRForceCVars = R_ForceCVars;
+EngineMiniRForceCVarsPartFn g_EngineMiniRForceCVarsPart = R_ForceCVars_part;
 
 namespace
 {
@@ -2234,6 +2241,24 @@ namespace
             return;
         }
         g_xash_startup.force_cvars = g_EngineMiniRForceCVars;
+    }
+
+    void RecordXashRForceCVarsPart()
+    {
+        // The retail site installs a replacement. It does not force cvars
+        // during init. A null function pointer is not a call. A null hook is
+        // not a call. The process body forces cvars for multiplayer, so this
+        // path does not call it.
+        g_xash_startup.force_cvars_part = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->R_ForceCVars_part.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniRForceCVarsPart == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.force_cvars_part = g_EngineMiniRForceCVarsPart;
     }
 
     bool XashStartupIsActive()

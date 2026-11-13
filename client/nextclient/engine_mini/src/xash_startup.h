@@ -189,6 +189,9 @@ using EngineMiniDTLoadDetailTextureFn = void (*)(const char* diffuseName, int di
 // Process replacement for the retail R_ForceCVars hook. A null value is not a call.
 using EngineMiniRForceCVarsFn = void (*)(goldsrc::qboolean mp);
 
+// Process replacement for the retail R_ForceCVars_part hook. A null value is not a call.
+using EngineMiniRForceCVarsPartFn = void (*)();
+
 /*
  * Record of the Xash startup sequence. engine_mini fills it from the
  * xash_engine callbacks when the matching retail hook is absent.
@@ -261,6 +264,7 @@ struct EngineMiniXashStartup
     int set_render_state_calls{};
     int load_detail_texture_calls{};
     int force_cvars_calls{};
+    int force_cvars_part_calls{};
     int argc{};
     int mode_result{};
     int dedicated{};
@@ -332,6 +336,7 @@ struct EngineMiniXashStartup
     EngineMiniDTSetRenderStateFn set_render_state{};
     EngineMiniDTLoadDetailTextureFn load_detail_texture{};
     EngineMiniRForceCVarsFn force_cvars{};
+    EngineMiniRForceCVarsPartFn force_cvars_part{};
 };
 
 // Defaults to NET_SendPacket. Init stores the pointer and does not call it.
@@ -510,6 +515,9 @@ extern EngineMiniDTLoadDetailTextureFn g_EngineMiniDTLoadDetailTexture;
 
 // Defaults to R_ForceCVars. Init stores the pointer and does not call it.
 extern EngineMiniRForceCVarsFn g_EngineMiniRForceCVars;
+
+// Defaults to R_ForceCVars_part. Init stores the pointer and does not call it.
+extern EngineMiniRForceCVarsPartFn g_EngineMiniRForceCVarsPart;
 
 void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xash);
 const EngineMiniXashStartup* EngineMini_XashStartup();

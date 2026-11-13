@@ -717,3 +717,8 @@ void R_ForceCVars(goldsrc::qboolean mp)
         eng()->GL_BuildLightmaps();
     }
 }
+
+void R_ForceCVars_part()
+{
+    R_ForceCVars(true);
+}

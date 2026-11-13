@@ -163,6 +163,7 @@ void EngineMini_ReadScissorTest(int* x, int* y, int* width, int* height, bool* e
 void R_NewMap();
 void R_RenderView();
 void R_ForceCVars(goldsrc::qboolean mp);
+void R_ForceCVars_part();
 void R_DestroyObjects();
 void AppendTEntity_Subscriber(goldsrc::cl_entity_t* ent);
 

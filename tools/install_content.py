@@ -386,6 +386,29 @@ def discover_manual(source: Path) -> dict:
     return _result(True, None, source=str(source), library=library)
 
 
+
+def protected_libraries(roots: list[Path]) -> list[Path]:
+    """Known Steam libraries remain write-protected during manual selection.
+
+    Bad metadata cannot block a valid manual source; any recognizable root
+    still stays protected. Source selection is separate from this guard.
+    """
+    protected: set[Path] = set()
+    for root in roots:
+        if not (root / "steamapps").is_dir():
+            continue
+        protected.add(_resolved(root))
+        try:
+            document = parse_vdf((root / "steamapps/libraryfolders.vdf").read_text(encoding="utf-8-sig"))
+            section = _library_section(document)
+        except (OSError, ValueError):
+            continue
+        if section is not None:
+            protected.update(_resolved(path) for path in _library_paths(section)
+                             if (path / "steamapps").is_dir())
+    return sorted(protected)
+
+
 def decision(relative: str) -> str:
     """Return 'copy' or the reason the file stays in the Steam tree."""
     parts = relative.split("/")
@@ -538,7 +561,7 @@ def install_content(
     source = Path(found["source"])
     library = Path(found["library"]) if found["library"] is not None else source
     destination = _resolved(destination)
-    protected_roots = [_resolved(root) for root in roots if (root / "steamapps").is_dir()]
+    protected_roots = protected_libraries(roots)
     refused = _destination_error(destination, library, source)
     if refused is None and any(_within(destination, root) for root in protected_roots):
         refused = "destination_inside_source"

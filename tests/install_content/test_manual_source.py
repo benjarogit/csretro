@@ -83,6 +83,12 @@ class ManualContentSource(unittest.TestCase):
         result = install_content.install_content(
             [steam], steam / "copy", source=self.game)
         self.assertEqual(result["error"], "destination_inside_source")
+        extra = self.root / "OtherSteamLibrary"
+        (extra / "steamapps").mkdir(parents=True)
+        (steam / "steamapps/libraryfolders.vdf").write_text(fixtures._libraryfolders(steam, extra))
+        result = install_content.install_content(
+            [steam], extra / "copy", source=self.game)
+        self.assertEqual(result["error"], "destination_inside_source")
         alias = self.root / "alias"
         alias.symlink_to(self.game, target_is_directory=True)
         result = install_content.install_content([], alias / "copy", source=self.game)

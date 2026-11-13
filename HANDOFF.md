@@ -392,7 +392,9 @@ copy outside the Steam library.
 
 ## Last commands and results
 
-Architecture-matched port build (2026-11-13, baseline `d53a97de`):
+Architecture-matched port build (2026-11-13, source `3558c1ed`, baseline `d53a97de`):
+
+- PR https://github.com/benjarogit/csretro/pull/9; CI https://github.com/benjarogit/csretro/actions/runs/43387419037 — success, including the real-assembler and build-script regressions.
 
 - Added isolated `linux-port`/`linux-port-tests` presets; default `linux` remains x64. Compiler-derived manifest class rejects empty/mixed shared output. Selected cleanup preserves other profiles. Bootstrap now includes native and i386 FreeType dependencies used by Surface.
 - `scripts/build-client.sh --preset linux-port --reconfigure --target client_mini --target nitro_api --target engine_mini --target gameui --jobs 8`: exit 0, all nine shared artifacts ELF32. Main modules: client 7,962,300 bytes, NitroApi 14,441,080 bytes, engine 28,792,144 bytes, GameUI 8,536,228 bytes. Manifest: `client/build/linux-port/manifest-Release.txt`.

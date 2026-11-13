@@ -1,130 +1,58 @@
 # Client bauen
 
-Der Client ist ein x86_64-Build. Valves i386-`hw.so` wird nicht geladen.
-Die Entscheidung steht in [Plan, Abschnitt 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
-Nichts davon berührt die Steam-Installation.
+Baue die vorhandenen NextClient-Komponenten in der für die Aufgabe benötigten Architektur. Der erste Port läuft auf Xash3D mit passenden lokal bereitgestellten Original-Spielbibliotheken; ausschließliches x64-Gameplay folgt danach. Die Reihenfolge steht in [Plan, Abschnitt 3.8](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md). Ein erfolgreicher Komponentenbau belegt keinen spielbaren Client. Diese Befehle starten kein Spiel und ändern die Steam-Installation nicht.
 
 Voraussetzungen: [Build-Voraussetzungen](prerequisites.md).
 
-## Schnellstart
+## Profil wählen
+
+- `linux` (Standard): x64-Komponenten, vcpkg `x64-linux`, Host-Compilerflags.
+- `linux-port`: i386-Komponenten für den ersten Port, vcpkg `x86-linux`, `-m32` für C, C++ und Assembler. Benötigt passende 32-Bit-OpenGL- und FreeType-Bibliotheken; unter Arch liegen diese in `/usr/lib32`.
+- `linux-tests` und `linux-port-tests`: passende Profile mit Testtargets. Testkonfigurationen erzeugen keine auslieferbare Engine-Bibliothek; zum Bereitstellen das Profil ohne Tests verwenden.
+
+Alle Profile verwenden Ninja Multi-Config und getrennte Verzeichnisse unter `client/build/<preset>`. Shared-Artefakte liegen dort unter `out/bin/<config>/`. Binärdateien verschiedener Architekturen oder Konfigurationen nicht mischen.
+
+## Komponenten bauen
 
 ```bash
-scripts/doctor.sh          # Host prüfen
-scripts/bootstrap.sh       # Hooks, LFS, Submodule, vcpkg
-scripts/build-client.sh    # konfiguriert bei Bedarf, baut, schreibt ein Manifest
+scripts/doctor.sh
+scripts/bootstrap.sh
+scripts/build-client.sh --target xash_surface
+scripts/build-client.sh --preset linux-port \
+  --target client_mini --target nitro_api --target engine_mini --target gameui
 ```
 
-## Pfade mit Leerzeichen
+Wiederholte `--target`-Optionen bauen diese Targets nacheinander. Ohne sie baut das Skript den vorhandenen Auslieferungssatz einschließlich Launcher und `BUILD_ALL`. Ein Installationsverzeichnis fordert die bestehende Installationsroutine an; sie stellt nicht automatisch eine funktionierende Xash3D-Laufzeit zusammen.
 
-Mehrere Dependency-Builds, besonders OpenSSLs `Configure`, brechen ab, wenn der
-Build-Pfad Leerzeichen enthält. Dieses Repository kann unter einem solchen Pfad
-liegen.
+Weitere Optionen: `--config Debug`, `--jobs 8`, `--reconfigure`, `--clean`, `--install-dir <dir>`, `--manifest <file>`. Standardkonfiguration ist Release. Nach Presetänderungen oder neuen per CMake-Glob erfassten Quellen erneut konfigurieren.
 
-`scripts/build-client.sh` erkennt das und baut über einen space-freien Symlink:
+Das Manifest enthält Version, Quellcommit, Preset, Konfiguration, Buildzeit, Größe, SHA-256, ELF-Klasse und relativen Artefaktpfad. CMake leitet die erwartete ELF-Klasse aus der Compiler-ABI ab. Leere Shared-Ausgabe oder eine abweichende Klasse lassen den Build scheitern. Das Manifest erfasst das Ausgabeverzeichnis; es bestätigt weder Callbacks noch Movement, Leistung oder Spielbarkeit.
 
-```text
-/tmp/csretro-src -> <Repository>
-```
+## Komponenten ohne Spielstart prüfen
 
-Die Dateien bleiben im Repository; nur der Pfad, den der Compiler sieht, ist ein
-anderer. Wer CMake manuell aus einem Pfad mit Leerzeichen aufruft, bekommt den
-OpenSSL-Fehler. Also das Skript verwenden oder aus einem space-freien Checkout
-konfigurieren.
-
-Ein vorhandenes `build/linux` nicht zwischen echtem Pfad und Symlink verschieben:
-CMake speichert absolute Pfade. Nach einem solchen Wechsel
-`scripts/build-client.sh --clean` ausführen.
-
-## Konfiguration
-
-Das Preset `linux` ist ein Ninja-Multi-Config-Preset:
-
-| Einstellung | Wert |
-|---|---|
-| Generator | Ninja Multi-Config |
-| Triplet | `x64-linux` (`client/vcpkg/triplets/x64-linux.cmake`) |
-| C/C++-Flags | Host-Standard, ohne `-m32` |
-| Build-Verzeichnis | `client/build/linux` |
-| Ausgabe | `client/build/linux/out/bin/<config>/` |
-
-## Targets
-
-`scripts/build-client.sh` baut in Abhängigkeitsreihenfolge:
-
-| Target | Artefakt | Zweck |
-|---|---|---|
-| `client_mini` | `client_mini.dll` | HUD, View, Waffen, Radar |
-| `engine_mini` | `next_engine_mini.dll` | Laufzeit-Detours und Engine-Patches |
-| `nitro_api` | `nitro_api2.dll` | Engine-Adressen und Hook-Schicht |
-| `gameui` | `cstrike/cl_dlls/gameui.so` | native VGUI2-Menüs |
-| `cstrike.exe` | `cstrike.exe` | Launcher und Prozesseinstieg |
-| `BUILD_ALL` | alle Shipping-Module | zusätzlich `FileSystem_Proxy.dll`, `steam_api.dll`, `vgui2.so` |
-
-Ein einzelnes Target bauen:
+Nach dem Konfigurieren aus einem Client-Quellpfad ohne Leerzeichen:
 
 ```bash
-scripts/build-client.sh --target client_mini
+cmake --preset linux-port-tests
+cmake --build --preset linux-port-tests-release --target xash_surface-tests
+LIBGL_ALWAYS_SOFTWARE=1 build/linux-port-tests/out/bin/Release/xash_surface-tests
+cmake --build --preset linux-port-release --target verify-nitro-api-factory goldsrc_abi_golden
 ```
 
-Weitere Optionen: `--config Debug`, `--jobs 8`, `--reconfigure`, `--clean`,
-`--install-dir <dir>`, `--manifest <file>`.
+Die Surface-Tests verwenden einen eigenen Offscreen-Kontext. Der Factory-Probe lädt unseren Provider, das Golden-Target kompiliert ABI-Assertions. Keiner davon startet ein Spiel. Die Buildskript-Regressionen laufen mit `python3 -m unittest discover -s tests/build_scripts -v` aus dem Repository-Hauptverzeichnis und auch in CI. Spielnachweise folgen der [Laufzeit-Abnahme](../maintainers/runtime-readiness.md).
 
-## Referenzbuild (G04, 8. November 2026, damaliger 32-Bit-Stand)
+## Pfade und Bereinigung
 
-Die Tabelle ist der abgeschlossene G04-Nachweis. Der Produkt-Build ist seit
-dem x86_64-Wechsel ELF64.
+Abhängigkeitsbuilds wie OpenSSL scheitern an Quellpfaden mit Leerzeichen. Der Wrapper verwendet den Symlink `${TMPDIR:-/tmp}/csretro-src` ohne Leerzeichen; die Dateien bleiben im Repository. Für manuelle CMake-Befehle dessen `client`-Verzeichnis betreten. Einen konfigurierten Build nicht zwischen echtem Pfad und Symlink verschieben: CMake speichert absolute Pfade.
 
-| Artefakt | Größe | Typ |
-|---|---:|---|
-| `client_mini.dll` | 5.482.420 | ELF32 |
-| `next_engine_mini.dll` | 26.130.800 | ELF32 |
-| `nitro_api2.dll` | 15.000.184 | ELF32 |
-| `cstrike/cl_dlls/gameui.so` | 8.785.140 | ELF32 |
-| `cstrike.exe` | 19.974.812 | ELF32 |
-| `FileSystem_Proxy.dll` | 2.117.508 | ELF32 |
-| `steam_api.dll` | 1.748.084 | ELF32 |
-| `vgui2.so` | 2.597.024 | ELF32 |
-
-Gemessen auf dem Referenzhost:
-
-| Schritt | Zeit |
-|---|---:|
-| Konfiguration inklusive aller vcpkg-Ports | 122 s |
-| `client_mini` | 32 s |
-| `engine_mini` | 56 s |
-| `nitro_api` | 104 s |
-| `gameui` | 18 s |
-| `cstrike.exe` | 9 s |
-| `BUILD_ALL` | 3 s |
-
-Speicher: `client/build/linux` etwa 282 MB, `client/vcpkg/downloads` etwa 90 MB.
-
-Das Skript schreibt ein Manifest mit Version, Commit, Konfiguration, Buildzeit und
-einer Zeile pro Artefakt:
-
-```text
-# size_bytes  sha256  elf  path
-5482420  <sha256>  ELF64  client_mini.dll
-```
-
-Der Build bricht ab, wenn ein Artefakt nicht `ELF64` ist.
-
-## Bekannte Warnungen
-
-- `creating DT_TEXTREL in a shared object` — Upstream-Code, erwartet, nicht fatal.
-- `cmake_minimum_required` unter 3.10 im vendorten SDK — Upstream, wird beim
-  Rebranding angegangen.
-- `FetchContent_Populate is deprecated` — Upstream `dep/funchook`.
-
-Keine davon verändert das Ergebnis.
+`scripts/build-client.sh --preset linux-port --clean` baut nur dieses Profil neu. `scripts/clean.sh --client-build linux-port-tests` entfernt nur dessen Testbuild, optional mit `--dry-run`. Andere Profile bleiben erhalten. Die vollständige Bereinigung generierter Daten erfolgt weiterhin über `scripts/clean.sh`.
 
 ## Fehlersuche
 
-| Symptom | Ursache | Lösung |
-|---|---|---|
-| `is a Git LFS pointer file` beim Konfigurieren | LFS-Objekte nicht geladen | `git lfs pull` |
-| `could not find baseline version` von vcpkg | vcpkg-Submodul ist ein Shallow-Clone | `git -C client/vcpkg fetch --unshallow` |
-| OpenSSLs `Configure` scheitert an Leerzeichen | Build-Pfad enthält Leerzeichen | `scripts/build-client.sh` verwenden, es baut über einen space-freien Symlink |
-| Artefakt ist `ELF32` | altes Triplet oder `-m32` noch aktiv | Preset `linux` und Triplet `x64-linux` behalten |
-| CMake findet keine Bibliothek | vcpkg-Cache vom alten Triplet | `scripts/build-client.sh --clean` |
-| vcpkg-Install scheitert nach Toolchain-Wechsel | veralteter Cache oder Build-Trees | `scripts/build-client.sh --clean` |
+- Git-LFS-Pointer beim Konfigurieren: `git lfs pull` ausführen.
+- Fehlende vcpkg-Baseline: gepinntes Submodul initialisieren; bei einem flachen Klon die vollständige Historie holen.
+- Falsche ELF-Klasse oder unpassende Systembibliothek: Profil und passende Systemabhängigkeiten prüfen, dann nur dieses Profil bereinigen und neu konfigurieren. Für `linux-port` ist ELF32 richtig.
+- i386-Assemblerfehler bei Registern/Operanden: mit dem getrackten Port-Preset neu konfigurieren, damit auch Assemblerabhängigkeiten `CMAKE_ASM_FLAGS=-m32` erhalten.
+- Fehlendes 32-Bit-GL oder FreeType: passende Multilib-Pakete aus den Voraussetzungen installieren. Eine gecachte x64-Bibliothek funktioniert nicht im i386-Build.
+
+Historische Buildmessungen und ihre Commits stehen in [HANDOFF.md](https://github.com/benjarogit/csretro/blob/main/HANDOFF.md).

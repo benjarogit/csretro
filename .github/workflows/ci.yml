@@ -39,7 +39,7 @@ jobs:
       - name: Install verification tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes shellcheck gcc binutils
+          sudo apt-get install --yes shellcheck gcc binutils cmake ninja-build
 
       - name: Verify
         run: ./scripts/verify.sh
@@ -49,3 +49,6 @@ jobs:
 
       - name: Test manual original-content selection
         run: python3 -m unittest discover -s tests/install_content -p 'test_manual_source.py' -v
+
+      - name: Test client build profiles and assembler ABI
+        run: python3 -m unittest discover -s tests/build_scripts -v

@@ -23,6 +23,23 @@ endforeach ()
 # The HL1 SDK tree is tracked source. Our edits are those files.
 project(NextClient VERSION 2.6.0)
 
+# Derive artifact identity from the configured compiler, not a second copy of
+# preset flags in the shell build wrapper. Mixed-architecture outputs fail it.
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    if (VCPKG_TARGET_TRIPLET STREQUAL "x86-linux" AND NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
+        message(FATAL_ERROR "The x86 port preset requires a 32-bit compiler ABI")
+    elseif (VCPKG_TARGET_TRIPLET STREQUAL "x64-linux" AND NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+        message(FATAL_ERROR "The x64 preset requires a 64-bit compiler ABI")
+    endif ()
+    if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+        file(WRITE "${CMAKE_BINARY_DIR}/artifact-elf-class.txt" "ELF32\n")
+    elseif (CMAKE_SIZEOF_VOID_P EQUAL 8)
+        file(WRITE "${CMAKE_BINARY_DIR}/artifact-elf-class.txt" "ELF64\n")
+    else ()
+        message(FATAL_ERROR "Unsupported Linux compiler pointer size")
+    endif ()
+endif ()
+
 set(NEXTCLIENT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 include(cmake/NextClientProfiling.cmake)
 

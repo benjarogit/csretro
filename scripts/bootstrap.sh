@@ -66,6 +66,7 @@ if ((install_deps)); then
         lib32-gcc-libs
         lib32-mesa
         lib32-libglvnd
+        lib32-freetype2
         lib32-libx11
         lib32-libxext
         lib32-libxcursor
@@ -77,6 +78,7 @@ if ((install_deps)); then
         lib32-libxrender
         mesa
         libglvnd
+        freetype2
         libx11
         libxext
         libxcursor

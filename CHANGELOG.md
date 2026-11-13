@@ -10,6 +10,7 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Isolated i386 `linux-port` build/test presets for the first Xash3D port, with architecture-checked manifests and selective build cleanup; x64 remains the default.
 - Manual original-content selection through `install-content.sh --source`, accepting the game root or its valve/cstrike folder without Steam metadata.
 
 - Read-only game-client export screen and native regression fixtures; passing the screen does not certify ABI or gameplay.

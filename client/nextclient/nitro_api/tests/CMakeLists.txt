@@ -36,6 +36,7 @@ target_include_directories(nitro_api-tests PRIVATE
 )
 target_link_libraries(nitro_api-tests PRIVATE
         nitro_build_registry
+        $<$<PLATFORM_ID:Linux>:nitro_native_symbols>
         GTest::gtest_main
         nitro_utils::nitro_utils
         data_encoding::data_encoding

@@ -16,6 +16,9 @@ find_package(magic_enum CONFIG REQUIRED)
 find_package(xbyak CONFIG REQUIRED)
 
 add_subdirectory(registry)
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_subdirectory(native_symbols)
+endif ()
 
 add_library(nitro_api SHARED
         dep/easyloggingpp/src/easylogging++.cc
@@ -83,6 +86,7 @@ target_include_directories(nitro_api PRIVATE
 
 target_link_libraries(nitro_api PRIVATE
         nitro_build_registry
+        $<$<PLATFORM_ID:Linux>:nitro_native_symbols>
         hl1_source_sdk::hl1_source_sdk
         goldsrc::abi
         OpenGL::GL

@@ -20,6 +20,7 @@ namespace nitroapi
             const char* platform;
             const char* engine_sha256;
             const char* client_sha256;
+            const char* vgui_sha256;
             BuildFamily family;
         };
 
@@ -36,6 +37,7 @@ namespace nitroapi
                 "linux",
                 "fca6628b5a4d76a945e11b9796f327004edc65420d9f9cc23f883143508edd78",
                 "2e799ef31931c0f4372ff31ad30f0aab529b16461ed3b0928dfbd958183b2e5a",
+                "f0291c95ec420d65a8f174ccb0e144be831d101b9d2650bb29c6da6bd96bcd3f",
                 BuildFamily::PublicLinux,
             },
         };
@@ -103,6 +105,18 @@ namespace nitroapi
         for (const BuildRecord& record : kBuilds)
         {
             if (normalized_platform == record.platform && normalized_hash == record.client_sha256)
+                return true;
+        }
+        return false;
+    }
+
+    bool IsRegisteredClientVgui(const std::string& client_sha256, const std::string& vgui_sha256)
+    {
+        const auto client = ToLower(client_sha256);
+        const auto vgui = ToLower(vgui_sha256);
+        for (const BuildRecord& record : kBuilds)
+        {
+            if (client == record.client_sha256 && vgui == record.vgui_sha256)
                 return true;
         }
         return false;

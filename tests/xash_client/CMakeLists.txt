@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 project(ClientCallbackFixtures LANGUAGES CXX)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 enable_testing()
 
 # Compile the actual bridge, registry and tests without the unrelated SDK,
@@ -14,4 +15,5 @@ endif ()
 add_subdirectory("${client}/nextclient/packages/data_encoding" data_encoding)
 add_subdirectory("${client}/nextclient/goldsrc_abi" goldsrc_abi)
 add_subdirectory("${client}/nextclient/nitro_api/registry" registry)
+add_subdirectory("${client}/nextclient/nitro_api/native_symbols" native_symbols)
 add_subdirectory("${client}/nextclient/xash_client" xash_client)

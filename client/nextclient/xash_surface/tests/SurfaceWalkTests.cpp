@@ -191,3 +191,43 @@ namespace
     }
 
 } // namespace
+
+namespace
+{
+    TEST(SurfaceWalk, NativeHostPopupAndTraversalApiRegistersInputAndPaintsEachPopupOnce)
+    {
+        Walk walk;
+        csr_surface_t* surface = csr_surface_create(nullptr);
+        ASSERT_NE(surface, nullptr);
+        auto panel = Fns(&walk);
+        csr_surface_set_panel(surface, &panel);
+        csr_surface_set_popup(surface, [](void* p, int mouse, int keyboard, void* u) {
+            static_cast<Walk*>(u)->events.push_back("popup " + std::to_string(Id(p)) + " " +
+                std::to_string(mouse) + " " + std::to_string(keyboard));
+        }, &walk);
+        auto* vgui = AsSurface(surface);
+        csr_surface_set_embedded_panel(surface, Key(1));
+        EXPECT_EQ(vgui->GetEmbeddedPanel(), 1u);
+        vgui->CreatePopup(5, false, false, false, true, false);
+        vgui->CreatePopup(5, false, false, true, true, true);
+        vgui->CreatePopup(6, false, false, false, true, true);
+        EXPECT_EQ(vgui->GetPopupCount(), 2);
+        EXPECT_EQ(walk.events, (std::vector<std::string>{"popup 5 1 0", "popup 5 0 0", "popup 6 1 1"}));
+        walk.events.clear();
+        csr_surface_solve(surface, Key(1), 0);
+        EXPECT_EQ(walk.events, (std::vector<std::string>{"solve 1", "solve 2", "solve 4", "solve 5", "solve 6"}));
+        walk.events.clear();
+        csr_surface_paint(surface, Key(1));
+        EXPECT_EQ(walk.events, (std::vector<std::string>{"paint 1 1 1", "paint 5 1 1", "paint 6 1 1"}));
+        vgui->ReleasePanel(5);
+        EXPECT_EQ(vgui->GetPopupCount(), 1);
+        csr_surface_set_popup(surface, nullptr, nullptr);
+        vgui->CreatePopup(0, false, false, false, true, true);
+        EXPECT_EQ(vgui->GetPopupCount(), 1);
+        csr_surface_set_popup(nullptr, nullptr, nullptr);
+        csr_surface_set_embedded_panel(nullptr, nullptr);
+        csr_surface_solve(nullptr, nullptr, 0);
+        csr_surface_paint(nullptr, nullptr);
+        csr_surface_destroy(surface);
+    }
+}

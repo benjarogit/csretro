@@ -1,7 +1,6 @@
 #include "client_callbacks.h"
 #include "build_registry.h"
-#include "vgui_binding.h"
-#include <xash_surface/xash_surface.h>
+#include "original_ui.h"
 
 #include <array>
 #include <cstdio>
@@ -17,85 +16,13 @@ namespace
     using Module = std::unique_ptr<void, int (*)(void*)>;
     int BridgeInitialize(goldsrc::cl_enginefunc_t*, int);
     void BridgeShutdown();
+    int BridgeRedraw(float, int);
+    void BridgeFrame(double);
+    void BridgeMouse(int);
+    void BridgeClearInput();
+    void BridgeDeactivateMouse();
 
-    class OriginalUi
-    {
-    public:
-        void Shutdown() { binding_.Shutdown(); }
-        ~OriginalUi()
-        {
-            binding_.Shutdown();
-            vgui_.reset();
-            if (surface_) destroy_(surface_);
-        }
-
-        bool Initialize(void* client, const std::filesystem::path& directory,
-                        const std::string& client_hash, goldsrc::cl_enginefunc_t* engine,
-                        std::string& error)
-        {
-            if (binding_.IsInitialized())
-                return true;
-            if (surface_ && vgui_)
-                return binding_.Initialize(client, vgui_.get(), surface_object_, error);
-            const auto vgui_path = directory / "vgui2.valve.so";
-            if (!nitroapi::IsRegisteredClientVgui(client_hash, nitroapi::HashFileSha256(vgui_path.string())))
-            {
-                error = "vgui2.valve.so does not match the registered original client";
-                return false;
-            }
-            goldsrc::SCREENINFO screen{};
-            screen.iSize = sizeof(screen);
-            if (!engine || !engine->pfnGetScreenInfo || !engine->pfnGetScreenInfo(&screen) ||
-                screen.iWidth <= 0 || screen.iHeight <= 0)
-            {
-                error = "Xash has not supplied a valid screen size";
-                return false;
-            }
-            surface_module_.reset(dlopen((directory / "xash_surface.so").c_str(), RTLD_NOW | RTLD_LOCAL));
-            if (!surface_module_)
-            {
-                const char* reason = dlerror();
-                error = reason ? reason : "Cannot load xash_surface.so";
-                return false;
-            }
-            auto create = reinterpret_cast<csr_surface_t* (*)(const csr_surface_host_t*)>(
-                    dlsym(surface_module_.get(), "csr_surface_create"));
-            auto object = reinterpret_cast<void* (*)(csr_surface_t*)>(
-                    dlsym(surface_module_.get(), "csr_surface_vgui"));
-            destroy_ = reinterpret_cast<void (*)(csr_surface_t*)>(dlsym(surface_module_.get(), "csr_surface_destroy"));
-            if (!create || !object || !destroy_)
-            {
-                error = "Surface module has an incomplete host API";
-                return false;
-            }
-            csr_surface_host_t host{};
-            host.screen_wide = screen.iWidth;
-            host.screen_tall = screen.iHeight;
-            surface_ = create(&host);
-            if (!surface_)
-            {
-                error = "Cannot create the single product Surface";
-                return false;
-            }
-            vgui_.reset(dlopen(vgui_path.c_str(), RTLD_NOW | RTLD_LOCAL));
-            if (!vgui_)
-            {
-                const char* reason = dlerror();
-                error = reason ? reason : "Cannot load vgui2.valve.so";
-                return false;
-            }
-            surface_object_ = object(surface_);
-            return binding_.Initialize(client, vgui_.get(), surface_object_, error);
-        }
-
-    private:
-        Module surface_module_{nullptr, &dlclose};
-        Module vgui_{nullptr, &dlclose};
-        csr_surface_t* surface_{};
-        void* surface_object_{};
-        void (*destroy_)(csr_surface_t*){};
-        csr::client::VguiBinding binding_;
-    };
+    using OriginalUi = csr::client::OriginalUi;
 
     class OriginalClient
     {
@@ -160,6 +87,11 @@ namespace
             auto table = callbacks_;
             table.pInitFunc = BridgeInitialize;
             table.pShutdown = BridgeShutdown;
+            table.pHudRedrawFunc = BridgeRedraw;
+            table.pHudFrame = BridgeFrame;
+            table.pIN_MouseEvent = BridgeMouse;
+            table.pIN_ClearStates = BridgeClearInput;
+            table.pIN_DeactivateMouse = BridgeDeactivateMouse;
             return table;
         }
 
@@ -173,20 +105,46 @@ namespace
 
         bool BindUi(goldsrc::cl_enginefunc_t* engine)
         {
-            auto candidate = ui_ ? nullptr : std::make_unique<OriginalUi>();
-            auto* ui = ui_ ? ui_.get() : candidate.get();
+            // Retain partially initialized UI libraries too: if initialization
+            // fails, the game module must unload before those dependencies.
+            if (!ui_) ui_ = std::make_unique<OriginalUi>();
             std::string error;
-            if (!ui->Initialize(module_.get(), directory_, client_hash_, engine, error))
+            if (!ui_->Initialize(module_.get(), directory_, client_hash_, engine, error))
             {
                 std::fprintf(stderr, "CSRETRO client bridge: %s\n", error.c_str());
                 return false;
             }
-            if (candidate) ui_ = std::move(candidate);
             return true;
+        }
+
+        int Redraw(float time, int intermission)
+        {
+            return csr::client::RedrawWithVgui(callbacks_.pHudRedrawFunc, time, intermission,
+                    [](void* owner) { auto& self = *static_cast<OriginalClient*>(owner); if (self.ui_) self.ui_->Paint(); }, this);
+        }
+
+        void Frame(double time)
+        {
+            csr::client::FrameWithVgui(callbacks_.pHudFrame, time,
+                    [](void* owner) { auto& self = *static_cast<OriginalClient*>(owner); if (self.ui_) self.ui_->Frame(); }, this);
+        }
+
+        void Mouse(int buttons)
+        {
+            csr::client::MouseWithVgui(callbacks_.pIN_MouseEvent, buttons,
+                    [](void* owner) { auto& self = *static_cast<OriginalClient*>(owner); if (self.ui_) self.ui_->MouseMove(); },
+                    [](void* owner, int state) { auto& self = *static_cast<OriginalClient*>(owner); if (self.ui_) self.ui_->MouseButtons(state); }, this);
+        }
+
+        void ClearInput(bool deactivate)
+        {
+            csr::client::ResetInputWithVgui(deactivate ? callbacks_.pIN_DeactivateMouse : callbacks_.pIN_ClearStates,
+                    [](void* owner) { auto& self = *static_cast<OriginalClient*>(owner); if (self.ui_) self.ui_->ClearInput(); }, this);
         }
 
         void Shutdown()
         {
+            if (ui_) ui_->ClearInput();
             callbacks_.pShutdown();
             if (ui_) ui_->Shutdown();
         }
@@ -217,6 +175,32 @@ namespace
         try { Original().Shutdown(); }
         catch (...) { std::fprintf(stderr, "CSRETRO client bridge: shutdown failed\n"); }
     }
+    int BridgeRedraw(float time, int intermission)
+    {
+        try { return Original().Redraw(time, intermission); }
+        catch (...) { std::fprintf(stderr, "CSRETRO client bridge: UI redraw failed\n"); return 0; }
+    }
+    void BridgeFrame(double time)
+    {
+        try { Original().Frame(time); }
+        catch (...) { std::fprintf(stderr, "CSRETRO client bridge: UI frame failed\n"); }
+    }
+    void BridgeMouse(int buttons)
+    {
+        try { Original().Mouse(buttons); }
+        catch (...) { std::fprintf(stderr, "CSRETRO client bridge: mouse input failed\n"); }
+    }
+    void BridgeClearInput()
+    {
+        try { Original().ClearInput(false); }
+        catch (...) { std::fprintf(stderr, "CSRETRO client bridge: input reset failed\n"); }
+    }
+    void BridgeDeactivateMouse()
+    {
+        try { Original().ClearInput(true); }
+        catch (...) { std::fprintf(stderr, "CSRETRO client bridge: mouse deactivation failed\n"); }
+    }
+
 }
 
 extern "C" __attribute__((visibility("default"))) void F(goldsrc::cldll_func_t* out)

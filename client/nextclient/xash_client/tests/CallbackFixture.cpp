@@ -174,3 +174,10 @@ extern "C" void FixtureClientAvailability(int files, int view)
     g_pFileSystem = files ? &filesystem_token : nullptr;
     gViewPortInterface = view ? &viewport : nullptr;
 }
+
+class __attribute__((visibility("hidden"))) TeamFortressViewport
+{
+public:
+    unsigned GetViewPortPanel();
+};
+unsigned TeamFortressViewport::GetViewPortPanel() { return 16; }

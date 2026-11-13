@@ -10,7 +10,9 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
-- Original VGUI startup binding after the real client Initialize callback, with a paired VGUI fingerprint, shared symbol lookup and owned shutdown; frame/input/GameUI integration remains open.
+- Original panel traversal, HUD painting, engine-backed files/fonts and UI mouse/frame routing, with native fixtures and offscreen GL CI; actual runtime/GameUI/NextClient integration remains open.
+
+- Original VGUI startup binding after the real client Initialize callback, with a paired VGUI fingerprint, shared symbol lookup and owned shutdown; GameUI integration remains open.
 
 - Original-game callback bridge for the initial i386 Xash port, preserving the registered client's callback table and refusing unknown libraries before loading; runtime/VGUI assembly remains open.
 

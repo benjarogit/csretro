@@ -75,3 +75,25 @@ jobs:
           sudo apt-get install --yes cmake ninja-build g++-multilib libgtest-dev
       - name: Test original callback delegation without game files
         run: python3 tests/xash_client/run.py --profile "${{ matrix.profile }}" --gtest-source /usr/src/googletest
+
+  surface_gl:
+    name: offscreen surface and client runtime
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          lfs: false
+          submodules: false
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install offscreen fixture dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake ninja-build g++ libgtest-dev libgl-dev libegl-dev libfreetype-dev libegl-mesa0 libgl1-mesa-dri
+      - name: Test Surface rendering and client runtime without game files
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: python3 tests/xash_client/run.py --with-surface --gtest-source /usr/src/googletest

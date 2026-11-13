@@ -1,5 +1,5 @@
 #include "vgui_binding.h"
-#include "elf_symbols.h"
+#include "original_vgui_symbols.h"
 
 #include <cstring>
 #include <dlfcn.h>
@@ -10,15 +10,6 @@ namespace csr::client
 
     namespace
     {
-        template <class T>
-        T Symbol(void* module, const char* name, std::string& error)
-        {
-            auto address = nitroapi::FindSymbolAddress(module, name);
-            if (!address && error.empty())
-                error = std::string("Missing original VGUI binding symbol: ") + name;
-            return reinterpret_cast<T>(address);
-        }
-
         // Facts for the registered original client. These are symbol names,
         // not offsets; the vendored SDK's interfaces must not be substituted.
         struct InterfaceSlot { const char* symbol; const char* name; };
@@ -66,19 +57,19 @@ namespace csr::client
             error = "Original VGUI has no CreateInterface export";
             return false;
         }
-        auto files = Symbol<void**>(client, "g_pFileSystem", error);
-        auto viewport = Symbol<void**>(client, "gViewPortInterface", error);
-        auto init = Symbol<bool (*)(void*, Factory*, int)>(vgui, "_ZN5CVGui4InitEPPFPvPKcPiEi", error);
-        shutdown_ = Symbol<void (*)(void*)>(vgui, "_ZN5CVGui8ShutdownEv", error);
-        auto viewport_init = Symbol<void (*)(void*, Factory*, int)>(client,
+        auto files = detail::Symbol<void**>(client, "g_pFileSystem", error);
+        auto viewport = detail::Symbol<void**>(client, "gViewPortInterface", error);
+        auto init = detail::Symbol<bool (*)(void*, Factory*, int)>(vgui, "_ZN5CVGui4InitEPPFPvPKcPiEi", error);
+        shutdown_ = detail::Symbol<void (*)(void*)>(vgui, "_ZN5CVGui8ShutdownEv", error);
+        auto viewport_init = detail::Symbol<void (*)(void*, Factory*, int)>(client,
                 "_ZN21CounterStrikeViewport10InitializeEPPFPvPKcPiEi", error);
-        auto viewport_start = Symbol<void (*)(void*)>(client,
+        auto viewport_start = detail::Symbol<void (*)(void*)>(client,
                 "_ZN21CounterStrikeViewport5StartEv", error);
         surface_ = surface;
         filesystem_ = files ? *files : nullptr;
         for (size_t i = 0; i < slots_.size(); ++i)
         {
-            slots_[i].address = Symbol<void**>(client, interfaces[i].symbol, error);
+            slots_[i].address = detail::Symbol<void**>(client, interfaces[i].symbol, error);
             slots_[i].value = std::strcmp(interfaces[i].name, "VGUI_Surface026") == 0 ? surface_ :
                     std::strcmp(interfaces[i].name, "VFileSystem009") == 0 ? filesystem_ : factory(interfaces[i].name, nullptr);
             if (!slots_[i].value && error.empty())

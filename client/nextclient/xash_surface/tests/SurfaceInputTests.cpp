@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include <vgui/ISurface.h>
+#include <vgui/Cursor.h>
 
 #include <string>
 #include <vector>
@@ -86,3 +87,34 @@ namespace
     }
 
 } // namespace
+
+namespace
+{
+    TEST(SurfaceInput, NoCursorIsHiddenToTheLegacySurfaceConsumer)
+    {
+        auto* surface = csr_surface_create(nullptr);
+        ASSERT_NE(surface, nullptr);
+        auto* vgui = static_cast<vgui2::ISurface*>(csr_surface_vgui(surface));
+        vgui->SetCursor(vgui2::dc_arrow);
+        EXPECT_TRUE(vgui->IsCursorVisible());
+        EXPECT_EQ(csr_surface_cursor_visible(surface), 1);
+#if defined(__linux__)
+        // The registered original IN_MouseEvent calls Surface026 slot 47.
+        // Keep that consumer ABI frozen independently of the current headers.
+        auto table = *reinterpret_cast<void***>(vgui);
+        auto legacy_visible = reinterpret_cast<bool (*)(void*)>(table[47]);
+        EXPECT_TRUE(legacy_visible(vgui));
+#endif
+        vgui->SetCursor(vgui2::dc_none);
+        EXPECT_FALSE(vgui->IsCursorVisible());
+        EXPECT_EQ(csr_surface_cursor_visible(surface), 0);
+#if defined(__linux__)
+        EXPECT_FALSE(legacy_visible(vgui));
+#endif
+        vgui->SetCursor(vgui2::dc_user);
+        EXPECT_FALSE(vgui->IsCursorVisible());
+        vgui->SetCursor(vgui2::dc_hand);
+        EXPECT_TRUE(vgui->IsCursorVisible());
+        csr_surface_destroy(surface);
+    }
+}

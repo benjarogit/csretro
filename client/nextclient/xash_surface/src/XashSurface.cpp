@@ -283,10 +283,9 @@ namespace xash
             stack_.clear();
         }
 
-        // CVGui::RunFrame follows this with UpdateMouseFocus(GetCursorPos()).
-        // A headless host must not take that path: it resets focus to the
-        // stored cursor, which used to be 0,0. Input arrives through the
-        // input table instead.
+        // A headless host does not advance CVGui here. The live original-client
+        // owner first synchronizes this Surface's cursor, then advances the
+        // original VGUI scheduler separately. Input arrives through its table.
         void RunFrame() override {}
 
         vgui2::VPANEL GetEmbeddedPanel() override
@@ -586,7 +585,14 @@ namespace xash
         void FlashWindow(vgui2::VPANEL, bool) override {}
         void SetTitle(vgui2::VPANEL, const wchar_t*) override {}
         void SetAsToolBar(vgui2::VPANEL, bool) override {}
-        void CreatePopup(vgui2::VPANEL, bool, bool, bool, bool, bool) override {}
+        void CreatePopup(vgui2::VPANEL panel, bool, bool, bool disabled, bool mouse, bool keyboard) override
+        {
+            if (panel == 0) return;
+            if (popup_)
+                popup_(reinterpret_cast<void*>(panel), mouse && !disabled, keyboard && !disabled, popup_user_);
+            ErasePopup(panel);
+            popups_.push_back(panel);
+        }
         void SwapBuffers(vgui2::VPANEL) override {}
         void Invalidate(vgui2::VPANEL) override {}
 
@@ -597,7 +603,7 @@ namespace xash
 
         bool IsCursorVisible() override
         {
-            return cursor_ != 0;
+            return cursor_ != vgui2::dc_user && cursor_ != vgui2::dc_none;
         }
 
         void ApplyChanges() override {}
@@ -876,6 +882,14 @@ namespace xash
             }
             return 1;
         }
+
+        void SetPopupFn(csr_surface_popup_fn popup, void* user)
+        {
+            popup_ = popup;
+            popup_user_ = user;
+        }
+
+        void SetDefaultCursor(bool enabled) { default_cursor_ = enabled; }
 
         void SetPanelFns(const csr_surface_panel_fns_t* panel)
         {
@@ -1488,6 +1502,32 @@ namespace xash
             return panel_.is_popup(PanelKey(panel), panel_.user) != 0;
         }
 
+        int DefaultCursorTexture()
+        {
+            if (default_cursor_texture_ > 0) return default_cursor_texture_;
+            // A host-owned fallback arrow; no game cursor asset is distributed.
+            static constexpr char shape[18][13] = {
+                "#...........", "##..........", "#w#.........", "#ww#........",
+                "#www#.......", "#wwww#......", "#wwwww#.....", "#wwwwww#....",
+                "#wwwwwww#...", "#wwwwwwww#..", "#wwwww#####.", "#ww#ww#.....",
+                "#w#.#ww#....", "##..#ww#....", "#....#ww#...", ".....#ww#...",
+                "......##....", "............",
+            };
+            std::vector<unsigned char> rgba(12 * 18 * 4);
+            for (int y = 0; y < 18; ++y)
+                for (int x = 0; x < 12; ++x)
+                {
+                    const size_t offset = static_cast<size_t>(y * 12 + x) * 4;
+                    if (shape[y][x] == '.') continue;
+                    const unsigned char value = shape[y][x] == 'w' ? 255 : 0;
+                    rgba[offset] = rgba[offset + 1] = rgba[offset + 2] = value;
+                    rgba[offset + 3] = 255;
+                }
+            default_cursor_texture_ = CreateNewTextureID(true);
+            StoreTexture(default_cursor_texture_, rgba.data(), 12, 18, false, false);
+            return default_cursor_texture_;
+        }
+
         void PaintCursor()
         {
             cursor_quad_ = {};
@@ -1495,11 +1535,9 @@ namespace xash
             {
                 return;
             }
-            if (cursor_ >= static_cast<int>(cursor_texture_.size()))
-            {
-                return;
-            }
-            const int texture_id = cursor_texture_[static_cast<size_t>(cursor_)];
+            int texture_id = cursor_ < static_cast<int>(cursor_texture_.size()) ?
+                    cursor_texture_[static_cast<size_t>(cursor_)] : 0;
+            if (!TextureSlot(texture_id) && default_cursor_) texture_id = DefaultCursorTexture();
             const Texture* texture = TextureSlot(texture_id);
             if (texture == nullptr)
             {
@@ -1512,9 +1550,12 @@ namespace xash
             cursor_quad_.tall = texture->tall;
             cursor_quad_.texture = texture_id;
             const int previous = current_texture_;
+            const int r = draw_r_, g = draw_g_, b = draw_b_, a = draw_a_;
             current_texture_ = texture_id;
+            DrawSetColor(255, 255, 255, 0);
             DrawTexturedRect(cursor_x_, cursor_y_, cursor_x_ + texture->wide, cursor_y_ + texture->tall);
             current_texture_ = previous;
+            DrawSetColor(r, g, b, a);
         }
 
         bool PaintNode(vgui2::VPANEL panel) const
@@ -1591,6 +1632,8 @@ namespace xash
         csr_surface_panel_fns_t panel_{};
         csr_surface_input_fns_t input_{};
         csr_surface_file_fns_t file_{};
+        csr_surface_popup_fn popup_{};
+        void* popup_user_{};
         std::vector<SurfaceFrame> stack_;
         std::vector<Texture> textures_;
         // Faces close before FreeType shuts down: fonts_ is declared after faces_.
@@ -1619,6 +1662,8 @@ namespace xash
         vgui2::HFont text_font_{};
         vgui2::HCursor cursor_{};
         std::vector<int> cursor_texture_{};
+        bool default_cursor_{};
+        int default_cursor_texture_{};
         struct CursorQuad
         {
             bool drawn{};
@@ -1743,6 +1788,12 @@ void csr_surface_set_panel(csr_surface_t* surface, const csr_surface_panel_fns_t
     }
 }
 
+void csr_surface_set_popup(csr_surface_t* surface, csr_surface_popup_fn popup, void* user)
+{
+    if (surface)
+        As(surface)->SetPopupFn(popup, user);
+}
+
 void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t* input)
 {
     if (surface != nullptr)
@@ -1797,6 +1848,34 @@ int csr_surface_cursor_quad(const csr_surface_t* surface, int* x, int* y, int* w
 void* csr_surface_vgui(csr_surface_t* surface)
 {
     return As(surface);
+}
+
+void csr_surface_set_embedded_panel(csr_surface_t* surface, void* panel)
+{
+    if (surface)
+        As(surface)->SetEmbeddedPanel(reinterpret_cast<uintptr_t>(panel));
+}
+
+void csr_surface_solve(csr_surface_t* surface, void* panel, int force_scheme)
+{
+    if (surface)
+        As(surface)->SolveTraverse(reinterpret_cast<uintptr_t>(panel), force_scheme != 0);
+}
+
+void csr_surface_paint(csr_surface_t* surface, void* panel)
+{
+    if (surface)
+        As(surface)->PaintTraverse(reinterpret_cast<uintptr_t>(panel));
+}
+
+int csr_surface_cursor_visible(csr_surface_t* surface)
+{
+    return surface && As(surface)->IsCursorVisible() ? 1 : 0;
+}
+
+void csr_surface_set_default_cursor(csr_surface_t* surface, int enabled)
+{
+    if (surface) As(surface)->SetDefaultCursor(enabled != 0);
 }
 
 namespace

@@ -32,19 +32,17 @@ Allow-Force auf; die Kinder läuft VGUI2 selbst. Popups lässt
 `ShouldPaintChildPanel` aus und die Surface malt sie danach. Ohne die
 Funktionstabelle passiert nichts. Mausereignisse gehen an die Input-Funktionen
 des Hosts: Cursor, Druck oder Loslassen, danach genau eine Zustellung.
-Taste 0 ist die linke Maustaste. `RunFrame` tut nichts, damit kein
-Fokus-Reset auf die letzte Cursorposition den Klick überschreibt.
+Taste 0 ist die linke Maustaste. `RunFrame` tut nichts. Die Original-Client-Brücke synchronisiert den Cursor vor dem nativen CVGui-Scheduler; der Testhost treibt diesen Scheduler nicht.
 `SurfaceSetCursorPos` speichert die Position und löst keine Eingabe aus.
 `DrawSetTextureFile` liest eine unkomprimierte TGA über die Datei-Rückfrage
 des Hosts. Eine fehlende Datei, eine komprimierte TGA oder keine Rückfrage
 lässt die Textur leer. Eine gebundene Cursor-Textur wird am Ende von
 `PaintTraverse` an der Cursorposition gezeichnet. `dc_none`, `dc_blank` und
-ein gesperrter Cursor zeichnen nichts. `RunFrame` zeichnet ihn weiter nicht.
+ein gesperrter Cursor zeichnen nichts. `dc_user` und `dc_none` melden außerdem unsichtbar, damit die originale Spiel-Mauseingabe aktiv bleibt. Die Original-Client-Brücke aktiviert einen optionalen selbst erzeugten Pfeil, wenn keine Cursor-Textur gebunden ist; sie liefert keine Valve-Cursordatei mit und stellt die Widgetfarbe nach dem Zeichnen wieder her. `CreatePopup` registriert das Popup und reicht native Popup-/Maus-/Tastaturflags über einen optionalen Callback weiter; deaktivierte Popups deaktivieren Eingabe. `RunFrame` zeichnet ihn weiter nicht.
 
 ## Bauen und Testen
 
-Die Bibliothek hängt am Preset `linux` und damit an `BUILD_ALL`. Sie wird noch
-nicht ins Spielverzeichnis installiert, weil der Launcher sie noch nicht lädt.
+Die Bibliothek hängt an den Presets `linux` und `linux-port` sowie an `BUILD_ALL`. Der Testhost lädt sie; die Original-Client-Brücke erwartet sie neben ihrem Modul. Der vollständige Xash-Laufzeitinstaller bleibt offen.
 
 Die Tests laufen über das Preset `linux-tests`:
 
@@ -57,8 +55,7 @@ cmake --build --preset linux-tests-release --target xash_surface-tests
 
 Der Offscreen-Lauf setzt `LIBGL_ALWAYS_SOFTWARE=1` und öffnet einen
 EGL-Pbuffer. Er startet das Spiel nicht. `xash_host` veröffentlicht diese
-Bibliothek als erste Factory. Der Spike mit dem externen Stub
-bleibt der Beweis für den echten VGUI2-Baum, bis der Prozess diesen Host lädt.
+Bibliothek als erste Factory. `python3 tests/xash_client/run.py --with-surface` prüft die echte Surface auch zusammen mit den Bridge-Fixtures, ohne Spieldateien oder vcpkg-Builds. CI führt diese Offscreen-Kombination auf x64 aus. Der externe Stub-Spike ist historische Laufzeitevidenz; diese Tests belegen keinen spielbaren Port.
 
 Die Entscheidung und der Umfang stehen in
 [Plan, Abschnitt 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).

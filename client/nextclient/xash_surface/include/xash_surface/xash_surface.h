@@ -72,6 +72,8 @@ typedef struct csr_surface_file_fns
     void* user;
 } csr_surface_file_fns_t;
 
+typedef void (*csr_surface_popup_fn)(void* panel, int mouse, int keyboard, void* user);
+
 #if defined(_WIN32)
 #define CSR_SURFACE_API __declspec(dllexport)
 #else
@@ -86,6 +88,12 @@ CSR_SURFACE_API int csr_surface_gl_error(const csr_surface_t* surface);
 CSR_SURFACE_API void csr_surface_input_move(csr_surface_t* surface, int x, int y);
 CSR_SURFACE_API void csr_surface_input_button(csr_surface_t* surface, int button, int down);
 CSR_SURFACE_API void* csr_surface_vgui(csr_surface_t* surface);
+// Panel values are opaque native VPANEL handles, never SDK object pointers.
+CSR_SURFACE_API void csr_surface_set_embedded_panel(csr_surface_t* surface, void* panel);
+CSR_SURFACE_API void csr_surface_solve(csr_surface_t* surface, void* panel, int force_scheme);
+CSR_SURFACE_API void csr_surface_paint(csr_surface_t* surface, void* panel);
+CSR_SURFACE_API int csr_surface_cursor_visible(csr_surface_t* surface);
+CSR_SURFACE_API void csr_surface_set_default_cursor(csr_surface_t* surface, int enabled);
 
 struct csr_xash_engine_surface;
 /* Fills the one engine adapter. A null slot is not a call. */
@@ -93,6 +101,7 @@ CSR_SURFACE_API void csr_surface_engine_hooks(csr_surface_t* surface, struct csr
 CSR_SURFACE_API void csr_surface_set_panel(csr_surface_t* surface, const csr_surface_panel_fns_t* panel);
 CSR_SURFACE_API void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t* input);
 CSR_SURFACE_API void csr_surface_set_file(csr_surface_t* surface, const csr_surface_file_fns_t* file);
+CSR_SURFACE_API void csr_surface_set_popup(csr_surface_t* surface, csr_surface_popup_fn popup, void* user);
 // Binds a loaded texture to a VGUI cursor code. Texture 0 clears it.
 CSR_SURFACE_API void csr_surface_set_cursor_texture(csr_surface_t* surface, int cursor, int texture);
 // The quad from the last PaintTraverse. Returns 0 when that paint drew no cursor.

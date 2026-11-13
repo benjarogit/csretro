@@ -31,18 +31,16 @@ vgui2 walks the children itself. `ShouldPaintChildPanel` skips popups and the
 surface paints them afterwards. Without the function table neither call does
 anything. Mouse events go to the host input functions: cursor, press or
 release, then exactly one dispatch. Button 0 is the left button. `RunFrame`
-does nothing, so a focus reset cannot overwrite the click. `SurfaceSetCursorPos`
+does nothing. The original-client owner synchronizes the cursor before advancing its native CVGui scheduler; the headless host does not advance that scheduler. `SurfaceSetCursorPos`
 stores the position and does not emit input. `DrawSetTextureFile` reads an
 uncompressed TGA through the host file callback. A missing file, a compressed
 TGA, or no callback leaves the texture empty. A bound cursor texture is drawn
 at the cursor position at the end of `PaintTraverse`. `dc_none`, `dc_blank`
-and a locked cursor draw nothing. `RunFrame` still does not draw it.
+and a locked cursor draw nothing. `dc_user` and `dc_none` also report invisible to preserve original game mouse input. The original-client bridge enables an optional generated arrow when no cursor texture is bound; it ships no Valve cursor asset and restores widget tint after painting. `CreatePopup` registers the popup and forwards native popup/mouse/keyboard flags through an optional callback; disabled popups disable input. `RunFrame` still does not draw it.
 
 ## Build and tests
 
-The library is part of the `linux` preset and therefore of `BUILD_ALL`. It is
-not installed into the game directory yet, because the launcher does not load
-it yet.
+The library is part of the `linux` and `linux-port` presets and of `BUILD_ALL`. The test host loads it, and the original-client bridge expects it beside the bridge module. The complete Xash runtime installer remains open.
 
 Tests use the `linux-tests` preset:
 
@@ -55,8 +53,7 @@ cmake --build --preset linux-tests-release --target xash_surface-tests
 
 The offscreen run sets `LIBGL_ALWAYS_SOFTWARE=1` and opens an EGL pbuffer. It
 does not start the game. `xash_host` publishes this library as the first
-factory. The spike with the external stub remains the proof for a real VGUI2
-tree until that host is what the process loads.
+factory. `python3 tests/xash_client/run.py --with-surface` also runs the real Surface with the bridge fixtures, without game files or vcpkg builds. CI runs this offscreen combination on x64. The external-stub spike is historical runtime evidence; these tests do not establish a playable port.
 
 The decision and the scope are in
 [plan section 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).

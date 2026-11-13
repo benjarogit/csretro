@@ -1,20 +1,14 @@
-# Spieler
+# Mit CSRETRO spielen
 
-Der Client ist noch nicht spielbar. Diese Seiten sagen, was du brauchst und was
-du nicht tun darfst, sobald er startet.
+Der Client ist noch nicht spielbar. CSRETRO ist ein Linux-x86_64-Projekt für Counter-Strike 1.6 auf NextClient-Basis, mit Xash3D als Zielengine und ohne Steam zu starten. Eigene Original-Spielinhalte bleiben erforderlich. Heute gibt es noch keine herunterladbare spielbare Version.
 
-## Was du brauchst
+## Hier beginnen
 
-- Eine retail Counter-Strike-1.6-Installation (Originalinhalte: Maps, Modelle,
-  Sounds, `valve`/`cstrike`/`resource`).
-- Eine **eigene Kopie** der gemounteten Spieldateien **außerhalb** der
-  Steam-Bibliothek ([Spielinhalte installieren](../client/install.md)).
-- Linux x86_64.
+1. [Funktionen und ihren Umfang ansehen](features.md): HUD, Radar, Waffen, Oberfläche, Downloads und Leistungswerkzeuge.
+2. [Einstellungen und Befehle verstehen](settings.md), einschließlich der Grenzen geerbter Anleitungen.
+3. [Inhaltskopie vorbereiten](../client/install.md), außerhalb der Steam-Bibliothek.
+4. Die [Anleitung zum ersten Start](../client/first-start.md) nutzen, sobald die Laufzeit-Abnahme vorbereitet ist.
 
-## Was du nie tun darfst
+Installiere veränderte Dateien nie in den Steam-Spieleordner und verbinde diesen Client nicht mit VAC-gesicherten Servern. Siehe [Sicherheitsrichtlinie](https://github.com/benjarogit/csretro/blob/main/SECURITY.md).
 
-- CSRETRO in den Steam-Spieleordner installieren.
-- Mit einem modifizierten Client auf einen VAC-gesicherten Server gehen.
-
-Siehe auch [Security](https://github.com/benjarogit/csretro/blob/main/SECURITY.md)
-und [Erster Client-Start](../client/first-start.md) (wird mit dem Runtime-Gate gepflegt).
+Aktuelle Testnachweise und die genaue verbleibende Arbeit stehen in [HANDOFF](https://github.com/benjarogit/csretro/blob/main/HANDOFF.md). Mitentwickler beginnen beim [Entwicklungseinstieg](../maintainers/index.md), Server-Erweiterungen bei der [Plugin-Entwicklung](../plugins/index.md).

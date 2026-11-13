@@ -36,10 +36,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install shellcheck
+      - name: Install verification tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes shellcheck
+          sudo apt-get install --yes shellcheck gcc binutils
 
       - name: Verify
         run: ./scripts/verify.sh
+
+      - name: Test native game-client export screen
+        run: python3 -m unittest discover -s tests/game_client -v

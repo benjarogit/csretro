@@ -8,7 +8,15 @@ The authoritative version string is the `VERSION` file.
 
 ## [Unreleased]
 
+### Added
+
+- Read-only game-client export screen and native regression fixtures; passing the screen does not certify ABI or gameplay.
+- DE/EN feature, settings and runtime acceptance guides.
+
 ### Changed
+
+- Separate player, contributor, plugin-author and server documentation tasks; remove repeated startup transcripts from public component guides.
+- Define real x64 gameplay acceptance separately from callback recording, UI presentation and static export inspection.
 
 - Record `Steam_GSTerminateGameConnection` without invoking Steam during Xash startup.
 

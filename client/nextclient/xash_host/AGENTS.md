@@ -78,10 +78,11 @@ library. Xash3D is not patched. `LD_PRELOAD` stays a spike tool.
   When no world model is bound, the frame stays the menu and that draw is
   not called. `RunXashLauncher` opens the host the way `OpenXashLauncher`
   does and then calls this loop. The launcher executable `main` calls
-  `RunXashLauncher` and does not load a map. `PresentXashLauncher` paints
+  `RunXashLauncher`; an optional map argument is inspected by the host harness,
+  not executed as Xash3D gameplay. `PresentXashLauncher` paints
   one frame and returns. It does not call this loop. `CVGui::RunFrame` is
   not called. The retail `R_DrawWorld` hook is not installed and not called.
-- Our `vgui2` exports `csr_vgui_dispatch_messages` through
-  `patches/sdk/0001-export-vgui-dispatch.patch`. The SDK submodule pin does
-  not move. Retail `vgui2` keeps `DispatchMessages` local, so the host takes
+- Our `vgui2` exports `csr_vgui_dispatch_messages` from the tracked
+  SDK source tree `client/dep/ncl-hl1-source-sdk/`. Configure applies no SDK
+  rollup patch; `versions.lock.json` records the upstream base. Retail `vgui2` keeps `DispatchMessages` local, so the host takes
   a function pointer instead of a hardcoded address.

@@ -17,3 +17,11 @@ Der Client ist noch nicht spielbar. Die Server-Seite ist ein AMXX-Modul
 
 Kein zweiter Doku-Baum. Wenn Native-Tabellen generiert werden, landen sie unter
 `docs/de` und `docs/en` und auf der Page.
+
+## Gegen die bisherige API entwickeln
+
+Der vendorte [Pawn-Include](https://github.com/benjarogit/csretro/blob/main/server/api/addons/amxmodx/scripting/include/next_client_api.inc) ist der genaue API-Vertrag. Er verwendet bisher die Upstream-Namen mit `ncl_`. Erfinde vor dem Protokoll-/Rebrand-Gate keine `csr_`-Ersatznamen. Metamod-R lädt den Server-Stack; dieser AMXX-Include ist kein allgemeines Metamod-Plugin-SDK.
+
+Warte auf `ncl_client_api_ready`, prüfe Bereitschaft und unterstützte Fähigkeiten und nutze erst dann die passende Sandbox-, Sprite-, Viewmodel-, Sound- oder Materialoperation. Behandle Verbindungsabbruch und nicht verfügbare Clients. Prüfe Kompilierung und Verhalten gegen dieselbe Server-/Modulrevision im [Testserver](../server/testserver.md). Ein erfolgreich geladenes Servermodul belegt noch kein funktionierendes x64-Client-Rendering und keine Anmeldung.
+
+Generierte Native-Referenzen müssen bei API-Änderungen aus dem Include abgeleitet werden. Die [Funktionsübersicht](../players/features.md) beschreibt den sichtbaren Umfang; Herkunft steht zentral in [CREDITS](https://github.com/benjarogit/csretro/blob/main/CREDITS.md).

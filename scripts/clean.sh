@@ -23,6 +23,7 @@ targets=(
     out
     install
     dist
+    site
     .cache
     vcpkg_installed
     client/build

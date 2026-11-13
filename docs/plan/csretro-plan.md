@@ -1506,6 +1506,18 @@ Bibliothek hängt noch nicht an Xash3D.
 
 ---
 
+### 3.8 Abnahmepfad zur ersten lauffähigen Version
+
+Der i386-Spike aus Abschnitt 3.6 belegt nicht den nativen x64-Spielclient. `client_mini` ist eine Erweiterung eines vorhandenen CS-Clients. Das SDK liefert die gemeinsame VGUI-Basis, aber keine vollständige CS-Spielimplementierung. Die Host-Factory und gespeicherte Funktionszeiger ersetzen weder diese Spielimplementierung noch den echten Xash3D-Engine-Loop. Die frühere Aussage „nur Surface fehlt“ gilt nicht als x64-Abnahme.
+
+Die Export-Vorprüfung ist `tools/check_game_client.py`: Sie liest ELF und dynamische Funktionssymbole ohne Laden. Sie prüft nur das benannte Kernprofil, keine alternative `GetClientAPI`-Tabelle, Signaturen, Engine-Initialisierung oder Spielbarkeit. Exit 0 darf keine leeren Ersatz-Exports oder No-ops als Produktfortschritt rechtfertigen.
+
+Der kritische Pfad in G07 ist: native CS-Spielimplementierung mit geklärter Herkunft und Lizenz; echte Xash3D-Anbindung; Engine-/Client-ABI und Initialisierung; gerenderte Originalkarte mit Eingabe, Bewegung, Kollision, Waffen, HUD und Ton; lokale/Testserver-Runde; gemessene mindestens 60 FPS in benannter Spielszene ohne 60-FPS-Lock. Der letzte Spielstart und die Abnahme bleiben menschlich, nach `docs/de/maintainers/runtime-readiness.md`. Ohne Nachweis jedes Punkts bleibt G07 offen. Es gibt keinen stillen i386-Fallback.
+
+Die Regeln für GPL-Referenzen bleiben unverändert, bis der Maintainer eine konkrete Änderung beschließt. Eine fehlende native CS-Spielimplementierung wird als eigene Architekturentscheidung behandelt, nicht durch weitere gespeicherte Retail-Hooks verdeckt.
+
+Die Page wird nach Leseraufgaben gegliedert: Spieler (Funktionen, Einstellungen, Inhalte, Start), Mitentwickler (Build, echte Laufzeit-Abnahme und Komponenten), Plugin-Autoren (bisheriger Include, Bereitschaft und Fähigkeiten) sowie Serverbetrieb. `docs/de` und `docs/en` spiegeln sich. Geerbte Funktionen erhalten eine verständliche Beschreibung mit klarer Port-Grenze. Vorgeschlagene Features aus anderen Clients stehen weiter ausschließlich im Backlog von Abschnitt 15. Detaillierte Upstream-Anleitungen bleiben technische Referenz; keine Übersetzungskopie. Standardwerte und API-Tabellen entstehen aus Code/Include. Es gibt keine zweite Wiki-Quelle.
+
 ## 4. Repo-Struktur
 
 ```

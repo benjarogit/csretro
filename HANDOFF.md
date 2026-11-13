@@ -8,11 +8,11 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-13
 - **Gate:** G07 — in progress. The first runnable version is not achieved.
 - **Branch:** `main` is the integration target; changes use gate pull requests.
-- **Validated baseline:** `4fd83841` (PR #7 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43380825687 and Pages https://github.com/benjarogit/csretro/actions/runs/43380893758 — success.
+- **Validated baseline:** `d53a97de` (PR #8 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43384295627 and Pages https://github.com/benjarogit/csretro/actions/runs/43384377246 — success.
 - **Product sequence:** Port existing NextClient/CS behavior to Xash3D first; then exclusively Linux x86_64 and at least 60 FPS in gameplay without a 60 FPS cap; additional features later. Original licensed game files stay in a separate copy, and the port starts no Steam process. Rules and decisions live in the authoritative plan, sections 3.7–3.8.
 - **Actual runtime boundary:** The host builds and presents native VGUI2 UI, reads content and records world primitives/callbacks. It does not execute Xash3D gameplay. `client_mini` is an extension of an existing game client, not a native CS game implementation. The SDK builds the UI foundation, not the missing CS gameplay implementation.
 - **Critical next port work:** Integrate the existing NextClient extensions with a real architecture-matched Xash3D/CS runtime, using the locally supplied original game library as the i386 spike does. A native x64 game library is the following phase, not a demand to rewrite CS before porting. The x64-only export screen still fails on the extension module as expected; it is not a gate against the initial i386 port.
-- **Current work:** Manual original-content selection, preserving the existing allowlist, plus corrected port-first acceptance and documentation. See the latest command results below.
+- **Current work:** Isolated architecture-matched i386 build of the existing NextClient extensions and Surface. Local component checks pass; the actual Xash3D/game callback integration remains next. See the latest command results below.
 - **Clarified scope:** No CS rewrite or reference-client feature import before the existing NextClient-to-Xash3D port. The original game library can be supplied locally for that first port; a later exclusively x64 phase must solve its own architecture constraints. Existing GPL reference rules remain unchanged.
 - **Historical evidence:** Earlier i386 spikes and test-only host results remain below. They do not establish x64 gameplay, production Steam authentication or measured scene FPS.
 
@@ -352,7 +352,7 @@ the Security overview switches in the browser.
 
 Continue G07 with the existing NextClient-to-Xash3D port first, following the clarified plan section 3.8.
 
-1. Establish a reproducible, architecture-matched port build from the existing i386 Xash/original-CS-client spike and the NextClient extensions. Resolve the actual game callback table and the VGUI ABI/surface seam. Keep local original binaries and external engine artifacts out of the repository.
+1. Use the isolated `linux-port`/`linux-port-tests` profiles for the existing i386 Xash/original-CS-client reference and NextClient extensions. Resolve the actual game callback table and the VGUI ABI/surface seam. Keep local original binaries and external engine artifacts out of the repository.
 2. Replace the test-only host path with the real Xash3D engine loop and bind the existing NextClient behavior there. Preserve CS movement and validate input, collision, weapons, HUD/sound and a local/test-server session. Automation never starts the game; prepare a human run with hashes and clear acceptance steps.
 3. After the functional port, make the complete runtime exclusively x64 and measure at least 60 FPS in a named real scene. Do not mix ELF32 game libraries with ELF64 components or call a menu benchmark gameplay evidence.
 4. Additional features from reference clients follow the working port/x64/performance baseline. Keep DE/EN player/plugin docs, harness, handoff and authoritative backlog aligned. Exact generated references remain useful documentation work, not a replacement for runtime integration.
@@ -391,6 +391,21 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Architecture-matched port build (2026-11-13, source `3558c1ed`, baseline `d53a97de`):
+
+- PR https://github.com/benjarogit/csretro/pull/9; CI https://github.com/benjarogit/csretro/actions/runs/43387419037 — success, including the real-assembler and build-script regressions.
+
+- Added isolated `linux-port`/`linux-port-tests` presets; default `linux` remains x64. Compiler-derived manifest class rejects empty/mixed shared output. Selected cleanup preserves other profiles. Bootstrap now includes native and i386 FreeType dependencies used by Surface.
+- `scripts/build-client.sh --preset linux-port --reconfigure --target client_mini --target nitro_api --target engine_mini --target gameui --jobs 8`: exit 0, all nine shared artifacts ELF32. Main modules: client 7,962,300 bytes, NitroApi 14,441,080 bytes, engine 28,792,144 bytes, GameUI 8,536,228 bytes. Manifest: `client/build/linux-port/manifest-Release.txt`.
+- The initial i386 module build reproduced assembler operand errors in funchook when C/C++ alone used `-m32`. Setting `CMAKE_ASM_FLAGS=-m32` fixes the cause; the regression suite compiles actual i386 assembly and confirms failure without this flag on the x86_64 host.
+- `cmake --build --preset linux-port-release --config Release --target verify-nitro-api-factory goldsrc_abi_golden -j 6`: exit 0, `PASS NITRO_FRAME_LIFECYCLE_001`, subscription IDs 1 and 2 and repeated removal; golden ABI assertions compile. These are component checks, not game callbacks.
+- `LIBGL_ALWAYS_SOFTWARE=1 client/build/linux-port-tests/out/bin/Release/xash_surface-tests --gtest_brief=1`: 21 tests in seven suites passed as native i386, including offscreen GL.
+- `scripts/build-client.sh --target xash_surface --jobs 6`: exit 0, x64 default output remains ELF64. Manifest: `client/build/linux/manifest-Release.txt`.
+- `python3 -m unittest discover -s tests/build_scripts -v`: 9/9 passed, including real assembler negative control, path-with-spaces, repeated targets, empty/mixed output and selective-clean failure cases. The same suite is configured in CI.
+- `scripts/verify.sh`: 68 checks passed. `scripts/build-docs.sh`: strict DE/EN site build passed.
+- No game was started. Neither preset loads an original game library automatically or proves the real Xash loop, gameplay, x64 gameplay or measured FPS. G07 remains open.
+
 
 Port-first scope and manual original content (2026-11-13, source `26deebbb`):
 

@@ -95,6 +95,29 @@
       "cacheVariables": {
         "NEXTCLIENT_BUILD_TESTS": "ON"
       }
+    },
+
+    {
+      "name": "linux-port",
+      "inherits": "linux",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x86-linux",
+        "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_CXX_FLAGS": "-m32",
+        "CMAKE_ASM_FLAGS": "-m32",
+        "CMAKE_LIBRARY_PATH": "/usr/lib32"
+      },
+      "environment": {
+        "PKG_CONFIG_LIBDIR": "/usr/lib32/pkgconfig:/usr/share/pkgconfig"
+      }
+    },
+
+    {
+      "name": "linux-port-tests",
+      "inherits": "linux-port",
+      "cacheVariables": {
+        "NEXTCLIENT_BUILD_TESTS": "ON"
+      }
     }
   ],
 
@@ -174,6 +197,24 @@
     {
       "name": "linux-tests-release",
       "configurePreset": "linux-tests",
+      "configuration": "Release"
+    },
+
+    {
+      "name": "linux-port-release",
+      "configurePreset": "linux-port",
+      "configuration": "Release"
+    },
+
+    {
+      "name": "linux-port-debug",
+      "configurePreset": "linux-port",
+      "configuration": "Debug"
+    },
+
+    {
+      "name": "linux-port-tests-release",
+      "configurePreset": "linux-port-tests",
       "configuration": "Release"
     }
   ]

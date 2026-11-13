@@ -1,6 +1,6 @@
 # Build prerequisites
 
-CSRETRO builds on a **Linux x86_64 host**. The client is **x86_64**. The
+CSRETRO builds on a **Linux x86_64 host**. The default client preset builds **x86_64**; the initial Xash3D port profile builds **i386**. The
 server module stays **i386** because ReHLDS loads it that way. CachyOS/Arch
 is the reference distribution.
 
@@ -29,10 +29,10 @@ and it must stay untouched in the Steam library.
 sudo pacman -S --needed \
   base-devel cmake ninja python uv git git-lfs shellcheck \
   curl zip unzip tar patch pkgconf perl nasm \
-  lib32-glibc lib32-gcc-libs lib32-mesa lib32-libglvnd \
+  lib32-glibc lib32-gcc-libs lib32-mesa lib32-libglvnd lib32-freetype2 \
   lib32-libx11 lib32-libxext lib32-libxcursor lib32-libxi \
   lib32-libxrandr lib32-libxinerama lib32-libxss lib32-libxfixes lib32-libxrender \
-  mesa libglvnd libx11 libxext libxcursor libxi libxrandr libxinerama \
+  mesa libglvnd freetype2 libx11 libxext libxcursor libxi libxrandr libxinerama \
   libxss libxfixes libxrender
 ```
 
@@ -45,9 +45,7 @@ scripts/bootstrap.sh --install-deps
 ## Why x86_64
 
 The product process is x86_64. The decision is in
-[plan section 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md). The client uses the vcpkg
-triplet `x64-linux`. The server module stays i386 and still needs the 32-bit
-toolchain.
+[plan section 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md). The default client uses vcpkg `x64-linux`. The first-port profile uses `x86-linux` with a 32-bit C/C++/assembler toolchain and matching OpenGL/FreeType libraries. See [client build profiles](client.md). The server module also remains i386. The doctor checks the default profile and server toolchain; a passing doctor does not certify all port-profile graphics dependencies.
 
 ## What the doctor checks
 

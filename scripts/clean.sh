@@ -10,12 +10,21 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 dry_run=0
-if [[ "${1:-}" == "--dry-run" ]]; then
-    dry_run=1
-elif [[ $# -gt 0 ]]; then
-    printf 'usage: %s [--dry-run]\n' "$(basename "$0")" >&2
-    exit 2
-fi
+client_preset=""
+while (($# > 0)); do
+    case "$1" in
+        --dry-run) dry_run=1 ;;
+        --client-build)
+            client_preset="${2:?missing client build preset}"
+            case "$client_preset" in
+                linux|linux-tests|linux-port|linux-port-tests) ;;
+                *) printf 'unsupported client build preset: %s\n' "$client_preset" >&2; exit 2 ;;
+            esac
+            shift ;;
+        *) printf 'usage: %s [--dry-run] [--client-build <preset>]\n' "$(basename "$0")" >&2; exit 2 ;;
+    esac
+    shift
+done
 
 # Fixed list of generated paths, relative to the repository root.
 targets=(
@@ -44,6 +53,11 @@ remove() {
         rm -rf -- "$path"
     fi
 }
+
+if [[ -n "$client_preset" ]]; then
+    remove "client/build/$client_preset"
+    exit 0
+fi
 
 for target in "${targets[@]}"; do
     remove "$target"

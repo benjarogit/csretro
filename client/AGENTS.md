@@ -1,6 +1,6 @@
 # NextClient
 
-Vendored NextClient extensions for Counter-Strike 1.6. The historical retail path patches Valve's engine; the CSRETRO product path targets a native Linux x86_64 Xash3D process under the root plan. Extension modules and their factories are not standalone CS game-client implementations. Do not use a retail binary, i386 fallback or factory-only test to claim the native product is runnable. Original game content remains required.
+Vendored NextClient extensions for Counter-Strike 1.6. The historical retail path patches Valve's engine. Port the existing behavior to Xash3D first in an architecture-matched runtime; the next phase makes it exclusively Linux x86_64 under the root plan. Extension modules and their factories are not standalone CS game-client implementations. The initial port may use the locally supplied original i386 game library. Do not use that run or a factory-only test to claim native x64 gameplay. Original game content remains required.
 
 ## Modules
 
@@ -21,11 +21,11 @@ Vendored NextClient extensions for Counter-Strike 1.6. The historical retail pat
 | `test_support/plugins/` | test server plugins | AMX Mod X test fixtures: `nextclient_testlab`, `nextclient_materials_test` |
 | `test_support/runtime/` | test runtime dependencies | DLLs copied to test output directories by CMake |
 
-All native client modules on the Linux product preset are x86_64 (plan section 3.7). Windows presets in `CMakePresets.json` are not the product. Third-party dependencies come from the vendored `vcpkg/`, wired in by the `base` configure preset. The Linux triplet is `x64-linux`.
+All native client modules on the Linux product preset are x86_64 (plan section 3.7). Windows presets in `CMakePresets.json` are not the product. Third-party dependencies come from the vendored `vcpkg/`, wired in by the `base` configure preset. The default Linux triplet is `x64-linux`; `linux-port` uses `x86-linux` for the initial port and its own build directory. Never combine artifacts across these profiles.
 
 ## Build
 
-Tracked configure presets are `ninja`, `ninja-tests`, `ninja-profiler`, `ninja-profiler-tests`, `vs2022`, `vs2022-tests`, `vs2026` and `linux`. Each has a matching `-release` build preset; `ninja`, `vs2022`, `vs2026` and `linux` also have `-debug` build presets.
+Tracked configure presets are `ninja`, `ninja-tests`, `ninja-profiler`, `ninja-profiler-tests`, `vs2022`, `vs2022-tests`, `vs2026`, `linux`, `linux-tests`, `linux-port` and `linux-port-tests`. Each has a matching `-release` build preset; `ninja`, `vs2022`, `vs2026`, `linux` and `linux-port` also have `-debug` build presets.
 
 `CMakeUserPresets.json` is untracked and machine-local: that is where a developer adds custom presets carrying their own `NEXTCLIENT_INSTALL_DIR`. Select a preset supported by the available toolchain and configure it before building. Build directories come from the selected configure preset's `binaryDir`. The Ninja generator is Multi-Config, so every build names a configuration.
 
@@ -55,7 +55,7 @@ Use the feature procedures for [monitoring](docs/testing/performance-monitor.md)
 cmake --build --preset vs2022-tests-release --target client_mini-tests
 ```
 
-Test targets require `NEXTCLIENT_BUILD_TESTS=ON`, enabled by the tracked `vs2022-tests`, `ninja-tests` and `ninja-profiler-tests` presets or a local preset. Available targets are grouped below:
+Test targets require `NEXTCLIENT_BUILD_TESTS=ON`, enabled by the tracked `vs2022-tests`, `ninja-tests`, `ninja-profiler-tests`, `linux-tests` and `linux-port-tests` presets or a local preset. Available targets are grouped below:
 
 - Module tests: `client_mini-tests`, `engine_mini-tests`, `gameui-tests`, `drag-value-label-tests`, `material-preview-panel-tests`, `nitro_api-tests` and `ncl-entity-message-tests`.
 - Shared package tests: `nitro_utils-tests` (Linux), `ncl_math-tests`, `ncl_studio-tests`, `data_types-tests`, `view-tests`, `crosshair-tests`, `key-binding-tests`, `settings_code-tests`, `ncl_image-tests` and `ncl_perf-tests`.

@@ -305,6 +305,17 @@ current directory: resolve the repository root from the script location.
 
 ---
 
+## Runtime evidence and reader documentation
+
+- A stored callback, loaded factory, open menu, synthetic BSP or recorded primitive is evidence only for that operation. It does not close a runnable-game milestone.
+- The first runnable x64 client requires a real native game implementation and Xash3D execution, rendered maps, input/simulation, a test session and measured scene performance. Human acceptance follows `docs/en/maintainers/runtime-readiness.md`; automation still never starts the game.
+- `tools/check_game_client.py` is a static core-export screen. Passing it is not an ABI or gameplay certificate. Do not rename an extension module to satisfy the game-client requirement or add empty exports just to pass the screen.
+- Every player-visible change updates its DE/EN feature/settings or plugin guide in the same change. Distinguish inherited source, validated runtime behavior and planned ideas. Names/defaults remain generated from code, not copied into hand-maintained tables.
+- Keep public component guides about reader tasks. Startup callback transcripts and dated test results belong in `HANDOFF.md`, not repeated across runtime, host and launcher pages. There is one docs tree and its generated Page; no separately maintained wiki.
+- Before continuing callback enumeration, establish which runtime behavior that change enables on the path to the first playable version. Inspection-only registrations are not substitutes for that path.
+
+---
+
 ## 13. Gates
 
 The gate list is defined once in the plan, section 7. Do not duplicate it here.

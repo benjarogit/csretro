@@ -1,6 +1,6 @@
 # NextClient
 
-A modification of the Counter-Strike 1.6 client. It ships replacement libraries alongside the stock game and patches Valve's engine (`hw.dll` on Windows, `hw.so` on Linux) at run time rather than replacing it. A Steam copy of the game is required.
+Vendored NextClient extensions for Counter-Strike 1.6. The historical retail path patches Valve's engine; the CSRETRO product path targets a native Linux x86_64 Xash3D process under the root plan. Extension modules and their factories are not standalone CS game-client implementations. Do not use a retail binary, i386 fallback or factory-only test to claim the native product is runnable. Original game content remains required.
 
 ## Modules
 

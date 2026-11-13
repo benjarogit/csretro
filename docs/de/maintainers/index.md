@@ -29,3 +29,7 @@ Plan-Eintrag. Cursor-Arbeitspläne sind Staging, keine zweite Wahrheit.
 | Host-Factory | [xash-host](../client/xash-host.md) |
 | Launcher | [xash-launcher](../client/xash-launcher.md) |
 | Spieleridentität | [player-identity](../client/player-identity.md) |
+
+## Den Port nachweisen
+
+Nutze die [Laufzeit-Abnahme](runtime-readiness.md), bevor du ein Artefakt lauffähig nennst. Ein offenes Menü und ein gespeicherter Callback beweisen keinen Spielclient. Sichtbare Funktionen gehören zusammen mit der Implementierung in die [Spieleranleitung](../players/features.md), nicht in Commit-Transkripte.

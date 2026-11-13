@@ -21,55 +21,59 @@ plan/**
 nav = [
   { "Home" = "index.md" },
   { "Deutsch" = [
-      { "Start" = "de/index.md" },
-      { "Spieler" = "de/players/index.md" },
-      { "Mitentwickler" = "de/maintainers/index.md" },
-      { "Plugin-Autoren" = "de/plugins/index.md" },
-      { "Server" = "de/server/index.md" },
+    { "Start" = "de/index.md" },
+    { "Spieler" = [
+      { "Einstieg" = "de/players/index.md" },
+      { "Funktionen" = "de/players/features.md" },
+      { "Einstellungen und Befehle" = "de/players/settings.md" },
+      { "Spielinhalte" = "de/client/install.md" },
+      { "Erster Start" = "de/client/first-start.md" },
+    ] },
+    { "Mitentwickler" = [
+      { "Einstieg" = "de/maintainers/index.md" },
+      { "Laufzeit-Abnahme" = "de/maintainers/runtime-readiness.md" },
+      { "Build-Voraussetzungen" = "de/build/prerequisites.md" },
+      { "Client bauen" = "de/build/client.md" },
+      { "Server-API bauen" = "de/build/server.md" },
+      { "Laufzeit und Integration" = "de/client/runtime.md" },
+      { "Surface" = "de/client/xash-surface.md" },
+      { "Host" = "de/client/xash-host.md" },
+      { "Launcher" = "de/client/xash-launcher.md" },
+      { "Identität" = "de/client/player-identity.md" },
+    ] },
+    { "Plugin-Autoren" = "de/plugins/index.md" },
+    { "Serverbetreiber" = [
+      { "Einstieg" = "de/server/index.md" },
       { "Testserver" = "de/server/testserver.md" },
-      { "Build" = [
-          { "Voraussetzungen" = "de/build/prerequisites.md" },
-          { "Client" = "de/build/client.md" },
-          { "Server-API" = "de/build/server.md" },
-        ]
-      },
-      { "Client-Laufzeit" = [
-          { "Übersicht" = "de/client/runtime.md" },
-          { "Spielinhalte" = "de/client/install.md" },
-          { "Erster Start" = "de/client/first-start.md" },
-          { "Surface" = "de/client/xash-surface.md" },
-          { "Host" = "de/client/xash-host.md" },
-          { "Launcher" = "de/client/xash-launcher.md" },
-          { "Identität" = "de/client/player-identity.md" },
-        ]
-      },
-    ]
-  },
+    ] },
+  ] },
   { "English" = [
-      { "Home" = "en/index.md" },
-      { "Players" = "en/players/index.md" },
-      { "Maintainers" = "en/maintainers/index.md" },
-      { "Plugin authors" = "en/plugins/index.md" },
-      { "Servers" = "en/server/index.md" },
+    { "Home" = "en/index.md" },
+    { "Players" = [
+      { "Getting started" = "en/players/index.md" },
+      { "Features" = "en/players/features.md" },
+      { "Settings and commands" = "en/players/settings.md" },
+      { "Game content" = "en/client/install.md" },
+      { "First start" = "en/client/first-start.md" },
+    ] },
+    { "Contributors" = [
+      { "Getting started" = "en/maintainers/index.md" },
+      { "Runtime acceptance" = "en/maintainers/runtime-readiness.md" },
+      { "Build prerequisites" = "en/build/prerequisites.md" },
+      { "Build client" = "en/build/client.md" },
+      { "Build server API" = "en/build/server.md" },
+      { "Runtime and integration" = "en/client/runtime.md" },
+      { "Surface" = "en/client/xash-surface.md" },
+      { "Host" = "en/client/xash-host.md" },
+      { "Launcher" = "en/client/xash-launcher.md" },
+      { "Identity" = "en/client/player-identity.md" },
+    ] },
+    { "Plugin authors" = "en/plugins/index.md" },
+    { "Server operators" = [
+      { "Getting started" = "en/server/index.md" },
       { "Test server" = "en/server/testserver.md" },
-      { "Build" = [
-          { "Prerequisites" = "en/build/prerequisites.md" },
-          { "Client" = "en/build/client.md" },
-          { "Server API" = "en/build/server.md" },
-        ]
-      },
-      { "Client runtime" = [
-          { "Overview" = "en/client/runtime.md" },
-          { "Install content" = "en/client/install.md" },
-          { "First start" = "en/client/first-start.md" },
-          { "Surface" = "en/client/xash-surface.md" },
-          { "Host" = "en/client/xash-host.md" },
-          { "Launcher" = "en/client/xash-launcher.md" },
-          { "Identity" = "en/client/player-identity.md" },
-        ]
-      },
-    ]
-  },
+    ] },
+  ] },
 ]
 
 [project.theme]
@@ -79,7 +83,6 @@ features = [
   "navigation.indexes",
   "navigation.instant",
   "navigation.path",
-  "navigation.sections",
   "navigation.tabs",
   "navigation.top",
   "navigation.tracking",

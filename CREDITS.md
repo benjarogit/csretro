@@ -35,7 +35,7 @@ These are imported with their history and keep their upstream licenses.
 |---|---|---|---|
 | [FuryBaM/cs16-goldsrc-client](https://github.com/FuryBaM/cs16-goldsrc-client) | FuryBaM and contributors | GPL-3.0 | Client-side prediction approach, `client.so` replacement study |
 | [FWGS/cs16-client](https://github.com/FWGS/cs16-client) | [Velaron](https://github.com/Velaron), [a1batross](https://github.com/a1batross), Vladislav4KZ, SNMetamorph, Flying With Gauss and contributors | GPL-2.0-or-later with HL engine exception | Buy presets, extended crosshair, HUD colour, Linux build layout, prediction reference |
-| [Xash3D-FWGS](https://github.com/FWGS/xash3d-fwgs) | FWGS and contributors | GPL-3.0 | Evaluated as a GoldSrc engine replacement, rejected in favour of ReHLDS; kept as a reference for Linux engine layout |
+| [Xash3D-FWGS](https://github.com/FWGS/xash3d-fwgs) | FWGS and contributors | GPL-3.0 | Selected external client-engine direction; i386 compatibility spike and engine integration reference. Not vendored; ReHLDS remains the separate server engine |
 | [hlsw-portable](https://github.com/portapps/hlsw-portable) | portapps, crazy-max | MIT | Portable application layout for `csretro-server` |
 
 The server stack under `server/vendor/` is vendored GPL source and keeps that

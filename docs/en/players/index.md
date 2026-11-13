@@ -1,20 +1,14 @@
-# Players
+# Play with CSRETRO
 
-The client is not playable yet. These pages say what you need and what you must
-not do once it starts.
+The client is not playable yet. CSRETRO is a Linux x86_64 Counter-Strike 1.6 client project built on NextClient, targeting Xash3D without starting Steam. You still need your own original game content. It is not a downloadable playable release today.
 
-## What you need
+## Start here
 
-- A retail Counter-Strike 1.6 install (original content: maps, models, sounds,
-  `valve` / `cstrike` / `resource`).
-- A **separate copy** of the mounted game files **outside** the Steam library
-  ([Install game content](../client/install.md)).
-- Linux x86_64.
+1. [See the features and their scope](features.md): HUD, radar, weapons, UI, downloads and performance tools.
+2. [Understand settings and commands](settings.md), including what inherited documentation can and cannot promise.
+3. [Prepare your content copy](../client/install.md) outside the Steam library.
+4. Use the [first-start guide](../client/first-start.md) when the runtime acceptance is ready.
 
-## What you must never do
+Never install modified files into the Steam game directory or join VAC-secured servers with this client. See the [security policy](https://github.com/benjarogit/csretro/blob/main/SECURITY.md).
 
-- Install CSRETRO into the Steam game directory.
-- Join a VAC-secured server with a modified client.
-
-See also [Security](https://github.com/benjarogit/csretro/blob/main/SECURITY.md)
-and [First client start](../client/first-start.md) (kept current with the runtime gate).
+For current test evidence and the exact remaining work, see [HANDOFF](https://github.com/benjarogit/csretro/blob/main/HANDOFF.md). Developers start with the [contributor guide](../maintainers/index.md); server extensions belong to [plugin development](../plugins/index.md).

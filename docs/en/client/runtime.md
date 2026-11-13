@@ -280,8 +280,13 @@ then the function in this process when that retail hook is absent. Init stores
 the pointer and does not call it, so no console text is filtered or queued,
 the planted command buffer stays unchanged, no GL context is opened from this
 init, no sprite is loaded and no socket is opened. A null pointer is not a
-call. A null hook is not a call. The next retail hook is `CL_StopPlayback`.
-This path returns before it.
+call. A null hook is not a call. `CL_StopPlayback` is then the function in
+this process when that retail hook is absent. Init stores the pointer and
+does not call it, so demo playback is not stopped, planted playback state
+stays unchanged, no GL context is opened from this init, no sprite is loaded
+and no socket is opened. A null pointer is not a call. A null hook is not a
+call. The next retail hook is `Host_ShutdownServer`. This path returns before
+it.
 `csr_host_frame` is a later direct call and does not extend that list.
 One call opens the X11 display, chooses an EGL config whose native visual can
 be a child of the root window, creates that window surface with

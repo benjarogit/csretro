@@ -441,6 +441,7 @@ namespace
     void RecordXashRForceCVars();
     void RecordXashRForceCVarsPart();
     void RecordXashCbufAddFilteredText();
+    void RecordXashCLStopPlayback();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -659,8 +660,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // Cbuf_AddFilteredText is then the process function when that hook is
     // absent. This init stores the pointer and does not queue console text.
     // The process body filters and queues console text, so a real call does
-    // not run. The next retail hook is CL_StopPlayback. This path returns
-    // before it.
+    // not run.
+    // CL_StopPlayback is then the process function when that hook is absent.
+    // This init stores the pointer and does not stop demo playback. The
+    // process body stops demo playback, so a real call does not run. The
+    // next retail hook is Host_ShutdownServer. This path returns before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -731,6 +735,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashRForceCVars();
             RecordXashRForceCVarsPart();
             RecordXashCbufAddFilteredText();
+            RecordXashCLStopPlayback();
         }
         return;
     }
@@ -1213,6 +1218,7 @@ EngineMiniDTLoadDetailTextureFn g_EngineMiniDTLoadDetailTexture = DT_LoadDetailT
 EngineMiniRForceCVarsFn g_EngineMiniRForceCVars = R_ForceCVars;
 EngineMiniRForceCVarsPartFn g_EngineMiniRForceCVarsPart = R_ForceCVars_part;
 EngineMiniCbufAddFilteredTextFn g_EngineMiniCbufAddFilteredText = Cbuf_AddFilteredText;
+EngineMiniCLStopPlaybackFn g_EngineMiniCLStopPlayback = CL_StopPlayback;
 
 namespace
 {
@@ -2287,6 +2293,24 @@ namespace
         g_xash_startup.add_filtered_text = g_EngineMiniCbufAddFilteredText;
     }
 
+    void RecordXashCLStopPlayback()
+    {
+        // The retail site installs a replacement. It does not stop demo
+        // playback during init. A null function pointer is not a call. A
+        // null hook is not a call. The process body stops demo playback, so
+        // this path does not call it.
+        g_xash_startup.stop_playback = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->CL_StopPlayback.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniCLStopPlayback == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.stop_playback = g_EngineMiniCLStopPlayback;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2619,6 +2643,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniRForceCVars = R_ForceCVars;
     g_EngineMiniRForceCVarsPart = R_ForceCVars_part;
     g_EngineMiniCbufAddFilteredText = Cbuf_AddFilteredText;
+    g_EngineMiniCLStopPlayback = CL_StopPlayback;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

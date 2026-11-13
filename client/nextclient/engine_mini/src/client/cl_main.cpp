@@ -631,7 +631,16 @@ void CL_Send_CvarValue()
 
 void CL_StopPlayback()
 {
-    NCL_PROFILE_SCOPE();
-
-    eng()->CL_StopPlayback.InvokeChained();
+    // Process body: stop demo playback on the client static.
+    // Init stores this pointer and does not call it.
+    if (cls == nullptr)
+    {
+        return;
+    }
+    cls->demoplayback = false;
+    cls->demoframecount = 0;
+    cls->demofilename[0] = '\0';
+    cls->demofile = nullptr;
+    cls->demoheader = nullptr;
+    cls->demowaiting = false;
 }

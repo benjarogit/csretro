@@ -303,8 +303,14 @@ diesem Prozess, wenn dieser Retail-Hook fehlt. Der Init speichert den Zeiger
 und ruft ihn nicht auf, daher wird kein Konsolentext gefiltert oder
 eingereiht, der gepflanzte Befehlsbuffer bleibt unverändert, kein GL-Kontext
 aus diesem Init geöffnet, kein Sprite geladen und kein Socket geöffnet. Ein
-Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste
-Retail-Hook ist `CL_StopPlayback`. Dieser Pfad kehrt davor zurück.
+Null-Zeiger ist kein Aufruf. Ein Null-Hook ist kein Aufruf. `CL_StopPlayback`
+ist danach die Funktion in diesem Prozess, wenn dieser Retail-Hook fehlt. Der
+Init speichert den Zeiger und ruft ihn nicht auf, daher wird die
+Demo-Wiedergabe nicht gestoppt, der gepflanzte Playback-Zustand bleibt
+unverändert, kein GL-Kontext aus diesem Init geöffnet, kein Sprite geladen
+und kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist
+kein Aufruf. Der nächste Retail-Hook ist `Host_ShutdownServer`. Dieser Pfad
+kehrt davor zurück.
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler bleiben gebunden und dieses Öffnen ruft sie

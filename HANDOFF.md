@@ -394,7 +394,10 @@ copy outside the Steam library.
 
 ## Last commands and results
 
-Runtime-boundary recovery (2026-11-13, baseline `cdcb89ca`):
+Runtime-boundary recovery (2026-11-13, baseline `cdcb89ca`, source change `e791b989`):
+
+- PR https://github.com/benjarogit/csretro/pull/7; CI https://github.com/benjarogit/csretro/actions/runs/43380494151 — success, including the native export-screen fixture step.
+- Public docs were built strictly and checked locally in the browser in German and English. Reader sections collapse outside the active audience. Generated site cleanup is handled by `scripts/clean.sh`.
 
 - `nm -D --defined-only client/build/linux-tests/out/bin/Release/client_mini.dll`: `CreateInterface` is exported; the screened named game callbacks are absent.
 - `python3 tools/check_game_client.py client/build/linux-tests/out/bin/Release/client_mini.dll`: exit 1, `export_screen=fail`, `playability=unverified`; missing all ten core exports. The library was inspected, not loaded or run.

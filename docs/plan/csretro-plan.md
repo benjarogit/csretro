@@ -669,8 +669,8 @@ Nebenbefunde:
   nicht auf, daher wird die Demo-Wiedergabe nicht gestoppt, der gepflanzte
   Playback-Zustand bleibt unverändert, kein GL-Kontext aus diesem Init
   geöffnet, kein Sprite geladen und kein Socket geöffnet. Ein Null-Zeiger ist
-  kein Aufruf. Ein Null-Hook ist kein Aufruf. Der nächste Retail-Hook ist
-  `Host_ShutdownServer`. Dieser Pfad kehrt davor zurück.
+  kein Aufruf. Ein Null-Hook ist kein Aufruf. Für den folgenden gespeicherten
+  Eintrag `Host_ShutdownServer` gilt die Startgrenze aus Abschnitt 3.7.
   `OnGameInitialized` wird nicht betreten. Die Retail-Hook-Kette läuft dabei nicht.
   Der Xash-Frame ist der spätere direkte Aufruf `csr_host_frame` und verlängert diese Liste nicht.
   `RunFrame` wird nicht gerufen. Die übrigen Weiterleitungen haben weiter
@@ -1294,8 +1294,15 @@ Init speichert den Zeiger und ruft ihn nicht auf, daher wird die
 Demo-Wiedergabe nicht gestoppt, der gepflanzte Playback-Zustand bleibt
 unverändert, kein GL-Kontext aus diesem Init geöffnet, kein Sprite geladen
 und kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist
-kein Aufruf. Der nächste Retail-Hook ist `Host_ShutdownServer`. Dieser Pfad
-kehrt davor zurück.
+kein Aufruf.
+
+`Host_ShutdownServer` wird beim Xash-Start als Funktionszeiger gespeichert,
+aber nicht aufgerufen. Sein bestehender Funktionskörper leitet weiterhin an
+die Retail-Kette weiter; ein Xash-Server-Shutdown ist damit nicht umgesetzt.
+Ein fehlender Zeiger bleibt null. Der Retail-Hook wird nicht installiert.
+Der nächste unbearbeitete Engine-Tabelleneintrag ist
+`Steam_GSTerminateGameConnection`. Der Client ist noch nicht spielbar.
+
 `OnGameInitialized` wird nicht betreten. Die
 Retail-Hook-Kette läuft bei diesem Init nicht. `csr_host_frame` ist hier kein
 Aufruf. Der Frame ist der spätere direkte Aufruf und verlängert die Hook-Liste
@@ -1426,7 +1433,7 @@ ist die Swap-Zahl N, und die Host-Zeit ist um N mal das Delta vorgerückt.
 Die X11-Verbindung ist der Socket des Fensters. Ein
 Spiel-Socket geht nicht auf. `ISurface::SwapBuffers` bleibt leer. Die
 Surface-Tests behalten ihr EGL-Pbuffer. Die Retail-Hook-Liste wird nicht
-verlängert. Der nächste Retail-Hook bleibt `Host_ShutdownServer`.
+verlängert. Der nächste unbearbeitete Engine-Tabelleneintrag ist `Steam_GSTerminateGameConnection`.
 `OnGameInitialized` bleibt außen: der Einstieg lädt Materialdateien, löst
 `vgui2` auf und geht in die übrige Retail-Initialisierung, daher kehrt er
 nicht ohne `hw.so` zurück.

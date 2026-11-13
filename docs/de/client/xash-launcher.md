@@ -314,8 +314,15 @@ Init speichert den Zeiger und ruft ihn nicht auf, daher wird die
 Demo-Wiedergabe nicht gestoppt, der gepflanzte Playback-Zustand bleibt
 unverändert, kein GL-Kontext aus diesem Init geöffnet, kein Sprite geladen
 und kein Socket geöffnet. Ein Null-Zeiger ist kein Aufruf. Ein Null-Hook ist
-kein Aufruf. Der nächste Retail-Hook ist `Host_ShutdownServer`. Dieser Pfad
-kehrt davor zurück.
+kein Aufruf.
+
+`Host_ShutdownServer` wird beim Xash-Start als Funktionszeiger gespeichert,
+aber nicht aufgerufen. Sein bestehender Funktionskörper leitet weiterhin an
+die Retail-Kette weiter; ein Xash-Server-Shutdown ist damit nicht umgesetzt.
+Ein fehlender Zeiger bleibt null. Der Retail-Hook wird nicht installiert.
+Der nächste unbearbeitete Engine-Tabelleneintrag ist
+`Steam_GSTerminateGameConnection`. Der Client ist noch nicht spielbar.
+
 `csr_host_frame` ist ein späterer direkter Aufruf und verlängert diese Liste nicht.
 `OnGameInitialized` wird nicht betreten.
 Shutdown und der fatale Fehler

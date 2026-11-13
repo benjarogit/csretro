@@ -442,6 +442,7 @@ namespace
     void RecordXashRForceCVarsPart();
     void RecordXashCbufAddFilteredText();
     void RecordXashCLStopPlayback();
+    void RecordXashHostShutdownServer();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -663,8 +664,9 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // not run.
     // CL_StopPlayback is then the process function when that hook is absent.
     // This init stores the pointer and does not stop demo playback. The
-    // process body stops demo playback, so a real call does not run. The
-    // next retail hook is Host_ShutdownServer. This path returns before it.
+    // process body stops demo playback, so a real call does not run.
+    // Host_ShutdownServer is stored next and never called: its body still
+    // requires the retail chain. Steam_GSTerminateGameConnection remains out.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -736,6 +738,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashRForceCVarsPart();
             RecordXashCbufAddFilteredText();
             RecordXashCLStopPlayback();
+            RecordXashHostShutdownServer();
         }
         return;
     }
@@ -1219,6 +1222,7 @@ EngineMiniRForceCVarsFn g_EngineMiniRForceCVars = R_ForceCVars;
 EngineMiniRForceCVarsPartFn g_EngineMiniRForceCVarsPart = R_ForceCVars_part;
 EngineMiniCbufAddFilteredTextFn g_EngineMiniCbufAddFilteredText = Cbuf_AddFilteredText;
 EngineMiniCLStopPlaybackFn g_EngineMiniCLStopPlayback = CL_StopPlayback;
+EngineMiniHostShutdownServerFn g_EngineMiniHostShutdownServer = Host_ShutdownServer;
 
 namespace
 {
@@ -2311,6 +2315,17 @@ namespace
         g_xash_startup.stop_playback = g_EngineMiniCLStopPlayback;
     }
 
+    void RecordXashHostShutdownServer()
+    {
+        g_xash_startup.shutdown_server = nullptr;
+        if (g_xash_engine != nullptr &&
+            g_xash_engine->Host_ShutdownServer.GetHook() == nullptr)
+        {
+            // This is a stored address, not an executable Xash shutdown backend.
+            g_xash_startup.shutdown_server = g_EngineMiniHostShutdownServer;
+        }
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2644,6 +2659,7 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniRForceCVarsPart = R_ForceCVars_part;
     g_EngineMiniCbufAddFilteredText = Cbuf_AddFilteredText;
     g_EngineMiniCLStopPlayback = CL_StopPlayback;
+    g_EngineMiniHostShutdownServer = Host_ShutdownServer;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

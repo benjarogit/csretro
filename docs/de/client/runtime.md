@@ -6,7 +6,7 @@ Die Engine des Produktprozesses ist Xash3D. Die Entscheidung steht in
 
 ## Produktgrenze
 
-Produktziel ist ein nativer x86_64-Prozess mit Xash3D. Der bisherige Host prüft Menü, Dateisystem und Surface; er startet die Spielengine nicht. `client_mini` erweitert einen vorhandenen Spielclient und ersetzt nicht die fehlende native CS-Spielimplementierung. Eine geladene Factory oder gespeicherte Engine-Callbacks beweisen kein Gameplay.
+Zuerst wird das bestehende NextClient-Verhalten mit architekturgleicher Engine, Spielbibliothek und Erweiterungen auf Xash3D portiert. Ausschließlich x64 und gemessene Spielleistung folgen danach. Der bisherige Host prüft Menü, Dateisystem und Surface; er startet die Spielengine nicht. `client_mini` erweitert einen vorhandenen Spielclient; der erste Port kann wie der i386-Spike die lokal bereitgestellte Original-Spielbibliothek nutzen. Damit ist die spätere x64-Spielbibliothek noch nicht gelöst. Eine geladene Factory oder gespeicherte Engine-Callbacks beweisen kein Gameplay.
 
 Die [Laufzeit-Abnahme](../maintainers/runtime-readiness.md) beschreibt Exportprüfung, Integration und den manuellen Spielnachweis. Aktuelle Ergebnisse und der nächste Task stehen nur in [HANDOFF](https://github.com/benjarogit/csretro/blob/main/HANDOFF.md). Der Retail-Resolver unten dient der Offline-Kompatibilitätsprüfung und ersetzt keine Xash-Integration.
 

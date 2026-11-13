@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect a native game client's ELF header and core exports without loading it.
+"""Inspect an x64 game client's ELF header and core exports without loading it.
 
 This is an export screen, not an ABI, gameplay or performance certification.
 The CSRETRO profile uses the traditional named GoldSrc entry points; a lone

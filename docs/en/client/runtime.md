@@ -6,7 +6,7 @@ The product process engine is Xash3D. The decision is in
 
 ## Product boundary
 
-The product target is a native x86_64 Xash3D process. The current host exercises the menu, filesystem and surface; it does not start the game engine. `client_mini` extends an existing game client and is not a replacement for the missing native CS game implementation. Loading a factory or storing engine callbacks does not prove gameplay.
+The first task is the existing NextClient behavior on Xash3D, using architecture-matched engine, game library and extensions. Exclusively x64 execution and measured gameplay performance are the following phase. The current host exercises the menu, filesystem and surface; it does not start the game engine. `client_mini` extends an existing game client; the first port can use the locally supplied original game library as the i386 spike does. That does not solve the later x64 game-library requirement. Loading a factory or storing engine callbacks does not prove gameplay.
 
 Use the [runtime acceptance procedure](../maintainers/runtime-readiness.md) for export inspection, integration and manual gameplay evidence. Current results and the next task live only in [HANDOFF](https://github.com/benjarogit/csretro/blob/main/HANDOFF.md). The retail resolver below is an offline compatibility tool, not a substitute for the Xash integration.
 

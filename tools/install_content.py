@@ -4,7 +4,8 @@
 Searches a Steam library for App 10 and copies an allowlist into a directory
 outside that library. Files shipped in ``client/assets`` are an overlay: the
 same relative path keeps the shipped file, and a retail file with no shipped
-replacement stays. A missing Steam install or a missing game is a failure.
+replacement stays. An explicit original-game source can be used when Steam
+discovery is unavailable. Both paths require a complete content tree.
 The tool does not invent a path, does not start Steam and does not start the
 game.
 
@@ -359,6 +360,32 @@ def discover(roots: list[Path]) -> dict:
     return _result(False, "game_missing")
 
 
+def discover_manual(source: Path) -> dict:
+    """Normalize a selected game root, valve or cstrike folder, without Steam.
+
+    This validates folder structure, not account ownership or game licensing.
+    A leaf folder still requires the other game folders beside it.
+    """
+    source = _resolved(source)
+    if not source.is_dir():
+        return _result(False, "source_missing", source=str(source))
+    if not ((source / "cstrike").is_dir() and (source / "valve").is_dir()):
+        if source.name in {"valve", "cstrike"}:
+            source = source.parent
+    missing = [name + "/" for name in ("valve", "cstrike") if not (source / name).is_dir()]
+    if missing:
+        return _result(False, "source_layout_invalid", source=str(source), missing=missing)
+
+    # Preserve Steam-library write protection even when a user selects a game
+    # directly instead of reaching it through appmanifest discovery.
+    library = None
+    for parent in source.parents:
+        if parent.name == "steamapps":
+            library = str(parent.parent)
+            break
+    return _result(True, None, source=str(source), library=library)
+
+
 def decision(relative: str) -> str:
     """Return 'copy' or the reason the file stays in the Steam tree."""
     parts = relative.split("/")
@@ -492,21 +519,29 @@ def _overlay_error(overlay: Path, library: Path, source: Path) -> tuple[str | No
     return None, _overlay_files(overlay)
 
 
-def install_content(roots: list[Path], destination: Path, overlay: Path | None = None) -> dict:
-    """Detect App 10 under `roots` and copy the allowlist to `destination`.
+def install_content(
+    roots: list[Path], destination: Path, overlay: Path | None = None,
+    *, source: Path | None = None,
+) -> dict:
+    """Select an explicit game source or App 10 under `roots`, then copy content.
 
     When `overlay` is a directory, its files are written after the retail
     copy. The same relative path keeps the shipped bytes. A retail file with
     no shipped replacement stays.
     """
-    found = discover(roots)
+    # A manual choice is authoritative: do not silently replace an invalid
+    # selection with another installation found on this machine.
+    found = discover_manual(source) if source is not None else discover(roots)
     if not found["ok"]:
         return found
 
     source = Path(found["source"])
-    library = Path(found["library"])
+    library = Path(found["library"]) if found["library"] is not None else source
     destination = _resolved(destination)
+    protected_roots = [_resolved(root) for root in roots if (root / "steamapps").is_dir()]
     refused = _destination_error(destination, library, source)
+    if refused is None and any(_within(destination, root) for root in protected_roots):
+        refused = "destination_inside_source"
     if refused is not None:
         return _result(
             False,
@@ -519,6 +554,8 @@ def install_content(roots: list[Path], destination: Path, overlay: Path | None =
     shipped: list[str] = []
     if overlay is not None:
         overlay_error, shipped = _overlay_error(overlay, library, source)
+        if overlay_error is None and any(_within(_resolved(overlay), root) for root in protected_roots):
+            overlay_error = "overlay_inside_source"
         if overlay_error is not None:
             return _result(
                 False,
@@ -594,6 +631,11 @@ def install_content(roots: list[Path], destination: Path, overlay: Path | None =
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Copy mounted CS 1.6 content outside Steam.")
     parser.add_argument(
+        "--source",
+        help="Original game root, or its valve/cstrike folder. Bypasses Steam discovery; "
+        "the complete sibling content tree is still required.",
+    )
+    parser.add_argument(
         "--steam-root",
         action="append",
         default=None,
@@ -618,12 +660,19 @@ def main(argv: list[str] | None = None) -> int:
         candidate = shipped_asset_root()
         overlay = candidate if candidate.is_dir() else None
     try:
-        result = install_content(roots, Path(args.destination), overlay)
+        result = install_content(
+            roots, Path(args.destination), overlay,
+            source=Path(args.source) if args.source is not None else None,
+        )
     except OSError as error:
         print(f"error: copy_failed: {error}", file=sys.stderr)
         return 1
     if not result["ok"]:
         print(f"error: {result['error']}", file=sys.stderr)
+        if args.source is None and result["error"] in {
+            "steam_missing", "game_missing", "steam_metadata_invalid"
+        }:
+            print("Select your original game folder with --source <game-root|valve|cstrike>.", file=sys.stderr)
         for name in result["missing"]:
             print(f"missing: {name}", file=sys.stderr)
         return 1

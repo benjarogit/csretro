@@ -8,12 +8,12 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-13
 - **Gate:** G07 — in progress. The first runnable version is not achieved.
 - **Branch:** `main` is the integration target; changes use gate pull requests.
-- **Validated baseline:** `cdcb89ca` (PR #6 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43375355506 — success.
-- **Product target:** Linux x86_64, Xash3D, original CS content in a separate copy, no Steam process started by the port, at least 60 FPS in a playable scene without a 60 FPS cap. Rules and decisions live in the authoritative plan, sections 3.7–3.8.
+- **Validated baseline:** `4fd83841` (PR #7 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43380825687 and Pages https://github.com/benjarogit/csretro/actions/runs/43380893758 — success.
+- **Product sequence:** Port existing NextClient/CS behavior to Xash3D first; then exclusively Linux x86_64 and at least 60 FPS in gameplay without a 60 FPS cap; additional features later. Original licensed game files stay in a separate copy, and the port starts no Steam process. Rules and decisions live in the authoritative plan, sections 3.7–3.8.
 - **Actual runtime boundary:** The host builds and presents native VGUI2 UI, reads content and records world primitives/callbacks. It does not execute Xash3D gameplay. `client_mini` is an extension of an existing game client, not a native CS game implementation. The SDK builds the UI foundation, not the missing CS gameplay implementation.
-- **Critical missing piece:** Native x64 CS game code and a real engine/client execution path. `tools/check_game_client.py` fails on the built extension: all ten screened core callbacks are absent from its dynamic exports. This is an expected diagnostic failure, not a failing tool regression test.
-- **Current work:** Runtime evidence rules, an executable export screen with native regression fixtures, reader-oriented DE/EN docs and corrected Page navigation. See the latest command results below.
-- **Upstream decision:** Existing no-copy/no-vendoring rule for GPL reference clients remains binding. The maintainer was asked whether to preserve independent implementation or explicitly authorize a licensed open-client import. No source import has been made.
+- **Critical next port work:** Integrate the existing NextClient extensions with a real architecture-matched Xash3D/CS runtime, using the locally supplied original game library as the i386 spike does. A native x64 game library is the following phase, not a demand to rewrite CS before porting. The x64-only export screen still fails on the extension module as expected; it is not a gate against the initial i386 port.
+- **Current work:** Manual original-content selection, preserving the existing allowlist, plus corrected port-first acceptance and documentation. See the latest command results below.
+- **Clarified scope:** No CS rewrite or reference-client feature import before the existing NextClient-to-Xash3D port. The original game library can be supplied locally for that first port; a later exclusively x64 phase must solve its own architecture constraints. Existing GPL reference rules remain unchanged.
 - **Historical evidence:** Earlier i386 spikes and test-only host results remain below. They do not establish x64 gameplay, production Steam authentication or measured scene FPS.
 
 ## Verified (with evidence)
@@ -324,8 +324,8 @@ implementation; the plan is the only source for the gate list.
 
 ## Open / known broken
 
-- **Native game client and engine execution:** The x64 product still lacks CS game-code callbacks and a real Xash3D execution path. The host/menu/world-recording tests are component evidence, not gameplay. See current state and plan section 3.8.
-- **Game-code provenance decision:** The existing reference-client no-copy rule remains in force. The maintainer's choice of independent implementation versus an authorized licensed import is pending. No GPL reference client has been copied.
+- **Real port integration:** The current x64 host/menu/world-recording harness does not run Xash3D gameplay. The next step is the existing architecture-matched NextClient/CS port path, not an independent game-client rewrite. The historical i386 Xash/Valve-client spike is a reference; it is not proof that NextClient extensions are integrated.
+- **Later x64 phase:** An i386 original game library cannot be loaded into a native x64 process. This remains a real technical requirement for the second phase, to be resolved after the first engine port. No GPL reference-client import was authorized by the scope clarification.
 - **Steam authentication:** The local ELF64 shim reports logged out and authenticates nobody. No public-server authentication or VAC integration is established.
 - **Frame rate:** No real x64 gameplay scene has a 60 FPS acceptance measurement. The UI tests and historical i386 spike cannot supply that evidence.
 - **API and references:** The vendored AMXX include still uses `ncl_` names. Rebrand/protocol work is G08; exact generated cvar/command/native reference coverage is not yet implemented. The new feature/settings prose is not a complete generated API reference.
@@ -350,19 +350,17 @@ the Security overview switches in the browser.
 
 ## Next task
 
-Continue G07 toward the first runnable version using plan section 3.8 and `docs/en/maintainers/runtime-readiness.md`.
+Continue G07 with the existing NextClient-to-Xash3D port first, following the clarified plan section 3.8.
 
-1. Resolve the native CS game-code source/licensing path with the maintainer. The current harness forbids copying the reference clients; keep that boundary until explicitly changed.
-2. Implement the chosen native game client and real Xash3D execution path. Validate actual callback ABI/engine tables, not just export names or a second menu harness.
-3. Integrate the existing surface, input, rendering, original-content installation and NextClient extensions with that path. Connect a local/test-server session and prepare a human gameplay/performance acceptance run; automation never starts the game.
-4. Keep player feature/settings guides and plugin documentation in DE/EN aligned with working behavior. Derive exact cvar/command/native references from code/include; do not copy default tables. Feature ideas remain in plan section 15.
-5. Do not resume retail-hook enumeration as a substitute for runtime integration. `CL_Stop_f` remains an unhandled table entry, not evidence that it is the critical next product task.
-
-The first playable version still needs all acceptance evidence, including a rendered map, movement/collision, weapons, HUD/sound, test session, clean shutdown and at least 60 FPS in a stated real scene. No release tag is authorized by the current evidence.
+1. Establish a reproducible, architecture-matched port build from the existing i386 Xash/original-CS-client spike and the NextClient extensions. Resolve the actual game callback table and the VGUI ABI/surface seam. Keep local original binaries and external engine artifacts out of the repository.
+2. Replace the test-only host path with the real Xash3D engine loop and bind the existing NextClient behavior there. Preserve CS movement and validate input, collision, weapons, HUD/sound and a local/test-server session. Automation never starts the game; prepare a human run with hashes and clear acceptance steps.
+3. After the functional port, make the complete runtime exclusively x64 and measure at least 60 FPS in a named real scene. Do not mix ELF32 game libraries with ELF64 components or call a menu benchmark gameplay evidence.
+4. Additional features from reference clients follow the working port/x64/performance baseline. Keep DE/EN player/plugin docs, harness, handoff and authoritative backlog aligned. Exact generated references remain useful documentation work, not a replacement for runtime integration.
+5. Manual original-content selection is now supported by `install-content.sh --source`. The current copier copies content only; runtime-library assembly and full client/server installers remain separate work. `CL_Stop_f` is an unhandled table entry, not the critical next task by itself.
 
 ## Open decisions
 
-- Native x64 CS game-code provenance: independent implementation under existing rules versus an explicitly authorized licensed import. Pending maintainer response.
+- No game-code-source choice blocks the first port: use the existing CS game behavior and locally supplied original library in an architecture-matched Xash run. The later native x64 game-library solution remains a second-phase requirement.
 
 1. Windows support: drop the CEF/browser code or keep it disabled. Decided in G08.
 2. Discord app, Sentry project, GameAnalytics keys, update signing key and
@@ -393,6 +391,17 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Port-first scope and manual original content (2026-11-13):
+
+- The maintainer clarified the order: existing NextClient on Xash3D first, exclusively x64 and measured performance afterwards, additional features later. The earlier request to choose a new native CS implementation before porting is superseded.
+- Static reinspection: `xash3d`, `libxash.so`, original `client.so` and `vgui2.so` in the existing reference are all ELF32/EM_386. The game library still matches SHA-256 `2e799ef31931c0f4372ff31ad30f0aab529b16461ed3b0928dfbd958183b2e5a`; VGUI matches `f0291c95ec420d65a8f174ccb0e144be831d101b9d2650bb29c6da6bd96bcd3f`.
+- The existing i386 spike uses original `client.so` and `vgui2.so` with an architecture-matched external Xash3D and surface shims. This is a local reference path, not a completed NextClient product integration. No game was started during this change.
+- `uv run --with pytest python -m pytest tests/install_content tests/game_client -q`: 28 passed plus subtests. This includes all existing automatic-search tests and the manual-source regression cases.
+- `python3 -m unittest discover -s tests/install_content -p test_manual_source.py -v`: 8/8 passed, also configured as a dependency-free CI step.
+- `scripts/verify.sh`: 68 checks passed. `scripts/build-docs.sh`: strict DE/EN site build passed.
+- Manual root/valve/cstrike selection uses the same allowlist, works without Steam metadata, rejects missing siblings/assets and never silently falls back from an invalid manual choice. Source/known-library/symlink write protections and shipped-overlay precedence are tested.
+
 
 Runtime-boundary recovery (2026-11-13, baseline `cdcb89ca`, source change `e791b989`):
 

@@ -374,4 +374,5 @@ def test_script_reports_a_missing_game(tmp_path: Path):
     )
     assert completed.returncode == 1
     assert "error: game_missing" in completed.stderr
+    assert "--source" in completed.stderr
     assert not destination.exists()

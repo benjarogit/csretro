@@ -962,14 +962,9 @@ C-Einstieg. Aufgerufen wird er nur über diesen Zeiger oder die
 C++-Schnittstelle. Die erste Factory, die `VGUI_Surface026` liefert, wird
 `g_pSurface`.
 
-**Prozess.** Der Produktprozess ist x86_64. Valves `client.so`, `vgui2.so`
-und `hw.so` sind i386 und werden nicht in diesen Prozess geladen. Client und
-`vgui2` kommen aus dem vendorten SDK-Quellbaum
-`client/dep/ncl-hl1-source-sdk/`. Die eigenen Änderungen, einschließlich LP64,
-sind diese Dateien. Die Engine ist Xash3D. Der Client-Build
-ist das Preset `linux` mit dem vcpkg-Triplet `x64-linux`. Es gibt kein
-zweites 32-bit-Client-Preset. Das Server-Modul bleibt i386, weil ReHLDS es
-so lädt. Es gibt keine zweite Surface.
+**Reihenfolge: Port vor x64-Abnahme.** Zuerst wird der vorhandene NextClient auf Xash3D portiert und das bestehende Counter-Strike-Verhalten erhalten. Der vorhandene i386-Spike nutzt die Spielbibliothek aus der eigenen lizenzierten CS-Installation. Xash3D ersetzt dabei die Valve-Engine; es ersetzt nicht automatisch den CS-Spielcode. Engine, Spielbibliothek, VGUI und Erweiterungen müssen innerhalb eines Laufs dieselbe Architektur und passende Schnittstellen haben. Original-Bibliotheken werden lokal bereitgestellt und nicht vendort. Das ist kein Legacy-/8684-Fallback.
+
+Danach wird der Port ausschließlich x86_64 und mit mindestens 60 FPS in einer echten Spielszene abgenommen, ohne Begrenzung auf 60 FPS. Weitere Funktionen aus Referenzprojekten kommen erst nach dieser Basis. Das vorhandene Preset `linux` baut x64-Komponenten; es beweist noch keinen lauffähigen Xash3D-Port. Valves i386-`client.so` kann nicht in diesen x64-Prozess geladen werden. Die dafür nötige native Spielcode-Lösung gehört in die spätere x64-Phase und ist kein Auftrag, vor dem ersten Port CS neu zu entwickeln. Das vendorte SDK liefert die gemeinsame VGUI-/Hilfsbibliotheksbasis, keine vollständige CS-Spielimplementierung. Das Server-Modul bleibt passend zu ReHLDS i386.
 
 **Engine-Identität.** Der Produktprozess ist Xash3D, nicht der Public-Linux-SHA
 von `hw.so`. `NitroApi` öffnet, hasht und hookt diese Datei nicht. Es gibt
@@ -1403,8 +1398,9 @@ und jede andere mitgelieferte Datei (Modelle, Sounds, Sprites, Resources).
 Die Retail-Datei bleibt, wenn es keinen mitgelieferten Ersatz gibt. Die
 Retail-Kopie überschreibt eine mitgelieferte Datei nicht. Das Ziel liegt außerhalb
 der gefundenen Steam-Bibliothek. Ein Ziel innerhalb dieses Baums wird
-abgelehnt. Fehlt Steam oder das Spiel, ist das ein Fehlschlag, und es wird
-kein Pfad erfunden. Persönliche Konfigurationen, Demos, Screenshots, Caches,
+abgelehnt. Ohne manuelle Auswahl bleibt fehlendes Steam oder Spiel ein Fehlschlag.
+`--source` wählt alternativ einen geprüften Originalspielbaum; ein Pfad wird
+nicht erfunden. Persönliche Konfigurationen, Demos, Screenshots, Caches,
 Steam- und VAC-Binaries, `hw.so` und fremde Mods bleiben liegen. Der
 Laufzeit-Launcher bekommt diese Kopie als Inhaltswurzel. Fehlt sie, ist das
 ein Fehlschlag. Er startet Steam nicht. Derselbe Prozess öffnet diese Liste über den Host
@@ -1506,17 +1502,15 @@ Bibliothek hängt noch nicht an Xash3D.
 
 ---
 
-### 3.8 Abnahmepfad zur ersten lauffähigen Version
+### 3.8 Port- und Installationsabnahme
 
-Der i386-Spike aus Abschnitt 3.6 belegt nicht den nativen x64-Spielclient. `client_mini` ist eine Erweiterung eines vorhandenen CS-Clients. Das SDK liefert die gemeinsame VGUI-Basis, aber keine vollständige CS-Spielimplementierung. Die Host-Factory und gespeicherte Funktionszeiger ersetzen weder diese Spielimplementierung noch den echten Xash3D-Engine-Loop. Die frühere Aussage „nur Surface fehlt“ gilt nicht als x64-Abnahme.
+**Erster Schritt: vorhandenes Verhalten auf Xash3D.** Der Auftrag ist der Port des bestehenden NextClient, keine vorgelagerte CS-Neuentwicklung und kein Vorziehen zusätzlicher Funktionen aus anderen Clients. Der historische i386-Spike belegt die grundsätzliche Anbindung mit der Original-Spielbibliothek. Er ersetzt noch keinen reproduzierbaren Produktpfad. Der Port muss den echten Xash3D-Loop, passende Spiel-Callbacks, Surface, Eingabe, Karte, Bewegung/Kollision, Waffen, HUD/Ton und eine lokale/Testserver-Sitzung verbinden. Das bestehende Valve-/CS-Movement wird erhalten und gegen den Referenzlauf geprüft. Eine Änderung des Movement-Verhaltens ist kein stiller Bestandteil des Engine-Wechsels.
 
-Die Export-Vorprüfung ist `tools/check_game_client.py`: Sie liest ELF und dynamische Funktionssymbole ohne Laden. Sie prüft nur das benannte Kernprofil, keine alternative `GetClientAPI`-Tabelle, Signaturen, Engine-Initialisierung oder Spielbarkeit. Exit 0 darf keine leeren Ersatz-Exports oder No-ops als Produktfortschritt rechtfertigen.
+**Zweiter Schritt: ausschließlich x64 und mindestens 60 FPS.** Erst nach dem funktionierenden Port werden durchgängig native x64-Artefakte und mindestens 60 FPS in einer benannten echten Spielszene nachgewiesen. Eine i386-Spielbibliothek ist keine x64-Lösung. Die Eigenständigkeit von Valves Engine darf nicht mit der bereits erfolgten Ablösung jedes Original-Spielmoduls verwechselt werden. `tools/check_game_client.py` prüft nur das benannte x64-Kernprofil, keine alternative `F`-/`GetClientAPI`-Tabelle, Signaturen oder Spielbarkeit. Der Test ist für diese Phase eingegrenzt und blockiert den ersten architekturgleichen Port nicht. Leere Ersatz-Exports oder No-ops sind kein Fortschrittsnachweis.
 
-Der kritische Pfad in G07 ist: native CS-Spielimplementierung mit geklärter Herkunft und Lizenz; echte Xash3D-Anbindung; Engine-/Client-ABI und Initialisierung; gerenderte Originalkarte mit Eingabe, Bewegung, Kollision, Waffen, HUD und Ton; lokale/Testserver-Runde; gemessene mindestens 60 FPS in benannter Spielszene ohne 60-FPS-Lock. Der letzte Spielstart und die Abnahme bleiben menschlich, nach `docs/de/maintainers/runtime-readiness.md`. Ohne Nachweis jedes Punkts bleibt G07 offen. Es gibt keinen stillen i386-Fallback.
+**Originalinhalte installieren.** Voraussetzung ist eine eigene lizenzierte CS-1.6-Installation. Standardmäßig sucht `scripts/install-content.sh` Steam und App 10. Mit `--source` kann der Benutzer bei fehlender Erkennung oder Kopierproblemen den Spiel-Hauptordner oder dessen `valve`-/`cstrike`-Ordner angeben. Der gemeinsame Baum muss trotzdem beide Spielordner und die benötigten Ressourcen enthalten. Die manuelle Auswahl wird geprüft und nicht still durch eine andere Installation ersetzt. Sie braucht keine lesbaren Steam-Metadaten und startet Steam nicht. Die Prüfung kontrolliert Datenstruktur und Pflichtdateien, keine Kontoanmeldung. Der Installer kopiert dieselbe Allowlist, lässt Ballast und persönliche Dateien liegen, schützt Quelle und erkannte Steam-Bibliotheken vor Ziel-/Overlay-Schreibzugriff und liefert keine Valve-Dateien im Repository aus. Die bisherige Inhaltskopie bleibt von Runtime-Bibliotheksintegration und vollständigen Client-/Server-Startern getrennt.
 
-Die Regeln für GPL-Referenzen bleiben unverändert, bis der Maintainer eine konkrete Änderung beschließt. Eine fehlende native CS-Spielimplementierung wird als eigene Architekturentscheidung behandelt, nicht durch weitere gespeicherte Retail-Hooks verdeckt.
-
-Die Page wird nach Leseraufgaben gegliedert: Spieler (Funktionen, Einstellungen, Inhalte, Start), Mitentwickler (Build, echte Laufzeit-Abnahme und Komponenten), Plugin-Autoren (bisheriger Include, Bereitschaft und Fähigkeiten) sowie Serverbetrieb. `docs/de` und `docs/en` spiegeln sich. Geerbte Funktionen erhalten eine verständliche Beschreibung mit klarer Port-Grenze. Vorgeschlagene Features aus anderen Clients stehen weiter ausschließlich im Backlog von Abschnitt 15. Detaillierte Upstream-Anleitungen bleiben technische Referenz; keine Übersetzungskopie. Standardwerte und API-Tabellen entstehen aus Code/Include. Es gibt keine zweite Wiki-Quelle.
+**Abnahme und Dokumentation.** Der Spielstart bleibt menschlich, nach `docs/de/maintainers/runtime-readiness.md`; Automatisierung startet das Spiel nie. Offene Menüfenster, Factories, gespeicherte Zeiger oder Primitive schließen keinen Port-Meilenstein. Die Page bleibt nach Spielern, Mitentwicklern, Plugin-Autoren und Serverbetrieb gegliedert; DE/EN, Harness und Handoff laufen mit jeder Änderung mit. Exakte API-/Default-Tabellen entstehen aus Code/Include. Zusätzliche Feature-Ideen bleiben im Backlog in Abschnitt 15 und werden erst nach dem Port und der x64-/Leistungsbasis umgesetzt. Die bisherigen GPL-Referenzregeln sind damit nicht geändert.
 
 ## 4. Repo-Struktur
 
@@ -1830,21 +1824,21 @@ weitere Bindung neu bewerten.
 
 #### G07 – Public-Runtime
 
-**Ziel:** CSRETRO läuft auf dem Default-Public-Branch.
+**Ziel:** Das bestehende NextClient-Verhalten läuft auf Xash3D mit den eigenen Default-Public-Spielinhalten. Reihenfolge und Abnahme stehen in Abschnitt 3.8; reine x64-Ausführung und Leistungsnachweis folgen auf den funktionierenden Port.
 
 | Schritt | Inhalt | Abbruch, wenn … |
 |---|---|---|
 | G07a | Build-Registry: Public-Build per SHA-256 von `hw.so`/`client.so` erkennen | Build nicht eindeutig identifizierbar |
 | G07b | Resolver dreistufig: `dynsym` → `symtab` → Pattern | Hooks nicht auflösbar |
 | G07c | `EngineMsgBase` und übrige Offset-/String-Einträge für Public neu bestimmen | Offset nicht reproduzierbar |
-| G07d | Erster Start: `hw.so` wird gepatcht, Konsole antwortet, kein Crash | Crash vor der Konsole |
-| G07e | ABI-Validierung gegen Public (DWARF vorhanden) | Layouts weichen strukturell ab |
-| G07f | Feature-Smoke: Radar, HUD, Viewmodel, Netzwerk, Handshake | Kernfeature nicht reparabel |
+| G07d | Historischer Retail-Vergleich: `hw.so`-Patch, Konsole und stabiler Start | Vergleichsbasis nicht reproduzierbar |
+| G07e | Bestehenden NextClient auf Xash3D portieren, architekturgleiche Original-Spielbibliothek, Surface/ABI und Movement prüfen | Kein echter Engine-/Spielpfad oder verändertes CS-Verhalten |
+| G07f | Danach ausschließlich x64, mindestens 60 FPS und Smoke der bestehenden Funktionen | Gemischte Architektur, fehlender Leistungs-/Spielnachweis |
 
-**Abnahme:** Alle sechs Schritte belegt; `csr_version` (später) antwortet auf Public.
+**Abnahme:** Die bisherigen Public-Registry-/Resolver-Schritte bleiben Vergleichsnachweise. Für den Port zählen der echte Engine-/Spielclient-Pfad und menschliche Spielnachweise nach Abschnitt 3.8. x64-/FPS-Abnahme werden getrennt dokumentiert; keine Retail-Hook-Enumeration ersetzt den Port.
 
-**Wenn G07a–G07d scheitern:** Stopp, Neubewertung der Architektur. Kein Legacy-Fallback.
-Option wäre ein Hybrid aus `client.so`-Ersatz und Engine-Patches (FuryBaM-Ansatz).
+**Wenn die Public-Vergleichsbasis scheitert:** Ursache prüfen; kein Legacy-Fallback und keine Gleichsetzung eines fehlenden Retail-Hooks mit einer unmöglichen Xash-Anbindung.
+Die nächsten Schritte bleiben der Xash3D-Port und die danach getrennt nachzuweisende x64-/Leistungsphase aus Abschnitt 3.8. Zusätzliche Referenzclient-Funktionen werden nicht vorgezogen.
 
 #### G08 – Rebrand & Protokoll v1
 

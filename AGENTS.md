@@ -13,8 +13,10 @@ CSRETRO is a fully vendored Counter-Strike 1.6 client plus an AMXX server API.
 - Target is the **Default Public branch** of the retail game only.
 - No `steam_legacy`, no 8684 fallback, no legacy address providers.
 - No backward compatibility with NextClient. CSRETRO servers accept CSRETRO clients.
-- Product process is x86_64, decided in the plan, section 3.7. The Linux
-  client preset builds that process. Windows is not a target.
+- Port the existing NextClient runtime to Xash3D first, preserving CS gameplay.
+  The next phase makes that port exclusively x86_64 and proves at least 60 FPS
+  in gameplay; additional features follow later. The existing Linux preset
+  builds x86_64 components, not proof of a completed engine port. Windows is not a target.
 - Reference projects under GPL are read for ideas and procedures, never vendored.
 
 The authoritative plan is [`docs/plan/csretro-plan.md`](docs/plan/csretro-plan.md).
@@ -308,8 +310,8 @@ current directory: resolve the repository root from the script location.
 ## Runtime evidence and reader documentation
 
 - A stored callback, loaded factory, open menu, synthetic BSP or recorded primitive is evidence only for that operation. It does not close a runnable-game milestone.
-- The first runnable x64 client requires a real native game implementation and Xash3D execution, rendered maps, input/simulation, a test session and measured scene performance. Human acceptance follows `docs/en/maintainers/runtime-readiness.md`; automation still never starts the game.
-- `tools/check_game_client.py` is a static core-export screen. Passing it is not an ABI or gameplay certificate. Do not rename an extension module to satisfy the game-client requirement or add empty exports just to pass the screen.
+- Prove the existing CS/NextClient behavior on Xash3D first, with architecture-matched engine, game library and extensions. Original game libraries may be supplied locally from the licensed installation for this port stage; never vendor them or mix ELF32 and ELF64 in one process. Exclusively x64 and measured gameplay performance are the following acceptance phase, not a prerequisite for investigating the first port. Human acceptance follows `docs/en/maintainers/runtime-readiness.md`; automation still never starts the game.
+- `tools/check_game_client.py` is a static x64 core-export screen for the later native phase, not a rejection of the architecture-matched first port. Passing it is not an ABI or gameplay certificate. Do not rename an extension module to satisfy the game-client requirement or add empty exports just to pass the screen.
 - Every player-visible change updates its DE/EN feature/settings or plugin guide in the same change. Distinguish inherited source, validated runtime behavior and planned ideas. Names/defaults remain generated from code, not copied into hand-maintained tables.
 - Keep public component guides about reader tasks. Startup callback transcripts and dated test results belong in `HANDOFF.md`, not repeated across runtime, host and launcher pages. There is one docs tree and its generated Page; no separately maintained wiki.
 - Before continuing callback enumeration, establish which runtime behavior that change enables on the path to the first playable version. Inspection-only registrations are not substitutes for that path.

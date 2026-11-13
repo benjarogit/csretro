@@ -39,6 +39,7 @@
 #include <xash_engine/xash_engine.h>
 
 #include "common/common.h"
+#include "common/cmd.h"
 #include "common/net_chan.h"
 #include "common/net_ws.h"
 #include "common/model.h"
@@ -439,6 +440,7 @@ namespace
     void RecordXashDTLoadDetailTexture();
     void RecordXashRForceCVars();
     void RecordXashRForceCVarsPart();
+    void RecordXashCbufAddFilteredText();
 }
 
 static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, const char* pszDriver, const char* pszCmdLine, bool result)
@@ -654,7 +656,11 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
     // absent. This init stores the pointer and does not force cvars. The
     // process body forces cvars for multiplayer, so a real call does not
     // run.
-    // The next retail hook is Cbuf_AddFilteredText. This path returns before it.
+    // Cbuf_AddFilteredText is then the process function when that hook is
+    // absent. This init stores the pointer and does not queue console text.
+    // The process body filters and queues console text, so a real call does
+    // not run. The next retail hook is CL_StopPlayback. This path returns
+    // before it.
     if (XashStartupIsActive())
     {
         if (SupplyXashEngineTable())
@@ -724,6 +730,7 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
             RecordXashDTLoadDetailTexture();
             RecordXashRForceCVars();
             RecordXashRForceCVarsPart();
+            RecordXashCbufAddFilteredText();
         }
         return;
     }
@@ -1205,6 +1212,7 @@ EngineMiniDTSetRenderStateFn g_EngineMiniDTSetRenderState = DT_SetRenderState;
 EngineMiniDTLoadDetailTextureFn g_EngineMiniDTLoadDetailTexture = DT_LoadDetailTexture;
 EngineMiniRForceCVarsFn g_EngineMiniRForceCVars = R_ForceCVars;
 EngineMiniRForceCVarsPartFn g_EngineMiniRForceCVarsPart = R_ForceCVars_part;
+EngineMiniCbufAddFilteredTextFn g_EngineMiniCbufAddFilteredText = Cbuf_AddFilteredText;
 
 namespace
 {
@@ -2261,6 +2269,24 @@ namespace
         g_xash_startup.force_cvars_part = g_EngineMiniRForceCVarsPart;
     }
 
+    void RecordXashCbufAddFilteredText()
+    {
+        // The retail site installs a replacement. It does not queue console
+        // text during init. A null function pointer is not a call. A null
+        // hook is not a call. The process body filters and queues console
+        // text, so this path does not call it.
+        g_xash_startup.add_filtered_text = nullptr;
+        if (g_xash_engine == nullptr || g_xash_engine->Cbuf_AddFilteredText.GetHook() != nullptr)
+        {
+            return;
+        }
+        if (g_EngineMiniCbufAddFilteredText == nullptr)
+        {
+            return;
+        }
+        g_xash_startup.add_filtered_text = g_EngineMiniCbufAddFilteredText;
+    }
+
     bool XashStartupIsActive()
     {
         return g_xash_startup.engine_is_xash;
@@ -2591,6 +2617,8 @@ void EngineMini_BindXashStartup(nitroapi::EngineData* engine, bool engine_is_xas
     g_EngineMiniDTSetRenderState = DT_SetRenderState;
     g_EngineMiniDTLoadDetailTexture = DT_LoadDetailTexture;
     g_EngineMiniRForceCVars = R_ForceCVars;
+    g_EngineMiniRForceCVarsPart = R_ForceCVars_part;
+    g_EngineMiniCbufAddFilteredText = Cbuf_AddFilteredText;
 
     csr_xash_engine_startup_t startup{};
     if (engine != nullptr)

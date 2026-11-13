@@ -296,8 +296,13 @@ The authoritative version string is the `VERSION` file.
   not call it, so no multiplayer cvars are forced, planted force-target cvars
   stay unchanged, no GL context is opened from this init, no sprite is loaded
   and no socket is opened. A null pointer is not a call. A null hook is not a
-  call. The next retail hook is `Cbuf_AddFilteredText`. This path returns
-  before it.
+  call. `Cbuf_AddFilteredText` is then the function in this process when that
+  retail hook is absent. Init stores the pointer and does not call it, so no
+  console text is filtered or queued, the planted command buffer stays
+  unchanged, no GL context is opened from this init, no sprite is loaded and
+  no socket is opened. A null pointer is not a call. A null hook is not a
+  call. The next retail hook is `CL_StopPlayback`. This path returns before
+  it.
   `csr_host_frame` is a later direct call. One call opens the X11 display,
   chooses an EGL config whose native visual can be a child of the root window,
   creates that window, calls `eglCreateWindowSurface`, paints one GameUI frame

@@ -266,8 +266,13 @@ opened. A null pointer is not a call. A null hook is not a call.
 is absent. Init stores the pointer and does not call it, so no multiplayer
 cvars are forced, planted force-target cvars stay unchanged, no GL context is
 opened from this init, no sprite is loaded and no socket is opened. A null
-pointer is not a call. A null hook is not a call. The next retail hook is
-`Cbuf_AddFilteredText`. This path returns before it.
+pointer is not a call. A null hook is not a call. `Cbuf_AddFilteredText` is
+then the function in this process when that retail hook is absent. Init stores
+the pointer and does not call it, so no console text is filtered or queued,
+the planted command buffer stays unchanged, no GL context is opened from this
+init, no sprite is loaded and no socket is opened. A null pointer is not a
+call. A null hook is not a call. The next retail hook is `CL_StopPlayback`.
+This path returns before it.
 `csr_host_frame` is a later direct call and does not extend that list.
 `OnGameInitialized` is not entered. Shutdown and the fatal error stay
 bound and that open does not call them. A missing library or export fails

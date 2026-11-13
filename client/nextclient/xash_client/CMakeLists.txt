@@ -5,7 +5,8 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
     return()
 endif ()
 
-add_library(xash_client SHARED src/client_export.cpp src/client_callbacks.cpp src/vgui_binding.cpp)
+add_library(xash_client SHARED src/client_export.cpp src/client_callbacks.cpp src/vgui_binding.cpp
+        src/original_panels.cpp src/engine_files.cpp src/original_ui.cpp src/pointer_motion.cpp)
 target_include_directories(xash_client PRIVATE ../xash_surface/include)
 target_link_libraries(xash_client PRIVATE goldsrc::abi nitro_build_registry nitro_native_symbols ${CMAKE_DL_LIBS})
 target_link_options(xash_client PRIVATE "LINKER:--exclude-libs,ALL")
@@ -15,6 +16,9 @@ set_target_properties(xash_client PROPERTIES
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON)
 add_dependencies(xash_client goldsrc_abi_golden)
+if (TARGET xash_surface)
+    add_dependencies(xash_client xash_surface)
+endif ()
 
 if (NEXTCLIENT_BUILD_TESTS)
     if (NOT TARGET GTest::gtest_main)
@@ -29,8 +33,9 @@ if (NEXTCLIENT_BUILD_TESTS)
     target_include_directories(client-vgui-fixture PRIVATE src)
     target_compile_features(client-vgui-fixture PRIVATE cxx_std_17)
     add_executable(xash_client-tests tests/ClientCallbackTests.cpp tests/VguiBindingTests.cpp
-            src/client_callbacks.cpp src/vgui_binding.cpp)
-    target_include_directories(xash_client-tests PRIVATE src)
+            tests/OriginalPanelTests.cpp tests/EngineFileTests.cpp tests/RuntimeCallbackTests.cpp tests/PointerMotionTests.cpp
+            src/client_callbacks.cpp src/vgui_binding.cpp src/original_panels.cpp src/engine_files.cpp src/pointer_motion.cpp)
+    target_include_directories(xash_client-tests PRIVATE src ../xash_surface/include)
     target_link_libraries(xash_client-tests PRIVATE goldsrc::abi nitro_build_registry nitro_native_symbols GTest::gtest_main ${CMAKE_DL_LIBS})
     target_compile_definitions(xash_client-tests PRIVATE
             CLIENT_CALLBACK_FIXTURE="$<TARGET_FILE:client-callback-fixture>"

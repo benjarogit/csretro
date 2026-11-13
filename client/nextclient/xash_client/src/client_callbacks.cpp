@@ -4,6 +4,64 @@
 
 namespace csr::client
 {
+    int RedrawWithVgui(goldsrc::HUD_REDRAW_FUNC original, float time, int intermission, UiAction after, void* owner)
+    {
+        if (!original) return 0;
+        const int result = original(time, intermission);
+        if (result && after) after(owner);
+        return result;
+    }
+
+    void FrameWithVgui(goldsrc::HUD_FRAME_FUNC original, double time, UiAction after, void* owner)
+    {
+        if (!original) return;
+        original(time);
+        if (after) after(owner);
+    }
+
+    void MouseWithVgui(goldsrc::HUD_IN_MOUSEEVENT_FUNC original, int buttons, UiAction before, UiMouse after, void* owner)
+    {
+        if (!original) return;
+        if (before) before(owner);
+        original(buttons);
+        if (after) after(owner, buttons);
+    }
+
+    void ResetInputWithVgui(goldsrc::HUD_IN_CLEARSTATES_FUNC original, UiAction after, void* owner)
+    {
+        if (!original) return;
+        original();
+        if (after) after(owner);
+    }
+
+    void MouseButtonState::Update(int buttons, Emit emit, void* owner)
+    {
+        const auto revision = ++revision_;
+        const auto next = static_cast<unsigned>(buttons);
+        for (int button = 0; button < button_count; ++button)
+        {
+            const unsigned bit = 1u << button;
+            const bool down = (next & bit) != 0;
+            if (down == ((held_ & bit) != 0)) continue;
+            if (down) held_ |= bit; else held_ &= ~bit;
+            if (emit) emit(owner, button, down);
+            if (revision_ != revision) return;
+        }
+    }
+
+    void MouseButtonState::Clear(Emit emit, void* owner)
+    {
+        const auto revision = ++revision_;
+        for (int button = 0; button < button_count; ++button)
+        {
+            const unsigned bit = 1u << button;
+            if (!(held_ & bit)) continue;
+            held_ &= ~bit;
+            if (emit) emit(owner, button, 0);
+            if (revision_ != revision) return;
+        }
+    }
+
     int InitializeWithVgui(goldsrc::INITIALIZE_FUNC original, goldsrc::cl_enginefunc_t* engine,
                            int version, BindVgui bind, void* owner)
     {

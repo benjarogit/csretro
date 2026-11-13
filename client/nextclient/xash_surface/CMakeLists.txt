@@ -48,7 +48,9 @@ set_target_properties(xash_surface PROPERTIES
         VISIBILITY_INLINES_HIDDEN ON)
 
 if (NEXTCLIENT_BUILD_TESTS)
-    find_package(GTest CONFIG REQUIRED)
+    if (NOT TARGET GTest::gtest_main)
+        find_package(GTest CONFIG REQUIRED)
+    endif ()
     include(GoogleTest)
 
     add_executable(xash_surface-tests

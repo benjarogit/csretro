@@ -3,6 +3,7 @@
 #include <GL/gl.h>
 #include <gtest/gtest.h>
 #include <vgui/ISurface.h>
+#include <vgui/Cursor.h>
 
 #include <cstdlib>
 #include <string>
@@ -332,6 +333,52 @@ TEST(SurfaceGl, FillTextAndTextureLandAndRestoreState)
     EXPECT_EQ(viewport_after[2], viewport_before[2]);
     EXPECT_EQ(viewport_after[3], viewport_before[3]);
 
+    csr_surface_destroy(surface);
+#endif
+}
+
+TEST(SurfaceGl, DefaultCursorPaintsUntintedAndPreservesTheWidgetColor)
+{
+#if !defined(__linux__)
+    GTEST_SKIP() << "the pbuffer probe is Linux-only";
+#else
+    constexpr int wide = 64, tall = 64;
+    EglProbe egl;
+    std::string error;
+    ASSERT_TRUE(egl.Open(error, wide, tall)) << error;
+    auto* surface = csr_surface_create(nullptr);
+    ASSERT_NE(surface, nullptr);
+    auto* vgui = static_cast<vgui2::ISurface*>(csr_surface_vgui(surface));
+    glClearColor(0, 0, .2f, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    csr_surface_set_default_cursor(surface, 1);
+    csr_surface_input_move(surface, 5, 7);
+    vgui->SetCursor(vgui2::dc_arrow);
+    vgui->DrawSetColor(255, 0, 0, 0);
+    csr_surface_begin_frame(surface, wide, tall);
+    csr_surface_paint(surface, nullptr);
+    int x{}, y{}, w{}, h{}, texture{};
+    ASSERT_EQ(csr_surface_cursor_quad(surface, &x, &y, &w, &h, &texture), 1);
+    EXPECT_EQ(x, 5); EXPECT_EQ(y, 7); EXPECT_EQ(w, 12); EXPECT_EQ(h, 18);
+    EXPECT_GT(texture, 0);
+    vgui->DrawFilledRect(30, 30, 32, 32);
+    csr_surface_end_frame(surface);
+    std::vector<unsigned char> pixels(wide * tall * 4);
+    glReadPixels(0, 0, wide, tall, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    const auto* white = Pixel(pixels, wide, tall, 6, 10);
+    EXPECT_EQ(white[0], 255); EXPECT_EQ(white[1], 255); EXPECT_EQ(white[2], 255);
+    const auto* black = Pixel(pixels, wide, tall, 5, 7);
+    EXPECT_EQ(black[0], 0); EXPECT_EQ(black[1], 0); EXPECT_EQ(black[2], 0);
+    const auto* red = Pixel(pixels, wide, tall, 30, 30);
+    EXPECT_EQ(red[0], 255); EXPECT_EQ(red[1], 0); EXPECT_EQ(red[2], 0);
+    EXPECT_EQ(csr_surface_gl_error(surface), 0);
+    csr_surface_set_default_cursor(surface, 0);
+    csr_surface_paint(surface, nullptr);
+    EXPECT_EQ(csr_surface_cursor_quad(surface, nullptr, nullptr, nullptr, nullptr, nullptr), 0);
+    csr_surface_set_default_cursor(surface, 1);
+    vgui->SetCursor(vgui2::dc_none);
+    csr_surface_paint(surface, nullptr);
+    EXPECT_EQ(csr_surface_cursor_quad(surface, nullptr, nullptr, nullptr, nullptr, nullptr), 0);
     csr_surface_destroy(surface);
 #endif
 }

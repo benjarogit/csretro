@@ -392,7 +392,9 @@ copy outside the Steam library.
 
 ## Last commands and results
 
-Port-first scope and manual original content (2026-11-13):
+Port-first scope and manual original content (2026-11-13, source `26deebbb`):
+
+- PR https://github.com/benjarogit/csretro/pull/8; CI https://github.com/benjarogit/csretro/actions/runs/43383972117 — success, including the manual-source and export-screen regression steps.
 
 - The maintainer clarified the order: existing NextClient on Xash3D first, exclusively x64 and measured performance afterwards, additional features later. The earlier request to choose a new native CS implementation before porting is superseded.
 - Static reinspection: `xash3d`, `libxash.so`, original `client.so` and `vgui2.so` in the existing reference are all ELF32/EM_386. The game library still matches SHA-256 `2e799ef31931c0f4372ff31ad30f0aab529b16461ed3b0928dfbd958183b2e5a`; VGUI matches `f0291c95ec420d65a8f174ccb0e144be831d101b9d2650bb29c6da6bd96bcd3f`.

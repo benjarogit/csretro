@@ -26,10 +26,14 @@ public:
 bool CVGui::Init(Factory* factories, int count)
 {
     ++init_count;
-    if (count != 2 || !factories)
+    if (count <= 0 || !factories)
         return false;
-    seen_surface = factories[0]("VGUI_Surface026", nullptr);
-    seen_filesystem = factories[0]("VFileSystem009", nullptr);
+    for (int i = 0; i < count; ++i)
+    {
+        if (!factories[i]) return false;
+        if (!seen_surface) seen_surface = factories[i]("VGUI_Surface026", nullptr);
+        if (!seen_filesystem) seen_filesystem = factories[i]("VFileSystem009", nullptr);
+    }
     return seen_surface && seen_filesystem && mode != 2;
 }
 void CVGui::Shutdown() { ++shutdown_count; }

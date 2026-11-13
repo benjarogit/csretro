@@ -27,7 +27,7 @@ namespace csr::client
         static VguiBinding* active_;
         struct Slot { void** address{}; void* original{}; void* value{}; };
         std::array<Slot, 9> slots_{};
-        std::array<Factory, 2> factories_{};
+        std::array<Factory, 4> factories_{};
         void* surface_{};
         void* filesystem_{};
         void* ivgui_{};

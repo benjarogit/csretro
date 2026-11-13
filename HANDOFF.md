@@ -8,11 +8,11 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-13
 - **Gate:** G07 — in progress. The first runnable version is not achieved.
 - **Branch:** `main` is the integration target; changes use gate pull requests.
-- **Validated baseline:** `7138b2cb` (PR #11 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43394870757 and Pages https://github.com/benjarogit/csretro/actions/runs/43394966211 — success.
+- **Validated baseline:** `3666c166` (PR #12 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43406998521 and Pages https://github.com/benjarogit/csretro/actions/runs/43407118574 — success.
 - **Product sequence:** Port existing NextClient/CS behavior to Xash3D first; then exclusively Linux x86_64 and at least 60 FPS in gameplay without a 60 FPS cap; additional features later. Original licensed game files stay in a separate copy, and the port starts no Steam process. Rules and decisions live in the authoritative plan, sections 3.7–3.8.
 - **Actual runtime boundary:** The host builds and presents native VGUI2 UI, reads content and records world primitives/callbacks. It does not execute Xash3D gameplay. `client_mini` is an extension of an existing game client, not a native CS game implementation. The SDK builds the UI foundation, not the missing CS gameplay implementation.
 - **Critical next port work:** Integrate the existing NextClient extensions with a real architecture-matched Xash3D/CS runtime, using the locally supplied original game library as the i386 spike does. A native x64 game library is the following phase, not a demand to rewrite CS before porting. The x64-only export screen still fails on the extension module as expected; it is not a gate against the initial i386 port.
-- **Current work:** Original panel runtime on `gate/G07-original-panel-runtime`: native panel/layout/paint and popup/input bindings, engine file/font callbacks and HUD/frame/mouse wiring implemented and verified locally and in CI. PR #12 merge pending. GameUI/NextClient initialization, keyboard/focus acceptance and complete engine/runtime assembly remain open; no game has been started.
+- **Current work:** Original VGUI factory-array ABI fix on `gate/G07-original-vgui-factory-abi`: reproduced and locally verified; CI/merge pending. The native viewport requires four incoming providers before its five-entry internal controls lookup. GameUI/keyboard/NextClient and actual runtime assembly remain open; no game has been started.
 - **Clarified scope:** No CS rewrite or reference-client feature import before the existing NextClient-to-Xash3D port. The original game library can be supplied locally for that first port; a later exclusively x64 phase must solve its own architecture constraints. Existing GPL reference rules remain unchanged.
 - **Historical evidence:** Earlier i386 spikes and test-only host results remain below. They do not establish x64 gameplay, production Steam authentication or measured scene FPS.
 
@@ -392,9 +392,18 @@ copy outside the Steam library.
 
 ## Last commands and results
 
+Original viewport factory ABI fix (2026-11-13, baseline `3666c166`, source/CI pending):
+
+- Static objdump inspection of the registered original client shows CounterStrikeViewport::Initialize calling TeamFortressViewport::Initialize, which reads incoming factory indices 0–3 unconditionally and prepends Sys_GetFactoryThis before a five-entry VGuiControls_Init lookup. The former two-entry bridge array could expose adjacent data as callable factories. This was not covered by the earlier two-entry synthetic model.
+- Regression before the production fix: 2/34 native tests failed, including SuppliesAllFourFactoriesReadByTheRegisteredNativeViewport. The corrected fixture guards short arrays and resolves actual Surface, filesystem, panel and KeyValues interfaces through all four entries. CVGui's fixture now performs a generic provider search rather than requiring a made-up count of two.
+- The product now owns four callable entries: the host serves the engine/filesystem roles and matching original VGUI serves the UI roles. No retail function or file offset is patched; no missing GameUI service is claimed as implemented.
+- After correction: 58/58 combined native callback + actual software-EGL Surface tests on each architecture (34 callback/VGUI fixtures + 24 Surface tests). Native i386 product build exit 0 with matching ELF32 artifacts and ABI golden assertions. Strict DE/EN docs build passed. Final verification and CI evidence follow.
+- Harness, authoritative plan, DE/EN build guide and changelog record the four-entry native requirement. The original GameUI initializer similarly reads fixed factory roles; its real Initialize/Start and engine services remain the next integration work. Static inspection also shows GameUI Start assigning the engine table used by CCareerGame::IsPlayingMatch. The old spike's return-zero patch is not used or treated as a solution.
+- No original library or game was executed; G07 and first runnable acceptance remain open.
+
 Original panel runtime (2026-11-13, source `649418e7`, baseline `7138b2cb`):
 
-- PR https://github.com/benjarogit/csretro/pull/12; CI https://github.com/benjarogit/csretro/actions/runs/43406650357 — success in all four jobs, including both native callback profiles and actual offscreen Surface/GL tests.
+- PR https://github.com/benjarogit/csretro/pull/12, merged as `3666c166`; source CI https://github.com/benjarogit/csretro/actions/runs/43406650357 and evidence CI https://github.com/benjarogit/csretro/actions/runs/43406857381 — success in all four jobs. Main CI https://github.com/benjarogit/csretro/actions/runs/43406998521 and Pages https://github.com/benjarogit/csretro/actions/runs/43407118574 — success.
 
 - Original HUD redraw/frame, mouse-event/reset/deactivation wrappers preserve original arguments/results and add UI work. Movement, prediction, CreateMove and keyboard entries remain original. Panel root/geometry/traversal, popup/input flags, focus refresh and CVGui scheduler use named native methods with opaque original handles, never vendored VGUI vtable casts.
 - Engine COM_LoadFile/COM_FreeFile supply texture bytes with paired release on every path; COM_ExpandFilename finds locally owned Marlett. SDL2 mouse functions are borrowed from the already loaded original client. Hidden UI never drains the game's relative motion; visible UI supports virtual cursor movement under relative capture. Cursor/root are synchronized before the original VGUI frame. The headless test host still does not run that scheduler.

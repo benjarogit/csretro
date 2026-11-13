@@ -22,6 +22,10 @@ The authoritative version string is the `VERSION` file.
 - Read-only game-client export screen and native regression fixtures; passing the screen does not certify ABI or gameplay.
 - DE/EN feature, settings and runtime acceptance guides.
 
+### Fixed
+
+- Supply the four factory entries unconditionally read by the registered original viewport initializer; native regression fixtures reject the former short list.
+
 ### Changed
 
 - Restore the port-first sequence: existing NextClient behavior on Xash3D, then exclusively x64 and measured performance, then additional features.

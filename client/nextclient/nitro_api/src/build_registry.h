@@ -21,6 +21,10 @@ namespace nitroapi
     // pair is unknown. An unknown build must never fall back to another one.
     std::optional<BuildVersion> IdentifyBuild(const BuildFingerprint& fingerprint);
 
+    // Validates only a locally supplied game library for the initial Xash port.
+    // This does not identify or authorize a retail engine for this process.
+    bool IsRegisteredClient(const std::string& platform, const std::string& client_sha256);
+
     // Returns the lowercase SHA-256 of a file, or an empty string when the file
     // cannot be read.
     std::string HashFileSha256(const std::string& path);

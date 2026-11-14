@@ -139,12 +139,146 @@
     "fwgs_cs16_client": {
       "repository": "https://github.com/FWGS/cs16-client",
       "license": "GPL-2.0-or-later with HL engine exception",
-      "usage": "ideas and procedures only, no code"
+      "usage": "ideas and procedures only, no code",
+      "aliases": [
+        "https://github.com/Velaron/cs16-client"
+      ],
+      "identity_note": "Alias resolves to the same canonical FWGS repository. Contributor attribution remains in CREDITS.md; no independent Velaron client repository verified."
     },
     "hlsw_portable": {
       "repository": "https://github.com/portapps/hlsw-portable",
       "license": "MIT",
       "usage": "portable layout reference"
+    },
+    "xash3d_fwgs": {
+      "repository": "https://github.com/FWGS/xash3d-fwgs",
+      "category": "engine",
+      "usage": "Selected external engine for the planned NextClient port; monitor only, no vendoring or pin change",
+      "monitoring_only": true
+    },
+    "valve_halflife_sdk": {
+      "repository": "https://github.com/ValveSoftware/halflife",
+      "category": "sdk",
+      "usage": "GoldSrc SDK source already credited in CREDITS.md; observe fixes and interface changes",
+      "monitoring_only": true
+    },
+    "hl1_source_sdk_base": {
+      "repository": "https://github.com/tmp64/hl1_source_sdk",
+      "category": "sdk",
+      "usage": "Documented parent of the vendored ncl-hl1-source-sdk; keep the existing fork and base pin",
+      "monitoring_only": true
+    },
+    "metamod_fwgs": {
+      "repository": "https://github.com/FWGS/metamod-fwgs",
+      "category": "modding",
+      "usage": "Additional plugin-loader technical source; no replacement of the existing server stack",
+      "monitoring_only": true
+    },
+    "metahooksv": {
+      "repository": "https://github.com/MetaHookSv/MetaHookSv",
+      "category": "client",
+      "usage": "Additional client-hook and rendering technical source; no feature integration authorized",
+      "monitoring_only": true
+    },
+    "meta_audio": {
+      "repository": "https://github.com/LAGonauta/MetaAudio",
+      "category": "audio",
+      "usage": "Audio reference linked by client/README.md; monitor canonical reachable source",
+      "monitoring_only": true,
+      "identity_note": "Requested historical identity returned 404; client/README.md identifies LAGonauta/MetaAudio. No redirect is asserted.",
+      "requested_identity": "https://github.com/MoeMod/MetaAudio"
+    },
+    "yapb": {
+      "repository": "https://github.com/yapb/yapb",
+      "category": "bots",
+      "usage": "Reachable YaPB project; historical requested identity retained without claiming a redirect",
+      "monitoring_only": true,
+      "identity_note": "Requested historical identity returned 404; current yapb/yapb verified independently. No redirect is asserted.",
+      "requested_identity": "https://github.com/jeefo/yapb"
+    },
+    "csldr": {
+      "repository": "https://github.com/mikkokko/csldr",
+      "category": "loader",
+      "usage": "Loader reference already credited in CREDITS.md",
+      "monitoring_only": true
+    },
+    "avatar_spec": {
+      "repository": "https://github.com/CS-GoldClient/avatar-spec",
+      "category": "identity",
+      "usage": "Avatar identity specification linked by client/README.md",
+      "monitoring_only": true,
+      "aliases": [
+        "https://github.com/goldclient-plus/avatarid-spec"
+      ],
+      "identity_note": "Verified canonical redirect from the documented historical identity."
+    },
+    "barstech_font_reference": {
+      "repository": "https://github.com/SanyaSho/BarsTech_goldsrc_compatible_public",
+      "category": "fonts",
+      "usage": "VGUI2 font-rendering reference linked by client/README.md",
+      "monitoring_only": true
+    },
+    "steamcmd_image_source": {
+      "repository": "https://github.com/CM2Walki/steamcmd",
+      "category": "server-tools",
+      "usage": "Already credited source of cm2network/steamcmd; existing image digest remains authoritative",
+      "monitoring_only": true
+    },
+    "zensical_source": {
+      "repository": "https://github.com/zensical/zensical",
+      "category": "documentation",
+      "usage": "Already credited documentation generator; existing wheel version and digest remain unchanged",
+      "monitoring_only": true
+    },
+    "freetype_source": {
+      "repository": "https://github.com/freetype/freetype",
+      "category": "fonts",
+      "usage": "Official GitHub source mirror of the already credited font rasterizer",
+      "monitoring_only": true,
+      "canonical_upstream": "https://gitlab.freedesktop.org/freetype/freetype",
+      "coverage_note": "Official GitHub mirror: GitHub observation does not cover GitLab issues or merge requests."
+    },
+    "dejavu_fonts_source": {
+      "repository": "https://github.com/dejavu-fonts/dejavu-fonts",
+      "category": "fonts",
+      "usage": "Already credited shipped substitute-font source; no font update",
+      "monitoring_only": true
+    },
+    "liberation_fonts_source": {
+      "repository": "https://github.com/liberationfonts/liberation-fonts",
+      "category": "fonts",
+      "usage": "Already credited shipped substitute-font source; no font update",
+      "monitoring_only": true
+    },
+    "thanatos_launcher": {
+      "repository": "https://github.com/MoeMod/Thanatos-Launcher",
+      "category": "ui",
+      "usage": "VGUI2/GameUI technical reference linked by client/README.md",
+      "monitoring_only": true
+    },
+    "meta_audio_requested_identity": {
+      "repository": "https://github.com/MoeMod/MetaAudio",
+      "category": "audio",
+      "usage": "Requested source retained for periodic identity/availability checks; no redirect or code equivalence established",
+      "monitoring_only": true,
+      "identity_review": {
+        "date": "2026-11-14",
+        "result": "HTTP 404 at read-only identity check",
+        "documented_alternative": "https://github.com/LAGonauta/MetaAudio",
+        "relation": "not a verified redirect"
+      }
+    },
+    "yapb_requested_identity": {
+      "repository": "https://github.com/jeefo/yapb",
+      "category": "bots",
+      "usage": "Requested source retained for periodic identity/availability checks; no redirect or code equivalence established",
+      "monitoring_only": true,
+      "identity_review": {
+        "date": "2026-11-14",
+        "result": "HTTP 404 at read-only identity check",
+        "documented_alternative": "https://github.com/yapb/yapb",
+        "relation": "not a verified redirect"
+      }
     }
   },
   "toolchain": {

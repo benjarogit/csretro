@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Complete the existing upstream observation register with requested technical sources, verified aliases and explicit unavailable identities; preserve all dependency pins and integration rules.
+
 - Executed builtin project manager with persistent priorities/dependencies, evidence-aware continuation and shared provider-neutral client reports; optional IDE discovery/file handoff never installs or launches agents.
 
 - Registered upstream PR/release/public-advisory observation in the existing weekly workflow, with bounded reads, explicit incomplete results and locally deduplicated candidate memory.

@@ -334,3 +334,12 @@ exclusive file claims. Role claims coordinate cooperating agents, not OS access.
 Memory under `.local/chatdev/` is ignored historical evidence, never authority.
 Never invent independent reviewer identities, executions or acceptance.
 Existing tests, human game-start boundary and PR/CI rules still apply.
+
+The builtin project manager runs on task start/resume and backlog/status
+reconciliation. It reports evidence, priorities, dependencies and blockers to
+the orchestrator; it cannot authorize merges or launch an IDE/model. Use the
+shared local CLI/interchange protocol with any safe client identifier; Cursor
+and Codex adapters are optional. Never install an agent implicitly or alter
+live IDE sessions. No merge to main without explicit maintainer approval;
+green CI and PM recommendations are not approval. Orqen reuse is documented
+in CSRETRO only; do not modify another repository without its own assignment.

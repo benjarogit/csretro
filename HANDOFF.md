@@ -12,7 +12,7 @@ Project state for the next session. Personal context belongs in
 - **Product sequence:** Port existing NextClient/CS behavior to Xash3D first; then exclusively Linux x86_64 and at least 60 FPS in gameplay without a 60 FPS cap; additional features later. Original licensed game files stay in a separate copy, and the port starts no Steam process. Rules and decisions live in the authoritative plan, sections 3.7–3.8.
 - **Actual runtime boundary:** The host builds and presents native VGUI2 UI, reads content and records world primitives/callbacks. It does not execute Xash3D gameplay. `client_mini` is an extension of an existing game client, not a native CS game implementation. The SDK builds the UI foundation, not the missing CS gameplay implementation.
 - **Critical next port work:** Integrate the existing NextClient extensions with a real architecture-matched Xash3D/CS runtime, using the locally supplied original game library as the i386 spike does. A native x64 game library is the following phase, not a demand to rewrite CS before porting. The x64-only export screen still fails on the extension module as expected; it is not a gate against the initial i386 port.
-- **Current work:** Project manager/provider-neutral coordination and the prior upstream extension are implemented on `codex/chatdev-project-manager`, PR #14. Independent QA, 117 tests and all four source CI jobs passed. Main integration awaits fresh explicit maintainer approval; automatic continuation correctly holds there. Orqen remains documentation/reuse planning only. G07 code and its saved factory-fix branch are unchanged.
+- **Current work:** PR #14 is merge-ready and unmerged; source-list completion is reviewed on stacked branch `codex/chatdev-upstream-register`, PR #15. PR #14 remains infrastructure-only and unmerged; its latest head 3fe6fe91 (Handoff-only baseline correction) passed all four checks. Requested and already documented upstream sources are registered without moving pins or integrating code. No main merge, cherry-pick, game start or Orqen change is authorized.
 - **Clarified scope:** No CS rewrite or reference-client feature import before the existing NextClient-to-Xash3D port. The original game library can be supplied locally for that first port; a later exclusively x64 phase must solve its own architecture constraints. Existing GPL reference rules remain unchanged.
 - **Historical evidence:** Earlier i386 spikes and test-only host results remain below. They do not establish x64 gameplay, production Steam authentication or measured scene FPS.
 
@@ -350,7 +350,7 @@ the Security overview switches in the browser.
 
 ## Next task
 
-Obtain fresh explicit maintainer approval for PR #14 before any main merge. Then follow the existing merge/main-CI/docs verification cycle and resume the documented G07 work at its saved factory-ABI branch, followed by GameUI/NextClient integration. Do not restart the project or repeat completed implementation. Until integration closes, preserve the prior quality gate and its branch. IDE/provider adapters are optional; no agent installation, live-session mutation or Orqen repository change is authorized by this infrastructure assignment.
+Await explicit maintainer approval for merge-ready PR #14. The separate source-register completion is PR #15, stacked on #14; preserve its distinct scope and do not merge either PR without authorization. Preserve existing work and continue the current documented development under the previous gate. G07's saved factory-ABI work remains intact and must not be prematurely integrated.
 
 ## Open decisions
 
@@ -385,6 +385,16 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Upstream register completion and PR #14 final review (2026-11-14, source `e412fe21`, base `3fe6fe91`):
+
+- Source completion PR https://github.com/benjarogit/csretro/pull/15 targets the PR #14 branch, not main. Source CI https://github.com/benjarogit/csretro/actions/runs/43579089663 passed all four checks, including the 120-test suite, both callback architectures and actual offscreen GL. PR #14 readiness remains verified at 3fe6fe91; neither PR is merged.
+
+- PR #14 reviewed as the intended 26 orchestration/test/DE+EN documentation files, with no game-runtime, dependency, Orqen or archive changes, conflicts or requested reviews. Latest head 3fe6fe91 passed all four checks: https://github.com/benjarogit/csretro/actions/runs/43578071937. The only final-review correction was the stale validated-baseline field. No merge was performed.
+- Source analysis was delegated read-only. Register additions include all requested repositories and previously documented technical sources, without a parallel source registry or a general license audit. NextClient remains the central code base and the Xash3D-FWGS port sequence is unchanged.
+- Velaron/cs16-client resolves to FWGS/cs16-client (same repository ID); no independent Velaron client was confirmed. Requested MoeMod/MetaAudio and jeefo/yapb returned 404 and remain separately registered for availability checks; LAGonauta/MetaAudio and yapb/yapb were independently verified, not asserted as redirects. FreeType is an official GitHub mirror with GitLab MR coverage explicitly excluded.
+- All non-reference sections of versions.lock.json compare equal to the parent branch, including every build/server/toolchain pin and digest. The observer implementation and scheduling are unchanged. Tests exercise the actual register through offline REST fixtures, exact required-source coverage, alias deduplication and visible unavailable sources: 120/120 orchestration tests passed. Independent read-only QA passed scripts/verify.sh (68 repository checks), the 120-test suite and diff checks; strict DE/EN docs build passed. All non-reference configuration has canonical SHA-256 59b61a89bb3bdc770def2461806f0525919351a78e8d06841f9b24393f9c984c, identical to the parent.
+- Live existing-observer scan: 30 registered identities, 1,876 deduplicated observations persisted locally, no remote mutations. Explicit limitations: vcpkg commits and MetaHookSv releases hit the existing 300-item cap; requested MoeMod/MetaAudio and jeefo/yapb are unavailable. There was no blanket license research, pin update or code import. The source-list PR has no observer/runtime/schedule implementation change; its CI evidence is recorded above.
 
 Project manager and provider-neutral continuation (2026-11-14, source `6659ab8c`, baseline `ab2b095b`):
 

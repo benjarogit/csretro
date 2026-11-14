@@ -2153,6 +2153,12 @@ Ein Wächter vergleicht die Pins in [`versions.lock.json`](../../versions.lock.j
 mit den Upstream-Repos und öffnet ein Issue. Er ändert keinen Pin, merged nichts und
 cherry-pickt nichts.
 
+Die ergänzte Quellenliste bleibt ausschließlich in `versions.lock.json`: Die vorhandenen Kern-/Server-Pins und die zusätzlichen technischen Beobachtungsquellen decken die beauftragten Engine-, SDK-, Modding-, Audio-, Bot-, Loader- und Rendering-Projekte sowie die bereits dokumentierten Quellen ab. NextClient bleibt die zentrale Codebasis; Ziel ist unverändert der Port auf Xash3D-FWGS nach Abschnitt 3.7–3.8. Eine Beobachtung ersetzt keine Entwicklungsentscheidung und zieht keine Features vor.
+
+Verifizierte Weiterleitungen wie Velaron/cs16-client werden als Alias der kanonischen Quelle erfasst, nicht doppelt abgefragt. Die derzeit nicht erreichbaren angefragten Identitäten MoeMod/MetaAudio und jeefo/yapb bleiben separat registriert und werden regelmäßig erneut auf Verfügbarkeit geprüft. Die zusätzlich bestätigten Quellen LAGonauta/MetaAudio beziehungsweise yapb/yapb werden nicht als unbewiesene Weiterleitungen ausgegeben. Ein eigenständiges Velaron-Client-Repository wurde nicht bestätigt. GitHub-Spiegel wie FreeType sind als solche gekennzeichnet; ihre Beobachtung erfasst keine GitLab-Merge-Requests. Diese reine Registerergänzung bewegt keinen Pin, ändert keine Lizenzregel und erlaubt keine Codeübernahme.
+
+Geeignete spätere Verbesserungen werden mit Herkunft, Relevanz, Priorität und offenen Prüfungen vorgemerkt. Ob Cherry-Pick, Anpassung, Portierung oder eigene Implementierung zulässig und sinnvoll ist, wird erst im jeweiligen Folgeauftrag nach den bestehenden Projekt- und Lizenzregeln entschieden.
+
 Ein Mensch entscheidet pro Fund eine von drei Antworten:
 
 1. **Liegen lassen.** Das Issue nennt den Grund.

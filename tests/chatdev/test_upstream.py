@@ -152,6 +152,72 @@ class UpstreamTests(unittest.TestCase):
         self.assertFalse(result['candidates'])
         self.assertEqual(len(result['errors']), 2)
 
+class RegisteredSourceCoverageTests(unittest.TestCase):
+    """Exercise the actual register through the existing observer, offline."""
+
+    def observe(self, unavailable=()):
+        root = Path(__file__).resolve().parents[2]
+        calls = []
+        def runner(argv, **kwargs):
+            endpoint = argv[2]
+            calls.append(endpoint)
+            route = endpoint.split('?', 1)[0]
+            if len(route.split('/')) == 3:
+                value = {'default_branch': 'main'}
+                code = 404 if route.removeprefix('repos/') in unavailable else 0
+            elif '/compare/' in route:
+                value, code = {'commits': []}, 0
+            else:
+                value, code = [], 0
+            return subprocess.CompletedProcess(argv, code, json.dumps(value), '')
+        before = (root / 'versions.lock.json').read_bytes()
+        report = GitHub(root, runner).upstreams()
+        self.assertEqual(before, (root / 'versions.lock.json').read_bytes())
+        return report, calls, json.loads(before)
+
+    def test_all_requested_and_previously_documented_sources_reach_the_observer(self):
+        report, _, _ = self.observe()
+        repositories = {source['repository'] for source in report['sources']}
+        required = {
+            'FWGS/xash3d-fwgs', 'CS-NextClient/NextClient',
+            'CS-NextClient/NextClientServerApi', 'CS-NextClient/ncl-hl1-source-sdk',
+            'ValveSoftware/halflife', 'tmp64/hl1_source_sdk', 'rehlds/ReHLDS',
+            'rehlds/ReGameDLL_CS', 'rehlds/Metamod-R', 'FWGS/metamod-fwgs',
+            'alliedmodders/amxmodx', 'rehlds/ReAPI', 'microsoft/vcpkg',
+            'MoeMod/MetaAudio', 'jeefo/yapb', 'mikkokko/csldr',
+            'MetaHookSv/MetaHookSv', 'FWGS/cs16-client', 'FuryBaM/cs16-goldsrc-client',
+            'LAGonauta/MetaAudio', 'yapb/yapb', 'MoeMod/Thanatos-Launcher',
+            'CS-GoldClient/avatar-spec', 'SanyaSho/BarsTech_goldsrc_compatible_public',
+            'portapps/hlsw-portable', 'CM2Walki/steamcmd', 'zensical/zensical',
+            'freetype/freetype', 'dejavu-fonts/dejavu-fonts',
+            'liberationfonts/liberation-fonts',
+        }
+        self.assertEqual(repositories, required)
+        self.assertFalse(report['mutations'])
+
+    def test_verified_aliases_do_not_duplicate_polling_or_claim_unverified_redirects(self):
+        report, calls, lock = self.observe()
+        refs = lock['references']
+        self.assertIn('https://github.com/Velaron/cs16-client', refs['fwgs_cs16_client']['aliases'])
+        self.assertEqual(calls.count('repos/FWGS/cs16-client'), 1)
+        self.assertFalse(any('repos/Velaron/cs16-client' in call for call in calls))
+        self.assertNotIn('aliases', refs['meta_audio'])
+        self.assertNotIn('aliases', refs['yapb'])
+        self.assertEqual(refs['freetype_source']['canonical_upstream'],
+                         'https://gitlab.freedesktop.org/freetype/freetype')
+        for key in ('xash3d_fwgs', 'metahooksv', 'metamod_fwgs', 'meta_audio', 'yapb'):
+            self.assertTrue(refs[key]['monitoring_only'])
+            self.assertNotIn('commit', refs[key])
+
+    def test_unavailable_requested_identities_stay_registered_and_visible(self):
+        missing = ('MoeMod/MetaAudio', 'jeefo/yapb')
+        report, _, _ = self.observe(missing)
+        self.assertEqual({error['source'] for error in report['errors']}, set(missing))
+        self.assertTrue(all(source['reference_only'] for source in report['sources']
+                            if source['repository'] in missing))
+        self.assertIn('LAGonauta/MetaAudio', {source['repository'] for source in report['sources']})
+        self.assertIn('yapb/yapb', {source['repository'] for source in report['sources']})
+
 
 if __name__ == '__main__':
     unittest.main()

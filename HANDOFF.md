@@ -12,7 +12,7 @@ Project state for the next session. Personal context belongs in
 - **Product sequence:** Port existing NextClient/CS behavior to Xash3D first; then exclusively Linux x86_64 and at least 60 FPS in gameplay without a 60 FPS cap; additional features later. Original licensed game files stay in a separate copy, and the port starts no Steam process. Rules and decisions live in the authoritative plan, sections 3.7–3.8.
 - **Actual runtime boundary:** The host builds and presents native VGUI2 UI, reads content and records world primitives/callbacks. It does not execute Xash3D gameplay. `client_mini` is an extension of an existing game client, not a native CS game implementation. The SDK builds the UI foundation, not the missing CS gameplay implementation.
 - **Critical next port work:** Integrate the existing NextClient extensions with a real architecture-matched Xash3D/CS runtime, using the locally supplied original game library as the i386 spike does. A native x64 game library is the following phase, not a demand to rewrite CS before porting. The x64-only export screen still fails on the extension module as expected; it is not a gate against the initial i386 port.
-- **Current work:** Development orchestration on `codex/chatdev-orchestration`; G07 runtime implementation is explicitly suspended for this infrastructure assignment. The VGUI factory fix remains on its existing branch at `f4cccda3`, unmerged. Local role phases, SQLite memory, GitHub coordination, project skill and regression tests implemented; independent QA and all four PR CI jobs passed; PR #13 merge pending. No game has been started.
+- **Current work:** Development orchestration on `codex/chatdev-orchestration`; G07 runtime implementation is explicitly suspended for this infrastructure assignment. The VGUI factory fix remains on its existing branch at `f4cccda3`, unmerged. Local role phases, SQLite memory, GitHub coordination, project skill and regression tests implemented; implementation and independent QA complete; all four source/evidence CI jobs passed. Integration is tracked by PR #13. No game has been started.
 - **Clarified scope:** No CS rewrite or reference-client feature import before the existing NextClient-to-Xash3D port. The original game library can be supplied locally for that first port; a later exclusively x64 phase must solve its own architecture constraints. Existing GPL reference rules remain unchanged.
 - **Historical evidence:** Earlier i386 spikes and test-only host results remain below. They do not establish x64 gameplay, production Steam authentication or measured scene FPS.
 
@@ -350,7 +350,7 @@ the Security overview switches in the browser.
 
 ## Next task
 
-Finish the green PR #13 integration and final handoff for the infrastructure assignment. Do not continue G07 during this assignment. Afterwards resume the existing factory-ABI branch through its own PR/CI cycle before GameUI/NextClient runtime integration; preserve the port-first sequence.
+The orchestration infrastructure is implemented and verified; await the next development request. This assignment does not continue G07. When G07 is explicitly resumed, finish the existing factory-ABI branch through its own PR/CI cycle before GameUI/NextClient runtime integration; preserve the port-first sequence.
 
 ## Open decisions
 
@@ -388,7 +388,7 @@ copy outside the Steam library.
 
 Local development orchestration (2026-11-14, source `e99296d9`, baseline `3666c166`):
 
-- PR https://github.com/benjarogit/csretro/pull/13; source CI https://github.com/benjarogit/csretro/actions/runs/43570441240 — success in all four jobs (repository verification including 50 orchestration tests, native callbacks in both architectures and actual software-EGL Surface tests). Independent quality_final review passed after reproducing the freshness, executable-bit and nullable-check fixes.
+- PR https://github.com/benjarogit/csretro/pull/13; source CI https://github.com/benjarogit/csretro/actions/runs/43570441240 and evidence CI https://github.com/benjarogit/csretro/actions/runs/43570632835 — success in all four jobs (repository verification including 50 orchestration tests, native callbacks in both architectures and actual software-EGL Surface tests). Independent quality_final review passed after reproducing the freshness, executable-bit and nullable-check fixes.
 
 - Master assignment explicitly excludes further G07 development. Historical pending factory fix `f4cccda3` remains preserved on `gate/G07-original-vgui-factory-abi`; this branch changes no game runtime sources. Untracked maintainer archives were not added or removed.
 - Native Python CLI and project skill implement controlled role phases, exclusive cooperative file claims, attributed result aggregation, blocked work, independent quality acceptance, freshness checks and restart. Quality snapshots bind reviewed scope/claimed files and tracked worktree changes; cancellation releases stale claims without deleting history. No model-agent subprocess or paid/cloud service is installed. Deterministic routing and host execution are distinguished from autonomous model execution.

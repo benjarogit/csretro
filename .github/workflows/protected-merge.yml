@@ -31,7 +31,8 @@ jobs:
     runs-on: ubuntu-24.04
     environment: csretro-merge-controller
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
     steps:
       # Always trusted main. No PR checkout, PR scripts or interpolated PR text.
       - uses: actions/checkout@v7
@@ -46,14 +47,12 @@ jobs:
         with:
           app-id: ${{ vars.CSRETRO_MERGE_APP_ID }}
           private-key: ${{ secrets.CSRETRO_MERGE_APP_PRIVATE_KEY }}
-          permission-administration: read
           permission-checks: write
-          permission-contents: write
-          permission-pull-requests: write
-          permission-security-events: read
       - name: Evaluate current open PRs and arm only native protected auto-merge
         env:
-          GH_TOKEN: ${{ steps.merge-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
+          GH_ACCEPTANCE_TOKEN: ${{ steps.merge-token.outputs.token }}
+          GH_MERGE_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           gh api --paginate "repos/$GH_REPO/pulls?state=open&base=main&per_page=100" --jq '.[].number' > "$RUNNER_TEMP/merge-prs"

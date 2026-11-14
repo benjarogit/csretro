@@ -9,21 +9,34 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
 
 
 class GitHub:
-    def __init__(self, repo):
+    def __init__(self, repo, token_env=None):
         self.repo = repo
+        self.token_env = token_env
+
+    def auth_env(self):
+        if self.token_env is None:
+            return None
+        token = os.environ.get(self.token_env)
+        if not token:
+            raise RuntimeError('Dedicated check-publisher token is unavailable')
+        return {**os.environ, 'GH_TOKEN': token}
+
+    def check_writer(self):
+        return GitHub(self.repo, token_env='GH_ACCEPTANCE_TOKEN')
 
     def api(self, path, method='GET', data=None):
         args = ['gh', 'api', f'repos/{self.repo}' + (f'/{path}' if path else ''), '--method', method]
         if data is not None:
             args += ['--input', '-']
         result = subprocess.run(args, input=json.dumps(data) if data is not None else None,
-                                text=True, capture_output=True, check=True)
+                                text=True, capture_output=True, check=True, env=self.auth_env())
         return json.loads(result.stdout) if result.stdout.strip() else None
 
     def pages(self, path):
@@ -35,10 +48,11 @@ class GitHub:
                 return result
         raise RuntimeError('Pagination limit reached; refusing incomplete evidence')
 
-    def graph(self, query, variables):
+    def graph(self, query, variables, merge_auth=False):
         result = subprocess.run(['gh', 'api', 'graphql', '--input', '-'],
                                 input=json.dumps({'query': query, 'variables': variables}),
-                                capture_output=True, text=True, check=True)
+                                capture_output=True, text=True, check=True,
+                                env=merge_env() if merge_auth else self.auth_env())
         data = json.loads(result.stdout)
         if data.get('errors'):
             raise RuntimeError('GraphQL evidence unavailable')
@@ -148,7 +162,8 @@ def evaluate(pr, files, reviews, checks, protection, repository, threads, policy
     if security_alerts:
         holds.append('Open CodeQL/security scanning findings require resolution')
     sensitive = any(fnmatch.fnmatch(f, pattern) for f in files for pattern in policy['sensitive_paths'])
-    sensitive |= bool(set(policy['sensitive_labels']) & {label['name'] for label in pr.get('labels', [])})
+    sensitive |= bool({label.casefold() for label in policy['sensitive_labels']}
+                      & {label['name'].casefold() for label in pr.get('labels', [])})
     explicit = any(c.get('user', {}).get('login') in policy['maintainers']
                    and c.get('body', '').strip() == f'CSRETRO-APPROVE-SENSITIVE {head}'
                    for c in authorizations)
@@ -159,6 +174,47 @@ def evaluate(pr, files, reviews, checks, protection, repository, threads, policy
     return {'head': head, 'holds': holds, 'eligible': not holds, 'sensitive': sensitive}
 
 
+def native_protection(github, policy):
+    """Read native rules; existing host must audit bypasses without expanding App access."""
+    effective = github.pages('rules/branches/main')
+    rule_id = policy['native_ruleset_id']
+    if not any(rule.get('ruleset_id') == rule_id for rule in effective):
+        raise RuntimeError('Required native ruleset is not effective on main')
+    ruleset = github.api(f'rulesets/{rule_id}')
+    if 'bypass_actors' not in ruleset:
+        raise RuntimeError('Existing host cannot audit ruleset bypass actors; do not grant extra App rights')
+    if ruleset.get('enforcement') != 'active' or ruleset.get('bypass_actors'):
+        raise RuntimeError('Required native ruleset is inactive or allows bypass')
+    rules = {rule['type']: rule.get('parameters', {}) for rule in ruleset['rules']}
+    scan = rules.get('code_scanning', {}).get('code_scanning_tools', [])
+    if not any(tool.get('tool') == 'CodeQL' and tool.get('alerts_threshold') == 'all'
+               and tool.get('security_alerts_threshold') == 'all' for tool in scan):
+        raise RuntimeError('Native CodeQL finding/pending-analysis protection is missing')
+    status = rules.get('required_status_checks', {})
+    review = rules.get('pull_request', {})
+    return {
+        'enforce_admins': {'enabled': not ruleset['bypass_actors']},
+        'required_conversation_resolution': {'enabled': review.get('required_review_thread_resolution', False)},
+        'required_linear_history': {'enabled': 'required_linear_history' in rules},
+        'allow_force_pushes': {'enabled': 'non_fast_forward' not in rules},
+        'allow_deletions': {'enabled': 'deletion' not in rules},
+        'required_status_checks': {'strict': status.get('strict_required_status_checks_policy', False),
+            'checks': [{'context': item['context'], 'app_id': item.get('integration_id')}
+                       for item in status.get('required_status_checks', [])]},
+        'required_pull_request_reviews': {
+            'required_approving_review_count': review.get('required_approving_review_count', 0),
+            'dismiss_stale_reviews': review.get('dismiss_stale_reviews_on_push', False),
+            'require_last_push_approval': review.get('require_last_push_approval', False)}}
+
+
+def merge_env():
+    """Existing host/Actions authority arms native auto-merge, never the check-only App."""
+    token = os.environ.get('GH_MERGE_TOKEN')
+    if not token:
+        raise RuntimeError('Separate existing native-merge authority is unavailable')
+    return {**os.environ, 'GH_TOKEN': token}
+
+
 def changed_paths(files):
     return [name for item in files
             for name in (item['filename'], item.get('previous_filename')) if name]
@@ -166,7 +222,7 @@ def changed_paths(files):
 
 def inspect(github, number, policy):
     pr = github.api(f'pulls/{number}')
-    protection = github.api('branches/main/protection')
+    protection = native_protection(github, policy)
     repository = github.api('')
     files = changed_paths(github.pages(f'pulls/{number}/files'))
     reviews = github.pages(f'pulls/{number}/reviews')
@@ -193,9 +249,8 @@ def inspect(github, number, policy):
             break
         cursor = connection['pageInfo']['endCursor']
     authorizations = github.pages(f'issues/{number}/comments')
-    security_alerts = github.pages('code-scanning/alerts?state=open')
-    security_alerts += github.pages(f'code-scanning/alerts?state=open&ref=refs/pull/{number}/merge')
-    return evaluate(pr, files, reviews, checks, protection, repository, threads, policy, authorizations, security_alerts)
+    # Native code-scanning rules enforce findings and pending results server-side.
+    return evaluate(pr, files, reviews, checks, protection, repository, threads, policy, authorizations)
 
 
 def publish(github, number, policy):
@@ -205,7 +260,8 @@ def publish(github, number, policy):
         raise RuntimeError('Dedicated trusted acceptance App must be configured first')
     pr = github.api(f'pulls/{number}')
     head = pr['head']['sha']
-    pending = github.api('check-runs', 'POST', {
+    writer = github.check_writer()
+    pending = writer.api('check-runs', 'POST', {
         'name': policy['acceptance_check'], 'head_sha': head, 'status': 'in_progress',
         'output': {'title': 'Rechecking live evidence', 'summary': 'Auto-merge remains held until all evidence is refreshed.'}})
     if pending.get('app', {}).get('id') != expected_app:
@@ -216,20 +272,20 @@ def publish(github, number, policy):
         if result['head'] != head or fresh['head'] != head:
             raise RuntimeError('Head changed during inspection')
         result = fresh
-        github.api(f'check-runs/{pending["id"]}', 'PATCH', {
+        writer.api(f'check-runs/{pending["id"]}', 'PATCH', {
             'status': 'completed', 'conclusion': 'success' if result['eligible'] else 'failure',
             'output': {'title': 'Acceptance satisfied' if result['eligible'] else 'Merge held',
                        'summary': '\n'.join(result['holds']) or 'Current-head evidence and live protections verified.'}})
         if result['eligible']:
             subprocess.run(['gh', 'pr', 'merge', str(number), '--repo', github.repo,
-                            '--auto', '--squash', '--match-head-commit', head], check=True)
+                            '--auto', '--squash', '--match-head-commit', head], check=True, env=merge_env())
         else:
             disarm(github, number)
         return result
     except Exception:
         # The pending check is already blocking. Keep failure visible when possible.
         try:
-            github.api(f'check-runs/{pending["id"]}', 'PATCH', {
+            writer.api(f'check-runs/{pending["id"]}', 'PATCH', {
                 'status': 'completed', 'conclusion': 'failure',
                 'output': {'title': 'Evidence unavailable', 'summary': 'Live refresh failed; do not merge.'}})
             disarm(github, number)
@@ -242,11 +298,11 @@ def disarm(github, number):
     owner, repo = github.repo.split('/')
     data = github.graph('''query($owner:String!,$repo:String!,$number:Int!) {
       repository(owner:$owner,name:$repo) { pullRequest(number:$number) {
-        id autoMergeRequest { enabledAt } } } }''', dict(owner=owner, repo=repo, number=number))
+        id autoMergeRequest { enabledAt } } } }''', dict(owner=owner, repo=repo, number=number), merge_auth=True)
     pr = data['repository']['pullRequest']
     if pr['autoMergeRequest']:
         github.graph('''mutation($id:ID!) { disablePullRequestAutoMerge(input:{pullRequestId:$id}) {
-          clientMutationId } }''', {'id': pr['id']})
+          clientMutationId } }''', {'id': pr['id']}, merge_auth=True)
 
 
 def main():

@@ -2335,7 +2335,8 @@ anschließend ohne Verlust seiner bestehenden Workflow-/Vorlagenarbeit.
 Solange Review-Dienst oder vertrauenswürdiger Bootstrap fehlt, bleiben alle
 Merges gesperrt. Keine kostenpflichtigen Dienste oder größeren Runner hinzufügen.
 
-Der sichere Akzeptanzcheck benötigt eine eigene GitHub-App-Identität, weil die
+Native Rulesets und natives Auto-Merge benötigen keine eigene App. Ein optionaler
+eigenständig authentifizierter Akzeptanzcheck benötigt eine getrennte Identität, weil die
 gemeinsame Actions-ID auch von veränderten PR-Workflows benutzt werden kann.
 App-Schlüssel bleiben ausschließlich in einem serverseitig auf `main` begrenzten
 Environment. Einrichtung dieser App-Rechte braucht ausdrückliche Freigabe;
@@ -2343,3 +2344,14 @@ ohne App-Konfiguration und echten Token-/Negativtest bleibt Repository-Auto-Merg
 ausgeschaltet. Eine unabhängige aktuelle Freigabe bestätigt zusätzlich den
 SHA-256-Digest der Akzeptanzerklärung. CodeQL-Ergebnischeck und offene Warnungen
 werden separat vom erfolgreichen Analyse-/Uploadjob geprüft.
+
+Native-first-Prüfung: Ruleset 27257972 wurde mit bestehenden Schutzanforderungen
+und nativem CodeQL-Befundschutz ohne Bypass aktiviert; bestehender Branch-Schutz
+bleibt erhalten. Keine neuen App-Rechte vergeben. Als Alternative prüft der
+bestehende Host Akzeptanz und aktiviert natives Auto-Merge mit vorhandener
+Berechtigung. Eine optionale getrennte App wäre ausschließlich Check-Schreiber
+(Checks schreiben, Metadata lesen); keine App-Rechte für Administration, Code,
+PR-Änderungen oder Sicherheitswarnungen. Ruleset-Bypassdetails prüft der vorhandene
+Administrator-Host. Ohne diese Sicht bleibt der Ablauf gesperrt. Quellen, Grenzen
+der persönlichen Repository-Verwaltung und Schlüsselrotation sind zweisprachig
+im Integrationsleitfaden dokumentiert.

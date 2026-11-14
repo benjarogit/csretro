@@ -57,32 +57,64 @@ weiter verhindern; Konfiguration übersteuert keine Anbieterbedingungen.
 Siehe [GitHub-Branch-Schutz](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)
 und [CodeRabbit-Konfiguration](https://docs.coderabbit.ai/reference/configuration).
 
-## Vertrauenswürdigen Prüfer einrichten
+## Native Prüfung und optionaler Check-Schreiber
 
-Auto-Merge bleibt deaktiviert, bis eine eigene GitHub App installiert und getestet
-ist. Die gemeinsame Actions-App-ID beweist nicht, welcher Workflow einen Check
-erstellt hat. Benötigt werden Administration lesen (Schutzregeln), Checks schreiben,
-Contents schreiben (nativer Merge), Pull Requests schreiben und Code-Scanning-
-Warnungen lesen. Diese Berechtigungs-/Schlüsseleinrichtung benötigt ausdrückliche
-Maintainer-Freigabe. Keine Rechte für beliebige PR-Jobs und kein Ersatz durch die
-allgemeine Actions-Identität.
+Natives GitHub Auto-Merge ist für dieses öffentliche, persönlich geführte
+Repository verfügbar und benötigt keine eigene App. Das aktive Ruleset `27257972`
+erzwingt strikte quellgebundene Checks, aktuelles unabhängiges Review, gelöste
+Konversationen, Squash/lineare Historie, Force-Push-/Löschschutz und CodeQL-
+Befundschutz ohne Bypass-Akteure. Die native Scanning-Regel blockiert konfigurierte
+Befunde, unvollständige Analyse und ein fehlendes Werkzeug. Kein zweiter Scanner;
+der bestehende Branch-Schutz bleibt während der Validierung erhalten.
 
-Den App-Schlüssel ausschließlich als Environment-Secret
-`CSRETRO_MERGE_APP_PRIVATE_KEY` und die App-ID als `CSRETRO_MERGE_APP_ID` in
-`csretro-merge-controller` hinterlegen. Dessen serverseitige Branch-Regel erlaubt
-nur Branch `main`, keine weiteren Branches oder Tags. Kein repositoryweites Secret:
-PR-Workflows desselben Repositories könnten es lesen. acceptance_app_id in der
-zentralen Policy und den obligatorischen Akzeptanzcheck an diese App binden, bevor
-Auto-Merge wieder aktiviert wird. Ein unprivilegierter Review-Signaljob weckt den
-vertrauenswürdigen Koordinator; kein Codeprüfen, keine Checks, keine Secrets dort.
-Eigene Check-Abschlüsse lösen keinen neuen Koordinatorlauf aus. Einen echten Lauf
-mit App-Token und einen gesperrten PR testen, bevor der Betrieb als nachgewiesen
-gilt; fehlende API-Rechte bleiben blockierend.
+Native Checks formulieren keine beliebigen Projekt-Akzeptanzkriterien und erkennen
+keinen bestimmten vertrauenswürdigen Actions-Workflow allein an seinem Checknamen.
+GitHub akzeptiert auch übersprungene/neutrale Pflichtchecks; das beweist kein
+ausgeführtes CodeRabbit-Review. Fest vorgeschriebene vertrauenswürdige Workflows
+beschreibt GitHub auf Organisations-/Enterprise-Ebene; teamspezifische Pfadreviewer
+stehen persönlich geführten Repositories nicht zur Verfügung. Zwei nicht erzwingende
+Workflow-Regel-Proben per API ergaben HTTP 422, auch mit vorhandenem CI-Workflow.
+Dieser Fehler allein beweist keine Tarifbeschränkung. Kein Probe-Ruleset entstand;
+kein Organisationsumzug ist beauftragt.
 
-Der Bootstrap ist eine gesondert geprüfte Sicherheitsoperation. Vor Aufnahme des
-Koordinators in main kann der geprüfte lokale Koordinator mit genehmigtem App-Token
-den Akzeptanzcheck veröffentlichen; kein Ersatz durch gemeinsame Actions-Checks.
-PR #16 enthält bereits den Python-Scanner und kann unter denselben vollständigen
-Gates das erste Workflow-Fundament liefern. Die Reihenfolge muss ausdrücklich
-abgeglichen werden; #15 folgt immer #14. Die lokale Brücke wird weder zweiter
-Dauer-Orchestrator noch Schutzregel-Umgehung.
+Ohne App kann der vorhandene Administrator-Host die nativen Regeln prüfen,
+unabhängige aktuelle Akzeptanz/Freigabe sensibler Änderungen bewerten und natives
+Auto-Merge aktivieren. Keine neuen Zugangsdaten nötig; die zusätzliche Projekt-
+Akzeptanzentscheidung bleibt dabei hostgesteuert und hat keinen eigenständig
+authentifizierten Servercheck. Die vollständig automatische Variante mit solchem
+Check bleibt deshalb ein optionaler, nicht genehmigter Entwurf. Der vorhandene
+Akzeptanz-Pflichtcheck wird nicht entfernt, nur um einen Teiltest mergen zu können.
+
+Bei Genehmigung wäre die App ausschließlich **Check-Schreiber**: Checks schreiben
+und GitHubs verpflichtendes Metadata lesen, nur für CSRetro installiert. Der
+vorhandene Host liest PR-/Review-Belege, prüft Regeln und aktiviert natives
+Auto-Merge mit vorhandener Berechtigung. Die App benötigt keine Administration-,
+Contents-, Pull-Request- oder Sicherheitswarnungsrechte und kann weder mergen noch
+Code/Regeln ändern. Native CodeQL-Regeln sichern Befunde serverseitig. Bypass-Akteure
+werden ohne Schreibzugriff auf das Ruleset ausgeblendet: Der vorhandene
+Administrator-Host muss sie prüfen. Ein gewöhnlicher Actions-Token kann dabei
+scheitern. Fehlende Prüfsicht sperrt den Koordinator; keine stille App-Aufrüstung.
+
+Der Schlüssel läge ausschließlich als `CSRETRO_MERGE_APP_PRIVATE_KEY` im Environment
+`csretro-merge-controller`, dessen serverseitige Branch-Regel nur Branch `main`
+erlaubt, keine Tags oder anderen Branches. Die App-ID ist die nicht geheime
+Environment-Variable `CSRETRO_MERGE_APP_ID`. Eine gepinnte offizielle Action erzeugt
+einen Installations-Checktoken für den Job und widerruft ihn anschließend;
+`GH_ACCEPTANCE_TOKEN` dient nur dem Erstellen/Aktualisieren von Checks. Vorhandene
+Host-Berechtigung nutzt einen getrennten Token. Kein Schlüssel in repositoryweiten
+Secrets, Quelltext, Logs, Caches oder PR-Jobs. Installation nur auf dieses Repository
+begrenzen; bei Offenlegung Schlüssel widerrufen/rotieren, Environment-Secret ersetzen
+und Negativtests wiederholen. Kein Schlüssel und keine App-Rechte wurden angelegt.
+Die Einrichtung braucht weiterhin ausdrückliche Freigabe.
+
+Vor Aktivierung sind echter Token-Zugriff, Main-Schlüsselisolation, Bypass-Prüfung,
+Fehler-/Headwechsel-Sperren und CodeRabbit-Reviews nachzuweisen. Auto-Merge bleibt
+bis dahin aus. Beim Bootstrap folgt #15 weiterhin auf #14; ein geprüfter lokaler
+Host kann den ersten App-gebundenen Akzeptanzcheck ohne entfernte Pflichtchecks
+liefern, während #16 den bestehenden Python-Scanner bereitstellt. Kein zweiter
+Dauer-Orchestrator.
+
+Quellen: [natives Auto-Merge](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/automatically-merging-a-pull-request),
+[Regeln und Workflow-Geltungsbereich](https://docs.github.com/en/enterprise-cloud%40latest/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets),
+[Scanning-Mergeschutz](https://docs.github.com/en/code-security/concepts/code-scanning/merge-protection),
+[Sichtbarkeit der Rules-API](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset).

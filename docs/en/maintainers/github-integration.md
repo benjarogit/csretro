@@ -55,29 +55,61 @@ can still prevent reviews; configuration does not override vendor eligibility.
 See [GitHub branch protection](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)
 and [CodeRabbit configuration](https://docs.coderabbit.ai/reference/configuration).
 
-## Trusted producer setup
+## Native-first assessment and optional check publisher
 
-Auto-merge remains disabled until a dedicated GitHub App is installed and tested.
-The shared Actions App identity cannot prove which workflow minted a check.
-The dedicated App requires Administration read (live protection), Checks write,
-Contents write (native merge), Pull requests write and Code scanning alerts read.
-This permission/credential setup needs explicit maintainer approval. Do not grant
-these permissions to arbitrary PR jobs or substitute the shared Actions identity.
+Native GitHub Auto-Merge is available for this public, personally owned repository;
+it does not require a custom App. Active ruleset `27257972` now enforces strict
+source-bound checks, fresh independent review, resolved conversations, squash/linear
+history, no force push/deletion and CodeQL result protection without bypass actors.
+The native scanning rule blocks configured findings, incomplete analysis and a
+missing tool. It complements the existing CI instead of adding another scanner.
+Legacy branch protection stays in place during validation.
 
-Store the App private key only as the `CSRETRO_MERGE_APP_PRIVATE_KEY` environment
-secret and App ID as `CSRETRO_MERGE_APP_ID` in `csretro-merge-controller`.
-Its server-side deployment branch policy must allow branch `main` only, with no
-other branches or tags. Never store this key as a repository-wide secret: same-repo
-PR workflows could access it. Set the central policy acceptance_app_id to that App
-and bind the required acceptance check to it before enabling repository auto-merge.
-An unprivileged review-signal job wakes the trusted controller; it does not inspect
-code, publish checks or receive secrets. The controller excludes its own check
-completion to avoid event loops. Test an actual App-token run and a blocked PR
-before claiming deployment; API permission errors remain blocking.
+Native checks do not express arbitrary project acceptance criteria or identify a
+particular trusted Actions workflow merely from its check name. GitHub accepts
+skipped/neutral required checks; these do not prove a CodeRabbit review occurred.
+GitHub documents required trusted workflows at organization/enterprise level;
+team-specific path reviewers are unavailable to user-owned repositories. Two
+non-enforcing API workflow-rule probes returned HTTP 422, including a reference
+to the existing CI workflow. That error alone is not proof of a plan restriction.
+No probe ruleset was created and no organization migration is authorized.
 
-Bootstrap is a separately reviewed security operation. Before the controller is
-on main, the reviewed local controller can publish acceptance using the approved
-App token; do not mint a shared-Actions substitute. PR #16 already contains the
-Python scanner and may provide the initial workflow foundation under all the same
-gates. Reconcile dependency order explicitly; #15 always follows #14. The local
-bridge must not become a second persistent orchestrator or a protection bypass.
+Without an App, the existing administrator host can audit native rules, validate
+independent current-head acceptance/sensitive approvals and arm native Auto-Merge.
+That needs no new credentials, but the extra project acceptance decision remains
+host-controlled rather than independently represented by a dedicated server check.
+The fully automatic independently authenticated acceptance variant therefore remains
+an optional, unapproved design; the existing custom required check is not removed
+just to make a partial native test mergeable.
+
+If that variant is approved, the App is a **check publisher only**: Checks write
+plus GitHub's mandatory Metadata read, installed only on CSRetro. The existing host
+reads PR/review evidence, audits rules and enables native Auto-Merge using existing
+authority. The App needs no Administration, Contents, Pull requests or security-alert
+permissions. Its token can neither merge nor edit code/rules. Native CodeQL rules
+supply the server-side finding gate. Bypass actors are hidden without ruleset-write
+access: the existing administrator host must audit them; a default Actions token
+may fail this audit. Missing audit visibility blocks the candidate controller and
+must not be solved by silently increasing App permissions.
+
+The key would exist only as `CSRETRO_MERGE_APP_PRIVATE_KEY` in the
+`csretro-merge-controller` environment, whose server-side branch policy allows
+only branch `main`, no tags or other branches. App ID is a non-secret environment
+variable `CSRETRO_MERGE_APP_ID`. A pinned official action mints an installation
+check token for the job and revokes it afterward; `GH_ACCEPTANCE_TOKEN` is used
+only for check creation/update. Existing host authority uses a separate token.
+Never place the private key in repository-wide secrets, source, logs, caches or
+PR jobs. Limit installation to this repository; rotate/revoke the key on exposure,
+replace the environment secret and rerun negative tests. No key or App grant has
+been created. Provisioning still requires explicit approval.
+
+Before activation, prove real-token access, main-only secret isolation, no-bypass
+audit, failure/head-change blocking and CodeRabbit reviews. Repository Auto-Merge
+stays off until those gates pass. Bootstrap order must retain #15's dependency on
+#14; a reviewed local host can bridge initial App-bound acceptance without removing
+checks, while #16 supplies the existing Python scanner. No second persistent daemon.
+
+Sources: [native Auto-Merge](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/automatically-merging-a-pull-request),
+[rules and trusted workflow scope](https://docs.github.com/en/enterprise-cloud%40latest/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets),
+[scanning merge protection](https://docs.github.com/en/code-security/concepts/code-scanning/merge-protection),
+[Rules API visibility](https://docs.github.com/en/rest/repos/rules#get-a-repository-ruleset).

@@ -127,6 +127,7 @@ class GateTests(unittest.TestCase):
 
     def publisher_fixture(self):
         github = Mock(repo='owner/repo')
+        github.check_writer.return_value = github
         github.api.side_effect = [self.pr, {'id': 70, 'app': {'id': 99999}}, {}]
         return github
 
@@ -162,6 +163,7 @@ class GateTests(unittest.TestCase):
         github = self.publisher_fixture()
         passed = {'head': 'abc', 'eligible': True, 'holds': []}
         with patch.object(gate, 'inspect', return_value=passed), \
+             patch.object(gate, 'merge_env', return_value={}), \
              patch.object(gate.subprocess, 'run') as run:
             gate.publish(github, 1, self.policy)
             command = run.call_args.args[0]
@@ -179,6 +181,38 @@ class GateTests(unittest.TestCase):
         files = gate.changed_paths([{'filename': 'ordinary.txt',
                                     'previous_filename': '.github/workflows/ci.yml'}])
         self.assertFalse(self.result(files)['eligible'])
+
+    def test_native_ruleset_requires_effective_no_bypass_scanning_protection(self):
+        github = Mock()
+        self.policy['native_ruleset_id'] = 7
+        github.pages.return_value = [{'ruleset_id': 7}]
+        github.api.return_value = {'enforcement': 'active', 'bypass_actors': [], 'rules': [
+            {'type': 'code_scanning', 'parameters': {'code_scanning_tools': [
+                {'tool': 'CodeQL', 'alerts_threshold': 'all', 'security_alerts_threshold': 'all'}]}}]}
+        state = gate.native_protection(github, self.policy)
+        self.assertTrue(state['enforce_admins']['enabled'])
+        github.api.return_value['bypass_actors'] = [{'actor_type': 'RepositoryRole'}]
+        with self.assertRaises(RuntimeError):
+            gate.native_protection(github, self.policy)
+        del github.api.return_value['bypass_actors']
+        with self.assertRaises(RuntimeError):
+            gate.native_protection(github, self.policy)
+        github.api.return_value['bypass_actors'] = []
+        github.pages.return_value = []
+        with self.assertRaises(RuntimeError):
+            gate.native_protection(github, self.policy)
+
+    def test_app_token_permissions_are_read_only_except_checks(self):
+        workflow = (ROOT / '.github/workflows/protected-merge.yml').read_text()
+        self.assertIn('permission-checks: write', workflow)
+        self.assertNotIn('permission-pull-requests:', workflow)
+        for forbidden in ('permission-administration:', 'permission-contents:', 'permission-security-events:'):
+            self.assertNotIn(forbidden, workflow)
+
+    def test_sensitive_labels_match_github_case_insensitively(self):
+        self.pr['labels'] = [{'name': 'PAID-SERVICE'}]
+        self.assertTrue(self.result()['sensitive'])
+        self.assertFalse(self.result()['eligible'])
 
     def test_protection_unbound_check_is_held(self):
         self.protection['required_status_checks']['checks'][0]['app_id'] = None

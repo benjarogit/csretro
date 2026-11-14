@@ -33,3 +33,5 @@ Plan-Eintrag. Cursor-Arbeitspläne sind Staging, keine zweite Wahrheit.
 ## Den Port nachweisen
 
 Nutze die [Laufzeit-Abnahme](runtime-readiness.md), bevor du ein Artefakt lauffähig nennst. Ein offenes Menü und ein gespeicherter Callback beweisen keinen Spielclient. Sichtbare Funktionen gehören zusammen mit der Implementierung in die [Spieleranleitung](../players/features.md), nicht in Commit-Transkripte.
+
+Nutze die [lokale Koordination](chatdev.md) für persistente Entwicklungsarbeit.

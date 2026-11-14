@@ -2219,6 +2219,14 @@ behalten ihre Lizenzen. Ohne diese Lizenz werden keine fremden Patches angenomme
 ---
 
 
+### 11.6 Lokale Entwicklungsorchestrierung
+
+ChatDev dient als Architekturvorbild; das Framework wird nicht installiert oder vendort. Die technische [Bewertung](../de/maintainers/chatdev-evaluation.md) vergleicht Lizenz, Laufzeit und lokale Memory-Alternativen. `scripts/chatdev.sh` nutzt Python-Standardbibliothek und SQLite FTS5 (lexikalisches BM25, keine semantischen Embeddings, kein Modell-/API-Zwang). Ein gemeinsamer lokaler Speicher unter `.local/chatdev/` enthält Aufgaben, kooperative Dateiansprüche, nachweisgebundene Rollenergebnisse und Erinnerungen. Root-/bereichsspezifische Harness, Plan, Handoff und Pins werden vor Wiederverwendung geprüft; Entscheidungen verbleiben in ihren autoritativen Dateien. Backup/Restore verwenden geprüfte projektgebundene SQLite-Sicherungen.
+
+Vierzehn Fachzuständigkeiten werden als kontrollierte Phasen aktiviert, nicht als vierzehn dauerhafte Prozesse. Native Subagenten können unabhängige Arbeit übernehmen; CLI-Ausgaben sind keine Agentenausführung. Ein unabhängiger Qualitätsprüfer muss reale Ergebnisse prüfen. Datei-Claims sind Koordinationssperren, keine Sandbox. GitHub-Zugriffe laufen über gh mit explizitem Offlinezustand, Vorschau vor Mutationen, Duplikatsuche und begrenzter CI-Eskalation. Der vorhandene Upstream-Watch bleibt alleiniger Zeitplan und Pin-Eigentümer; Kandidaten sind Bewertungen, keine automatischen Cherry-Picks. Kein neuer Dauerdienst und kein automatischer Spielstart.
+
+Der portable Einstieg ist `scripts/chatdev.sh run "Aufgabe"`; der Projektskill unterstützt `/chatdev`, sofern der Host Projektskills entdeckt. Ein universelles Slash-Kommando wird nicht behauptet. Normale Entwicklungssitzungen erhalten den Einstieg über AGENTS.md. Dieser Infrastrukturauftrag entwickelt G07 nicht weiter; die Portreihenfolge bleibt unverändert.
+
 ## 12. Credits
 
 `CREDITS.md` listet jedes Projekt mit Lizenz und Umfang:

@@ -322,3 +322,15 @@ current directory: resolve the repository root from the script location.
 
 The gate list is defined once in the plan, section 7. Do not duplicate it here.
 Progress is tracked once in `HANDOFF.md`. Do not duplicate it here.
+
+## Local development orchestration
+
+For development work, use `scripts/chatdev.sh run "<task>" --scope <path>`
+(or `--offline` when GitHub is unavailable), then resume its persisted task.
+The project skill `.agents/skills/chatdev/SKILL.md` defines controlled role
+phases and independent acceptance. The CLI never creates model agents itself.
+Apply only needed roles; host subagents are optional, bounded and must have
+exclusive file claims. Role claims coordinate cooperating agents, not OS access.
+Memory under `.local/chatdev/` is ignored historical evidence, never authority.
+Never invent independent reviewer identities, executions or acceptance.
+Existing tests, human game-start boundary and PR/CI rules still apply.

@@ -5,14 +5,14 @@ Project state for the next session. Personal context belongs in
 
 ## State
 
-- **Date:** 2026-11-13
+- **Date:** 2026-11-14
 - **Gate:** G07 — in progress. The first runnable version is not achieved.
 - **Branch:** `main` is the integration target; changes use gate pull requests.
 - **Validated baseline:** `7138b2cb` (PR #11 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43394870757 and Pages https://github.com/benjarogit/csretro/actions/runs/43394966211 — success.
 - **Product sequence:** Port existing NextClient/CS behavior to Xash3D first; then exclusively Linux x86_64 and at least 60 FPS in gameplay without a 60 FPS cap; additional features later. Original licensed game files stay in a separate copy, and the port starts no Steam process. Rules and decisions live in the authoritative plan, sections 3.7–3.8.
 - **Actual runtime boundary:** The host builds and presents native VGUI2 UI, reads content and records world primitives/callbacks. It does not execute Xash3D gameplay. `client_mini` is an extension of an existing game client, not a native CS game implementation. The SDK builds the UI foundation, not the missing CS gameplay implementation.
 - **Critical next port work:** Integrate the existing NextClient extensions with a real architecture-matched Xash3D/CS runtime, using the locally supplied original game library as the i386 spike does. A native x64 game library is the following phase, not a demand to rewrite CS before porting. The x64-only export screen still fails on the extension module as expected; it is not a gate against the initial i386 port.
-- **Current work:** Original panel runtime on `gate/G07-original-panel-runtime`: native panel/layout/paint and popup/input bindings, engine file/font callbacks and HUD/frame/mouse wiring implemented and verified locally and in CI. PR #12 merge pending. GameUI/NextClient initialization, keyboard/focus acceptance and complete engine/runtime assembly remain open; no game has been started.
+- **Current work:** Development orchestration on `codex/chatdev-orchestration`; G07 runtime implementation is explicitly suspended for this infrastructure assignment. The VGUI factory fix remains on its existing branch at `f4cccda3`, unmerged. Local role phases, SQLite memory, GitHub coordination, project skill and regression tests implemented; independent local QA passed; PR/CI pending. No game has been started.
 - **Clarified scope:** No CS rewrite or reference-client feature import before the existing NextClient-to-Xash3D port. The original game library can be supplied locally for that first port; a later exclusively x64 phase must solve its own architecture constraints. Existing GPL reference rules remain unchanged.
 - **Historical evidence:** Earlier i386 spikes and test-only host results remain below. They do not establish x64 gameplay, production Steam authentication or measured scene FPS.
 
@@ -350,13 +350,7 @@ the Security overview switches in the browser.
 
 ## Next task
 
-Continue G07 with the existing NextClient-to-Xash3D port first, following the clarified plan section 3.8.
-
-1. Use the isolated `linux-port`/`linux-port-tests` profiles for the existing i386 Xash/original-CS-client reference and NextClient extensions. The `xash_client` target retains original movement/prediction/game callbacks and now connects original VGUI startup, native panel paint, engine files/fonts and UI mouse/frame work. Finish GameUI initialization and keyboard/focus routing before a real run. Then connect existing NextClient behavior to the real Xash callbacks. Keep local original binaries and external engine artifacts out of the repository.
-2. Replace the test-only host path with the real Xash3D engine loop and bind the existing NextClient behavior there. Preserve CS movement and validate input, collision, weapons, HUD/sound and a local/test-server session. Automation never starts the game; prepare a human run with hashes and clear acceptance steps.
-3. After the functional port, make the complete runtime exclusively x64 and measure at least 60 FPS in a named real scene. Do not mix ELF32 game libraries with ELF64 components or call a menu benchmark gameplay evidence.
-4. Additional features from reference clients follow the working port/x64/performance baseline. Keep DE/EN player/plugin docs, harness, handoff and authoritative backlog aligned. Exact generated references remain useful documentation work, not a replacement for runtime integration.
-5. Manual original-content selection is now supported by `install-content.sh --source`. The current copier copies content only; runtime-library assembly and full client/server installers remain separate work. `CL_Stop_f` is an unhandled table entry, not the critical next task by itself.
+Finish orchestration verification, independent review, PR/CI and handoff for the infrastructure assignment. Do not continue G07 during this assignment. Afterwards resume the existing factory-ABI branch through its own PR/CI cycle before GameUI/NextClient runtime integration; preserve the port-first sequence.
 
 ## Open decisions
 
@@ -391,6 +385,17 @@ repository and must never be committed. CSRETRO is always installed into a separ
 copy outside the Steam library.
 
 ## Last commands and results
+
+Local development orchestration (2026-11-14, baseline `3666c166`, source/CI pending):
+
+- Master assignment explicitly excludes further G07 development. Historical pending factory fix `f4cccda3` remains preserved on `gate/G07-original-vgui-factory-abi`; this branch changes no game runtime sources. Untracked maintainer archives were not added or removed.
+- Native Python CLI and project skill implement controlled role phases, exclusive cooperative file claims, attributed result aggregation, blocked work, independent quality acceptance, freshness checks and restart. Quality snapshots bind reviewed scope/claimed files and tracked worktree changes; cancellation releases stale claims without deleting history. No model-agent subprocess or paid/cloud service is installed. Deterministic routing and host execution are distinguished from autonomous model execution.
+- One ignored local SQLite FTS5 database contains tasks, claims, results and provenance-aware memory. Source/requirement/pin changes, expiry and explicit invalidation expose stale results. Backup/restore validates integrity/project/provenance and retains recovery data. Analysis reuse is lexical BM25 without embeddings.
+- ChatDev 2.0, Mem0 and Cognee evaluated from pinned primary sources; DE/EN evaluation records requirements, licenses, interfaces and tradeoffs. No upstream framework code imported. Existing upstream watcher remains owner; weekly reconciliation adds read-only issue/PR/review/CI triage, without auto-import or speculative repair.
+- Real GitHub read smoke: zero open issues/PRs, 12 labels and latest 100 CI runs. Projects is unavailable under current token permissions and is explicitly reported. No test issues, closures, labels or project mutations were sent. GitHub mutation, duplicate pagination, CI failure/escalation and acceptance tests use injected mocks.
+- Native CLI subprocess run/resume, local restart/memory freshness/dedup/search, scoped claims, independent review, blocked visibility, complete rejection on stale evidence, backup/restore including tasks/claims and safe maintenance report are tested. Initial independent review caught SQL arity, nested-harness freshness, substring routing, reviewer/result and evidence boundary defects; corrected regressions now pass.
+- `python3 -m unittest discover -s tests/chatdev -v`: 46/46 passed (29 coordination, 9 GitHub, 8 memory). Existing build-script tests 9/9, native export-screen tests 5/5 and installer tests 8/8 passed. Strict DE/EN docs build passed. Independent reviewer quality_final reran scripts/verify.sh: 68 repository checks and 46 orchestration tests passed; no critical blocker remained. CLI run/resume and memory retrieval were also executed across separate real processes locally. Completion is not inferred from issue status or a synthetic game fixture.
+- Limitations: role permissions are cooperation policy, not an OS sandbox; host agent must inspect evidence content and use real independent reviewer identity. Native slash-command discovery depends on host; shell entry always works. Semantic dead-code analysis remains an architect review, never automatic deletion. No external model, release, branch-protection change, automatic game start or full ChatDev service was installed.
 
 Original panel runtime (2026-11-13, source `649418e7`, baseline `7138b2cb`):
 

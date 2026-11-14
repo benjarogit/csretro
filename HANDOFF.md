@@ -8,7 +8,7 @@ Project state for the next session. Personal context belongs in
 - **Date:** 2026-11-14
 - **Gate:** G07 — in progress. The first runnable version is not achieved.
 - **Branch:** `main` is the integration target; changes use gate pull requests.
-- **Validated baseline:** `7138b2cb` (PR #11 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43394870757 and Pages https://github.com/benjarogit/csretro/actions/runs/43394966211 — success.
+- **Validated baseline:** `ab2b095b` (PR #13 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43571005119 and Pages https://github.com/benjarogit/csretro/actions/runs/43571072573 — success.
 - **Product sequence:** Port existing NextClient/CS behavior to Xash3D first; then exclusively Linux x86_64 and at least 60 FPS in gameplay without a 60 FPS cap; additional features later. Original licensed game files stay in a separate copy, and the port starts no Steam process. Rules and decisions live in the authoritative plan, sections 3.7–3.8.
 - **Actual runtime boundary:** The host builds and presents native VGUI2 UI, reads content and records world primitives/callbacks. It does not execute Xash3D gameplay. `client_mini` is an extension of an existing game client, not a native CS game implementation. The SDK builds the UI foundation, not the missing CS gameplay implementation.
 - **Critical next port work:** Integrate the existing NextClient extensions with a real architecture-matched Xash3D/CS runtime, using the locally supplied original game library as the i386 spike does. A native x64 game library is the following phase, not a demand to rewrite CS before porting. The x64-only export screen still fails on the extension module as expected; it is not a gate against the initial i386 port.
@@ -387,6 +387,8 @@ copy outside the Steam library.
 ## Last commands and results
 
 Project manager and provider-neutral continuation (2026-11-14, source `6659ab8c`, baseline `ab2b095b`):
+
+- Final pre-merge review of PR #14 head `63039515`: 26 intended infrastructure/test/DE+EN documentation files; all four checks green, no review requests or conflicts. No game-runtime, vendored dependency, Orqen or maintainer-archive changes. Corrected the stale top-level validated-baseline pointer to main PR #13; saved factory work remains `f4cccda3`. The separate source-list completion does not expand this PR. Main merge still requires explicit approval.
 
 - PR https://github.com/benjarogit/csretro/pull/14; source CI https://github.com/benjarogit/csretro/actions/runs/43576578629 — success in all four jobs: repository verification (including 117 orchestration tests), both native callback architectures and actual offscreen Surface/GL. The PR remains open; no main merge has been performed.
 

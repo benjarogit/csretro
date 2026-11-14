@@ -76,6 +76,7 @@ class Coordinator:
         self.db.execute('CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, objective TEXT, mode TEXT, state TEXT, roles TEXT, sources TEXT, snapshot TEXT, created REAL)')
         self.db.execute('CREATE TABLE IF NOT EXISTS results (task INTEGER, role TEXT, actor TEXT, status TEXT, summary TEXT, evidence TEXT, PRIMARY KEY(task,role))')
         self.db.execute('CREATE TABLE IF NOT EXISTS claims (path TEXT PRIMARY KEY, task INTEGER, role TEXT)')
+        self.db.execute('CREATE TABLE IF NOT EXISTS task_bases (task INTEGER PRIMARY KEY, revision TEXT)')
         self.db.execute('CREATE TABLE IF NOT EXISTS scopes (task INTEGER, path TEXT)')
         self.db.execute('CREATE TABLE IF NOT EXISTS quality_snapshot (task INTEGER PRIMARY KEY, digest TEXT)')
         self.db.commit()
@@ -108,7 +109,10 @@ class Coordinator:
         snapshot = {'unavailable': 'explicit offline mode'} if offline else GitHub(self.root).snapshot()
         with self.db:
             row = self.db.execute("INSERT INTO tasks(objective,mode,state,roles,sources,snapshot,created) VALUES(?,?,?,?,?,?,?)", (objective, mode, 'in-progress', json.dumps(roles_for(objective,mode)), json.dumps(self.fingerprints(watched)),json.dumps(snapshot),time.time()))
+        try: base = git(self.root,'rev-parse','HEAD')
+        except subprocess.CalledProcessError: base = ''
         with self.db:
+            self.db.execute('INSERT INTO task_bases VALUES(?,?)',(row.lastrowid,base))
             self.db.executemany('INSERT INTO scopes VALUES(?,?)',[(row.lastrowid,p) for p in paths])
         task = self.resume(row.lastrowid)
         task['context'] = context
@@ -147,6 +151,11 @@ class Coordinator:
     def work_digest(self, task):
         paths = {r[0] for r in self.db.execute('SELECT path FROM scopes WHERE task=?',(task,))}
         paths.update(r[0] for r in self.db.execute('SELECT path FROM claims WHERE task=?',(task,)))
+        base = self.db.execute('SELECT revision FROM task_bases WHERE task=?',(task,)).fetchone()
+        if base and base[0]:
+            if not re.fullmatch(r'[0-9a-f]{40,64}',base[0]): raise ValueError('Invalid task base revision')
+            names = subprocess.check_output(['git','-C',str(self.root),'diff',base[0],'--name-only','-z'])
+            paths.update(name.decode('utf-8','surrogateescape') for name in names.split(b'\0') if name)
         hashes = {}
         for name in paths:
             target = (self.root/name).resolve()
@@ -156,10 +165,8 @@ class Coordinator:
                 if any(x in ('.git','.local','__pycache__') or x.startswith('.env') for x in p.relative_to(self.root).parts): continue
                 resolved = p.resolve()
                 if not resolved.is_relative_to(self.root): raise ValueError('Reviewed path escapes repository')
-                if p.is_file(): hashes[p.relative_to(self.root).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
+                if p.is_file(): hashes[p.relative_to(self.root).as_posix()] = {'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'executable':bool(p.stat().st_mode & 0o111),'link':os.readlink(p) if p.is_symlink() else None}
                 elif not p.exists(): hashes[name] = None
-        try: hashes['git-diff'] = hashlib.sha256(git(self.root,'diff','HEAD','--binary').encode()).hexdigest()
-        except subprocess.CalledProcessError: pass
         return hashlib.sha256(json.dumps(hashes,sort_keys=True).encode()).hexdigest()
 
     def record(self, task, role, actor, status, summary, evidence):

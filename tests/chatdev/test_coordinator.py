@@ -322,6 +322,45 @@ class CoordinatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Reviewed work changed'):
             self.coordinator.complete(task)
 
+    def commit_fixture_files(self, message, paths):
+        subprocess.run(['git', '-C', str(self.root), 'add', '--', *paths], check=True)
+        subprocess.run(['git', '-C', str(self.root), '-c', 'user.name=Fixture Author',
+                        '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgSign=false',
+                        'commit', '-q', '-m', message], check=True)
+
+    def test_committing_the_exact_reviewed_work_keeps_acceptance_valid(self):
+        self.write('src/tracked.py', 'result = 0\n')
+        self.commit_fixture_files('Initial fixture', [*AUTHORITY, 'evidence.txt', 'src/tracked.py'])
+        task = self.start('Implement addition', mode='change')['id']
+        self.write('src/tracked.py', 'result = 1\n')
+        self.finish_phases(task)
+        # No explicit scope/claim: changed tracked work must remain covered
+        # across the commit boundary through the task's persisted base commit.
+        self.commit_fixture_files('Commit reviewed fixture', ['src/tracked.py'])
+        self.assertEqual(self.coordinator.complete(task)['state'], 'done')
+
+    def test_later_changed_commit_cannot_reuse_prior_review(self):
+        self.write('src/änderung\n file.py', 'result = 0\n')
+        self.commit_fixture_files('Initial fixture', [*AUTHORITY, 'evidence.txt', 'src/änderung\n file.py'])
+        task = self.start('Implement addition', mode='change')['id']
+        self.write('src/änderung\n file.py', 'result = 1\n')
+        self.finish_phases(task)
+        self.commit_fixture_files('Commit reviewed fixture', ['src/änderung\n file.py'])
+        self.write('src/änderung\n file.py', 'result = 2\n')
+        self.commit_fixture_files('Commit unreviewed fixture', ['src/änderung\n file.py'])
+        with self.assertRaisesRegex(ValueError, 'Reviewed work changed'):
+            self.coordinator.complete(task)
+        self.assertNotEqual(self.coordinator.resume(task)['state'], 'done')
+
+    def test_reviewed_executable_permission_change_requires_fresh_review(self):
+        script = self.write('src/run.sh', '#!/bin/sh\nexit 0\n')
+        script.chmod(0o755)
+        task = self.start('Implement script', mode='change', paths=['src'])['id']
+        self.finish_phases(task)
+        script.chmod(0o644)
+        with self.assertRaisesRegex(ValueError, 'Reviewed work changed'):
+            self.coordinator.complete(task)
+
     def test_repeated_setup_is_idempotent(self):
         task = self.start()['id']
         for _ in range(3):

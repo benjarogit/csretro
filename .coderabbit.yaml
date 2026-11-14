@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  auto_approvals:
+    enabled: true
+    approve_on_skipped_review: false
+    allow_author_approval: false
+  pre_merge_checks:
+    override_requested_reviewers_only: true
+    custom_checks:
+      - name: CSRETRO independent acceptance
+        mode: error
+        instructions: >-
+          Read docs/evidence/acceptance.json at the current PR head. Independently
+          examine every changed path (including old rename paths) and each criterion.
+          Fail missing evidence, false claims, missing required human gameplay proof,
+          or unresolved findings. A successful scan upload is not cleared findings.
+          When and only when all criteria genuinely pass, include the structured
+          csretro-acceptance-review attestation specified in tools/github_acceptance.py
+          in a submitted review. Bind it to the current head and canonical acceptance
+          JSON SHA256, list every reviewed path and explain every criterion decision.
+          Never approve a skipped, summary-only, rate-limited or incomplete review.
+  fail_commit_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "**/*"
+      instructions: >-
+        Enforce AGENTS.md and the authoritative CSRETRO plan. Check acceptance
+        evidence, DE/EN documentation, preserved work and security boundaries.
+        A stored callback is not gameplay proof. Do not approve unresolved findings.
+        Acceptance must use the committed docs/evidence/acceptance.json, not mutable
+        PR-body assertions. Submit an HTML comment csretro-acceptance-review containing
+        JSON keys schema=1, head=current PR SHA, acceptance_sha256=SHA256 of Python
+        json.dumps(artifact,sort_keys=True,separators=(',',':')), decision=pass,
+        reviewed_paths=all changed current/old paths, summary=concrete assessment,
+        criteria=[{id:each criterion id,passed:true,reason:concrete inspected evidence}].
+        Only a genuine complete content review can produce this attestation.

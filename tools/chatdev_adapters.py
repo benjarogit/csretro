@@ -82,7 +82,9 @@ def export(task, client, root):
                                 'status': '.local/chatdev/status.json'},
                'requirements': {'resume_current_authority': True, 'claims_before_edits': True,
                                 'independent_quality_required': True,
-                                'fresh_explicit_merge_approval': True},
+                                'protected_auto_merge_required': True,
+                                'explicit_approval_for_sensitive_changes': True,
+                                'merge_policy_source': '.github/merge-policy.json'},
                'execution': {'started': False, 'authorization_granted': False,
                              'automatic_agent_start': False}}
     content = (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + '\n').encode()

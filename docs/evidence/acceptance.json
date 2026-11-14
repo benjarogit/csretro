@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "base_sha": "32961f43b3781d9d2b82ac6a79164b14ef45cd02",
+  "human_runtime_required": false,
+  "changed_paths": [
+    ".agents/skills/chatdev/SKILL.md",
+    ".coderabbit.yaml",
+    ".githooks/pre-push",
+    ".github/merge-policy.json",
+    ".github/workflows/ci.yml",
+    ".github/workflows/codeql.yml",
+    ".github/workflows/protected-merge.yml",
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "HANDOFF.md",
+    "docs/de/maintainers/chatdev-adapters.md",
+    "docs/de/maintainers/chatdev-manager.md",
+    "docs/de/maintainers/chatdev.md",
+    "docs/de/maintainers/github-integration.md",
+    "docs/en/maintainers/chatdev-adapters.md",
+    "docs/en/maintainers/chatdev-manager.md",
+    "docs/en/maintainers/chatdev.md",
+    "docs/en/maintainers/github-integration.md",
+    "docs/evidence/acceptance.json",
+    "docs/plan/csretro-plan.md",
+    "tests/chatdev/test_adapters.py",
+    "tests/chatdev/test_manager.py",
+    "tests/chatdev/test_manager_integration.py",
+    "tests/github_merge/test_acceptance.py",
+    "tests/github_merge/test_gate.py",
+    "tests/github_merge/test_hook.py",
+    "tools/chatdev_adapters.py",
+    "tools/chatdev_manager.py",
+    "tools/github_acceptance.py",
+    "tools/github_merge_gate.py"
+  ],
+  "criteria": [
+    {
+      "id": "native-no-new-app",
+      "requirement": "The acceptance job is read-only, uses immutable current-head criteria and genuine substantive CodeRabbit evidence, preserves all native gates and needs no new App or secrets.",
+      "checks": [
+        "repository verification",
+        "client callbacks (linux)",
+        "client callbacks (linux-port)",
+        "offscreen surface and client runtime",
+        "codeql-python",
+        "CodeQL"
+      ]
+    },
+    {
+      "id": "negative-review-regressions",
+      "requirement": "Regression cases reject skipped, neutral, rate-limited, stale, empty, forged and withdrawn reviews, missing criteria/paths, invalid runtime claims and unsafe native protections.",
+      "checks": [
+        "repository verification"
+      ]
+    },
+    {
+      "id": "safe-pre-push",
+      "requirement": "The pre-push hook isolates Git-local environment variables from independent fixtures, preserves verification and LFS forwarding, and does not change gameplay, pins or existing work.",
+      "checks": [
+        "repository verification"
+      ]
+    }
+  ]
+}

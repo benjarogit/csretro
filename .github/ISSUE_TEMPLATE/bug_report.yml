@@ -1,0 +1,25 @@
+name: Fehlerbericht
+description: Reproduzierbaren CSRETRO-Fehler melden
+body:
+  - type: textarea
+    id: bug
+    attributes:
+      label: Tatsächliches und erwartetes Verhalten
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduktionsschritte
+      description: Nur eigene Testdaten, keine Steam-Originaldateien oder Zugangsdaten
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Linux/Engine/Commit
+      placeholder: x86_64, Xash3D-Stand, CSRETRO-Commit
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Testnachweise und Akzeptanzkriterien

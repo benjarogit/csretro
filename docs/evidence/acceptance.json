@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "base_sha": "ab2b095b35864573084ddff49e44b652cf4cf21d",
+  "human_runtime_required": false,
+  "changed_paths": [
+    "docs/de/maintainers/merge-canary.md",
+    "docs/en/maintainers/merge-canary.md",
+    "docs/evidence/acceptance.json"
+  ],
+  "criteria": [
+    {
+      "id": "harmless-docs",
+      "requirement": "Only paired maintainer documentation and this acceptance manifest change; no runtime or dependency change.",
+      "checks": [
+        "repository verification",
+        "client callbacks (linux)",
+        "client callbacks (linux-port)",
+        "offscreen surface and client runtime",
+        "codeql-python",
+        "CodeQL"
+      ]
+    }
+  ]
+}

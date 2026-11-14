@@ -78,3 +78,11 @@ vertrauenswürdigen Koordinator; kein Codeprüfen, keine Checks, keine Secrets d
 Eigene Check-Abschlüsse lösen keinen neuen Koordinatorlauf aus. Einen echten Lauf
 mit App-Token und einen gesperrten PR testen, bevor der Betrieb als nachgewiesen
 gilt; fehlende API-Rechte bleiben blockierend.
+
+Der Bootstrap ist eine gesondert geprüfte Sicherheitsoperation. Vor Aufnahme des
+Koordinators in main kann der geprüfte lokale Koordinator mit genehmigtem App-Token
+den Akzeptanzcheck veröffentlichen; kein Ersatz durch gemeinsame Actions-Checks.
+PR #16 enthält bereits den Python-Scanner und kann unter denselben vollständigen
+Gates das erste Workflow-Fundament liefern. Die Reihenfolge muss ausdrücklich
+abgeglichen werden; #15 folgt immer #14. Die lokale Brücke wird weder zweiter
+Dauer-Orchestrator noch Schutzregel-Umgehung.

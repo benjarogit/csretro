@@ -74,3 +74,10 @@ An unprivileged review-signal job wakes the trusted controller; it does not insp
 code, publish checks or receive secrets. The controller excludes its own check
 completion to avoid event loops. Test an actual App-token run and a blocked PR
 before claiming deployment; API permission errors remain blocking.
+
+Bootstrap is a separately reviewed security operation. Before the controller is
+on main, the reviewed local controller can publish acceptance using the approved
+App token; do not mint a shared-Actions substitute. PR #16 already contains the
+Python scanner and may provide the initial workflow foundation under all the same
+gates. Reconcile dependency order explicitly; #15 always follows #14. The local
+bridge must not become a second persistent orchestrator or a protection bypass.

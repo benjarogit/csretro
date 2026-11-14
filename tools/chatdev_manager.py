@@ -136,9 +136,36 @@ class ProjectManager:
             blockers.append({'kind':'issue-dependency','issue':edge['issue'],'depends_on':edge['depends_on'],'action':'verify-dependency-status'})
         for issue in reconciliation['blocked']:
             blockers.append({'kind': 'issue', 'number': issue})
-        holds = [{'kind': 'fresh-merge-approval', 'pr': pr['number'],
-                  'action': 'request-explicit-human-approval', 'automatic_merge': False}
-                 for pr in snapshot.get('pulls', []) if str(pr.get('state', 'open')).lower() == 'open']
+        # Snapshot CI/reviews are useful for triage, never evidence of effective
+        # branch protection or acceptance. The trusted GitHub gate owns that
+        # live verification; this report does not grant merge permissions.
+        holds = []
+        sensitive = {'security', 'release', 'deployment', 'production', 'paid', 'paid-service',
+                     'permissions', 'manual-approval', 'requires-maintainer-approval'}
+        try:
+            policy = json.loads((self.root / '.github/merge-policy.json').read_text())
+            labels = policy['sensitive_labels']
+            if not isinstance(labels, list) or not all(isinstance(label, str) for label in labels):
+                raise ValueError('Invalid sensitive labels')
+            sensitive.update(label.casefold() for label in labels)
+        except (OSError, ValueError, KeyError, TypeError):
+            # This advisory never authorizes merging. Missing/malformed policy
+            # still requires the live gate; preserve conservative human holds.
+            pass
+        for pr in snapshot.get('pulls', []):
+            if str(pr.get('state', 'open')).lower() != 'open':
+                continue
+            labels = {str(label.get('name', '')) if isinstance(label, dict) else str(label)
+                      for label in pr.get('labels', [])}
+            needs_approval = bool({label.casefold() for label in labels} & sensitive)
+            holds.append({'kind': 'sensitive-merge-approval' if needs_approval else 'protected-auto-merge-verification',
+                          'pr': pr['number'], 'action': 'request-explicit-human-approval' if needs_approval
+                          else 'verify-protected-auto-merge', 'automatic_merge': False,
+                          'policy_source': '.github/merge-policy.json',
+                          'verifier': 'tools/github_merge_gate.py',
+                          'protection_verified': False,
+                          'reason': 'Sensitive changes require explicit scoped authorization' if needs_approval
+                          else 'Live protection, acceptance and review verification required; CI alone is insufficient'})
         backlog = [{'kind': 'task', 'id': t['id'], 'title': t['objective'], 'priority': t['priority'],
                     'state': t['state'], 'infrastructure': t['infrastructure']} for t in active]
         for issue in snapshot.get('issues', []):
@@ -175,7 +202,7 @@ class ProjectManager:
             elif any(b['kind'] == 'review' for b in blockers):
                 action = 'address-review'
             elif holds:
-                action = 'request-explicit-human-approval'
+                action = holds[0]['action']
             elif task['state'] in SUSPENDED:
                 action = 'resume-existing-task'
             elif task['pending_roles']:
@@ -188,13 +215,13 @@ class ProjectManager:
                          'role': 'repository' if action in {'resolve-ci', 'address-review'} else task['pending_roles'][0] if task['pending_roles'] else 'quality',
                          'reason': 'Continue persisted infrastructure' if task['infrastructure'] else 'Continue highest-priority existing work',
                          'delegation': 'recommendation-only; orchestrator coordinates assigned roles'}
-            if action == 'request-explicit-human-approval':
+            if action in {'request-explicit-human-approval', 'verify-protected-auto-merge'}:
                 next_step['related_task'] = next_step.pop('task')
                 next_step['pr'] = holds[0]['pr']
                 next_step['role'] = 'repository'
         elif holds:
-            next_step = {'action': 'request-explicit-human-approval', 'pr': holds[0]['pr'],
-                         'reason': 'Open pull request needs fresh explicit merge approval'}
+            next_step = {'action': holds[0]['action'], 'pr': holds[0]['pr'],
+                         'reason': holds[0]['reason']}
         elif reconciliation['failed_ci']:
             next_step = {'action': 'resolve-ci', 'role': 'repository', 'reason': 'Recorded CI failure requires triage'}
         elif backlog:

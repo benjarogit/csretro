@@ -1,0 +1,62 @@
+name: protected merge coordination
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, edited, labeled, unlabeled]
+  check_run:
+    types: [completed]
+  issue_comment:
+    types: [created, edited, deleted]
+  workflow_run:
+    workflows: [ci, CodeQL Python tooling, review signal]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: protected-merge-coordination
+  cancel-in-progress: false
+
+jobs:
+  coordinate:
+    # Never react to our own App check, preventing a check-run feedback loop.
+    if: >-
+      (github.event_name != 'check_run' ||
+       github.event.check_run.app.slug == 'coderabbitai' ||
+       github.event.check_run.app.slug == 'github-code-scanning') &&
+      (github.event_name != 'issue_comment' ||
+       (github.event.issue.pull_request &&
+        startsWith(github.event.comment.body, 'CSRETRO-APPROVE-SENSITIVE ')))
+    runs-on: ubuntu-24.04
+    environment: csretro-merge-controller
+    permissions:
+      contents: read
+    steps:
+      # Always trusted main. No PR checkout, PR scripts or interpolated PR text.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          lfs: false
+          submodules: false
+          persist-credentials: false
+      - name: Create scoped trusted-App token
+        id: merge-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.CSRETRO_MERGE_APP_ID }}
+          private-key: ${{ secrets.CSRETRO_MERGE_APP_PRIVATE_KEY }}
+          permission-administration: read
+          permission-checks: write
+          permission-contents: write
+          permission-pull-requests: write
+          permission-security-events: read
+      - name: Evaluate current open PRs and arm only native protected auto-merge
+        env:
+          GH_TOKEN: ${{ steps.merge-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh api --paginate "repos/$GH_REPO/pulls?state=open&base=main&per_page=100" --jq '.[].number' > "$RUNNER_TEMP/merge-prs"
+          while IFS= read -r number; do
+            python3 tools/github_merge_gate.py --repo "$GH_REPO" --pr "$number" --publish
+          done < "$RUNNER_TEMP/merge-prs"

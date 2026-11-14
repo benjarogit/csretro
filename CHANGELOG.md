@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Prepare fail-closed protected GitHub auto-merge coordination, current-head review/acceptance attestations and sensitive-change approval; retain existing CI and block activation until a trusted producer and reviews are available.
+
 - Complete the existing upstream observation register with requested technical sources, verified aliases and explicit unavailable identities; preserve all dependency pins and integration rules.
 
 - Executed builtin project manager with persistent priorities/dependencies, evidence-aware continuation and shared provider-neutral client reports; optional IDE discovery/file handoff never installs or launches agents.

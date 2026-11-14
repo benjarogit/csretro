@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "base": "main",
+  "required_checks": [
+    "repository verification",
+    "client callbacks (linux)",
+    "client callbacks (linux-port)",
+    "offscreen surface and client runtime",
+    "codeql-python"
+  ],
+  "acceptance_check": "protected merge acceptance",
+  "reviewer": "coderabbitai[bot]",
+  "sensitive_paths": [
+    ".github/**",
+    ".githooks/**",
+    "AGENTS.md",
+    "**/AGENTS.md",
+    "SECURITY.md",
+    "VERSION",
+    "scripts/install*",
+    "scripts/release*",
+    "scripts/deploy*",
+    "tools/github_merge_gate.py",
+    ".agents/**",
+    "tools/verify_repo.py",
+    "scripts/verify.sh",
+    "tools/chatdev_github.py",
+    "tools/check_*",
+    "**/csr_proto.h"
+  ],
+  "sensitive_labels": [
+    "security",
+    "release",
+    "deployment",
+    "paid",
+    "permissions",
+    "manual-approval",
+    "production",
+    "paid-service",
+    "requires-maintainer-approval"
+  ],
+  "maintainers": [
+    "benjarogit"
+  ],
+  "security_checks": [
+    {
+      "context": "CodeQL",
+      "app_id": 57789
+    }
+  ],
+  "acceptance_app_id": null
+}

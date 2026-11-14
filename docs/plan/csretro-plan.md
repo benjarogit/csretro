@@ -2128,7 +2128,7 @@ Nützlich und vorgesehen:
 | Bestehender Verify-Lauf | Gate gegen Drift, Secrets, Struktur |
 | Offizielle Pages-Actions | Bau und Publish der Doku-Page |
 | Dependabot nur für Actions unter `.github/` | Versions-PRs für Workflow-Actions |
-| Code-Scanning für Python und Workflows | Statische Prüfung ohne Auto-Merge |
+| CodeQL für Python-Werkzeuge | Pflichtprüfung vor geschütztem Auto-Merge; keine C++-Abdeckung |
 | Wöchentlicher Upstream-Wächter | Höchstens ein Issue; ändert keinen Pin |
 
 Kosten: öffentliche Standard-Runner und GitHub Pages sind kostenlos. Größere Runner
@@ -2233,7 +2233,7 @@ Vierzehn Fachzuständigkeiten werden als kontrollierte Phasen aktiviert, nicht a
 
 **Projektmanager und Anbieterunabhängigkeit.** Die zusätzliche, ausdrücklich beauftragte fünfzehnte Zuständigkeit `project_manager` läuft als echte lokale Koordinationsfunktion bei Start, Resume, Status und Backlog. Ihr persistierter Bericht erreicht den Orchestrator und beschreibt Aufgabenfortschritt mit aktuellen Nachweisen, autoritative Meilensteine, Prioritäten, Abhängigkeiten, Blocker und nächste Schritte. `assign` speichert Prioritäten/Abhängigkeiten atomar und verhindert Zyklen; `continue` setzt vorhandene Aufgaben fort und aktiviert benötigte Rollen, ohne ein neues Projekt oder Modell zu starten. Nachweise und unabhängige Qualität bleiben Pflicht. Historische CI-Fehler abgeschlossener Branches lösen keine Wiederholung erledigter Arbeit aus.
 
-Die gemeinsame SQLite-/JSON-Schnittstelle verwendet generische Client-Kennungen und benötigt weder Cursor noch Codex oder einen Modellanbieter. Optionale Adapter erkennen vorhandene offizielle CLIs und exportieren geschützte, versionierte Zuweisungen; sie installieren nichts und greifen nicht in laufende IDE-Sitzungen ein. Ein echter Agentenstart wird dadurch nicht behauptet. Gemeinsame Berichte werden unter Prozesssperre atomar veröffentlicht. Speicher-Stapeltransaktionen und WAL vermeiden den im realen Upstream-Import beobachteten Aufwand einzelner Commits; vollständige Dauerhaftigkeit und sichere Wiederherstellung bleiben erhalten. Der wiederverwendbare Speicher akzeptiert eigene Autoritätsquellen und funktioniert ohne Git-Installation. Eine spätere Orqen-Ausgliederung muss CSRETRO-Profil, generischen Kern und optionale Ausführungsadapter trennen; dieser Auftrag ändert kein Orqen-Repository. Main-Merges verlangen ausdrücklich eine neue Maintainer-Freigabe; PM und grüne CI ersetzen sie nicht.
+Die gemeinsame SQLite-/JSON-Schnittstelle verwendet generische Client-Kennungen und benötigt weder Cursor noch Codex oder einen Modellanbieter. Optionale Adapter erkennen vorhandene offizielle CLIs und exportieren geschützte, versionierte Zuweisungen; sie installieren nichts und greifen nicht in laufende IDE-Sitzungen ein. Ein echter Agentenstart wird dadurch nicht behauptet. Gemeinsame Berichte werden unter Prozesssperre atomar veröffentlicht. Speicher-Stapeltransaktionen und WAL vermeiden den im realen Upstream-Import beobachteten Aufwand einzelner Commits; vollständige Dauerhaftigkeit und sichere Wiederherstellung bleiben erhalten. Der wiederverwendbare Speicher akzeptiert eigene Autoritätsquellen und funktioniert ohne Git-Installation. Eine spätere Orqen-Ausgliederung muss CSRETRO-Profil, generischen Kern und optionale Ausführungsadapter trennen; dieser Auftrag ändert kein Orqen-Repository. Normale Entwicklungs-PRs dürfen nach der geschützten Auto-Merge-Prüfung ohne zusätzliche Einzel-Freigabe integriert werden. PM und grüne CI beweisen allein weder Schutzregeln noch Akzeptanz; maßgeblich sind `.github/merge-policy.json` und `tools/github_merge_gate.py`. Releases, produktive Deployments, Kosten, Berechtigungserweiterungen und sicherheitsrelevante Änderungen benötigen weiterhin ausdrückliche, auf den aktuellen Stand bezogene Freigabe.
 
 Der portable Einstieg ist `scripts/chatdev.sh run "Aufgabe"`; der Projektskill unterstützt `/chatdev`, sofern der Host Projektskills entdeckt. Ein universelles Slash-Kommando wird nicht behauptet. Normale Entwicklungssitzungen erhalten den Einstieg über AGENTS.md. Dieser Infrastrukturauftrag entwickelt G07 nicht weiter; die Portreihenfolge bleibt unverändert.
 
@@ -2311,3 +2311,35 @@ Auch bei reiner Ideen-Übernahme wird credited.
 10. Push, CI prüfen, Handoff aktualisieren
 
 **Abnahme G01:** CI grün, `verify.sh` grün, Push erfolgt, Handoff aktuell.
+
+### 11.7 Geschützter automatischer GitHub-Merge
+
+Die bestehende NextClient-/Xash3D-Portierung bleibt der Entwicklungsauftrag.
+Normale Änderungen nutzen native GitHub-Squash-Auto-Merges nach aktuellen,
+strikten Pflichtchecks (bestehende vier CI-Jobs, CodeQL und Akzeptanz-Gate),
+CodeRabbit-Freigabe zum aktuellen Head und gelösten Review-Konversationen.
+Branch-Schutz gilt auch für Administratoren, verbietet Force-Push/Löschen und
+verlangt aktuelle unabhängige Freigabe; die Live-Prüfung ersetzt keine Schutzregel.
+Der Koordinator führt ausschließlich Code aus `main` aus, nie PR-Code mit
+Schreibrechten. Er reagiert auf vorhandene CI-/Review-/PR-Ereignisse, baut
+keine zweite Testpipeline und startet weder Spiel noch Modell. Fehler oder
+unvollständige Nachweise verhindern das Scharfschalten. Die Akzeptanzerklärung
+im PR ist an dessen Head gebunden und muss überprüfbare Kriterien/Belege nennen;
+sie ersetzt keine notwendige menschliche Laufzeitabnahme.
+
+Sensible Pfade/Labels laut zentraler Policy verlangen zusätzlich ausdrückliche
+Maintainer-Freigabe am aktuellen Head. Selbstfreigaben zählen nicht. Releases,
+Deployments, Kosten und Berechtigungen werden nie pauschal freigegeben.
+PR #14 wird zuerst geprüft, #15 erst danach auf aktualisiertem `main`, #16
+anschließend ohne Verlust seiner bestehenden Workflow-/Vorlagenarbeit.
+Solange Review-Dienst oder vertrauenswürdiger Bootstrap fehlt, bleiben alle
+Merges gesperrt. Keine kostenpflichtigen Dienste oder größeren Runner hinzufügen.
+
+Der sichere Akzeptanzcheck benötigt eine eigene GitHub-App-Identität, weil die
+gemeinsame Actions-ID auch von veränderten PR-Workflows benutzt werden kann.
+App-Schlüssel bleiben ausschließlich in einem serverseitig auf `main` begrenzten
+Environment. Einrichtung dieser App-Rechte braucht ausdrückliche Freigabe;
+ohne App-Konfiguration und echten Token-/Negativtest bleibt Repository-Auto-Merge
+ausgeschaltet. Eine unabhängige aktuelle Freigabe bestätigt zusätzlich den
+SHA-256-Digest der Akzeptanzerklärung. CodeQL-Ergebnischeck und offene Warnungen
+werden separat vom erfolgreichen Analyse-/Uploadjob geprüft.

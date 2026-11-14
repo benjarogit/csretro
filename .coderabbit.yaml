@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  fail_commit_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "**/*"
+      instructions: >-
+        Enforce AGENTS.md and the authoritative CSRETRO plan. Check acceptance
+        evidence, DE/EN documentation, preserved work and security boundaries.
+        A stored callback is not gameplay proof. Do not approve unresolved findings.
+        Before approving, validate every criterion and evidence URL in the PR body's
+        chatdev-acceptance JSON. Canonicalize that JSON with Python json.dumps using
+        sort_keys=True and separators=(',', ':'); compute SHA256 of its UTF-8 bytes.
+        Include a separate line CSRETRO-ACCEPTANCE followed by that digest in your
+        approving review body only when all acceptance evidence is independently
+        verified. Never attest missing human gameplay evidence or skipped checks.

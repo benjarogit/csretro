@@ -10,6 +10,9 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Verify immutable acceptance criteria against substantive current-head CodeRabbit review evidence in a read-only native job, without a new App or secrets; reject skipped and rate-limited reviews.
+- Isolate pre-push verification from hook-local Git variables while retaining LFS forwarding, preventing worktree test fixtures from altering the caller repository.
+
 - Prepare fail-closed protected GitHub auto-merge coordination, current-head review/acceptance attestations and sensitive-change approval; retain existing CI and block activation until a trusted producer and reviews are available.
 
 - Complete the existing upstream observation register with requested technical sources, verified aliases and explicit unavailable identities; preserve all dependency pins and integration rules.

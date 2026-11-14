@@ -2355,3 +2355,23 @@ PR-Änderungen oder Sicherheitswarnungen. Ruleset-Bypassdetails prüft der vorha
 Administrator-Host. Ohne diese Sicht bleibt der Ablauf gesperrt. Quellen, Grenzen
 der persönlichen Repository-Verwaltung und Schlüsselrotation sind zweisprachig
 im Integrationsleitfaden dokumentiert.
+
+**Akzeptanz ohne neue App-Rechte (Fortsetzung).** Der nicht bereitgestellte eigene
+App-Schreiber wird durch einen schreibgeschützten nativen Actions-Akzeptanzjob
+ersetzt; alle sieben Pflichtkontexte und ihre bisherigen Dienstbindungen bleiben
+erhalten. Kein neuer Schlüssel oder Token. Kriterien und vollständige Pfadliste
+liegen als `docs/evidence/acceptance.json` am exakten PR-Head. CodeRabbit muss eine
+echte aktuelle Inhaltsprüfung samt konkreter Kriterienbewertung, Pfadnachweis und
+kanonischem Manifest-Digest im Review abgeben sowie aktuell freigeben. Übersprungene,
+neutrale, begrenzte oder reine Zusammenfassungsantworten zählen niemals.
+Review-Ereignisse prüfen nur den lesenden Akzeptanzjob neu; kein zweiter Build und
+kein privilegierter PR-Code. Die Actions-App-ID belegt den Dienst, nicht die
+Identität eines bestimmten Workflows; die unabhängige aktuelle Workflow-Prüfung
+und nativen Review-Gates bleiben Teil dieser Vertrauensgrenze. Der vorhandene Host
+aktiviert natives Auto-Merge erst nach allen Nachweisen. Der harmlose Doku-Test-PR
+muss auch einen echten positiven Ablauf beweisen; bis dahin bleibt Auto-Merge aus.
+Fehlende CodeQL-Grundlage oder dienstseitig fehlende Reviews sperren weiterhin.
+Ein beim Worktree-Test reproduzierter Pre-Push-Fehler wird an der Ursache korrigiert:
+Hook-lokale Git-Variablen werden nur für den Verify-Unterprozess entfernt, damit
+Test-Fixtures keine gemeinsame Repository-Konfiguration verändern; LFS behält
+seinen ursprünglichen Kontext. Keine Umgehung des Hooks.

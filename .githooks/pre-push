@@ -22,7 +22,15 @@ if [[ "${CSRETRO_SKIP_HOOKS:-0}" == "1" ]]; then
 fi
 
 printf 'pre-push: verifying repository\n' >&2
-"$ROOT/scripts/verify.sh"
+# Verification creates independent Git fixtures. Hook-local Git variables would
+# redirect their commands back into this worktree, including bare init/config.
+# Keep the original environment for the LFS forwarding below.
+(
+    while IFS= read -r variable; do
+        unset "$variable"
+    done < <(git rev-parse --local-env-vars)
+    "$ROOT/scripts/verify.sh"
+)
 
 if command -v git-lfs >/dev/null 2>&1; then
     git lfs pre-push "$@"

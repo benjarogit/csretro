@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "base": "main",
   "required_checks": [
     "repository verification",
@@ -26,7 +26,8 @@
     "scripts/verify.sh",
     "tools/chatdev_github.py",
     "tools/check_*",
-    "**/csr_proto.h"
+    "**/csr_proto.h",
+    "tools/github_acceptance.py"
   ],
   "sensitive_labels": [
     "security",
@@ -48,6 +49,10 @@
       "app_id": 57789
     }
   ],
-  "acceptance_app_id": null,
-  "native_ruleset_id": 27257972
+  "acceptance_app_id": 15368,
+  "native_ruleset_id": 27257972,
+  "acceptance_producer": "reviewed-read-only-actions",
+  "acceptance_path": "docs/evidence/acceptance.json",
+  "reviewer_app_id": 347564,
+  "reviewer_user_id": 136622811
 }

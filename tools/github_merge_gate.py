@@ -2,16 +2,15 @@
 """Inspect live GitHub evidence and enable native auto-merge without bypasses.
 
 The Actions caller checks out main, never PR code. No game/model is launched.
-Acceptance is an auditable, current-head PR-body evidence declaration reviewed by
+Acceptance is an immutable current-head evidence manifest substantively reviewed by
 CodeRabbit; it cannot replace human-only gameplay acceptance or security approval.
 """
 import argparse
 import fnmatch
-import hashlib
 import json
 import os
-from pathlib import Path
 import re
+from pathlib import Path
 import subprocess
 
 
@@ -27,9 +26,6 @@ class GitHub:
         if not token:
             raise RuntimeError('Dedicated check-publisher token is unavailable')
         return {**os.environ, 'GH_TOKEN': token}
-
-    def check_writer(self):
-        return GitHub(self.repo, token_env='GH_ACCEPTANCE_TOKEN')
 
     def api(self, path, method='GET', data=None):
         args = ['gh', 'api', f'repos/{self.repo}' + (f'/{path}' if path else ''), '--method', method]
@@ -64,11 +60,11 @@ def protection_holds(protection, policy):
     checks = protection.get('required_status_checks', {})
     required = set(policy['required_checks'])
     trusted_app = policy.get('acceptance_app_id')
-    if not isinstance(trusted_app, int) or trusted_app in (15368, 57789):
-        holds.append('Dedicated acceptance GitHub App is not configured')
+    if trusted_app != 15368 or policy.get('acceptance_producer') != 'reviewed-read-only-actions':
+        holds.append('Read-only independently reviewed native acceptance producer is not configured')
     if not any(c.get('context') == policy['acceptance_check'] and c.get('app_id') == trusted_app
                for c in checks.get('checks', [])):
-        holds.append('Acceptance check is not bound to the dedicated trusted App')
+        holds.append('Acceptance check is not bound to the existing Actions service')
     bound = {c['context'] for c in checks.get('checks', []) if c.get('app_id') == 15368}
     security = policy.get('security_checks', [])
     security_bound = all(any(c.get('context') == item['context'] and c.get('app_id') == item['app_id']
@@ -86,25 +82,6 @@ def protection_holds(protection, policy):
         if protection.get(flag, {}).get('enabled'):
             holds.append(f'Unsafe protection setting: {flag}')
     return holds
-
-
-def acceptance_holds(body, head):
-    match = re.search(r'<!-- chatdev-acceptance\s+(\{.*?\})\s*-->', body or '', re.S)
-    if not match:
-        return ['Missing current-head acceptance evidence declaration']
-    try:
-        evidence = json.loads(match[1])
-        criteria = evidence['criteria']
-        if evidence['head'] != head or not criteria:
-            raise ValueError('stale or empty')
-        for item in criteria:
-            if not item['criterion'].strip() or not item['evidence'].strip() or item['passed'] is not True:
-                raise ValueError('incomplete')
-        if evidence.get('human_runtime_required') is not False:
-            raise ValueError('human runtime acceptance pending')
-    except (KeyError, TypeError, ValueError, AttributeError):
-        return ['Acceptance declaration is stale, incomplete or requires human runtime evidence']
-    return []
 
 
 def evaluate(pr, files, reviews, checks, protection, repository, threads, policy, authorizations=(), security_alerts=()):
@@ -145,20 +122,6 @@ def evaluate(pr, files, reviews, checks, protection, repository, threads, policy
         newest = max(matching, key=lambda c: c['id'], default={})
         if newest.get('status') != 'completed' or newest.get('conclusion') != 'success':
             holds.append(f'Security results not successful: {item["context"]}')
-    holds += acceptance_holds(pr.get('body'), head)
-    match = re.search(r'<!-- chatdev-acceptance\s+(\{.*?\})\s*-->', pr.get('body') or '', re.S)
-    try:
-        declaration = json.loads(match[1]) if match else None
-        digest = hashlib.sha256(json.dumps(declaration, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-        marker = f'CSRETRO-ACCEPTANCE {digest}'
-        attested = any(r['state'] == 'APPROVED' and r.get('commit_id') == head
-                       and login in [policy['reviewer'], *policy['maintainers']]
-                       and login != pr['user']['login'] and marker in (r.get('body') or '').splitlines()
-                       for login, r in latest.items())
-        if not attested:
-            holds.append('Independent review must attest the exact acceptance declaration digest')
-    except (TypeError, ValueError):
-        holds.append('Acceptance digest unavailable')
     if security_alerts:
         holds.append('Open CodeQL/security scanning findings require resolution')
     sensitive = any(fnmatch.fnmatch(f, pattern) for f in files for pattern in policy['sensitive_paths'])
@@ -176,7 +139,7 @@ def evaluate(pr, files, reviews, checks, protection, repository, threads, policy
 
 def native_protection(github, policy):
     """Read native rules; existing host must audit bypasses without expanding App access."""
-    effective = github.pages('rules/branches/main')
+    effective = github.pages(f'rules/branches/{policy["base"]}')
     rule_id = policy['native_ruleset_id']
     if not any(rule.get('ruleset_id') == rule_id for rule in effective):
         raise RuntimeError('Required native ruleset is not effective on main')
@@ -210,9 +173,7 @@ def native_protection(github, policy):
 def merge_env():
     """Existing host/Actions authority arms native auto-merge, never the check-only App."""
     token = os.environ.get('GH_MERGE_TOKEN')
-    if not token:
-        raise RuntimeError('Separate existing native-merge authority is unavailable')
-    return {**os.environ, 'GH_TOKEN': token}
+    return {**os.environ, 'GH_TOKEN': token} if token else None
 
 
 def changed_paths(files):
@@ -250,44 +211,37 @@ def inspect(github, number, policy):
         cursor = connection['pageInfo']['endCursor']
     authorizations = github.pages(f'issues/{number}/comments')
     # Native code-scanning rules enforce findings and pending results server-side.
-    return evaluate(pr, files, reviews, checks, protection, repository, threads, policy, authorizations)
+    result = evaluate(pr, files, reviews, checks, protection, repository, threads, policy, authorizations)
+    import github_acceptance
+    artifact = github_acceptance.read_artifact(github, pr['head']['sha'], policy)
+    changed_files = github.pages(f'pulls/{number}/files')
+    result['holds'] += github_acceptance.validate(pr, changed_files, reviews, checks, artifact, policy)
+    acceptance = [check for check in checks if check.get('name') == policy['acceptance_check']
+                  and check.get('app', {}).get('id') == policy['acceptance_app_id']
+                  and check.get('head_sha') == pr['head']['sha']]
+    latest = max(acceptance, key=lambda check: check['id'], default={})
+    if latest.get('status') != 'completed' or latest.get('conclusion') != 'success':
+        result['holds'].append('Required independent acceptance job has not succeeded')
+    result['eligible'] = not result['holds']
+    return result
 
 
 def publish(github, number, policy):
-    """Invalidate old success before inspecting mutable evidence; never bypass protection."""
-    expected_app = policy.get('acceptance_app_id')
-    if not isinstance(expected_app, int) or expected_app in (15368, 57789):
-        raise RuntimeError('Dedicated trusted acceptance App must be configured first')
-    pr = github.api(f'pulls/{number}')
-    head = pr['head']['sha']
-    writer = github.check_writer()
-    pending = writer.api('check-runs', 'POST', {
-        'name': policy['acceptance_check'], 'head_sha': head, 'status': 'in_progress',
-        'output': {'title': 'Rechecking live evidence', 'summary': 'Auto-merge remains held until all evidence is refreshed.'}})
-    if pending.get('app', {}).get('id') != expected_app:
-        raise RuntimeError('Publishing token does not belong to the trusted acceptance App')
+    """Audit all live native gates and arm existing Auto-Merge; no check mutation."""
     try:
         result = inspect(github, number, policy)
         fresh = inspect(github, number, policy)
-        if result['head'] != head or fresh['head'] != head:
+        if fresh['head'] != result['head']:
             raise RuntimeError('Head changed during inspection')
-        result = fresh
-        writer.api(f'check-runs/{pending["id"]}', 'PATCH', {
-            'status': 'completed', 'conclusion': 'success' if result['eligible'] else 'failure',
-            'output': {'title': 'Acceptance satisfied' if result['eligible'] else 'Merge held',
-                       'summary': '\n'.join(result['holds']) or 'Current-head evidence and live protections verified.'}})
-        if result['eligible']:
+        if fresh['eligible']:
             subprocess.run(['gh', 'pr', 'merge', str(number), '--repo', github.repo,
-                            '--auto', '--squash', '--match-head-commit', head], check=True, env=merge_env())
+                            '--auto', '--squash', '--match-head-commit', fresh['head']],
+                           check=True, env=merge_env())
         else:
             disarm(github, number)
-        return result
+        return fresh
     except Exception:
-        # The pending check is already blocking. Keep failure visible when possible.
         try:
-            writer.api(f'check-runs/{pending["id"]}', 'PATCH', {
-                'status': 'completed', 'conclusion': 'failure',
-                'output': {'title': 'Evidence unavailable', 'summary': 'Live refresh failed; do not merge.'}})
             disarm(github, number)
         except Exception:
             pass
@@ -305,14 +259,35 @@ def disarm(github, number):
           clientMutationId } }''', {'id': pr['id']}, merge_auth=True)
 
 
+def sandbox_policy(github, number, policy, branch, rule_id):
+    """Permit an isolated, equally protected three-file documentation canary only."""
+    if not isinstance(branch, str) or not re.fullmatch(r'codex/auto-merge-sandbox(?:-[a-z0-9]+)?', branch):
+        raise ValueError('Only an isolated auto-merge sandbox target is allowed')
+    if not isinstance(rule_id, int) or rule_id == policy['native_ruleset_id']:
+        raise ValueError('A distinct test-only ruleset is required')
+    candidate = {**policy, 'base': branch, 'native_ruleset_id': rule_id}
+    if native_protection(github, candidate) != native_protection(github, policy):
+        raise RuntimeError('Sandbox native protections differ from production requirements')
+    expected = {'docs/de/maintainers/merge-canary.md', 'docs/en/maintainers/merge-canary.md',
+                policy['acceptance_path']}
+    paths = set(changed_paths(github.pages(f'pulls/{number}/files')))
+    if paths != expected:
+        raise RuntimeError('Canary must change exactly paired documentation and its acceptance manifest')
+    return candidate
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--repo', required=True)
     parser.add_argument('--pr', type=int, required=True)
-    parser.add_argument('--publish', action='store_true', help='Publish gate and enable native auto-merge')
+    parser.add_argument('--sandbox-base', help='Isolated documentation-only test target')
+    parser.add_argument('--sandbox-ruleset', type=int)
+    parser.add_argument('--publish', action='store_true', help='Audit existing acceptance and enable native auto-merge')
     args = parser.parse_args()
     policy = json.loads((Path(__file__).resolve().parents[1] / '.github/merge-policy.json').read_text())
     github = GitHub(args.repo)
+    if args.sandbox_base or args.sandbox_ruleset:
+        policy = sandbox_policy(github, args.pr, policy, args.sandbox_base, args.sandbox_ruleset)
     result = publish(github, args.pr, policy) if args.publish else inspect(github, args.pr, policy)
     print(json.dumps(result, indent=2))
 

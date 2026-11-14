@@ -25,7 +25,7 @@ class Remote:
         result = None
         code = 0
         if argv[1:3] == ['repo', 'view']:
-            result = {'nameWithOwner': 'test/project'}
+            result = {'nameWithOwner': 'test/project', 'defaultBranchRef': {'name': 'trunk'}}
         elif argv[1:3] == ['pr', 'view']:
             result = self.pr
         elif '--method' in argv:
@@ -37,9 +37,9 @@ class Remote:
         elif 'labels?' in argv[2]:
             result = [self.labels]
         elif 'pulls?' in argv[2]:
-            result = [[{'number': 3, 'head': {'sha': 'abc'}}]]
+            result = [[{'number': 3, 'head': {'sha': 'abc', 'ref': 'current-fix'}}]]
         elif '/reviews?' in argv[2]:
-            result = [[{'state': 'CHANGES_REQUESTED', 'body': 'Add missing regression'}]]
+            result = [[{'id': 1, 'user': {'id': 10, 'login': 'reviewer'}, 'state': 'CHANGES_REQUESTED', 'body': 'Add missing regression'}]]
         elif '/check-runs' in argv[2]:
             result = [{'check_runs': [{'name': 'tests', 'conclusion': 'failure'}]}]
         elif '/actions/runs' in argv[2]:
@@ -53,7 +53,8 @@ class Remote:
 
 class GitHubTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
+        Path('/tmp/opencode').mkdir(parents=True, exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(dir='/tmp/opencode')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.remote = Remote()
@@ -63,6 +64,7 @@ class GitHubTests(unittest.TestCase):
         self.remote.issues = [{'number': 1, 'title': 'Crash', 'labels': []}]
         snapshot = self.github.snapshot()
         self.assertEqual(snapshot['issues'][0]['number'], 1)
+        self.assertEqual(snapshot['default_branch'], 'trunk')
         self.assertEqual(snapshot['pulls'][0]['reviews'][0]['state'], 'CHANGES_REQUESTED')
         self.assertTrue(any('Projects unavailable' in e for e in snapshot['errors']))
         self.assertNotIn('private error detail', json.dumps(snapshot))
@@ -76,6 +78,97 @@ class GitHubTests(unittest.TestCase):
         self.assertEqual(report['failed_ci'], [])
         self.assertEqual(report['pending_ci'], [{'pr':13,'check':'build','status':'in_progress'}])
         self.assertEqual(report['repair'], 'none')
+
+    def test_current_runs_do_not_reschedule_historical_or_closed_branch_failures(self):
+        report = reconcile({'default_branch': 'trunk', 'pulls': [], 'runs': [
+            {'id': 8, 'workflow_id': 1, 'head_branch': 'trunk', 'status': 'completed', 'conclusion': 'success'},
+            {'id': 7, 'workflow_id': 1, 'head_branch': 'trunk', 'status': 'completed', 'conclusion': 'failure'},
+            {'id': 6, 'workflow_id': 1, 'head_branch': 'already-merged', 'conclusion': 'failure'}]})
+        self.assertEqual(report['failed_ci'], [])
+        self.assertEqual(report['pending_ci'], [])
+        self.assertEqual(report['errors'], [])
+        self.assertEqual(report['repair'], 'none')
+
+    def test_current_open_pr_failure_remains_blocking_but_previous_head_is_ignored(self):
+        report = reconcile({'default_branch': 'trunk',
+            'pulls': [{'number': 5, 'head': {'ref': 'fix', 'sha': 'current'}}], 'runs': [
+            {'id': 10, 'workflow_id': 1, 'head_branch': 'fix', 'head_sha': 'current', 'conclusion': 'failure'},
+            {'id': 9, 'workflow_id': 1, 'head_branch': 'fix', 'head_sha': 'previous', 'conclusion': 'failure'},
+            {'id': 8, 'workflow_id': 1, 'head_branch': 'trunk', 'conclusion': 'success'}]})
+        self.assertEqual(report['failed_ci'], [{'run': 10, 'url': None}])
+        self.assertEqual(report['repair'], 'assign-test-and-repository-review')
+
+    def test_new_pending_run_supersedes_old_failure_without_claiming_green(self):
+        report = reconcile({'default_branch': 'trunk', 'runs': [
+            {'id': 10, 'workflow_id': 1, 'head_branch': 'trunk', 'status': 'queued', 'conclusion': None},
+            {'id': 9, 'workflow_id': 1, 'head_branch': 'trunk', 'conclusion': 'failure'}]})
+        self.assertEqual(report['failed_ci'], [])
+        self.assertEqual(report['pending_ci'], [{'run': 10, 'status': 'queued', 'url': None}])
+
+    def test_distinct_current_fork_heads_with_same_branch_do_not_hide_each_other(self):
+        report = reconcile({'default_branch': 'trunk', 'pulls': [
+            {'number': 1, 'head': {'ref': 'fix', 'sha': 'one'}},
+            {'number': 2, 'head': {'ref': 'fix', 'sha': 'two'}}], 'runs': [
+            {'id': 10, 'workflow_id': 1, 'head_branch': 'fix', 'head_sha': 'one', 'conclusion': 'success'},
+            {'id': 9, 'workflow_id': 1, 'head_branch': 'fix', 'head_sha': 'two', 'conclusion': 'failure'}]})
+        self.assertEqual(report['failed_ci'], [{'run': 9, 'url': None}])
+
+    def test_workflows_on_one_branch_have_independent_latest_results(self):
+        report = reconcile({'default_branch': 'trunk', 'runs': [
+            {'id': 10, 'workflow_id': 1, 'head_branch': 'trunk', 'conclusion': 'success'},
+            {'id': 9, 'workflow_id': 2, 'head_branch': 'trunk', 'conclusion': 'failure'}]})
+        self.assertEqual(report['failed_ci'], [{'run': 9, 'url': None}])
+
+    def test_unknown_ci_identity_is_explicit_and_never_implied_green(self):
+        report = reconcile({'runs': [{'id': 3, 'conclusion': 'failure'}]})
+        self.assertEqual(len(report['errors']), 2)
+        self.assertTrue(report['pending_ci'])
+        self.assertTrue(all(x['status'] == 'unknown' for x in report['pending_ci']))
+
+    def test_latest_approval_supersedes_same_reviewers_old_change_request(self):
+        old = {'id': 1, 'user': {'id': 10, 'login': 'reviewer'}, 'state': 'CHANGES_REQUESTED'}
+        approved = {'id': 2, 'user': {'id': 10, 'login': 'renamed-reviewer'}, 'state': 'APPROVED'}
+        report = reconcile({'pulls': [{'number': 5, 'reviews': [approved, old]}]})
+        self.assertEqual(report['reviews'][0]['reviews'], [approved])
+        self.assertFalse(report['reviews'][0]['manual_review_required'])
+        self.assertEqual(report['errors'], [])
+
+    def test_submission_time_overrides_draft_creation_id_order(self):
+        user = {'id': 10, 'login': 'reviewer'}
+        late_submitted_draft = {'id': 1, 'user': user, 'state': 'APPROVED',
+                                'submitted_at': '2026-11-14T10:00:00Z'}
+        earlier_request = {'id': 2, 'user': user, 'state': 'CHANGES_REQUESTED',
+                           'submitted_at': '2026-11-14T09:00:00Z'}
+        report = reconcile({'pulls': [{'number': 5, 'reviews': [late_submitted_draft, earlier_request]}]})
+        self.assertEqual(report['reviews'][0]['reviews'], [late_submitted_draft])
+
+    def test_comments_and_pending_reviews_do_not_erase_formal_decision(self):
+        reviewer = {'id': 10, 'login': 'reviewer'}
+        old = {'id': 1, 'user': reviewer, 'state': 'CHANGES_REQUESTED'}
+        comment = {'id': 2, 'user': reviewer, 'state': 'COMMENTED'}
+        pending = {'id': 3, 'user': reviewer, 'state': 'PENDING'}
+        report = reconcile({'pulls': [{'number': 5, 'reviews': [old, comment, pending]}]})
+        self.assertEqual(report['reviews'][0]['reviews'], [old])
+        self.assertEqual(report['reviews'][0]['comments'], [comment, pending])
+
+    def test_other_reviewers_outstanding_requests_remain_after_approval(self):
+        report = reconcile({'pulls': [{'number': 5, 'reviews': [
+            {'user': {'login': 'alice'}, 'state': 'CHANGES_REQUESTED'},
+            {'user': {'login': 'bob'}, 'state': 'CHANGES_REQUESTED'},
+            {'user': {'login': 'Alice'}, 'state': 'APPROVED'}]}]})
+        effective = {r['user']['login'].casefold(): r['state'] for r in report['reviews'][0]['reviews']}
+        self.assertEqual(effective, {'alice': 'APPROVED', 'bob': 'CHANGES_REQUESTED'})
+
+    def test_dismissal_clears_formal_request_and_unknown_identity_is_manual(self):
+        report = reconcile({'pulls': [{'number': 5, 'reviews': [
+            {'user': {'id': 10}, 'state': 'CHANGES_REQUESTED'},
+            {'user': {'id': 10}, 'state': 'DISMISSED'},
+            {'state': 'CHANGES_REQUESTED'}, {'state': 'APPROVED'}]}]})
+        reviews = report['reviews'][0]
+        self.assertEqual(reviews['reviews'][0]['state'], 'DISMISSED')
+        self.assertTrue(any(r['state'] == 'CHANGES_REQUESTED' for r in reviews['reviews']))
+        self.assertTrue(reviews['manual_review_required'])
+        self.assertEqual(len(report['errors']), 2)
 
     def test_duplicate_search_includes_later_pages_and_closed_issues(self):
         self.remote.issues = [{'number': 1, 'title': 'Other issue'},

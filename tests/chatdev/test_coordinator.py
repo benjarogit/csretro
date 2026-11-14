@@ -361,6 +361,20 @@ class CoordinatorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Reviewed work changed'):
             self.coordinator.complete(task)
 
+    def test_upstream_observations_persist_deduplicate_and_invalidate_changed_revision(self):
+        candidate = {'reference':'https://github.com/example/source/pull/1','commit':'a','source':'example/source','relevance':'test observation'}
+        report = {'candidates':[candidate], 'errors':[], 'mutations':False}
+        first = self.coordinator.remember_upstreams(report)['memory_ids'][0]
+        self.assertEqual(self.coordinator.remember_upstreams(report)['memory_ids'],[first])
+        reopened = self.open()
+        self.assertEqual(len(reopened.memory.search('observation',include_stale=False)),1)
+        candidate['commit']='b'
+        second = reopened.remember_upstreams(report)['memory_ids'][0]
+        self.assertNotEqual(first,second)
+        hits = reopened.memory.search('observation')
+        self.assertTrue(next(row for row in hits if row['id']==first)['stale'])
+        self.assertFalse(next(row for row in hits if row['id']==second)['stale'])
+
     def test_repeated_setup_is_idempotent(self):
         task = self.start()['id']
         for _ in range(3):

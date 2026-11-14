@@ -30,4 +30,4 @@ jobs:
       - name: Reconcile backlog, PR reviews and CI without mutations
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/chatdev.sh backlog
+        run: ./scripts/chatdev.sh backlog --upstreams

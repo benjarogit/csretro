@@ -84,10 +84,11 @@ def reconcile(snapshot, attempts=0, now=None):
             a, b = _title(left['title']), _title(right['title'])
             if a != b and len(set(a.split()) & set(b.split())) >= 3 and SequenceMatcher(None, a, b).ratio() >= .8:
                 related.append([left['number'], right['number']])
-    failed, reviews = [], []
+    failed, reviews, pending = [], [], []
     for pr in snapshot.get('pulls', []):
         for check in pr.get('checks', []):
-            if check.get('conclusion', '').lower() in {'failure', 'timed_out', 'cancelled', 'action_required'}:
+            if not check.get('conclusion'): pending.append({'pr':pr['number'],'check':check.get('name'),'status':check.get('status','unknown')})
+            if (check.get('conclusion') or '').lower() in {'failure', 'timed_out', 'cancelled', 'action_required'}:
                 failed.append({'pr': pr['number'], 'check': check.get('name'), 'url': check.get('html_url')})
         if pr.get('reviews'):
             reviews.append({'pr': pr['number'], 'reviews': pr['reviews']})
@@ -96,7 +97,7 @@ def reconcile(snapshot, attempts=0, now=None):
             failed.append({'run': run.get('id'), 'url': run.get('html_url')})
     return {'duplicates': duplicates, 'related': related, 'dependencies': dependencies,
             'orphaned': orphaned, 'blocked': blocked, 'stale': stale,
-            'reviews': reviews, 'failed_ci': failed, 'errors': snapshot.get('errors', []),
+            'reviews': reviews, 'failed_ci': failed, 'pending_ci':pending, 'errors': snapshot.get('errors', []),
             'repair': 'escalate' if failed and attempts >= 2 else 'assign-test-and-repository-review' if failed else 'none',
             'retry_limit': 2, 'remaining_attempts': max(0, 2 - attempts)}
 

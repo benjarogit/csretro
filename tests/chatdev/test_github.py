@@ -71,6 +71,12 @@ class GitHubTests(unittest.TestCase):
         self.assertEqual(report['remaining_attempts'], 0)
         self.assertEqual(report['failed_ci'][0]['pr'], 3)
 
+    def test_live_pending_checks_with_null_conclusion_are_visible(self):
+        report = reconcile({'pulls':[{'number':13,'checks':[{'name':'build','conclusion':None,'status':'in_progress'}]}]})
+        self.assertEqual(report['failed_ci'], [])
+        self.assertEqual(report['pending_ci'], [{'pr':13,'check':'build','status':'in_progress'}])
+        self.assertEqual(report['repair'], 'none')
+
     def test_duplicate_search_includes_later_pages_and_closed_issues(self):
         self.remote.issues = [{'number': 1, 'title': 'Other issue'},
                               {'number': 7, 'title': 'Fix: CRASH!', 'state': 'closed'}]

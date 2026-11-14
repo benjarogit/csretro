@@ -1,0 +1,27 @@
+name: Verbesserung oder Feature
+description: Verbesserungen gemäß bestehendem Projektplan vormerken
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Nutzerziel
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Upstream oder technische Referenz
+      description: Repository, Commit/Release und mögliche Umsetzung, sofern bekannt
+  - type: textarea
+    id: plan
+    attributes:
+      label: Zuordnung zum bestehenden Gate und Priorität
+      description: Die NextClient-/Xash3D-Portierung hat Vorrang
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Akzeptanzkriterien und Tests
+    validations:
+      required: true

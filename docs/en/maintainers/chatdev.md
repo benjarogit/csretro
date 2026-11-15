@@ -1,0 +1,23 @@
+# Local development coordination
+
+Use `scripts/chatdev.sh run "Fix documentation links" --mode docs --scope docs` from any working directory. The CLI reads the harness, authoritative plan, handoff and dependency pins, queries GitHub and retrieves fresh project memories. `--offline` explicitly skips GitHub. `/chatdev` is a project skill when supported by the host; the shell entry always works. See the [technical evaluation](chatdev-evaluation.md).
+
+The fourteen roles are controlled phases listed by `scripts/chatdev.sh roles`. Simple docs work selects orchestrator, documentation and independent quality; change work adds developer/tester, with specialists selected by task keywords. Selection is deterministic routing, not an LLM planner. The host agent decomposes dependencies from the returned context and performs the work; the CLI launches no model, game or recursive agent. File claims prevent overlapping cooperating assignments and constrain tester/docs roles. They are not a filesystem sandbox. Native subagents are optional; a real independent reviewer is required before completion.
+
+## Persistent work
+
+`resume <id>` loads phases, results and the next step. `tasks` lists blocked and unfinished work. `claim <id> <role> <relative-files...>` reserves files. `record <id> <role> --actor <real-identity> --status passed|blocked|failed --summary "result" --evidence <relative-file>` stores attributed evidence. Update DE/EN docs, CHANGELOG.md and HANDOFF.md through the normal gate cycle. `complete <id>` requires every selected phase, independent quality and unchanged evidence. This validates recorded evidence, not its scientific correctness: the reviewer must inspect test logs and requirements. Replacing contributor results invalidates quality. Authority changes require a fresh reconciled task linked to the prior id.
+
+`remember "finding" --source tools/example.py --component tooling --kind analysis` stores useful findings; `memory "query"` searches local SQLite FTS5 BM25. This is lexical search without embeddings. Provenance hashes include requirements and dependency pins; changed/deleted sources, expiry and explicit `invalidate <id> "reason"` expose stale memories. Start only reuses fresh results. Never store secrets, private content or full chat logs. Memory is historical evidence, never authority.
+
+`backup .local/chatdev/backup.sqlite3` and `restore .local/chatdev/backup.sqlite3` cover task, claim, result and memory tables in one database. Restore checks integrity, project identity and provenance; it preserves a recovery copy. Backups cannot overwrite existing files or escape the ignored local directory. Close other CLI processes before restore. Copying a backup off-machine is a separate maintainer operation.
+
+## GitHub and maintenance
+
+`backlog` reads issues, PRs, reviews, CI, labels and Projects availability; reports blocked/related/orphaned work, duplicate titles and failed checks. Permissions failures are explicit, never green status. `issue "title" "body"` previews duplicate-aware creation; `--apply` permits creation with existing labels. The Python GitHub adapter also supports closure only with hashed acceptance/reviewer evidence and an actually merged linked PR with green checks. Risky operations have no CLI bypass. Git/PR operations still follow the harness and maintainer authorization; no force push, release, deletion, credential change or game start is automated.
+
+CI triage reports retry/escalation after two attempts; it never executes speculative repairs. The existing weekly upstream workflow also reconciles the backlog. Its existing pin watcher remains unchanged. Upstream assessment helper requires source, revision, license, compatibility, priority, dependencies and strategy; store its result with `remember --kind upstream`. There is no automatic cherry-pick. `maintenance` reports tracked temporary files and duplicate assets for review, never deletes files or infers dead code from static references. Existing verification handles links/naming; semantic dead-code/dependency review belongs to the architect.
+
+`check verify` and `check docs` run the existing scripts and return actual exit codes/output. Test the infrastructure with `python3 -m unittest discover -s tests/chatdev -v`. GitHub mutation/CI failure tests use mocks; live reads and local CLI restart are separate evidence. Python 3.12+ with SQLite FTS5 and optional authenticated gh suffice; no model, daemon, cloud memory or paid API is installed.
+
+After authority changes, use `release <id> --reason "superseded by reconciled task"` to cancel the stale task and release its claims without deleting history. Start a new task referencing that id. Cancelled tasks cannot contribute new results.

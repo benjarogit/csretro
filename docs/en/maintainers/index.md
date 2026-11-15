@@ -33,3 +33,5 @@ entry. Cursor work plans are staging, not a second source of truth.
 ## Prove the port
 
 Use [runtime acceptance](runtime-readiness.md) before calling an artifact runnable. An open menu and a stored callback do not prove a game client. Player-visible features belong in the [player guide](../players/features.md), alongside the implementation rather than in commit transcripts.
+
+Use [local coordination](chatdev.md) for persistent development work.

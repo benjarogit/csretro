@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Local development coordinator with fourteen scoped role phases, provenance-aware SQLite FTS5 memory, restart/backup support, GitHub reconciliation and project skill entry. No model service or game process is launched.
+
 - Original panel traversal, HUD painting, engine-backed files/fonts and UI mouse/frame routing, with native fixtures and offscreen GL CI; actual runtime/GameUI/NextClient integration remains open.
 
 - Original VGUI startup binding after the real client Initialize callback, with a paired VGUI fingerprint, shared symbol lookup and owned shutdown; GameUI integration remains open.

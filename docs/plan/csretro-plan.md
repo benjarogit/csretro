@@ -1514,6 +1514,17 @@ Bibliothek hängt noch nicht an Xash3D.
 
 **Original-Panel-Laufzeit (umgesetzt, Komponentenabnahme).** Die Brücke löst Wurzel, Panelgeometrie, Traversierung, Popup-Flags und Input über benannte Originalsymbole auf. VPANEL bleibt das originale unsigned-int-Handle; es gibt keine Umdeutung alter SDK-Objekte. Nach Original-HUD-Redraw folgen Layout und Paint auf derselben Surface, mit Engine-Bildschirmgröße. Dateien werden über COM_LoadFile/COM_FreeFile gelesen; Marlett wird über COM_ExpandFilename aus der eigenen Installation gefunden. Vor jedem originalen CVGui-Frame werden Cursor und Embedded-Panel synchronisiert. Die Surface-eigene RunFrame bleibt leer; der bisherige Testhost wird nicht auf den Original-Scheduler umgestellt. Relative SDL2-Mausbewegung wird aus dem bereits geladenen Client nur bei sichtbarer UI konsumiert; sonst bleibt sie dem Original-Movement erhalten. Tastenzustandswechsel für fünf Maustasten werden einmal zugestellt und beim Zurücksetzen freigegeben. dc_none meldet unsichtbar. CreatePopup setzt native Popup-/Input-Flags; ein optionaler eigener Pfeil ersetzt fehlende Cursor-Assets, ohne Valve-Dateien zu verteilen. Native Fixtures prüfen Delegation, Dateifreigabe, Fokusaktualisierung, Schedulerreihenfolge und relativen Mausweg; echte Surface-Tests prüfen zusätzlich Pixel im EGL-Pbuffer. CI baut beide Callback-Architekturen und einen x64-Offscreen-GL-Lauf. Diese Prüfungen starten weder Xash3D noch Originalbibliotheken und belegen keine Spielbarkeit oder Movement-Abnahme. Tastatur-/Fokusabnahme, GameUI, NextClient und vollständige Engine-/Installationsbereitstellung bleiben offen.
 
+**Entwicklungsfortsetzung trotz separater App-Freigabe.** Die Untersuchung einer
+unabhängigen Reviewer-App wird auf ausdrücklichen Maintainer-Auftrag separat
+geparkt. Bestehende G07-Arbeit wird aus ihrem gespeicherten Branch fortgesetzt;
+keine Neuimplementierung abgeschlossener ABI-Schritte. Vorhandene Review-/CI-
+und Merge-Gates bleiben verbindlich. GameUI muss seinen eigenen nativen
+Factory-/Engine-Start-Vertrag erfüllen; die vier Viewport-Factory-Einträge sind
+kein universeller Ersatz. Insbesondere hat der native Renderer-Service der
+Original-GameUI fünf explizite Argumente statt der sechs des neueren SDKs; erst
+ein versionsgerechter Engine-Service-Provider erlaubt den echten GameUI-Start.
+Die Untersuchung startet weder Spiel noch Originalcode.
+
 **Zweiter Schritt: ausschließlich x64 und mindestens 60 FPS.** Erst nach dem funktionierenden Port werden durchgängig native x64-Artefakte und mindestens 60 FPS in einer benannten echten Spielszene nachgewiesen. Eine i386-Spielbibliothek ist keine x64-Lösung. Die Eigenständigkeit von Valves Engine darf nicht mit der bereits erfolgten Ablösung jedes Original-Spielmoduls verwechselt werden. `tools/check_game_client.py` prüft nur das benannte x64-Kernprofil, keine alternative `F`-/`GetClientAPI`-Tabelle, Signaturen oder Spielbarkeit. Der Test ist für diese Phase eingegrenzt und blockiert den ersten architekturgleichen Port nicht. Leere Ersatz-Exports oder No-ops sind kein Fortschrittsnachweis.
 
 **Originalinhalte installieren.** Voraussetzung ist eine eigene lizenzierte CS-1.6-Installation. Standardmäßig sucht `scripts/install-content.sh` Steam und App 10. Mit `--source` kann der Benutzer bei fehlender Erkennung oder Kopierproblemen den Spiel-Hauptordner oder dessen `valve`-/`cstrike`-Ordner angeben. Der gemeinsame Baum muss trotzdem beide Spielordner und die benötigten Ressourcen enthalten. Die manuelle Auswahl wird geprüft und nicht still durch eine andere Installation ersetzt. Sie braucht keine lesbaren Steam-Metadaten und startet Steam nicht. Die Prüfung kontrolliert Datenstruktur und Pflichtdateien, keine Kontoanmeldung. Der Installer kopiert dieselbe Allowlist, lässt Ballast und persönliche Dateien liegen, schützt Quelle und erkannte Steam-Bibliotheken vor Ziel-/Overlay-Schreibzugriff und liefert keine Valve-Dateien im Repository aus. Die bisherige Inhaltskopie bleibt von Runtime-Bibliotheksintegration und vollständigen Client-/Server-Startern getrennt.
@@ -2218,6 +2229,14 @@ behalten ihre Lizenzen. Ohne diese Lizenz werden keine fremden Patches angenomme
 
 ---
 
+
+### 11.6 Lokale Entwicklungsorchestrierung
+
+ChatDev dient als Architekturvorbild; das Framework wird nicht installiert oder vendort. Die technische [Bewertung](../de/maintainers/chatdev-evaluation.md) vergleicht Lizenz, Laufzeit und lokale Memory-Alternativen. `scripts/chatdev.sh` nutzt Python-Standardbibliothek und SQLite FTS5 (lexikalisches BM25, keine semantischen Embeddings, kein Modell-/API-Zwang). Ein gemeinsamer lokaler Speicher unter `.local/chatdev/` enthält Aufgaben, kooperative Dateiansprüche, nachweisgebundene Rollenergebnisse und Erinnerungen. Root-/bereichsspezifische Harness, Plan, Handoff und Pins werden vor Wiederverwendung geprüft; Entscheidungen verbleiben in ihren autoritativen Dateien. Backup/Restore verwenden geprüfte projektgebundene SQLite-Sicherungen.
+
+Vierzehn Fachzuständigkeiten werden als kontrollierte Phasen aktiviert, nicht als vierzehn dauerhafte Prozesse. Native Subagenten können unabhängige Arbeit übernehmen; CLI-Ausgaben sind keine Agentenausführung. Ein unabhängiger Qualitätsprüfer muss reale Ergebnisse prüfen. Datei-Claims sind Koordinationssperren, keine Sandbox. GitHub-Zugriffe laufen über gh mit explizitem Offlinezustand, Vorschau vor Mutationen, Duplikatsuche und begrenzter CI-Eskalation. Der vorhandene Upstream-Watch bleibt alleiniger Zeitplan und Pin-Eigentümer; Kandidaten sind Bewertungen, keine automatischen Cherry-Picks. Kein neuer Dauerdienst und kein automatischer Spielstart.
+
+Der portable Einstieg ist `scripts/chatdev.sh run "Aufgabe"`; der Projektskill unterstützt `/chatdev`, sofern der Host Projektskills entdeckt. Ein universelles Slash-Kommando wird nicht behauptet. Normale Entwicklungssitzungen erhalten den Einstieg über AGENTS.md. Dieser Infrastrukturauftrag entwickelt G07 nicht weiter; die Portreihenfolge bleibt unverändert.
 
 ## 12. Credits
 

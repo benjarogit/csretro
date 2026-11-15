@@ -17,6 +17,9 @@ if ! python3 tools/verify_repo.py; then
     fail=1
 fi
 
+note "==> local orchestration regression tests"
+python3 -m unittest discover -s tests/chatdev -q || fail=1
+
 note "==> python syntax"
 if ! python3 -m compileall -q tools tests; then
     fail_msg "python compilation failed"

@@ -118,6 +118,8 @@ namespace
     int viewport_init_count;
     int viewport_start_count;
     int viewport_factory_count;
+    void (*viewport_init_hook)();
+    void (*viewport_start_hook)();
 }
 namespace vgui2
 {
@@ -153,17 +155,19 @@ void CounterStrikeViewport::Initialize(void* (**factories)(const char*, int*), i
         factories[2]("VGUI_Panel007", nullptr) == vgui2::g_pPanelInterface &&
         factories[3]("KeyValues003", nullptr) == g_pKeyValuesInterface)
         ++viewport_init_count;
+    if (viewport_init_hook) viewport_init_hook();
 }
 void CounterStrikeViewport::Start()
 {
-    if (viewport_init_count == 1)
-        ++viewport_start_count;
+    ++viewport_start_count;
+    if (viewport_start_hook) viewport_start_hook();
 }
 namespace { CounterStrikeViewport viewport; }
 __attribute__((visibility("hidden"))) void* gViewPortInterface = &viewport;
 extern "C" void FixtureClientBindingReset()
 {
     viewport_init_count = viewport_start_count = viewport_factory_count = 0;
+    viewport_init_hook = viewport_start_hook = nullptr;
     g_pFileSystem = &filesystem_token;
     gViewPortInterface = &viewport;
 }
@@ -191,3 +195,9 @@ public:
     unsigned GetViewPortPanel();
 };
 unsigned TeamFortressViewport::GetViewPortPanel() { return 16; }
+
+extern "C" void FixtureViewportHooks(void (*init)(), void (*start)())
+{
+    viewport_init_hook = init;
+    viewport_start_hook = start;
+}

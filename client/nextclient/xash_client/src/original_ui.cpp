@@ -2,6 +2,7 @@
 #include "build_registry.h"
 
 #include <dlfcn.h>
+#include <cstdio>
 
 namespace csr::client
 {
@@ -32,7 +33,8 @@ namespace csr::client
 
     OriginalUi::~OriginalUi()
     {
-        Shutdown();
+        try { Shutdown(); }
+        catch (...) { std::fprintf(stderr, "CSRETRO original UI shutdown failed\n"); }
         vgui_.reset();
         if (surface_) api_.destroy(surface_);
     }
@@ -60,7 +62,7 @@ namespace csr::client
             return false;
         }
         if (surface_ && vgui_)
-            return binding_.Initialize(client, vgui_.get(), surface_object_, error);
+            return StartBinding(client, error);
         const auto vgui_path = directory / "vgui2.valve.so";
         if (!nitroapi::IsRegisteredClientVgui(client_hash, nitroapi::HashFileSha256(vgui_path.string())))
         {
@@ -113,7 +115,21 @@ namespace csr::client
         }, this);
         api_.default_cursor(surface_, 1);
         surface_object_ = api_.object(surface_);
-        return binding_.Initialize(client, vgui_.get(), surface_object_, error);
+        return StartBinding(client, error);
+    }
+
+    bool OriginalUi::StartBinding(void* client, std::string& error)
+    {
+        if (!binding_.BindInterfaces(client, vgui_.get(), surface_object_, error))
+            return false;
+        // GameUI needs its own verified native services and lifecycle here.
+        // Do not pretend the newer SDK/test host supplies those interfaces.
+        if (!binding_.InitializeViewport(error) || !binding_.StartViewport(error))
+        {
+            binding_.Shutdown();
+            return false;
+        }
+        return true;
     }
 
     bool OriginalUi::AttachRoot()

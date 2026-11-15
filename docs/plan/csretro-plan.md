@@ -1569,10 +1569,32 @@ fehlende Funktionen und ungültige Bereiche werden abgewiesen. Ein getrennt
 kompilierter Alt-ABI-Verbraucher prüft sämtliche Methoden; nur synthetische
 Module werden ausgeführt. Keine Bibliothek wird als neue Engine geladen.
 
-Native VEngineVGui-/BaseUI-Paneldienste, echte System-Eigentümerschaft und
-GameUI-Lebenszyklus bleiben vor der vollen Anbindung nötig. Keine gefälschten
-Panel-Handles oder Null-System-Dummies als erfolgreiche Services. FWGS-
-Referenzcode wird nur gelesen, nicht übernommen; NextClient bleibt Basis.
+**Native Engine-VGUI-Container (umgesetzt, Komponentenabnahme).** Drei echte
+native VPanels werden über CVGui.AllocPanel erzeugt und mit einem eigenen,
+exakt zur ursprünglichen 27-Methoden-IClientPanel-ABI passenden Callback-Objekt
+verbunden. Keine virtuellen Destruktor-Slots in dieser Callback-ABI; Handles
+und Scheme-IDs bleiben uint32 auch im x64-Test. Original-VGUI besitzt das
+Objektlayout; der Host schätzt keine Allokationsgröße und gibt keine fremden
+Objekte als SDK-Panel aus. Der separat vollständige VEngineVGui001-Provider
+hat zwei Destruktor-Slots, GetPanel und zwei alte Steam-Operationen. Letztere
+melden nicht unterstützt statt erfundener Authentifizierung.
+
+Nach dem exklusiven nativen Viewport.Start folgt dessen vollständiges
+SetParent an den Client-Container, entsprechend dem originalen Engine-Ablauf.
+Ein einzelner GetViewPortPanel-Teilbaum reicht nicht. Die gemeinsame Wurzel
+führt echtes Child-Paint, Trefferprüfung und Fokus weiter; Popups bleiben im
+vorhandenen Surface-Pass. Native UI-Aufrufe und Panel-Erzeugung schützen ihre
+Lebensdauer gegen reentranten Abbau. Vor CVGui.Shutdown werden geliehene
+Kinder gelöst und nur die drei eigenen Handles freigegeben; Callback-Objekte
+bleiben während nativer Benachrichtigungen gültig. Das ist keine Zusicherung,
+beliebige vorherige fremde Parent-Hierarchien wiederherzustellen. Eine
+Delete-Nachricht fordert sicheren Owner-Abbau an, ohne während des Dispatchs
+Objekte zu zerstören.
+
+Echte BaseUI-Sichtbarkeits-/Konsolen-/Eingabedienste, System-Eigentümerschaft
+und GameUI-Lebenszyklus bleiben vor der vollen Anbindung nötig. Keine Null-
+System-Dummies als erfolgreiche Services. FWGS-Referenzcode wird nur gelesen,
+nicht übernommen; NextClient bleibt Basis.
 
 **Zweiter Schritt: ausschließlich x64 und mindestens 60 FPS.** Erst nach dem funktionierenden Port werden durchgängig native x64-Artefakte und mindestens 60 FPS in einer benannten echten Spielszene nachgewiesen. Eine i386-Spielbibliothek ist keine x64-Lösung. Die Eigenständigkeit von Valves Engine darf nicht mit der bereits erfolgten Ablösung jedes Original-Spielmoduls verwechselt werden. `tools/check_game_client.py` prüft nur das benannte x64-Kernprofil, keine alternative `F`-/`GetClientAPI`-Tabelle, Signaturen oder Spielbarkeit. Der Test ist für diese Phase eingegrenzt und blockiert den ersten architekturgleichen Port nicht. Leere Ersatz-Exports oder No-ops sind kein Fortschrittsnachweis.
 

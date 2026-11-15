@@ -118,8 +118,11 @@ namespace
     int viewport_init_count;
     int viewport_start_count;
     int viewport_factory_count;
+    unsigned viewport_parent;
+    int viewport_parent_count;
     void (*viewport_init_hook)();
     void (*viewport_start_hook)();
+    void (*viewport_parent_hook)();
 }
 namespace vgui2
 {
@@ -140,6 +143,7 @@ class __attribute__((visibility("hidden"))) CounterStrikeViewport
 public:
     void Initialize(void* (**factories)(const char*, int*), int count);
     void Start();
+    void SetParent(unsigned parent);
 };
 void CounterStrikeViewport::Initialize(void* (**factories)(const char*, int*), int count)
 {
@@ -162,12 +166,23 @@ void CounterStrikeViewport::Start()
     ++viewport_start_count;
     if (viewport_start_hook) viewport_start_hook();
 }
+void CounterStrikeViewport::SetParent(unsigned parent)
+{
+    viewport_parent = parent;
+    ++viewport_parent_count;
+    if (viewport_parent_hook)
+    {
+        viewport_parent_hook();
+    }
+}
 namespace { CounterStrikeViewport viewport; }
 __attribute__((visibility("hidden"))) void* gViewPortInterface = &viewport;
 extern "C" void FixtureClientBindingReset()
 {
     viewport_init_count = viewport_start_count = viewport_factory_count = 0;
-    viewport_init_hook = viewport_start_hook = nullptr;
+    viewport_parent = 0;
+    viewport_parent_count = 0;
+    viewport_init_hook = viewport_start_hook = viewport_parent_hook = nullptr;
     g_pFileSystem = &filesystem_token;
     gViewPortInterface = &viewport;
 }
@@ -200,4 +215,18 @@ extern "C" void FixtureViewportHooks(void (*init)(), void (*start)())
 {
     viewport_init_hook = init;
     viewport_start_hook = start;
+}
+
+extern "C" unsigned FixtureViewportParent()
+{
+    return viewport_parent;
+}
+extern "C" int FixtureViewportParentCount()
+{
+    return viewport_parent_count;
+}
+
+extern "C" void FixtureViewportParentHook(void (*hook)())
+{
+    viewport_parent_hook = hook;
 }

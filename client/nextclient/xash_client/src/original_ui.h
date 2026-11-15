@@ -3,6 +3,7 @@
 #include "engine_files.h"
 #include "gameui_video.h"
 #include "NativeGameUiFuncs.h"
+#include "NativePanelTree.h"
 #include "client_callbacks.h"
 #include "original_panels.h"
 #include "vgui_binding.h"
@@ -52,6 +53,8 @@ namespace csr::client
         bool StartBinding(void* client, goldsrc::HUD_KB_FIND_FUNC find_key, std::string& error);
         bool AttachRoot();
         void MovePointer(bool advance_frame);
+        void PaintBound();
+        void MovePointerBound(bool advance_frame);
         using Module = std::unique_ptr<void, int (*)(void*)>;
         Module surface_module_{nullptr, nullptr};
         Module vgui_{nullptr, nullptr};
@@ -67,6 +70,8 @@ namespace csr::client
         XashKeys keys_;
         NativeGameUiFuncs gameui_funcs_{video_, keys_.Queries()};
         OriginalPanels panels_;
+        std::unique_ptr<NativePanelTree> engine_panels_ = std::make_unique<NativePanelTree>();
+        NativeEngineVGui engine_vgui_{*engine_panels_};
         VguiBinding binding_;
     };
 }

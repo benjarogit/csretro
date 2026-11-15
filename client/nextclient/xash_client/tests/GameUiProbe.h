@@ -8,3 +8,16 @@ struct GameUiProbe
     char renderer[64];
     int windowed, hd, addons, guard, vac;
 };
+
+struct EngineVguiProbe
+{
+    unsigned root;
+    unsigned client;
+    unsigned gameui;
+    unsigned unknown;
+    int login;
+    int poll;
+    int finished;
+    unsigned progress_guard;
+    unsigned error_guard;
+};

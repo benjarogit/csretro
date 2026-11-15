@@ -1,9 +1,11 @@
 #include "vgui_binding.h"
 #include "NativeGameUiFuncs.h"
+#include "NativePanelTree.h"
 #include "original_vgui_symbols.h"
 
 #include <cstring>
 #include <cstdio>
+#include <exception>
 #include <dlfcn.h>
 
 namespace csr::client
@@ -43,6 +45,13 @@ namespace csr::client
                 value = active_->surface_;
             else if (std::strcmp(name, "VFileSystem009") == 0)
                 value = active_->filesystem_;
+            else if (
+                std::strcmp(name, "VEngineVGui001") == 0 && active_->engine_panels_.tree && active_->engine_panels_.tree->IsReady() &&
+                !active_->engine_panels_.tree->ReleaseRequested()
+            )
+            {
+                value = active_->engine_panels_.engine;
+            }
             else if (std::strcmp(name, "VENGINE_GAMEUIFUNCS_VERSION001") == 0 &&
                      active_->gameui_funcs_ && active_->gameui_funcs_->IsReady())
                 value = active_->gameui_funcs_;
@@ -52,12 +61,24 @@ namespace csr::client
         return value;
     }
 
-    bool VguiBinding::BindInterfaces(void* client, void* vgui, void* surface, std::string& error, NativeGameUiFuncs* gameui_funcs)
+    bool VguiBinding::BindInterfaces(
+        void* client,
+        void* vgui,
+        void* surface,
+        std::string& error,
+        NativeGameUiFuncs* gameui_funcs,
+        const PanelServices* panels
+    )
     {
         error.clear();
         if (!client || !vgui || !surface || active_)
         {
             error = "Original VGUI requires both modules, one Surface and an exclusive binding";
+            return false;
+        }
+        if (panels && (!panels->tree || !panels->engine || !panels->detach_surface))
+        {
+            error = "Native engine panels require a complete borrowed owner and Surface teardown hook";
             return false;
         }
         auto factory = reinterpret_cast<Factory>(dlsym(vgui, "CreateInterface"));
@@ -76,6 +97,19 @@ namespace csr::client
                 "_ZN21CounterStrikeViewport5StartEv", error);
         surface_ = surface;
         gameui_funcs_ = gameui_funcs;
+        engine_panels_ = panels ? *panels : PanelServices{};
+        vgui_module_ = vgui;
+        viewport_parent_ = nullptr;
+        if (panels)
+        {
+            viewport_parent_ = reinterpret_cast<decltype(viewport_parent_)>(
+                nitroapi::FindFunctionAddress(client, "_ZN21CounterStrikeViewport9SetParentEj")
+            );
+            if (!viewport_parent_ && error.empty())
+            {
+                error = "Original viewport is missing its complete native parenting operation";
+            }
+        }
         filesystem_ = files ? *files : nullptr;
         for (size_t i = 0; i < slots_.size(); ++i)
         {
@@ -134,12 +168,50 @@ namespace csr::client
         return true;
     }
 
+    bool VguiBinding::InitializeEnginePanels(int width, int height, std::string& error)
+    {
+        error.clear();
+        if (phase_ != Phase::Bound || active_ != this || shutting_down_ || !engine_panels_.tree)
+        {
+            error = "Native panel creation requires exclusively bound original VGUI interfaces";
+            return false;
+        }
+        phase_ = Phase::InitializingEnginePanels;
+        bool ready{};
+        try
+        {
+            ready = engine_panels_.tree->Bind(vgui_module_, width, height, error);
+        }
+        catch (...)
+        {
+            phase_ = Phase::Bound;
+            Shutdown();
+            throw;
+        }
+        phase_ = Phase::Bound;
+        if (!ready || shutdown_requested_ || *viewport_slot_ != viewport_)
+        {
+            Shutdown();
+            if (error.empty())
+            {
+                error = "Native engine-panel creation was interrupted";
+            }
+            return false;
+        }
+        return true;
+    }
+
     bool VguiBinding::InitializeViewport(std::string& error)
     {
         error.clear();
         if (phase_ != Phase::Bound || active_ != this || shutting_down_)
         {
             error = "Viewport initialization requires bound original VGUI interfaces";
+            return false;
+        }
+        if (engine_panels_.tree && !engine_panels_.tree->IsReady())
+        {
+            error = "Original viewport requires ready native engine containers";
             return false;
         }
         if (*viewport_slot_ != viewport_)
@@ -184,7 +256,20 @@ namespace csr::client
             return false;
         }
         phase_ = Phase::StartingViewport;
-        try { viewport_start_(viewport_); }
+        try
+        {
+            viewport_start_(viewport_);
+            // Stock starts the complete viewport before parenting its panels.
+            // Keep the native manager operation inside the same reentrancy guard.
+            if (engine_panels_.tree && engine_panels_.tree->ReleaseRequested())
+            {
+                shutdown_requested_ = true;
+            }
+            if (!shutdown_requested_ && engine_panels_.tree && engine_panels_.tree->IsReady())
+            {
+                viewport_parent_(viewport_, engine_panels_.tree->GetPanel(1));
+            }
+        }
         catch (...)
         {
             phase_ = Phase::ViewportInitialized;
@@ -192,7 +277,7 @@ namespace csr::client
             throw;
         }
         phase_ = Phase::ViewportInitialized;
-        if (shutdown_requested_)
+        if (shutdown_requested_ || (engine_panels_.tree && engine_panels_.tree->ReleaseRequested()))
         {
             Shutdown();
             error = "Original viewport startup was interrupted";
@@ -207,10 +292,39 @@ namespace csr::client
         return true;
     }
 
+    bool VguiBinding::RunNativeUi(void (*operation)(void*), void* context)
+    {
+        if (!operation || phase_ != Phase::Started || shutting_down_ || shutdown_requested_)
+        {
+            return false;
+        }
+        ++native_call_depth_;
+        try
+        {
+            operation(context);
+        }
+        catch (...)
+        {
+            --native_call_depth_;
+            if (!native_call_depth_ && shutdown_requested_)
+            {
+                Shutdown();
+            }
+            throw;
+        }
+        --native_call_depth_;
+        if (!native_call_depth_ && shutdown_requested_)
+        {
+            Shutdown();
+        }
+        return IsInitialized();
+    }
+
     void VguiBinding::Shutdown()
     {
         if (shutting_down_) return;
-        if (phase_ == Phase::Binding || phase_ == Phase::InitializingViewport || phase_ == Phase::StartingViewport)
+        if (native_call_depth_ || phase_ == Phase::Binding || phase_ == Phase::InitializingEnginePanels ||
+            phase_ == Phase::InitializingViewport || phase_ == Phase::StartingViewport)
         {
             // Native code may still be using VGUI. Defer teardown until it
             // returns, keeping factories/globals live throughout the call.
@@ -232,15 +346,47 @@ namespace csr::client
             viewport_slot_ = nullptr;
             viewport_ = nullptr;
             gameui_funcs_ = nullptr;
+            const PanelServices services = engine_panels_;
+            engine_panels_ = {};
+            if (services.release_services)
+            {
+                services.release_services(services.owner);
+            }
+            vgui_module_ = nullptr;
+            viewport_parent_ = nullptr;
             shutdown_requested_ = false;
             shutting_down_ = false;
         };
-        try { if (bound) shutdown_(ivgui_); }
-        catch (...)
+        std::exception_ptr failure;
+        const auto attempt = [&failure](auto&& operation) {
+            try
+            {
+                operation();
+            }
+            catch (...)
+            {
+                if (!failure)
+                {
+                    failure = std::current_exception();
+                }
+            }
+        };
+        if (bound && engine_panels_.tree)
         {
-            restore();
-            throw;
+            attempt([&] { engine_panels_.detach_surface(engine_panels_.owner); });
+            attempt([&] { engine_panels_.tree->Shutdown(); });
+            // CVGui shutdown ends the allocator lifetime even when a prior
+            // native cleanup operation failed. Retained callbacks cannot retry it.
+            engine_panels_.tree->EndNativeLifetime();
+        }
+        if (bound)
+        {
+            attempt([&] { shutdown_(ivgui_); });
         }
         restore();
+        if (failure)
+        {
+            std::rethrow_exception(failure);
+        }
     }
 }

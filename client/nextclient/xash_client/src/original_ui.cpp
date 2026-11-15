@@ -35,6 +35,7 @@ namespace csr::client
     {
         try { Shutdown(); }
         catch (...) { std::fprintf(stderr, "CSRETRO original UI shutdown failed\n"); }
+        engine_panels_.reset();
         vgui_.reset();
         if (surface_) api_.destroy(surface_);
     }
@@ -139,8 +140,31 @@ namespace csr::client
     bool OriginalUi::StartBinding(void* client, goldsrc::HUD_KB_FIND_FUNC find_key, std::string& error)
     {
         if (!keys_.Bind(client, vgui_.get(), engine_, find_key, error) || !gameui_funcs_.Bind(error)) return false;
-        if (!binding_.BindInterfaces(client, vgui_.get(), surface_object_, error, &gameui_funcs_))
+        const VguiBinding::PanelServices services{
+            engine_panels_.get(),
+            &engine_vgui_,
+            [](void* owner) {
+                OriginalUi& ui = *static_cast<OriginalUi*>(owner);
+                ui.api_.embed(ui.surface_, nullptr);
+            },
+            [](void* owner) noexcept {
+                OriginalUi& ui = *static_cast<OriginalUi*>(owner);
+                ui.gameui_funcs_.Shutdown();
+                ui.keys_.Shutdown();
+                ui.video_.Shutdown();
+            },
+            this
+        };
+        if (!binding_.BindInterfaces(client, vgui_.get(), surface_object_, error, &gameui_funcs_, &services))
+        {
             return false;
+        }
+        GameUiVideo::Mode mode{};
+        if (!video_.GetCurrentVideoMode(mode) || !binding_.InitializeEnginePanels(mode.wide, mode.tall, error))
+        {
+            binding_.Shutdown();
+            return false;
+        }
         // GameUI needs its own verified native services and lifecycle here.
         // Do not pretend the newer SDK/test host supplies those interfaces.
         if (!binding_.InitializeViewport(error) || !binding_.StartViewport(error))
@@ -154,17 +178,36 @@ namespace csr::client
     bool OriginalUi::AttachRoot()
     {
         if (!binding_.IsInitialized()) return false;
-        auto root = panels_.Root();
-        if (!root) return false;
+        void* root = engine_panels_->Root();
+        if (!root || !engine_panels_->IsReady())
+        {
+            return false;
+        }
         api_.embed(surface_, root);
         return true;
     }
 
     void OriginalUi::Paint()
     {
+        binding_.RunNativeUi([](void* owner) { static_cast<OriginalUi*>(owner)->PaintBound(); }, this);
+    }
+
+    void OriginalUi::PaintBound()
+    {
+        if (engine_panels_->ReleaseRequested())
+        {
+            Shutdown();
+            return;
+        }
         if (!AttachRoot()) return;
         GameUiVideo::Mode mode{};
         if (!video_.GetCurrentVideoMode(mode)) return;
+        engine_panels_->Resize(mode.wide, mode.tall);
+        if (!engine_panels_->IsReady() || engine_panels_->ReleaseRequested())
+        {
+            Shutdown();
+            return;
+        }
         api_.begin(surface_, mode.wide, mode.tall);
         struct EndFrame
         {
@@ -172,9 +215,13 @@ namespace csr::client
             decltype(&csr_surface_end_frame) end;
             ~EndFrame() { end(surface); }
         } frame{surface_, api_.end};
-        auto root = panels_.Root();
+        void* root = engine_panels_->Root();
         api_.solve(surface_, root, 0);
         api_.paint(surface_, root);
+        if (engine_panels_->ReleaseRequested())
+        {
+            Shutdown();
+        }
     }
 
     void OriginalUi::MouseMove()
@@ -189,6 +236,27 @@ namespace csr::client
 
     void OriginalUi::MovePointer(bool advance_frame)
     {
+        struct Request
+        {
+            OriginalUi* ui;
+            bool advance;
+        } request{this, advance_frame};
+        binding_.RunNativeUi(
+            [](void* context) {
+                Request& request = *static_cast<Request*>(context);
+                request.ui->MovePointerBound(request.advance);
+            },
+            &request
+        );
+    }
+
+    void OriginalUi::MovePointerBound(bool advance_frame)
+    {
+        if (engine_panels_->ReleaseRequested())
+        {
+            Shutdown();
+            return;
+        }
         if (!AttachRoot()) return;
         GameUiVideo::Mode mode{};
         if (!video_.GetCurrentVideoMode(mode)) return;
@@ -202,27 +270,69 @@ namespace csr::client
         if (advance_frame)
             hooks.frame = [](void* u) {
                 auto& o = *static_cast<OriginalUi*>(u);
-                if (o.binding_.IsInitialized()) o.panels_.RunFrame();
+                if (o.binding_.IsInitialized())
+                {
+                    o.panels_.RunFrame();
+                    if (o.engine_panels_->ReleaseRequested())
+                    {
+                        o.Shutdown();
+                    }
+                }
             };
         pointer_.Update(mode.wide, mode.tall, hooks);
     }
 
     void OriginalUi::MouseButtons(int buttons)
     {
-        if (!AttachRoot()) { buttons_.Clear(nullptr, nullptr); return; }
-        buttons_.Update(buttons, [](void* owner, int button, int down) {
-            auto& ui = *static_cast<OriginalUi*>(owner);
-            ui.api_.button(ui.surface_, button, down);
-        }, this);
+        struct Request
+        {
+            OriginalUi* ui;
+            int buttons;
+        } request{this, buttons};
+        if (!binding_.RunNativeUi(
+                [](void* context) {
+                    Request& request = *static_cast<Request*>(context);
+                    OriginalUi& ui = *request.ui;
+                    if (!ui.AttachRoot())
+                    {
+                        ui.buttons_.Clear(nullptr, nullptr);
+                        return;
+                    }
+                    ui.buttons_.Update(
+                        request.buttons,
+                        [](void* owner, int button, int down) {
+                            OriginalUi& ui = *static_cast<OriginalUi*>(owner);
+                            ui.api_.button(ui.surface_, button, down);
+                        },
+                        &ui
+                    );
+                },
+                &request
+            ))
+        {
+            buttons_.Clear(nullptr, nullptr);
+        }
     }
 
     void OriginalUi::ClearInput()
     {
         pointer_.Reset();
-        buttons_.Clear([](void* owner, int button, int down) {
-            auto& ui = *static_cast<OriginalUi*>(owner);
-            if (ui.binding_.IsInitialized()) ui.api_.button(ui.surface_, button, down);
-        }, this);
+        if (!binding_.RunNativeUi(
+                [](void* owner) {
+                    OriginalUi& ui = *static_cast<OriginalUi*>(owner);
+                    ui.buttons_.Clear(
+                        [](void* owner, int button, int down) {
+                            OriginalUi& ui = *static_cast<OriginalUi*>(owner);
+                            ui.api_.button(ui.surface_, button, down);
+                        },
+                        &ui
+                    );
+                },
+                this
+            ))
+        {
+            buttons_.Clear(nullptr, nullptr);
+        }
     }
 
     void OriginalUi::Shutdown()

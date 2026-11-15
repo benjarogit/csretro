@@ -1,4 +1,4 @@
-#include "native_gameui_funcs.h"
+#include "NativeGameUiFuncs.h"
 #include "vgui_binding.h"
 #include "build_registry.h"
 #include "GameUiProbe.h"
@@ -34,7 +34,11 @@ namespace
             set_action = Sym<void (*)(int)>(key, "FixtureSetActionState");
             consume = Sym<void (*)(void*, const char*, const char*, int, const char*, GameUiProbe*)>(consumer, "FixtureConsumeGameUi");
         }
-        template<class T> T Sym(Module& module, const char* name) { return reinterpret_cast<T>(dlsym(module.get(), name)); }
+        template <class T>
+        T Sym(Module& module, const char* name)
+        {
+            return reinterpret_cast<T>(dlsym(module.get(), name));
+        }
         bool BindKeys(std::string& error)
         {
             return keys.Bind(key.get(), key.get(), vgui.get(), &callbacks, find, 265, error);
@@ -43,20 +47,27 @@ namespace
         {
             return video.Bind(video_module.get(), &callbacks, error) && BindKeys(error) && funcs.Bind(error);
         }
-        int Invalid() { return Sym<int (*)()>(key, "FixtureInvalidKeyQueries")(); }
-        int LastSdl() { return Sym<int (*)()>(vgui, "FixtureLastSdlKey")(); }
-        Module key{nullptr,&dlclose}, client{nullptr,&dlclose}, vgui{nullptr,&dlclose}, video_module{nullptr,&dlclose}, consumer{nullptr,&dlclose};
+        int Invalid()
+        {
+            return Sym<int (*)()>(key, "FixtureInvalidKeyQueries")();
+        }
+        int LastSdl()
+        {
+            return Sym<int (*)()>(vgui, "FixtureLastSdlKey")();
+        }
+        Module key{nullptr, &dlclose}, client{nullptr, &dlclose}, vgui{nullptr, &dlclose}, video_module{nullptr, &dlclose},
+            consumer{nullptr, &dlclose};
         goldsrc::cl_enginefunc_t callbacks{};
         goldsrc::HUD_KB_FIND_FUNC find{};
         void (*configure_video)(int){};
-        void (*set_binding)(int,const char*){};
+        void (*set_binding)(int, const char*){};
         void (*set_action)(int){};
-        void (*consume)(void*,const char*,const char*,int,const char*,GameUiProbe*){};
+        void (*consume)(void*, const char*, const char*, int, const char*, GameUiProbe*){};
         csr::client::GameUiVideo video;
         csr::client::XashKeyQueries keys;
-        csr::client::NativeGameUiFuncs funcs{video,keys};
+        csr::client::NativeGameUiFuncs funcs{video, keys};
     };
-}
+} // namespace
 
 TEST_F(OriginalGameUiFuncs, SeparatelyCompiledOldAbiConsumerCallsAllNineMethods)
 {
@@ -90,7 +101,7 @@ TEST_F(OriginalGameUiFuncs, ActionStateComesFromOriginalClientKbuttonNotPhysical
 {
     std::string error;
     ASSERT_TRUE(BindAll(error));
-    for (int state : {0,1,2,3,4,7})
+    for (int state : {0, 1, 2, 3, 4, 7})
     {
         set_action(state);
         bool down = true;
@@ -122,9 +133,18 @@ TEST_F(OriginalGameUiFuncs, KeyToSdlTranslationUsesNativeVguiHelperInsteadOfEngi
     std::string error;
     ASSERT_TRUE(BindAll(error));
     set_binding(97, nullptr);
-    struct Pair { int engine, sdl; };
-    for (const auto pair : {Pair{128,1073741906},Pair{135,1073741882},Pair{134,1073742049},
-                           Pair{133,1073742048},Pair{160,1073741919},Pair{172,1073741908},Pair{59,59}})
+    struct Pair
+    {
+        int engine, sdl;
+    };
+    for (const auto pair :
+         {Pair{128, 1073741906},
+          Pair{135, 1073741882},
+          Pair{134, 1073742049},
+          Pair{133, 1073742048},
+          Pair{160, 1073741919},
+          Pair{172, 1073741908},
+          Pair{59, 59}})
     {
         set_binding(pair.engine, "test-command");
         EXPECT_EQ(funcs.GetVGUI2KeyCodeForBind("test-command"), 500);
@@ -139,7 +159,7 @@ TEST_F(OriginalGameUiFuncs, InvalidLegacyKeysNeverReachEngineArrayAndUnknownName
 {
     std::string error;
     ASSERT_TRUE(BindAll(error));
-    for (int invalid : {-1,256,264,265,INT_MIN,INT_MAX})
+    for (int invalid : {-1, 256, 264, 265, INT_MIN, INT_MAX})
     {
         EXPECT_STREQ(funcs.Key_NameForKey(invalid), "");
         EXPECT_STREQ(funcs.Key_BindingForKey(invalid), "");
@@ -152,7 +172,7 @@ TEST_F(OriginalGameUiFuncs, InvalidLegacyKeysNeverReachEngineArrayAndUnknownName
     EXPECT_EQ(funcs.Key_KeyStringToKeyNum("SEMICOLON"), 59);
     EXPECT_EQ(funcs.Key_KeyStringToKeyNum("UPARROW"), 128);
     EXPECT_EQ(funcs.Key_KeyStringToKeyNum("<"), 60);
-    std::string huge(256,'x');
+    std::string huge(256, 'x');
     EXPECT_EQ(funcs.Key_KeyStringToKeyNum(huge.c_str()), -1);
     EXPECT_EQ(funcs.GetVGUI2KeyCodeForBind(huge.c_str()), 0);
 }
@@ -171,20 +191,20 @@ TEST_F(OriginalGameUiFuncs, ModeViewIsStableAndCannotCorruptBackendData)
     ASSERT_TRUE(BindAll(error));
     csr::client::NativeGameUiFuncs::Mode* mode{};
     int count{};
-    funcs.GetVideoModes(&mode,&count);
-    ASSERT_EQ(count,2);
+    funcs.GetVideoModes(&mode, &count);
+    ASSERT_EQ(count, 2);
     auto original = mode;
     mode[0].wide = 77;
     const csr::client::GameUiVideo::Mode* backend{};
-    EXPECT_TRUE(video.GetVideoModes(backend,count));
-    EXPECT_EQ(backend[0].wide,1920);
+    EXPECT_TRUE(video.GetVideoModes(backend, count));
+    EXPECT_EQ(backend[0].wide, 1920);
     configure_video(21);
-    funcs.GetVideoModes(&mode,&count);
-    EXPECT_EQ(mode,original);
-    int wide{},tall{},bpp{};
-    funcs.GetCurrentVideoMode(&wide,&tall,&bpp);
-    EXPECT_EQ(wide,800);
-    EXPECT_EQ(bpp,16);
+    funcs.GetVideoModes(&mode, &count);
+    EXPECT_EQ(mode, original);
+    int wide{}, tall{}, bpp{};
+    funcs.GetCurrentVideoMode(&wide, &tall, &bpp);
+    EXPECT_EQ(wide, 800);
+    EXPECT_EQ(bpp, 16);
 }
 
 TEST_F(OriginalGameUiFuncs, FactoryAdvertisesOnlyCompleteLiveProviderAndWithdrawsItOnFailure)
@@ -192,38 +212,38 @@ TEST_F(OriginalGameUiFuncs, FactoryAdvertisesOnlyCompleteLiveProviderAndWithdraw
     std::string error;
     csr::client::VguiBinding binding;
     int surface{};
-    ASSERT_TRUE(binding.BindInterfaces(client.get(),vgui.get(),&surface,error,&funcs));
-    auto query = Sym<void* (*)(int*)>(vgui,"FixtureQueryGameUiFuncs");
-    ASSERT_NE(query,nullptr);
+    ASSERT_TRUE(binding.BindInterfaces(client.get(), vgui.get(), &surface, error, &funcs));
+    auto query = Sym<void* (*)(int*)>(vgui, "FixtureQueryGameUiFuncs");
+    ASSERT_NE(query, nullptr);
     int code{};
-    EXPECT_EQ(query(&code),nullptr);
-    EXPECT_EQ(code,1);
+    EXPECT_EQ(query(&code), nullptr);
+    EXPECT_EQ(code, 1);
     ASSERT_TRUE(BindAll(error));
-    EXPECT_EQ(query(&code),&funcs);
-    EXPECT_EQ(code,0);
+    EXPECT_EQ(query(&code), &funcs);
+    EXPECT_EQ(code, 0);
     configure_video(1);
-    EXPECT_EQ(query(&code),nullptr);
+    EXPECT_EQ(query(&code), nullptr);
     EXPECT_FALSE(funcs.IsReady());
     configure_video(0);
     EXPECT_TRUE(funcs.IsReady());
     funcs.Shutdown();
-    EXPECT_EQ(query(&code),nullptr);
-    EXPECT_EQ(code,1);
+    EXPECT_EQ(query(&code), nullptr);
+    EXPECT_EQ(code, 1);
 }
 
 TEST_F(OriginalGameUiFuncs, MissingOrWrongModuleFunctionsCannotBecomeNativeProvider)
 {
     std::string error;
     EXPECT_FALSE(funcs.Bind(error));
-    ASSERT_TRUE(video.Bind(video_module.get(),&callbacks,error));
+    ASSERT_TRUE(video.Bind(video_module.get(), &callbacks, error));
     EXPECT_FALSE(funcs.Bind(error));
-    EXPECT_FALSE(keys.Bind(nullptr,key.get(),vgui.get(),&callbacks,find,265,error));
-    EXPECT_FALSE(keys.Bind(key.get(),key.get(),vgui.get(),&callbacks,nullptr,265,error));
-    EXPECT_FALSE(keys.Bind(key.get(),key.get(),vgui.get(),&callbacks,find,32,error));
-    EXPECT_FALSE(keys.Bind(key.get(),key.get(),vgui.get(),&callbacks,find,99999,error));
-    EXPECT_FALSE(keys.Bind(video_module.get(),key.get(),vgui.get(),&callbacks,find,265,error));
-    EXPECT_FALSE(keys.Bind(key.get(),video_module.get(),vgui.get(),&callbacks,find,265,error));
-    EXPECT_FALSE(keys.Bind(key.get(),key.get(),video_module.get(),&callbacks,find,265,error));
+    EXPECT_FALSE(keys.Bind(nullptr, key.get(), vgui.get(), &callbacks, find, 265, error));
+    EXPECT_FALSE(keys.Bind(key.get(), key.get(), vgui.get(), &callbacks, nullptr, 265, error));
+    EXPECT_FALSE(keys.Bind(key.get(), key.get(), vgui.get(), &callbacks, find, 32, error));
+    EXPECT_FALSE(keys.Bind(key.get(), key.get(), vgui.get(), &callbacks, find, 99999, error));
+    EXPECT_FALSE(keys.Bind(video_module.get(), key.get(), vgui.get(), &callbacks, find, 265, error));
+    EXPECT_FALSE(keys.Bind(key.get(), video_module.get(), vgui.get(), &callbacks, find, 265, error));
+    EXPECT_FALSE(keys.Bind(key.get(), key.get(), video_module.get(), &callbacks, find, 265, error));
     EXPECT_FALSE(funcs.IsReady());
     EXPECT_TRUE(BindKeys(error));
     EXPECT_TRUE(funcs.Bind(error));
@@ -235,13 +255,13 @@ TEST_F(OriginalGameUiFuncs, ProductionOwnerRejectsUnregisteredFixtureAndNeverSta
 {
     std::string error;
     csr::client::XashKeys production;
-    EXPECT_FALSE(production.Bind(key.get(),vgui.get(),&callbacks,find,error));
-    EXPECT_NE(error.find("fingerprint"),std::string::npos);
+    EXPECT_FALSE(production.Bind(key.get(), vgui.get(), &callbacks, find, error));
+    EXPECT_NE(error.find("fingerprint"), std::string::npos);
     EXPECT_FALSE(production.Queries().IsBound());
-    EXPECT_EQ(Sym<int (*)()>(key,"FixtureHostMainCalls")(),0);
+    EXPECT_EQ(Sym<int (*)()>(key, "FixtureHostMainCalls")(), 0);
     EXPECT_FALSE(nitroapi::RegisteredXashKeyCount(""));
-    EXPECT_FALSE(nitroapi::RegisteredXashKeyCount(std::string(64,'0')));
-    EXPECT_EQ(nitroapi::RegisteredXashKeyCount("d9f3776b156cc906a1016882d3154de8726c71cb4242fe9ed02fa44203af81db"),265);
+    EXPECT_FALSE(nitroapi::RegisteredXashKeyCount(std::string(64, '0')));
+    EXPECT_EQ(nitroapi::RegisteredXashKeyCount("d9f3776b156cc906a1016882d3154de8726c71cb4242fe9ed02fa44203af81db"), 265);
 }
 
 TEST_F(OriginalGameUiFuncs, ShutdownRemovesAllBackendAccessWithoutFakePositiveResults)
@@ -251,12 +271,12 @@ TEST_F(OriginalGameUiFuncs, ShutdownRemovesAllBackendAccessWithoutFakePositiveRe
     funcs.Shutdown();
     keys.Shutdown();
     video.Shutdown();
-    bool down=true;
-    EXPECT_FALSE(funcs.IsKeyDown("in_mlook",down));
+    bool down = true;
+    EXPECT_FALSE(funcs.IsKeyDown("in_mlook", down));
     EXPECT_FALSE(down);
-    EXPECT_EQ(funcs.Key_KeyStringToKeyNum("a"),-1);
-    EXPECT_STREQ(funcs.Key_BindingForKey(97),"");
-    EXPECT_EQ(funcs.GetVGUI2KeyCodeForBind("+attack"),0);
+    EXPECT_EQ(funcs.Key_KeyStringToKeyNum("a"), -1);
+    EXPECT_STREQ(funcs.Key_BindingForKey(97), "");
+    EXPECT_EQ(funcs.GetVGUI2KeyCodeForBind("+attack"), 0);
     EXPECT_FALSE(funcs.IsReady());
     EXPECT_TRUE(BindAll(error));
 }

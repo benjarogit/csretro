@@ -3,7 +3,10 @@
 #include <cstdio>
 namespace legacy_gameui_abi
 {
-    struct Mode { int w, h, bpp; };
+    struct Mode
+    {
+        int w, h, bpp;
+    };
     class OriginalFuncs
     {
     public:
@@ -18,9 +21,8 @@ namespace legacy_gameui_abi
         virtual bool IsConnectedToVACSecureServer() = 0;
         virtual int Key_KeyStringToKeyNum(const char*) = 0;
     };
-}
-extern "C" void FixtureConsumeGameUi(void* object, const char* action, const char* command,
-                                    int key, const char* name, GameUiProbe* result)
+} // namespace legacy_gameui_abi
+extern "C" void FixtureConsumeGameUi(void* object, const char* action, const char* command, int key, const char* name, GameUiProbe* result)
 {
     auto* api = static_cast<legacy_gameui_abi::OriginalFuncs*>(object);
     *result = {};

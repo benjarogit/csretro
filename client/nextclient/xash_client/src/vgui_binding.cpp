@@ -1,5 +1,5 @@
 #include "vgui_binding.h"
-#include "native_gameui_funcs.h"
+#include "NativeGameUiFuncs.h"
 #include "original_vgui_symbols.h"
 
 #include <cstring>

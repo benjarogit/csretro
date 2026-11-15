@@ -11,15 +11,26 @@ namespace csr::client
     class XashKeyQueries
     {
     public:
-        bool Bind(void* engine, void* client, void* vgui, goldsrc::cl_enginefunc_t* callbacks,
-                  goldsrc::HUD_KB_FIND_FUNC find, int engine_key_count, std::string& error);
+        bool Bind(
+            void* engine,
+            void* client,
+            void* vgui,
+            goldsrc::cl_enginefunc_t* callbacks,
+            goldsrc::HUD_KB_FIND_FUNC find,
+            int engine_key_count,
+            std::string& error
+        );
         void Shutdown();
-        bool IsBound() const { return callbacks_ != nullptr; }
+        bool IsBound() const
+        {
+            return callbacks_ != nullptr;
+        }
         bool IsActionDown(const char* action, bool& down) const;
         const char* Name(int key) const;
         const char* Binding(int key) const;
         int Number(const char* name) const;
         int VguiCodeForBinding(const char* command) const;
+
     private:
         static constexpr int legacy_keys = 256;
         goldsrc::cl_enginefunc_t* callbacks_{};
@@ -35,13 +46,16 @@ namespace csr::client
     class XashKeys
     {
     public:
-        bool Bind(void* client, void* vgui, goldsrc::cl_enginefunc_t* callbacks,
-                  goldsrc::HUD_KB_FIND_FUNC find, std::string& error);
+        bool Bind(void* client, void* vgui, goldsrc::cl_enginefunc_t* callbacks, goldsrc::HUD_KB_FIND_FUNC find, std::string& error);
         void Shutdown();
-        XashKeyQueries& Queries() { return queries_; }
+        XashKeyQueries& Queries()
+        {
+            return queries_;
+        }
+
     private:
         using Module = std::unique_ptr<void, int (*)(void*)>;
         Module engine_{nullptr, nullptr};
         XashKeyQueries queries_;
     };
-}
+} // namespace csr::client

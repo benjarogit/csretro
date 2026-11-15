@@ -2,7 +2,7 @@
 
 #include "engine_files.h"
 #include "gameui_video.h"
-#include "native_gameui_funcs.h"
+#include "NativeGameUiFuncs.h"
 #include "client_callbacks.h"
 #include "original_panels.h"
 #include "vgui_binding.h"

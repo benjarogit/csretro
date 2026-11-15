@@ -22,12 +22,14 @@ namespace
             ASSERT_NE(module, nullptr) << dlerror();
         }
     };
-}
+} // namespace
 
 TEST_F(NativeFunction, ResolvesExportedFunctionInLoadedObject)
 {
-    EXPECT_EQ(nitroapi::FindFunctionAddress(module.get(), "FixtureHudInitCount"),
-              reinterpret_cast<uintptr_t>(dlsym(module.get(), "FixtureHudInitCount")));
+    EXPECT_EQ(
+        nitroapi::FindFunctionAddress(module.get(), "FixtureHudInitCount"),
+        reinterpret_cast<uintptr_t>(dlsym(module.get(), "FixtureHudInitCount"))
+    );
     EXPECT_NE(nitroapi::FindFunctionAddress(module.get(), "FixtureHudInitCount"), 0u);
 }
 
@@ -82,7 +84,10 @@ namespace
         std::unique_ptr<void, int (*)(void*)> module{nullptr, dlclose};
         ReplacedFixture()
         {
-            if (!mkdtemp(directory)) return;
+            if (!mkdtemp(directory))
+            {
+                return;
+            }
             path = std::filesystem::path(directory) / "fixture with spaces.so";
             std::filesystem::copy_file(CLIENT_CALLBACK_FIXTURE, path);
             module.reset(dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL));
@@ -90,7 +95,10 @@ namespace
         ~ReplacedFixture()
         {
             module.reset();
-            if (!path.empty()) std::filesystem::remove_all(directory);
+            if (!path.empty())
+            {
+                std::filesystem::remove_all(directory);
+            }
         }
         bool ReplaceBuildId(bool remove)
         {
@@ -104,7 +112,10 @@ namespace
                 ElfW(Phdr) program{};
                 file.seekg(header.e_phoff + i * sizeof(program));
                 file.read(reinterpret_cast<char*>(&program), sizeof(program));
-                if (program.p_type != PT_NOTE) continue;
+                if (program.p_type != PT_NOTE)
+                {
+                    continue;
+                }
                 size_t offset = 0;
                 while (offset + sizeof(ElfW(Nhdr)) <= program.p_filesz)
                 {
@@ -140,7 +151,7 @@ namespace
             return false;
         }
     };
-}
+} // namespace
 
 TEST(NativeFunctionIdentity, RejectsChangedFileBuildIdWithoutReusingOldMetadata)
 {

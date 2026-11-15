@@ -1,7 +1,7 @@
 #pragma once
 
 #include "gameui_video.h"
-#include "xash_keys.h"
+#include "XashKeys.h"
 #include <vector>
 
 namespace csr::client
@@ -11,8 +11,16 @@ namespace csr::client
     class NativeGameUiFuncs
     {
     public:
-        struct Mode { int wide; int tall; int bpp; };
-        NativeGameUiFuncs(GameUiVideo& video, XashKeyQueries& keys) : video_(video), keys_(keys) {}
+        struct Mode
+        {
+            int wide;
+            int tall;
+            int bpp;
+        };
+        NativeGameUiFuncs(GameUiVideo& video, XashKeyQueries& keys) :
+            video_(video),
+            keys_(keys)
+        {}
         virtual ~NativeGameUiFuncs() = default;
         virtual bool IsKeyDown(const char* action, bool& down);
         virtual const char* Key_NameForKey(int key);
@@ -27,6 +35,7 @@ namespace csr::client
         bool Bind(std::string& error);
         bool IsReady() const;
         void Shutdown();
+
     private:
         bool BackendsReady() const;
         GameUiVideo& video_;
@@ -34,4 +43,4 @@ namespace csr::client
         std::vector<Mode> modes_;
         bool ready_{};
     };
-}
+} // namespace csr::client

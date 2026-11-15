@@ -281,6 +281,7 @@ TEST_F(OriginalVguiBinding, NativeCallbacksCannotAdvancePhasesAndShutdownWaitsFo
         csr::client::VguiBinding binding;
         std::string error;
         native_hook = [&] {
+            EXPECT_TRUE(binding.HasBinding());
             EXPECT_FALSE(binding.IsInitialized());
             EXPECT_FALSE(binding.InitializeViewport(error));
             EXPECT_FALSE(binding.StartViewport(error));
@@ -301,6 +302,7 @@ TEST_F(OriginalVguiBinding, NativeCallbacksCannotAdvancePhasesAndShutdownWaitsFo
         native_hook = {};
         EXPECT_FALSE(binding.IsInitialized());
         EXPECT_EQ(Count(vgui.get(), "FixtureVguiShutdownCount"), 1);
+        EXPECT_FALSE(binding.HasBinding());
         ExpectOriginalGlobals();
         binding.Shutdown();
         EXPECT_EQ(Count(vgui.get(), "FixtureVguiShutdownCount"), 1);
@@ -315,6 +317,7 @@ TEST_F(OriginalVguiBinding, NativeShutdownCannotReenterTeardownOrReleaseExclusiv
     std::string error;
     ASSERT_TRUE(Initialize(binding, client.get(), vgui.get(), &surface_token, error));
     native_hook = [&] {
+        EXPECT_TRUE(binding.HasBinding());
         EXPECT_FALSE(binding.IsInitialized());
         binding.Shutdown();
         EXPECT_FALSE(other.BindInterfaces(client.get(), vgui.get(), &surface_token, error));

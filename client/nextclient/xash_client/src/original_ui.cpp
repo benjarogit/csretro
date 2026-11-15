@@ -61,6 +61,13 @@ namespace csr::client
             error = "Original client SDL2 mouse callbacks are unavailable";
             return false;
         }
+        if (!video_.Bind(client, engine, error)) return false;
+        struct VideoAttempt
+        {
+            GameUiVideo& video;
+            VguiBinding& binding;
+            ~VideoAttempt() { if (!binding.HasBinding()) video.Shutdown(); }
+        } video_attempt{video_, binding_};
         if (surface_ && vgui_)
             return StartBinding(client, error);
         const auto vgui_path = directory / "vgui2.valve.so";
@@ -87,9 +94,15 @@ namespace csr::client
         }
         if (!api_.Bind(surface_module_.get(), error))
             return false;
+        GameUiVideo::Mode mode{};
+        if (!video_.GetCurrentVideoMode(mode))
+        {
+            error = "GameUI video mode disappeared before Surface creation";
+            return false;
+        }
         csr_surface_host_t host{};
-        host.screen_wide = screen.iWidth;
-        host.screen_tall = screen.iHeight;
+        host.screen_wide = mode.wide;
+        host.screen_tall = mode.tall;
         host.panel_abs_pos = [](void* p, int* x, int* y, void* u) { static_cast<OriginalUi*>(u)->panels_.AbsPos(p, x, y); };
         host.panel_insets = [](void* p, int* l, int* t, int* r, int* b, void* u) { static_cast<OriginalUi*>(u)->panels_.Insets(p, l, t, r, b); };
         host.panel_clip_rect = [](void* p, int* l, int* t, int* r, int* b, void* u) { static_cast<OriginalUi*>(u)->panels_.Clip(p, l, t, r, b); };
@@ -144,10 +157,9 @@ namespace csr::client
     void OriginalUi::Paint()
     {
         if (!AttachRoot()) return;
-        goldsrc::SCREENINFO screen{};
-        screen.iSize = sizeof(screen);
-        if (!engine_->pfnGetScreenInfo(&screen) || screen.iWidth <= 0 || screen.iHeight <= 0) return;
-        api_.begin(surface_, screen.iWidth, screen.iHeight);
+        GameUiVideo::Mode mode{};
+        if (!video_.GetCurrentVideoMode(mode)) return;
+        api_.begin(surface_, mode.wide, mode.tall);
         struct EndFrame
         {
             csr_surface_t* surface;
@@ -172,9 +184,8 @@ namespace csr::client
     void OriginalUi::MovePointer(bool advance_frame)
     {
         if (!AttachRoot()) return;
-        goldsrc::SCREENINFO screen{};
-        screen.iSize = sizeof(screen);
-        if (!engine_->pfnGetScreenInfo(&screen)) return;
+        GameUiVideo::Mode mode{};
+        if (!video_.GetCurrentVideoMode(mode)) return;
         PointerHooks hooks{
             [](void* u, int* x, int* y) { static_cast<OriginalUi*>(u)->engine_->GetMousePosition(x, y); },
             [](void* u) { return static_cast<OriginalUi*>(u)->relative_mode_(); },
@@ -187,7 +198,7 @@ namespace csr::client
                 auto& o = *static_cast<OriginalUi*>(u);
                 if (o.binding_.IsInitialized()) o.panels_.RunFrame();
             };
-        pointer_.Update(screen.iWidth, screen.iHeight, hooks);
+        pointer_.Update(mode.wide, mode.tall, hooks);
     }
 
     void OriginalUi::MouseButtons(int buttons)
@@ -211,6 +222,12 @@ namespace csr::client
     void OriginalUi::Shutdown()
     {
         ClearInput();
-        binding_.Shutdown();
+        try { binding_.Shutdown(); }
+        catch (...)
+        {
+            if (!binding_.HasBinding()) video_.Shutdown();
+            throw;
+        }
+        if (!binding_.HasBinding()) video_.Shutdown();
     }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine_files.h"
+#include "gameui_video.h"
 #include "client_callbacks.h"
 #include "original_panels.h"
 #include "vgui_binding.h"
@@ -61,6 +62,7 @@ namespace csr::client
         int (*relative_mode_)(){};
         unsigned (*relative_mouse_)(int*, int*){};
         EngineFiles files_;
+        GameUiVideo video_;
         OriginalPanels panels_;
         VguiBinding binding_;
     };

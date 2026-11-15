@@ -1541,6 +1541,27 @@ GameUI muss seinen eigenen Factory-/Engine-Start-Vertrag erfüllen; dessen nativ
 Renderer-Methode hat fünf explizite Argumente statt sechs im neueren SDK. Erst
 versionsgerechte echte Engine-Services erlauben die weitere GameUI-Anbindung.
 
+**Native GameUI-Video-/Renderer-Daten (umgesetzt, Komponentenabnahme).**
+`GameUiVideo` liest den tatsächlich geladenen Renderer und HD-/Addon-Konfiguration
+über die öffentlichen Engine-Cvar-Callbacks. Fensterstatus, Farbtiefe und
+Display-Modi kommen aus der bereits geladenen SDL2-Instanz; Auflösungsgrenzen
+stammen aus der echten Engine, damit Render-Skalierung erhalten bleibt. OriginalUi
+nutzt diese Daten für Surface-Erzeugung, Paint und Mausgrenzen in beiden
+Startpfaden. Die Display-Modi bleiben bis zum Shutdown an stabilen Adressen;
+aktuelle Modus-/Rendererabfragen bleiben live. Fehlende oder ungültige Daten
+führen zum Fehler, nicht zu Testhost-Ersatzwerten. Abbau wartet auf native
+VGUI-Rückkehr, bevor der Datenpuffer freigegeben wird.
+
+Der Renderer-Datenvertrag hat fünf explizite Argumente. Daraus folgt noch keine
+vollständige IGameUIFuncs-ABI oder veröffentlichbare Factory: Echtes
+Tastennummer-zu-Binding fehlt im öffentlichen Client-Callback. Die Original-
+IsKeyDown-Semantik fragt über pFindKey den Spielaktionszustand ab, nicht SDL-
+Hardwaretasten. Ein geprüfter Xash-Engine-Service für Bindings sowie native
+VEngineVGui-/BaseUI- und System-Eigentümerschaft bleiben vor der vollen GameUI-
+Anbindung nötig. Keine unvollständige GameUIFuncs-Factory, leeren Bindings,
+gefälschten Panel-Handles oder Null-System-Dummies als erfolgreiche Services.
+FWGS-Referenzcode wird nur gelesen, nicht übernommen; NextClient bleibt Basis.
+
 **Zweiter Schritt: ausschließlich x64 und mindestens 60 FPS.** Erst nach dem funktionierenden Port werden durchgängig native x64-Artefakte und mindestens 60 FPS in einer benannten echten Spielszene nachgewiesen. Eine i386-Spielbibliothek ist keine x64-Lösung. Die Eigenständigkeit von Valves Engine darf nicht mit der bereits erfolgten Ablösung jedes Original-Spielmoduls verwechselt werden. `tools/check_game_client.py` prüft nur das benannte x64-Kernprofil, keine alternative `F`-/`GetClientAPI`-Tabelle, Signaturen oder Spielbarkeit. Der Test ist für diese Phase eingegrenzt und blockiert den ersten architekturgleichen Port nicht. Leere Ersatz-Exports oder No-ops sind kein Fortschrittsnachweis.
 
 **Originalinhalte installieren.** Voraussetzung ist eine eigene lizenzierte CS-1.6-Installation. Standardmäßig sucht `scripts/install-content.sh` Steam und App 10. Mit `--source` kann der Benutzer bei fehlender Erkennung oder Kopierproblemen den Spiel-Hauptordner oder dessen `valve`-/`cstrike`-Ordner angeben. Der gemeinsame Baum muss trotzdem beide Spielordner und die benötigten Ressourcen enthalten. Die manuelle Auswahl wird geprüft und nicht still durch eine andere Installation ersetzt. Sie braucht keine lesbaren Steam-Metadaten und startet Steam nicht. Die Prüfung kontrolliert Datenstruktur und Pflichtdateien, keine Kontoanmeldung. Der Installer kopiert dieselbe Allowlist, lässt Ballast und persönliche Dateien liegen, schützt Quelle und erkannte Steam-Bibliotheken vor Ziel-/Overlay-Schreibzugriff und liefert keine Valve-Dateien im Repository aus. Die bisherige Inhaltskopie bleibt von Runtime-Bibliotheksintegration und vollständigen Client-/Server-Startern getrennt.

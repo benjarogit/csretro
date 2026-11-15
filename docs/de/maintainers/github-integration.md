@@ -28,11 +28,11 @@ Head; PR-Beschreibungen und inzwischen fortgeschrittene Branchnamen reichen nich
 CodeRabbit zählt nur mit tatsächlicher Bot-Identität, Freigabe zum aktuellen Head und
 erfolgreichem CodeRabbit-Lauf zu diesem Head. Übersprungene, neutrale, begrenzte,
 abgebrochene, fehlgeschlagene, reine Zusammenfassungs- oder leere Antworten zählen
-nicht. CodeRabbit muss alle geänderten Pfade und Kriterien unabhängig prüfen und ein
-Review mit folgender Struktur abgeben:
+nicht. CodeRabbit muss alle geänderten Pfade und Kriterien unabhängig prüfen und seine
+Bewertung in der Custom-Check-Explanation mit folgender Struktur veröffentlichen:
 
-```text
-<!-- csretro-acceptance-review {"schema":1,"head":"PR_HEAD_SHA","acceptance_sha256":"DIGEST","decision":"pass","reviewed_paths":["all changed paths"],"summary":"Concrete independent assessment of the inspected changes","criteria":[{"id":"criterion-id","passed":true,"reason":"Concrete verified evidence for this criterion"}]} -->
+```csretro-acceptance-review
+{"schema":1,"head":"PR_HEAD_SHA","acceptance_sha256":"DIGEST","decision":"pass","reviewed_paths":["all changed paths"],"summary":"Concrete independent assessment of the inspected changes","criteria":[{"id":"criterion-id","passed":true,"reason":"Concrete verified evidence for this criterion"}]}
 ```
 
 DIGEST ist SHA-256 der UTF-8-kodierten kanonischen Python-Darstellung
@@ -66,7 +66,7 @@ Review-Anforderungen bleiben erhalten.
 
 Auch der Bootstrap benötigt echte Reviews und alle Checks. Das Scanner-Fundament
 von PR #16 wird ohne Import des gesamten gestapelten Branches und ohne schwächere
-Gates abgeglichen; #15 bleibt von #14 abhängig. Ein reiner Doku-Test-PR gegen main
+Gates abgeglichen; #15 bleibt von #14 abhängig. Ein reiner Doku-Test-PR gegen einen gleich geschützten isolierten Zielbranch
 prüft die negative Sperre und erst nach echter Abnahme positives natives Auto-Merge.
 Fehlende Scanner/Reviewer sind Blocker und kein bestandener Ende-zu-Ende-Test.
 Auto-Merge bleibt bis zum echten positiven Test unter wirksamem Schutz aus.
@@ -79,3 +79,7 @@ Quellen: [natives Auto-Merge](https://docs.github.com/en/pull-requests/how-tos/m
 [CodeRabbit-Freigaben und eigene Prüfungen](https://docs.coderabbit.ai/reference/configuration).
 
 Die Sandbox-Vorbereitung vergleicht vollständige konfigurierte und wirksame native Regeln einschließlich aller Review-/Merge-Parameter und aller aktiven Quellen statt nur ausgewählter Checks. Ihr Ruleset darf ausschließlich den exakten Testbranch ohne Bypass betreffen. Der harmlose Drei-Dateien-Umfang ist an den beobachteten unveränderlichen Head gebunden; jede abschließende Prüfung kontrolliert Umfang, Head und Schutzgleichheit erneut. Änderungen entwerten den Test, statt seine Befugnisse zu erweitern.
+
+Das Manifest gehört zu seinem PR; der Doku-Test darf Infrastruktur-Kriterien durch passende Kriterien ersetzen, ohne globale Checks zu reduzieren. Der Custom-Check bewertet Quellinhalte; Live-API-Belege, Abschluss des eigenen Laufs und formale Freigabe werden danach geprüft. So muss kein Review bereits abgeschlossen sein, bevor es sein Ergebnis erzeugen kann. Der authentifizierte Walkthrough ist der Ausgabekanal: Der Prüfer verlangt exakte Head-Abdeckung als reviewed, einen tatsächlich bestandenen Custom-Check und das vollständige Digest-/Kriterien-/Pfad-Testat. Unbekannte oder unklare Ausgaben scheitern. Der lesende Inhaltsjob darf vor der formalen Stimme bestehen und erfindet keine Freigabe. Abschließender Host-Audit und nativer Schutz verlangen weiterhin aktuelles APPROVED und alle tatsächlichen Live-Checks.
+
+Als kommentarbasierter Befund zählt nur die offizielle CodeRabbit-Summarize-/Walkthrough-Veröffentlichung. Ihr eindeutiger Custom-Check-Abschnitt muss genau eine Passed-Zeile, die passende Full-details-Explanation und die exakte reviewed-Head-Abdeckung enthalten. Bot-Chatantworten, zitierte Vorlagen außerhalb des Abschnitts, doppelte Ergebniszeilen und fehlerhafte neuere Veröffentlichungen ersetzen kein Review. Wird der Inhalt erst nach einem fehlgeschlagenen 90-Sekunden-Job veröffentlicht und folgt kein formales Review-Ereignis, darf der vorhandene Host nach Prüfung der echten Inhaltsbelege ausschließlich den fehlgeschlagenen Akzeptanzworkflow am exakten Head erneut ausführen. Keine Wiederholung aller Builds und kein Schreiben eines Erfolgsstatus. Ein bestandener Inhaltsjob darf weiterhin keinen ungeprüften Merge aktivieren.

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "base": "main",
   "required_checks": [
     "repository verification",
@@ -54,5 +54,7 @@
   "acceptance_producer": "reviewed-read-only-actions",
   "acceptance_path": "docs/evidence/acceptance.json",
   "reviewer_app_id": 347564,
-  "reviewer_user_id": 136622811
+  "reviewer_user_id": 136622811,
+  "independent_check_name": "CSRETRO independent acceptance",
+  "acceptance_scope": "per-pull-request"
 }

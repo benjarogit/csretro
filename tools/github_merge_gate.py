@@ -221,7 +221,7 @@ def inspect(github, number, policy):
     import github_acceptance
     artifact = github_acceptance.read_artifact(github, pr['head']['sha'], policy)
     changed_files = github.pages(f'pulls/{number}/files')
-    result['holds'] += github_acceptance.validate(pr, changed_files, reviews, checks, artifact, policy)
+    result['holds'] += github_acceptance.validate(pr, changed_files, reviews, checks, artifact, policy, authorizations)
     acceptance = [check for check in checks if check.get('name') == policy['acceptance_check']
                   and check.get('app', {}).get('id') == policy['acceptance_app_id']
                   and check.get('head_sha') == pr['head']['sha']]

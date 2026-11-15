@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "base_sha": "ebd69c76f15fc83373cdff938157bf06612b41fe",
+  "base_sha": "4fd6043e3aa6b7b58daff755f8d8852655caa941",
   "human_runtime_required": false,
   "changed_paths": [
     "docs/de/maintainers/merge-canary.md",

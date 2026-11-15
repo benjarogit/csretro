@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Separate independent source assessment from live CI/formal approval, using authenticated CodeRabbit walkthrough evidence to avoid a circular pre-merge protocol.
+
 - Compare complete live sandbox protections and bind the harmless canary scope to an immutable head before native merge arming.
 
 - Verify immutable acceptance criteria against substantive current-head CodeRabbit review evidence in a read-only native job, without a new App or secrets; reject skipped and rate-limited reviews.

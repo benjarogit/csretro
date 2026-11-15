@@ -38,6 +38,90 @@ class AcceptanceTests(unittest.TestCase):
         self.review['body'] = '<!-- csretro-acceptance-review ' + json.dumps(self.proof) + ' -->'
         return acceptance.validate(self.pr, self.files, self.reviews, self.checks, self.artifact, self.policy)
 
+    def published_comment(self, status='Passed', updated='2026-11-15T10:00:00Z'):
+        coverage = {'sourceCommitId': 'head', 'coveredCommitId': 'head', 'kind': 'reviewed'}
+        body = ('<!-- coderabbit-ai-generated:v1 -->\n'
+                + '<!-- This is an auto-generated comment: summarize by coderabbit.ai -->\n'
+                + '<!-- final_review_risk_coverage:' + json.dumps(coverage) + ' -->\n'
+                + '<!-- pre_merge_checks_walkthrough_start -->\n'
+                + '| ' + self.policy['independent_check_name'] + ' | ![' + status
+                + '](https://storage.googleapis.com/coderabbit_public_assets/pre-merge-checks-'
+                + status.lower() + '.svg) | Source inspected |\n'
+                + '<details><summary><strong>Full details: ' + self.policy['independent_check_name'] + '</strong></summary>\n'
+                + '```csretro-acceptance-review\n' + json.dumps(self.proof) + '\n```\n</details>\n'
+                + '<!-- pre_merge_checks_walkthrough_end -->')
+        return {'id': 50, 'user': dict(self.review['user']), 'body': body, 'updated_at': updated}
+
+    def test_published_provider_content_result_does_not_forge_formal_approval(self):
+        self.reviews = []
+        comment = self.published_comment()
+        args = (self.pr, self.files, self.reviews, self.checks, self.artifact, self.policy, [comment])
+        self.assertEqual(acceptance.validate(*args, require_approval=False), [])
+        self.assertTrue(acceptance.validate(*args))
+
+    def test_formal_approval_plus_provider_attestation_passes_full_gate(self):
+        self.review['body'] = 'Approved after the independent content assessment.'
+        self.assertEqual(acceptance.validate(self.pr, self.files, self.reviews, self.checks,
+                         self.artifact, self.policy, [self.published_comment()]), [])
+
+    def test_bot_chat_reply_echo_is_not_a_provider_assessment(self):
+        comment = self.published_comment()
+        comment['body'] = '<!-- This is an auto-generated reply by CodeRabbit -->\n' + comment['body']
+        self.assertTrue(acceptance.validate(self.pr, self.files, [], self.checks,
+            self.artifact, self.policy, [comment], require_approval=False))
+
+    def test_quoted_result_outside_official_section_cannot_shadow_inconclusive(self):
+        comment = self.published_comment('Inconclusive')
+        quoted = ('| ' + self.policy['independent_check_name'] + ' | ![Passed]'
+                  + '(https://storage.googleapis.com/coderabbit_public_assets/pre-merge-checks-passed.svg) | quote |\n')
+        comment['body'] = comment['body'].replace('<!-- pre_merge_checks_walkthrough_start -->',
+            quoted + '<!-- pre_merge_checks_walkthrough_start -->')
+        self.assertTrue(acceptance.validate(self.pr, self.files, [], self.checks,
+            self.artifact, self.policy, [comment], require_approval=False))
+
+    def test_duplicate_results_and_unscoped_proof_fail_closed(self):
+        for mutation in ('duplicate-row', 'outside-details', 'missing-header'):
+            with self.subTest(mutation=mutation):
+                comment = self.published_comment()
+                if mutation == 'duplicate-row':
+                    row = next(line for line in comment['body'].splitlines() if line.startswith('|'))
+                    comment['body'] = comment['body'].replace(row, row + '\n' + row)
+                elif mutation == 'outside-details':
+                    comment['body'] = comment['body'].replace('Full details: ', 'Quoted example: ')
+                else:
+                    comment['body'] = comment['body'].replace('summarize by coderabbit.ai', 'chat by coderabbit.ai')
+                self.assertTrue(acceptance.validate(self.pr, self.files, [], self.checks,
+                    self.artifact, self.policy, [comment], require_approval=False))
+
+    def test_inconclusive_or_failed_custom_assessment_cannot_count(self):
+        for status in ('Inconclusive', 'Failed', 'Skipped'):
+            with self.subTest(status=status):
+                self.assertTrue(acceptance.validate(self.pr, self.files, [], self.checks,
+                    self.artifact, self.policy, [self.published_comment(status)], require_approval=False))
+
+    def test_comments_require_provider_identity_and_reviewed_head_coverage(self):
+        for mutation in ('identity', 'coverage', 'result'):
+            with self.subTest(mutation=mutation):
+                comment = self.published_comment()
+                if mutation == 'identity': comment['user']['id'] = 42
+                if mutation == 'coverage': comment['body'] = comment['body'].replace('"kind": "reviewed"', '"kind": "summary"')
+                if mutation == 'result': comment['body'] = comment['body'].replace('![Passed]', '![Success]')
+                self.assertTrue(acceptance.validate(self.pr, self.files, [], self.checks,
+                    self.artifact, self.policy, [comment], require_approval=False))
+
+    def test_later_inconclusive_publication_revokes_earlier_pass(self):
+        before = self.published_comment()
+        after = self.published_comment('Inconclusive', '2026-11-15T10:01:00Z')
+        after['id'] = 51
+        after['body'] = after['body'].split('```')[0]
+        self.assertTrue(acceptance.validate(self.pr, self.files, [], self.checks,
+            self.artifact, self.policy, [before, after], require_approval=False))
+
+    def test_content_only_mode_still_rejects_withdrawn_approval(self):
+        self.review['state'] = 'DISMISSED'
+        self.assertTrue(acceptance.validate(self.pr, self.files, self.reviews, self.checks,
+            self.artifact, self.policy, [self.published_comment()], require_approval=False))
+
     def test_actual_current_head_review_and_criterion_proof_pass_fixture(self):
         self.assertEqual(self.result(), [])
 

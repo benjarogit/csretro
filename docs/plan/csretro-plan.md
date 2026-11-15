@@ -1552,15 +1552,27 @@ aktuelle Modus-/Rendererabfragen bleiben live. Fehlende oder ungültige Daten
 führen zum Fehler, nicht zu Testhost-Ersatzwerten. Abbau wartet auf native
 VGUI-Rückkehr, bevor der Datenpuffer freigegeben wird.
 
-Der Renderer-Datenvertrag hat fünf explizite Argumente. Daraus folgt noch keine
-vollständige IGameUIFuncs-ABI oder veröffentlichbare Factory: Echtes
-Tastennummer-zu-Binding fehlt im öffentlichen Client-Callback. Die Original-
-IsKeyDown-Semantik fragt über pFindKey den Spielaktionszustand ab, nicht SDL-
-Hardwaretasten. Ein geprüfter Xash-Engine-Service für Bindings sowie native
-VEngineVGui-/BaseUI- und System-Eigentümerschaft bleiben vor der vollen GameUI-
-Anbindung nötig. Keine unvollständige GameUIFuncs-Factory, leeren Bindings,
-gefälschten Panel-Handles oder Null-System-Dummies als erfolgreiche Services.
-FWGS-Referenzcode wird nur gelesen, nicht übernommen; NextClient bleibt Basis.
+**Native GameUI-Tastendienste und vollständige GameUIFuncs-ABI (umgesetzt,
+Komponentenabnahme).** Der Provider implementiert die neun ursprünglichen
+Linux-Methoden einschließlich Destruktor-Slots und fünfargumentiger Renderer-
+Abfrage. Seine Factory erscheint nur bei vollständigen, live verfügbaren
+Video-/Tastendiensten. Tastennamen und Bindings kommen über benannte Funktionen
+von der bereits geladenen Xash-Engine; ein exakter Referenzfingerprint begrenzt
+die private ABI und den statisch belegten Tastenbereich. Das ist keine
+Reproduzierbarkeits- oder Spielbarkeitsbescheinigung für den historischen Spike.
+Der gemeinsame ELF-Resolver prüft definierte ausführbare Funktionen, frische
+Datei-/Lade-Build-IDs und Mapping-/Objektzugehörigkeit. Er beansprucht keinen
+Schutz gegen bösartige Änderungen einer lokalen Datei an Ort und Stelle.
+IsKeyDown nutzt pFindKey/kbutton des Originalclients; Bind-Tasten werden über
+SDL2 an den Original-VGUI-Helfer übersetzt. Unbekannte Engine-Fingerprints,
+fehlende Funktionen und ungültige Bereiche werden abgewiesen. Ein getrennt
+kompilierter Alt-ABI-Verbraucher prüft sämtliche Methoden; nur synthetische
+Module werden ausgeführt. Keine Bibliothek wird als neue Engine geladen.
+
+Native VEngineVGui-/BaseUI-Paneldienste, echte System-Eigentümerschaft und
+GameUI-Lebenszyklus bleiben vor der vollen Anbindung nötig. Keine gefälschten
+Panel-Handles oder Null-System-Dummies als erfolgreiche Services. FWGS-
+Referenzcode wird nur gelesen, nicht übernommen; NextClient bleibt Basis.
 
 **Zweiter Schritt: ausschließlich x64 und mindestens 60 FPS.** Erst nach dem funktionierenden Port werden durchgängig native x64-Artefakte und mindestens 60 FPS in einer benannten echten Spielszene nachgewiesen. Eine i386-Spielbibliothek ist keine x64-Lösung. Die Eigenständigkeit von Valves Engine darf nicht mit der bereits erfolgten Ablösung jedes Original-Spielmoduls verwechselt werden. `tools/check_game_client.py` prüft nur das benannte x64-Kernprofil, keine alternative `F`-/`GetClientAPI`-Tabelle, Signaturen oder Spielbarkeit. Der Test ist für diese Phase eingegrenzt und blockiert den ersten architekturgleichen Port nicht. Leere Ersatz-Exports oder No-ops sind kein Fortschrittsnachweis.
 

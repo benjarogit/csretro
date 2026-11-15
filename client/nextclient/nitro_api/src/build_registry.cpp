@@ -122,6 +122,16 @@ namespace nitroapi
         return false;
     }
 
+    std::optional<int> RegisteredXashKeyCount(const std::string& engine_sha256)
+    {
+        // Exact preserved i386 Xash reference, not a generic private ABI.
+        // No binary is distributed. The original legacy GameUI uses 0..255;
+        // this observed engine has 265 entries, independently checked statically.
+        if (ToLower(engine_sha256) == "d9f3776b156cc906a1016882d3154de8726c71cb4242fe9ed02fa44203af81db")
+            return 265;
+        return std::nullopt;
+    }
+
     std::string HashFileSha256(const std::string& path)
     {
         std::ifstream file(path, std::ios::binary);

@@ -26,6 +26,10 @@ namespace nitroapi
     bool IsRegisteredClient(const std::string& platform, const std::string& client_sha256);
     bool IsRegisteredClientVgui(const std::string& client_sha256, const std::string& vgui_sha256);
 
+    // Recorded Xash spike artifact, only for the named key-query ABI. This
+    // does not identify a retail engine or certify a clean/reproducible build.
+    std::optional<int> RegisteredXashKeyCount(const std::string& engine_sha256);
+
     // Returns the lowercase SHA-256 of a file, or an empty string when the file
     // cannot be read.
     std::string HashFileSha256(const std::string& path);

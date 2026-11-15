@@ -29,7 +29,17 @@ namespace
     public:
         ~OriginalClient()
         {
-            if (ui_) ui_->Shutdown();
+            try
+            {
+                if (ui_)
+                {
+                    ui_->Shutdown();
+                }
+            }
+            catch (...)
+            {
+                std::fprintf(stderr, "CSRETRO original client UI teardown failed\n");
+            }
             // The original client's static destructors can still reference
             // VGUI code. Unload it while both UI modules and Surface are live.
             module_.reset();

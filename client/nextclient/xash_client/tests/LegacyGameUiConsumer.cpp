@@ -46,3 +46,31 @@ extern "C" void FixtureConsumeGameUi(void* object, const char* action, const cha
     result->vac = api->IsConnectedToVACSecureServer();
     result->key_number = api->Key_KeyStringToKeyNum(name);
 }
+
+namespace legacy_gameui_abi
+{
+    class EngineVGui
+    {
+    public:
+        virtual ~EngineVGui() = default;
+        virtual unsigned GetPanel(int type) = 0;
+        virtual bool SteamRefreshLogin(const char*, bool) = 0;
+        virtual bool SteamProcessCall(bool*, void*, void*) = 0;
+    };
+} // namespace legacy_gameui_abi
+
+extern "C" void FixtureConsumeEngineVGui(void* object, EngineVguiProbe* result)
+{
+    auto* api = static_cast<legacy_gameui_abi::EngineVGui*>(object);
+    *result = {};
+    result->root = api->GetPanel(0);
+    result->client = api->GetPanel(1);
+    result->gameui = api->GetPanel(2);
+    result->unknown = api->GetPanel(123);
+    result->login = api->SteamRefreshLogin("synthetic", true);
+    bool finished = true;
+    result->progress_guard = 0x1234abcd;
+    result->error_guard = 0xfeed9876;
+    result->poll = api->SteamProcessCall(&finished, &result->progress_guard, &result->error_guard);
+    result->finished = finished;
+}

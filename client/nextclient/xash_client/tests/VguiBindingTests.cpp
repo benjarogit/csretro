@@ -392,3 +392,79 @@ TEST_F(OriginalVguiBinding, DestructionContainsNativeShutdownExceptions)
     csr::client::VguiBinding other;
     EXPECT_TRUE(Initialize(other, client.get(), vgui.get(), &surface_token, error));
 }
+
+TEST_F(OriginalVguiBinding, RuntimeOperationsRequireCompletedStartup)
+{
+    csr::client::VguiBinding binding;
+    int calls{};
+    const auto operation = [](void* context) { ++*static_cast<int*>(context); };
+    EXPECT_FALSE(binding.RunNativeUi(operation, &calls));
+    std::string error;
+    ASSERT_TRUE(binding.BindInterfaces(client.get(), vgui.get(), &surface_token, error));
+    EXPECT_FALSE(binding.RunNativeUi(operation, &calls));
+    ASSERT_TRUE(binding.InitializeViewport(error));
+    EXPECT_FALSE(binding.RunNativeUi(operation, &calls));
+    ASSERT_TRUE(binding.StartViewport(error));
+    EXPECT_FALSE(binding.RunNativeUi(nullptr, &calls));
+    EXPECT_TRUE(binding.RunNativeUi(operation, &calls));
+    EXPECT_EQ(calls, 1);
+}
+
+TEST_F(OriginalVguiBinding, RuntimeShutdownWaitsForTheOutermostNativeOperation)
+{
+    csr::client::VguiBinding binding;
+    std::string error;
+    ASSERT_TRUE(Initialize(binding, client.get(), vgui.get(), &surface_token, error));
+    struct Context
+    {
+        csr::client::VguiBinding* binding;
+        int (*shutdown_count)();
+        bool inside{};
+    } context{&binding, reinterpret_cast<int (*)()>(dlsym(vgui.get(), "FixtureVguiShutdownCount"))};
+    EXPECT_FALSE(binding.RunNativeUi(
+        [](void* opaque) {
+            Context& context = *static_cast<Context*>(opaque);
+            EXPECT_TRUE(context.binding->RunNativeUi(
+                [](void* opaque) {
+                    Context& context = *static_cast<Context*>(opaque);
+                    context.binding->Shutdown();
+                    EXPECT_TRUE(context.binding->IsInitialized());
+                    EXPECT_TRUE(context.binding->HasBinding());
+                },
+                &context
+            ));
+            EXPECT_EQ(context.shutdown_count(), 0);
+            int extra_calls{};
+            EXPECT_FALSE(context.binding->RunNativeUi([](void* opaque) { ++*static_cast<int*>(opaque); }, &extra_calls));
+            EXPECT_EQ(extra_calls, 0);
+            context.inside = true;
+        },
+        &context
+    ));
+    EXPECT_TRUE(context.inside);
+    EXPECT_FALSE(binding.HasBinding());
+    EXPECT_EQ(Count(vgui.get(), "FixtureVguiShutdownCount"), 1);
+    ExpectOriginalGlobals();
+}
+
+TEST_F(OriginalVguiBinding, ThrowingRuntimeOperationCompletesRequestedShutdownBeforePropagation)
+{
+    csr::client::VguiBinding binding;
+    std::string error;
+    ASSERT_TRUE(Initialize(binding, client.get(), vgui.get(), &surface_token, error));
+    EXPECT_THROW(
+        binding.RunNativeUi(
+            [](void* owner) {
+                auto& binding = *static_cast<csr::client::VguiBinding*>(owner);
+                binding.Shutdown();
+                EXPECT_TRUE(binding.HasBinding());
+                throw std::runtime_error("native runtime callback failure");
+            },
+            &binding
+        ),
+        std::runtime_error
+    );
+    EXPECT_FALSE(binding.HasBinding());
+    EXPECT_EQ(Count(vgui.get(), "FixtureVguiShutdownCount"), 1);
+    ExpectOriginalGlobals();
+}

@@ -10,6 +10,19 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Compare complete live sandbox protections and bind the harmless canary scope to an immutable head before native merge arming.
+
+- Verify immutable acceptance criteria against substantive current-head CodeRabbit review evidence in a read-only native job, without a new App or secrets; reject skipped and rate-limited reviews.
+- Isolate pre-push verification from hook-local Git variables while retaining LFS forwarding, preventing worktree test fixtures from altering the caller repository.
+
+- Prepare fail-closed protected GitHub auto-merge coordination, current-head review/acceptance attestations and sensitive-change approval; retain existing CI and block activation until a trusted producer and reviews are available.
+
+- Complete the existing upstream observation register with requested technical sources, verified aliases and explicit unavailable identities; preserve all dependency pins and integration rules.
+
+- Executed builtin project manager with persistent priorities/dependencies, evidence-aware continuation and shared provider-neutral client reports; optional IDE discovery/file handoff never installs or launches agents.
+
+- Registered upstream PR/release/public-advisory observation in the existing weekly workflow, with bounded reads, explicit incomplete results and locally deduplicated candidate memory.
+
 - Local development coordinator with fourteen scoped role phases, provenance-aware SQLite FTS5 memory, restart/backup support, GitHub reconciliation and project skill entry. No model service or game process is launched.
 
 - Original panel traversal, HUD painting, engine-backed files/fonts and UI mouse/frame routing, with native fixtures and offscreen GL CI; actual runtime/GameUI/NextClient integration remains open.
@@ -25,6 +38,8 @@ The authoritative version string is the `VERSION` file.
 - DE/EN feature, settings and runtime acceptance guides.
 
 ### Changed
+
+- Batch local memory writes atomically with WAL readers and full durability; accept consumer-supplied authority sources for standalone reuse.
 
 - Restore the port-first sequence: existing NextClient behavior on Xash3D, then exclusively x64 and measured performance, then additional features.
 

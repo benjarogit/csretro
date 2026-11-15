@@ -47,6 +47,9 @@ jobs:
       - name: Test local orchestration and memory
         run: python3 -m unittest discover -s tests/chatdev -v
 
+      - name: Test protected merge eligibility
+        run: python3 -m unittest discover -s tests/github_merge -v
+
       - name: Test native game-client export screen
         run: python3 -m unittest discover -s tests/game_client -v
 

@@ -19,8 +19,8 @@ These are imported with their history and keep their upstream licenses.
 | [Half-Life 1 SDK](https://github.com/ValveSoftware/halflife) | Valve Corporation | Valve SDK license | GoldSrc interfaces and types |
 | [AMX Mod X](https://github.com/alliedmodders/amxmodx) | AlliedModders | GPL-3.0 | Server plugin runtime, source under `server/vendor/amxmodx` |
 | [ReAPI](https://github.com/rehlds/ReAPI) | ReHLDS team | GPL-3.0 | Server module API, source under `server/vendor/reapi` |
-| [ReHLDS](https://github.com/dreamstalker/rehlds) | ReHLDS team | GPL-3.0 | Server engine, source under `server/vendor/rehlds` |
-| [ReGameDLL_CS](https://github.com/s1lentq/ReGameDLL_CS) | s1lentq and contributors | GPL-3.0 | Server game library, source under `server/vendor/regamedll` |
+| [ReHLDS](https://github.com/rehlds/ReHLDS) | ReHLDS team | GPL-3.0 | Server engine, source under `server/vendor/rehlds` |
+| [ReGameDLL_CS](https://github.com/rehlds/ReGameDLL_CS) | s1lentq and contributors | GPL-3.0 | Server game library, source under `server/vendor/regamedll` |
 | [Metamod-R](https://github.com/rehlds/Metamod-R) | ReHLDS team, theAsmodai | GPL-3.0 | Plugin loader, source under `server/vendor/metamod-r` |
 
 ## Documentation site
@@ -48,13 +48,17 @@ of the CSRETRO-owned code is still undecided; see `HANDOFF.md`.
 
 | Project | Authors | License | What we use |
 |---|---|---|---|
-| [MetaAudio](https://github.com/MoeMod/MetaAudio) | MoeMod and contributors | GPL-3.0 | Reference for the upstream audio path |
-| [YaPB](https://github.com/jeefo/yapb) | jeefo and contributors | GPL-3.0 | Bot reference used by the upstream client |
+| [MetaAudio](https://github.com/LAGonauta/MetaAudio) | Felipe (LAGonauta) and contributors | GPL-3.0 | Reference for the upstream audio path |
+| [YaPB](https://github.com/yapb/yapb) | jeefo and contributors | GPL-3.0 | Bot reference used by the upstream client |
 | [csldr](https://github.com/mikkokko/csldr) | mikkokko | – | Loader reference used by the upstream client |
 | [cm2network/steamcmd](https://github.com/CM2Walki/steamcmd) | CM2Walki and contributors | MIT | SteamCMD base image that downloads HLDS App 90 for the test server build |
 | [FreeType](https://freetype.org/) | The FreeType Project | FTL or GPL-2.0-or-later | Glyph rasterizer inside `xash_surface` |
 | [DejaVu fonts](https://dejavu-fonts.github.io/) 2.37 | Bitstream, Tavmjong Bah and contributors | Bitstream Vera | Shipped substitute for Verdana and Tahoma |
 | [Liberation fonts](https://github.com/liberationfonts/liberation-fonts) 2.1.5 | Red Hat and contributors | SIL OFL 1.1 | Shipped substitute for Arial |
+
+Historical requested MetaAudio/YaPB identities and verified aliases are retained
+in [`versions.lock.json`](versions.lock.json). Monitoring a source does not imply
+that its code is incorporated. Existing license entries are unchanged.
 
 ## People
 

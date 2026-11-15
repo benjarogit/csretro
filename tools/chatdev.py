@@ -9,12 +9,18 @@ from pathlib import Path
 import sqlite3
 import subprocess
 import time
+import tempfile
+import fcntl
+
+from chatdev_manager import ProjectManager, client_identity
 
 from chatdev_memory import Memory
+from chatdev_adapters import capabilities, export as export_assignment
 from chatdev_github import GitHub, reconcile
 
 ROLES = {
  'orchestrator': ('Coordination, dependencies, memory and acceptance', 'coordinate'),
+ 'project_manager': ('Builtin progress, milestones, dependencies and continuation reporting to orchestrator', 'coordinate'),
  'developer': ('Implementation and regression fixes', 'assigned-files'),
  'analyst': ('Causes, interfaces and compatibility', 'read-only'),
  'tester': ('Reproducible tests and evidence', 'tests'),
@@ -76,8 +82,13 @@ class Coordinator:
         self.db.execute('CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, objective TEXT, mode TEXT, state TEXT, roles TEXT, sources TEXT, snapshot TEXT, created REAL)')
         self.db.execute('CREATE TABLE IF NOT EXISTS results (task INTEGER, role TEXT, actor TEXT, status TEXT, summary TEXT, evidence TEXT, PRIMARY KEY(task,role))')
         self.db.execute('CREATE TABLE IF NOT EXISTS claims (path TEXT PRIMARY KEY, task INTEGER, role TEXT)')
+        self.db.execute('CREATE TABLE IF NOT EXISTS manager_reports (id INTEGER PRIMARY KEY, task INTEGER, client TEXT, created REAL, payload TEXT)')
+        self.db.execute('CREATE TABLE IF NOT EXISTS task_priorities (task INTEGER PRIMARY KEY, priority TEXT)')
+        self.db.execute('CREATE TABLE IF NOT EXISTS task_links (task INTEGER, dependency INTEGER, PRIMARY KEY(task,dependency))')
+        self.db.execute('CREATE TABLE IF NOT EXISTS clients (client TEXT PRIMARY KEY, task INTEGER, observed REAL)')
         self.db.execute('CREATE TABLE IF NOT EXISTS task_bases (task INTEGER PRIMARY KEY, revision TEXT)')
         self.db.execute('CREATE TABLE IF NOT EXISTS scopes (task INTEGER, path TEXT)')
+        self.db.execute('CREATE TABLE IF NOT EXISTS reviewed_claims (task INTEGER, path TEXT, PRIMARY KEY(task,path))')
         self.db.execute('CREATE TABLE IF NOT EXISTS quality_snapshot (task INTEGER PRIMARY KEY, digest TEXT)')
         self.db.commit()
 
@@ -97,7 +108,8 @@ class Coordinator:
                 parent = parent.parent
         return {p: (self.root / p).read_text() for p in dict.fromkeys(selected)}
 
-    def start(self, objective, mode='change', paths=(), offline=False):
+    def start(self, objective, mode='change', paths=(), offline=False, client='cli'):
+        client_identity(client)
         context = self.context(paths)
         watched = set(context)
         for path in paths:
@@ -114,23 +126,119 @@ class Coordinator:
         with self.db:
             self.db.execute('INSERT INTO task_bases VALUES(?,?)',(row.lastrowid,base))
             self.db.executemany('INSERT INTO scopes VALUES(?,?)',[(row.lastrowid,p) for p in paths])
-        task = self.resume(row.lastrowid)
+        task = self.resume(row.lastrowid,client=client)
         task['context'] = context
         task['memory'] = self.memory.search(objective, include_stale=False)
         task['github'] = snapshot
         task['execution'] = 'Controlled phases awaiting an actual coding agent; no model process started'
         return task
 
-    def resume(self, task):
+    def resume(self, task, client='cli'):
         row = self.db.execute('SELECT * FROM tasks WHERE id=?',(task,)).fetchone()
         if not row: raise ValueError('Unknown task')
         result = dict(row)
         for key in ('roles','sources','snapshot'): result[key] = json.loads(result[key])
+        result['scope'] = [row[0] for row in self.db.execute('SELECT path FROM scopes WHERE task=? ORDER BY path',(task,))]
         result['stale'] = result['sources'] != self.fingerprints(result['sources'])
         result['results'] = [dict(r) for r in self.db.execute('SELECT * FROM results WHERE task=?',(task,))]
         pending = [r for r in result['roles'] if not any(x['role']==r and x['status']=='passed' for x in result['results'])]
         result['next'] = 'reconcile changed authority' if result['stale'] else (pending[0] if pending else 'complete')
+        result['project_manager'] = self.manager_report(task,client)
         return result
+
+    def manager_report(self, task=None, client='cli', snapshot=None):
+        client_identity(client)
+        lock_path = self.root/'.local/chatdev/status.lock'
+        descriptor = os.open(lock_path,os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
+        with os.fdopen(descriptor,'a') as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX)
+            return self._manager_report_unlocked(task,client,snapshot)
+
+    def _manager_report_unlocked(self, task=None, client='cli', snapshot=None):
+        client_identity(client)
+        tasks = []
+        for row in self.db.execute('SELECT * FROM tasks ORDER BY id'):
+            item = dict(row)
+            priority = self.db.execute('SELECT priority FROM task_priorities WHERE task=?',(row['id'],)).fetchone()
+            item['priority'] = priority[0] if priority else 'P2'
+            item['dependencies'] = [edge[0] for edge in self.db.execute('SELECT dependency FROM task_links WHERE task=?',(row['id'],))]
+            item['results'] = [dict(r) for r in self.db.execute('SELECT * FROM results WHERE task=?',(row['id'],))]
+            watched = json.loads(item['sources'])
+            item['stale'] = watched != self.fingerprints(watched)
+            review = self.db.execute('SELECT digest FROM quality_snapshot WHERE task=?',(row['id'],)).fetchone()
+            if review and review[0] != self.work_digest(row['id']): item['stale'] = True
+            tasks.append(item)
+        if snapshot is None:
+            selected = next((row for row in tasks if row['id']==task),None) if task is not None else next((row for row in reversed(tasks) if row['state'] not in ('done','cancelled')),None)
+            snapshot = json.loads(selected['snapshot']) if selected else {'unavailable':'remote not refreshed'}
+        report = ProjectManager(self.root).report(tasks,snapshot,
+                  (self.root/'HANDOFF.md').read_text(),(self.root/'docs/plan/csretro-plan.md').read_text(),client=client)
+        now = time.time()
+        with self.db:
+            inserted = self.db.execute('INSERT INTO manager_reports(task,client,created,payload) VALUES(?,?,?,?)',(task,client,now,'{}'))
+            self.db.execute('INSERT OR REPLACE INTO clients VALUES(?,?,?)',(client,task,now))
+            report['report_id'] = inserted.lastrowid
+            report['observed_at'] = now
+            report['clients'] = [dict(row) for row in self.db.execute('SELECT * FROM clients ORDER BY client')]
+            self.db.execute('UPDATE manager_reports SET payload=? WHERE id=?',(json.dumps(report),inserted.lastrowid))
+            self.db.execute('DELETE FROM manager_reports WHERE id NOT IN (SELECT id FROM manager_reports ORDER BY id DESC LIMIT 100)')
+        # One shared, atomic interchange file; it signals an observation, not a
+        # running IDE or a newly launched coding agent.
+        filename = self.root/'.local/chatdev/status.json'
+        with tempfile.NamedTemporaryFile(mode='w',encoding='utf-8',dir=filename.parent,delete=False) as stream:
+            json.dump(report,stream,ensure_ascii=False,indent=2)
+            temporary = stream.name
+        os.replace(temporary,filename)
+        return report
+
+    def continue_work(self, client='cli', offline=False):
+        client_identity(client)
+        snapshot = {'unavailable':'explicit offline mode'} if offline else GitHub(self.root).snapshot()
+        report = self.manager_report(client=client,snapshot=snapshot)
+        # Continue the existing work item; never manufacture a new project or
+        # start a second editor/LLM process. Host consumes this dispatch.
+        target = report.get('next',{}).get('task')
+        if isinstance(target,int):
+            selected = self.db.execute('SELECT roles,state FROM tasks WHERE id=?',(target,)).fetchone()
+            if not selected or selected['state'] in ('done','cancelled','completed','closed'):
+                return {'dispatch':'hold-or-handoff','recommendation':{'action':'refresh-status','reason':'Selected task already finished'},'processes_started':False}
+            role = report['next'].get('role')
+            roles = json.loads(selected['roles'])
+            with self.db:
+                self.db.execute('UPDATE tasks SET snapshot=? WHERE id=?',(json.dumps(snapshot),target))
+                if role in ROLES and role not in roles and role!='project_manager':
+                    roles.insert(roles.index('quality') if 'quality' in roles else len(roles),role)
+                    self.db.execute('UPDATE tasks SET roles=? WHERE id=?',(json.dumps(roles),target))
+                    self.db.execute("DELETE FROM results WHERE task=? AND role='quality'",(target,))
+                    self.db.execute('DELETE FROM quality_snapshot WHERE task=?',(target,))
+            resumed = self.resume(target,client=client)
+            if resumed['state'] in ('done','cancelled','completed','closed'):
+                return {'dispatch':'hold-or-handoff','task':resumed,'recommendation':{'action':'refresh-status','reason':'Selected task finished concurrently'},'processes_started':False}
+            return {'dispatch':'resume-existing','task':resumed,'recommendation':report['next'],'processes_started':False}
+        return {'dispatch':'hold-or-handoff','recommendation':report.get('next'), 'project_manager':report,'processes_started':False}
+
+    def assign(self, task, priority='P2', dependencies=(), client='cli'):
+        client_identity(client)
+        with self.memory.batch():
+            row = self.db.execute('SELECT state FROM tasks WHERE id=?',(task,)).fetchone()
+            if not row or row['state'] in ('done','cancelled'): raise ValueError('Task is absent or terminal')
+            if priority not in ('P0','P1','P2','P3'): raise ValueError('Invalid priority')
+            dependencies = set(dependencies)
+            for dependency in dependencies:
+                if not self.db.execute('SELECT 1 FROM tasks WHERE id=?',(dependency,)).fetchone(): raise ValueError('Unknown dependency')
+                visited = set(); queue = [dependency]
+                while queue:
+                    current = queue.pop()
+                    if current==task: raise ValueError('Dependency cycle')
+                    if current in visited: continue
+                    visited.add(current)
+                    queue.extend(edge[0] for edge in self.db.execute('SELECT dependency FROM task_links WHERE task=?',(current,)))
+            self.db.execute('INSERT OR REPLACE INTO task_priorities VALUES(?,?)',(task,priority))
+            self.db.execute('DELETE FROM task_links WHERE task=?',(task,))
+            self.db.executemany('INSERT INTO task_links VALUES(?,?)',[(task,dependency) for dependency in dependencies])
+            self.db.execute("DELETE FROM results WHERE task=? AND role='quality'",(task,))
+            self.db.execute('DELETE FROM quality_snapshot WHERE task=?',(task,))
+        return self.manager_report(task,client)
 
     def claim(self, task, role, paths):
         data = self.resume(task)
@@ -151,6 +259,7 @@ class Coordinator:
     def work_digest(self, task):
         paths = {r[0] for r in self.db.execute('SELECT path FROM scopes WHERE task=?',(task,))}
         paths.update(r[0] for r in self.db.execute('SELECT path FROM claims WHERE task=?',(task,)))
+        paths.update(r[0] for r in self.db.execute('SELECT path FROM reviewed_claims WHERE task=?',(task,)))
         base = self.db.execute('SELECT revision FROM task_bases WHERE task=?',(task,)).fetchone()
         if base and base[0]:
             if not re.fullmatch(r'[0-9a-f]{40,64}',base[0]): raise ValueError('Invalid task base revision')
@@ -186,6 +295,10 @@ class Coordinator:
             if any(r['actor']==actor for r in others): raise ValueError('Independent reviewer required')
             if status=='passed' and any(not any(r['role']==needed and r['status']=='passed' for r in others) for needed in data['roles'] if needed!='quality'):
                 raise ValueError('Required phases incomplete')
+        if role=='quality':
+            with self.db:
+                self.db.execute('DELETE FROM reviewed_claims WHERE task=?',(task,))
+                self.db.execute('INSERT INTO reviewed_claims SELECT task,path FROM claims WHERE task=?',(task,))
         reviewed = self.work_digest(task) if role=='quality' else None
         with self.db:
             if reviewed: self.db.execute('INSERT OR REPLACE INTO quality_snapshot VALUES(?,?)',(task,reviewed))
@@ -196,6 +309,22 @@ class Coordinator:
             self.db.execute('UPDATE tasks SET state=? WHERE id=?',('blocked' if blocked else 'in-review',task))
         self.memory.put(summary, sources=[x['path'] for x in checked if not x['path'].startswith('.local/')], component='orchestration',kind='review' if role=='quality' else 'experience')
         return self.resume(task)
+
+    def remember_upstreams(self, report):
+        self.db.execute('CREATE TABLE IF NOT EXISTS upstream_observations (reference TEXT PRIMARY KEY, memory INTEGER, signature TEXT)')
+        stored = []
+        with self.memory.batch():
+            for candidate in report['candidates']:
+                text = json.dumps(candidate,sort_keys=True,ensure_ascii=False)
+                signature = hashlib.sha256(text.encode()).hexdigest()
+                reference = candidate['reference']
+                old = self.db.execute('SELECT memory,signature FROM upstream_observations WHERE reference=?',(reference,)).fetchone()
+                if old and old['signature'] != signature:
+                    self.memory.invalidate(old['memory'],'Upstream observation changed')
+                ident = self.memory.put(text,['versions.lock.json'],component='upstream',kind='upstream')
+                self.db.execute('INSERT OR REPLACE INTO upstream_observations VALUES(?,?,?)',(reference,ident,signature))
+                stored.append(ident)
+        return {**report,'memory_ids':stored}
 
     def release(self, task, reason):
         self.resume(task)
@@ -211,6 +340,8 @@ class Coordinator:
         if data['stale'] or data['next']!='complete': raise ValueError('Incomplete or stale acceptance')
         snapshot = self.db.execute('SELECT digest FROM quality_snapshot WHERE task=?',(task,)).fetchone()
         if not snapshot or snapshot[0] != self.work_digest(task): raise ValueError('Reviewed work changed')
+        coordination = self.manager_report(task)
+        if any(b.get('task')==task and b['kind']=='dependency' for b in coordination['blockers']): raise ValueError('Unverified dependencies')
         reviewer = next(r['actor'] for r in data['results'] if r['role']=='quality')
         if any(r['actor']==reviewer for r in data['results'] if r['role']!='quality'): raise ValueError('Independent reviewer required')
         for row in data['results']:
@@ -238,15 +369,21 @@ def maintenance(root):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--client',type=client_identity,default='cli')
     parser.add_argument('--root',type=Path,default=Path(__file__).resolve().parents[1])
     sub=parser.add_subparsers(dest='command',required=True)
     p=sub.add_parser('run');p.add_argument('task');p.add_argument('--mode',choices=('change','analysis','docs'),default='change');p.add_argument('--scope',action='append',default=[]);p.add_argument('--offline',action='store_true')
     for cmd in ('resume','complete'):
         p=sub.add_parser(cmd);p.add_argument('id',type=int)
+    p=sub.add_parser('export');p.add_argument('id',type=int)
+    p=sub.add_parser('assign');p.add_argument('id',type=int);p.add_argument('--priority',choices=('P0','P1','P2','P3'),default='P2');p.add_argument('--depends-on',type=int,action='append',default=[])
     p=sub.add_parser('release');p.add_argument('id',type=int);p.add_argument('--reason',required=True)
     p=sub.add_parser('record');p.add_argument('id',type=int);p.add_argument('role',choices=ROLES);p.add_argument('--actor',required=True);p.add_argument('--status',choices=('passed','failed','blocked'),required=True);p.add_argument('--summary',required=True);p.add_argument('--evidence',action='append',required=True)
     p=sub.add_parser('claim');p.add_argument('id',type=int);p.add_argument('role',choices=ROLES);p.add_argument('paths',nargs='+')
-    for cmd in ('backlog','maintenance','roles','tasks'): sub.add_parser(cmd)
+    for cmd in ('backlog','maintenance','roles','tasks','upstreams','status','continue','adapters'):
+        command=sub.add_parser(cmd)
+        if cmd=='backlog': command.add_argument('--upstreams',action='store_true')
+        if cmd=='continue': command.add_argument('--offline',action='store_true')
     p=sub.add_parser('memory');p.add_argument('query')
     p=sub.add_parser('remember');p.add_argument('text');p.add_argument('--source',action='append',default=[]);p.add_argument('--component',default='repo');p.add_argument('--kind',default='analysis')
     p=sub.add_parser('invalidate');p.add_argument('id',type=int);p.add_argument('reason')
@@ -255,12 +392,23 @@ def main():
     for cmd in ('backup','restore'):
         p=sub.add_parser(cmd);p.add_argument('path',type=Path)
     args=parser.parse_args(); coordinator=Coordinator(args.root)
-    if args.command=='run': result=coordinator.start(args.task,args.mode,args.scope,args.offline)
-    elif args.command in ('resume','complete'): result=getattr(coordinator,args.command)(args.id)
+    if args.command=='run': result=coordinator.start(args.task,args.mode,args.scope,args.offline,client=args.client)
+    elif args.command=='resume': result=coordinator.resume(args.id,client=args.client)
+    elif args.command=='complete': result=coordinator.complete(args.id)
+    elif args.command=='status': result=coordinator.manager_report(client=args.client)
+    elif args.command=='continue': result=coordinator.continue_work(args.client,args.offline)
+    elif args.command=='adapters': result=capabilities()
+    elif args.command=='export': result=export_assignment(coordinator.resume(args.id,client=args.client),args.client,coordinator.root)
+    elif args.command=='assign': result=coordinator.assign(args.id,args.priority,args.depends_on,args.client)
     elif args.command=='release': result=coordinator.release(args.id,args.reason)
     elif args.command=='record': result=coordinator.record(args.id,args.role,args.actor,args.status,args.summary,args.evidence)
     elif args.command=='claim': result=coordinator.claim(args.id,args.role,args.paths)
-    elif args.command=='backlog': result=reconcile(GitHub(args.root).snapshot())
+    elif args.command=='backlog':
+        snapshot=GitHub(args.root).snapshot()
+        result=reconcile(snapshot)
+        result['project_manager']=coordinator.manager_report(client=args.client,snapshot=snapshot)
+        if args.upstreams: result['upstreams']=coordinator.remember_upstreams(GitHub(args.root).upstreams())
+    elif args.command=='upstreams': result=coordinator.remember_upstreams(GitHub(args.root).upstreams())
     elif args.command=='maintenance': result=maintenance(args.root)
     elif args.command=='roles': result=ROLES
     elif args.command=='tasks': result=[dict(r) for r in coordinator.db.execute('SELECT id,objective,state FROM tasks ORDER BY id')]

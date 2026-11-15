@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "base_sha": "ab2b095b35864573084ddff49e44b652cf4cf21d",
+  "base_sha": "ebd69c76f15fc83373cdff938157bf06612b41fe",
   "human_runtime_required": false,
   "changed_paths": [
     "docs/de/maintainers/merge-canary.md",
@@ -10,7 +10,7 @@
   "criteria": [
     {
       "id": "harmless-docs",
-      "requirement": "Only paired maintainer documentation and this acceptance manifest change; no runtime or dependency change.",
+      "requirement": "Only paired maintainer documentation and this manifest change relative to the protected sandbox; no runtime, dependency, installation or permission change.",
       "checks": [
         "repository verification",
         "client callbacks (linux)",

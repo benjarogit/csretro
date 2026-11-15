@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 import re
 import subprocess
+from urllib.parse import quote, urlsplit
 
 CATEGORIES = ('bug', 'feature', 'enhancement', 'upstream', 'maintenance',
               'documentation', 'testing', 'security', 'question')
@@ -22,7 +23,7 @@ RISKY = {'force-push', 'history-rewrite', 'delete', 'credentials', 'release',
 
 def guard_action(action: str) -> dict:
     """Risky operations are deliberately unavailable from this entry point."""
-    allowed = action in {'snapshot', 'issue-create', 'issue-close', 'reconcile'}
+    allowed = action in {'snapshot', 'upstreams', 'issue-create', 'issue-close', 'reconcile'}
     return {'action': action, 'allowed': allowed,
             'reason': '' if allowed else 'Requires a separate explicit maintainer-controlled action'}
 
@@ -85,19 +86,85 @@ def reconcile(snapshot, attempts=0, now=None):
             if a != b and len(set(a.split()) & set(b.split())) >= 3 and SequenceMatcher(None, a, b).ratio() >= .8:
                 related.append([left['number'], right['number']])
     failed, reviews, pending = [], [], []
-    for pr in snapshot.get('pulls', []):
+    errors = list(snapshot.get('errors', []))
+    open_pulls = [pr for pr in snapshot.get('pulls', []) if str(pr.get('state', 'open')).lower() == 'open']
+    for pr in open_pulls:
         for check in pr.get('checks', []):
             if not check.get('conclusion'): pending.append({'pr':pr['number'],'check':check.get('name'),'status':check.get('status','unknown')})
             if (check.get('conclusion') or '').lower() in {'failure', 'timed_out', 'cancelled', 'action_required'}:
                 failed.append({'pr': pr['number'], 'check': check.get('name'), 'url': check.get('html_url')})
         if pr.get('reviews'):
-            reviews.append({'pr': pr['number'], 'reviews': pr['reviews']})
-    for run in snapshot.get('runs', []):
-        if run.get('conclusion') in {'failure', 'timed_out', 'action_required'}:
+            history = pr['reviews']
+            # Draft review IDs can predate submission. Prefer submission time
+            # for decisions, then numeric IDs, then the REST history sequence.
+            formal = [r for r in history if str(r.get('state', '')).upper()
+                      in {'APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'}]
+            timed = False
+            if formal and all(r.get('submitted_at') for r in formal):
+                try:
+                    history = sorted(history, key=lambda r: datetime.fromisoformat(
+                        r['submitted_at'].replace('Z', '+00:00')).timestamp()
+                        if r.get('submitted_at') else float('-inf'))
+                    timed = True
+                except (TypeError, ValueError):
+                    pass
+            if not timed and all(type(r.get('id')) is int and r['id'] > 0 for r in history):
+                history = sorted(history, key=lambda r: r['id'])
+            effective, unidentified, comments = {}, [], []
+            for review in history:
+                state = str(review.get('state', '')).upper()
+                user = review.get('user') or {}
+                identity = ('id', user['id']) if type(user.get('id')) is int and user['id'] > 0 else (
+                    ('login', user['login'].casefold()) if isinstance(user.get('login'), str) and user['login'] else None)
+                normalized = {**review, 'state': state}
+                if identity is None:
+                    errors.append(f'PR {pr["number"]}: review {review.get("id", "unknown")} reviewer identity unavailable; manual review required')
+                    # Never let an anonymous approval dismiss another review.
+                    unidentified.append({**normalized, 'identity_unavailable': True})
+                    continue
+                if state in {'APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'}:
+                    effective[identity] = normalized
+                else:
+                    # COMMENTED/PENDING are useful context, not decisions.
+                    comments.append(normalized)
+            reviews.append({'pr': pr['number'], 'reviews': [*effective.values(), *unidentified],
+                            'comments': comments, 'history_count': len(history),
+                            'manual_review_required': bool(unidentified)})
+    default_branch = snapshot.get('default_branch')
+    runs = snapshot.get('runs', [])
+    if runs and not default_branch:
+        errors.append('CI: default branch identity unavailable; main-branch status is unknown')
+        pending.append({'status': 'unknown', 'reason': 'default branch identity unavailable'})
+    active_heads = {(pr.get('head', {}).get('ref'), pr.get('head', {}).get('sha'))
+                    for pr in open_pulls if pr.get('head', {}).get('ref') and pr.get('head', {}).get('sha')}
+    for pr in open_pulls:
+        if runs and not (pr.get('head', {}).get('ref') and pr.get('head', {}).get('sha')):
+            errors.append(f'PR {pr["number"]}: CI branch/head identity unavailable')
+            pending.append({'pr': pr['number'], 'status': 'unknown', 'reason': 'branch/head identity unavailable'})
+    seen_workflows = set()
+    for run in runs:  # GitHub REST returns newest runs first.
+        branch = run.get('head_branch')
+        workflow = run.get('workflow_id') or run.get('path') or run.get('name')
+        if not branch or not workflow:
+            errors.append(f'CI run {run.get("id", "unknown")}: workflow or branch identity unavailable')
+            pending.append({'run': run.get('id'), 'status': 'unknown', 'url': run.get('html_url')})
+            continue
+        if branch != default_branch and (branch, run.get('head_sha')) not in active_heads:
+            continue
+        # Two open fork PRs can use the same branch name with different heads.
+        key = (workflow, branch, None if branch == default_branch else run.get('head_sha'))
+        if key in seen_workflows:
+            continue
+        seen_workflows.add(key)
+        conclusion = run.get('conclusion')
+        if run.get('status') not in (None, 'completed') or not conclusion:
+            pending.append({'run': run.get('id'), 'status': run.get('status') or 'unknown',
+                            'url': run.get('html_url')})
+        elif conclusion in {'failure', 'timed_out', 'action_required', 'cancelled'}:
             failed.append({'run': run.get('id'), 'url': run.get('html_url')})
     return {'duplicates': duplicates, 'related': related, 'dependencies': dependencies,
             'orphaned': orphaned, 'blocked': blocked, 'stale': stale,
-            'reviews': reviews, 'failed_ci': failed, 'pending_ci':pending, 'errors': snapshot.get('errors', []),
+            'reviews': reviews, 'failed_ci': failed, 'pending_ci':pending, 'errors': errors,
             'repair': 'escalate' if failed and attempts >= 2 else 'assign-test-and-repository-review' if failed else 'none',
             'retry_limit': 2, 'remaining_attempts': max(0, 2 - attempts)}
 
@@ -125,6 +192,7 @@ class GitHub:
         self.root = Path(root).resolve()
         self.runner = runner or subprocess.run
         self._repo = None
+        self._default_branch = None
 
     def _call(self, args):
         try:
@@ -140,7 +208,9 @@ class GitHub:
     @property
     def repo(self):
         if self._repo is None:
-            self._repo = self._call(['repo', 'view', '--json', 'nameWithOwner'])['nameWithOwner']
+            metadata = self._call(['repo', 'view', '--json', 'nameWithOwner,defaultBranchRef'])
+            self._repo = metadata['nameWithOwner']
+            self._default_branch = (metadata.get('defaultBranchRef') or {}).get('name')
             if not re.fullmatch(r'[\w.-]+/[\w.-]+', self._repo):
                 raise ValueError('Invalid GitHub repository identity')
         return self._repo
@@ -149,10 +219,158 @@ class GitHub:
         pages = self._call(['api', endpoint, '--paginate', '--slurp'])
         return [item for page in pages for item in page]
 
+    def upstreams(self):
+        """Read bounded upstream evidence from the existing lock, never import it.
+
+        Each collection is capped at three 100-entry pages per source. Explicit
+        truncation/errors mean incomplete coverage, never "up to date". Existing
+        sync-upstream/upstream-watch remain the pin and issue workflows.
+        """
+        result = {'register': 'versions.lock.json', 'sources': [], 'candidates': [],
+                  'errors': [], 'mutations': False}
+        lock = json.loads((self.root / 'versions.lock.json').read_text())
+        sources = {}
+        for section in ('upstreams', 'server_toolchain', 'server_runtime', 'references'):
+            for name, entry in lock.get(section, {}).items():
+                location = entry.get('repository') or entry.get('url', '')
+                url = urlsplit(location)
+                parts = url.path.strip('/').split('/')
+                if url.hostname != 'github.com' or len(parts) < 2:
+                    continue
+                repo = '/'.join(parts[:2]).removesuffix('.git')
+                if not re.fullmatch(r'[\w.-]+/[\w.-]+', repo):
+                    continue
+                source = sources.setdefault(repo.casefold(), {
+                    'repository': repo, 'pins': [], 'versions': [], 'components': [],
+                    'provenance': [], 'reference_only': True})
+                source['reference_only'] &= section == 'references'
+                source['provenance'].append(f'versions.lock.json#{section}.{name}')
+                component = entry.get('prefix') or entry.get('source_prefix') or name
+                if component not in source['components']:
+                    source['components'].append(component)
+                pin = entry.get('commit') or entry.get('source_commit')
+                if pin and pin not in source['pins']:
+                    source['pins'].append(pin)
+                if entry.get('version') and entry['version'] not in source['versions']:
+                    source['versions'].append(entry['version'])
+        result['sources'] = list(sources.values())
+
+        def error(source, endpoint, message):
+            result['errors'].append({'source': source['repository'], 'endpoint': endpoint,
+                                     'error': message})
+
+        def pages(source, endpoint, key=None):
+            items = []
+            for page in range(1, 4):
+                separator = '&' if '?' in endpoint else '?'
+                try:
+                    payload = self._call(['api', f'{endpoint}{separator}per_page=100&page={page}'])
+                    batch = payload[key] if key else payload
+                    if not isinstance(batch, list):
+                        raise ValueError('Expected a GitHub collection')
+                    items.extend(batch)
+                    if len(batch) < 100:
+                        break
+                except (RuntimeError, OSError, ValueError, KeyError, TypeError) as exc:
+                    error(source, endpoint, str(exc))
+                    break
+            else:
+                error(source, endpoint, 'Truncated after 300 entries; review remaining upstream pages manually')
+            return items
+
+        def add(source, kind, reference, revision, title, security=False):
+            if not reference or not revision or revision in source['pins']:
+                return
+            existing = next((x for x in result['candidates'] if x['source'] == source['repository'] and
+                             (x['reference'] == reference or x['commit'] == revision)), None)
+            if existing:
+                if reference not in existing['references']:
+                    existing['references'].append(reference)
+                if kind not in existing['observations']:
+                    existing['observations'].append(kind)
+                if security:
+                    existing['priority'] = 'P1'
+                    existing['classification'] = 'security'
+                return
+            assessment = upstream_candidate([x for x in result['candidates'] if x['source'] == source['repository']],
+                source=source['repository'],
+                reference=reference, commit=revision, components=source['components'],
+                relevance=title or kind, compatibility='pending', license_review='pending',
+                priority='P1' if security else 'P2', status='new', strategy='review')['candidate']
+            assessment.update(classification='security' if security else 'upstream', references=[reference],
+                              observations=[kind], provenance=source['provenance'],
+                              reference_only=source['reference_only'], import_allowed=False)
+            result['candidates'].append(assessment)
+
+        for source in result['sources']:
+            repo = source['repository']
+            endpoint = f'repos/{repo}'
+            try:
+                metadata = self._call(['api', endpoint])
+                branch = metadata['default_branch']
+                if not isinstance(branch, str) or not branch:
+                    raise ValueError('Default branch unavailable')
+                source['default_branch'] = branch
+            except (RuntimeError, OSError, ValueError, KeyError, TypeError) as exc:
+                error(source, endpoint, str(exc))
+                continue
+            source['commit_scope'] = 'since recorded pins' if source['pins'] else 'latest 20 commits, no recorded baseline'
+            if not source['pins']:
+                endpoint = f'repos/{repo}/commits?sha={quote(branch, safe="")}&per_page=20'
+                try:
+                    recent = self._call(['api', endpoint])
+                    if not isinstance(recent, list):
+                        raise ValueError('Expected a GitHub commit snapshot')
+                    for item in recent[:20]:
+                        title = item.get('commit', {}).get('message', '').split('\n', 1)[0]
+                        add(source, 'commit', item.get('html_url'), item.get('sha'), title,
+                            classify(title)['category'] == 'security')
+                except (RuntimeError, OSError, ValueError, KeyError, TypeError) as exc:
+                    error(source, endpoint, str(exc))
+            compared = []
+            commit_items = {}
+            for pin in source['pins']:
+                endpoint = f'repos/{repo}/compare/{quote(pin, safe="")}...{quote(branch, safe="")}'
+                commits = pages(source, endpoint, 'commits')
+                compared.append({x['sha'] for x in commits})
+                commit_items.update({x['sha']: x for x in commits})
+            # A commit must be beyond every recorded pin, not merely an older
+            # component pin sharing the same upstream repository.
+            unseen = set.intersection(*compared) if compared else set()
+            for sha in sorted(unseen):
+                item = commit_items[sha]
+                message = item.get('commit', {}).get('message', '').split('\n', 1)[0]
+                add(source, 'commit', item.get('html_url'), sha, message,
+                    classify(message)['category'] == 'security')
+            for item in pages(source, f'repos/{repo}/pulls?state=open'):
+                sha = item.get('head', {}).get('sha')
+                if sha in source['pins']:
+                    continue
+                title = item.get('title', '')
+                labels = item.get('labels', [])
+                add(source, 'pull-request', item.get('html_url'), sha, title,
+                    classify(title, labels=labels)['category'] == 'security')
+            for item in pages(source, f'repos/{repo}/releases'):
+                tag = item.get('tag_name')
+                target = item.get('target_commitish', '')
+                if item.get('draft') or tag in source['versions'] or target in source['pins']:
+                    continue
+                revision = target if re.fullmatch(r'[0-9a-fA-F]{40}', target) else f'tag:{tag}' if tag else None
+                add(source, 'release', item.get('html_url'), revision,
+                    item.get('name') or tag, classify(item.get('body') or '')['category'] == 'security')
+            for item in pages(source, f'repos/{repo}/security-advisories?state=published'):
+                add(source, 'security-advisory', item.get('html_url'),
+                    f'advisory:{item["ghsa_id"]}' if item.get('ghsa_id') else None,
+                    item.get('summary'), True)
+        return result
+
     def snapshot(self):
         data = {'issues': [], 'pulls': [], 'runs': [], 'labels': [], 'projects': [], 'errors': []}
         try:
             repo = self.repo
+            data['default_branch'] = self._default_branch
+            if not self._default_branch:
+                data['errors'].append('Repository default branch identity unavailable')
         except (RuntimeError, KeyError, ValueError, OSError) as error:
             data['errors'].append(str(error))
             return data

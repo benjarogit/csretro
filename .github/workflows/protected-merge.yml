@@ -1,0 +1,36 @@
+name: independent acceptance
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: independent-acceptance-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: protected merge acceptance
+    runs-on: ubuntu-24.04
+    steps:
+      # This may run reviewed PR code, strictly read-only: no secrets/write token.
+      # The native current-head independent review requirement remains separate.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          lfs: false
+          submodules: false
+          persist-credentials: false
+      - name: Verify immutable criteria and actual CodeRabbit review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 tools/github_acceptance.py --repo "$GH_REPO" --pr "$PR_NUMBER" --expected-head "$EXPECTED_HEAD" --wait-seconds 90

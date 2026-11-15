@@ -41,7 +41,7 @@ namespace csr::client
 
     bool OriginalUi::Initialize(void* client, const std::filesystem::path& directory,
                                const std::string& client_hash, goldsrc::cl_enginefunc_t* engine,
-                               std::string& error)
+                               goldsrc::HUD_KB_FIND_FUNC find_key, std::string& error)
     {
         if (binding_.IsInitialized())
             return true;
@@ -65,11 +65,16 @@ namespace csr::client
         struct VideoAttempt
         {
             GameUiVideo& video;
+            XashKeys& keys;
+            NativeGameUiFuncs& funcs;
             VguiBinding& binding;
-            ~VideoAttempt() { if (!binding.HasBinding()) video.Shutdown(); }
-        } video_attempt{video_, binding_};
+            ~VideoAttempt()
+            {
+                if (!binding.HasBinding()) { funcs.Shutdown(); keys.Shutdown(); video.Shutdown(); }
+            }
+        } video_attempt{video_, keys_, gameui_funcs_, binding_};
         if (surface_ && vgui_)
-            return StartBinding(client, error);
+            return StartBinding(client, find_key, error);
         const auto vgui_path = directory / "vgui2.valve.so";
         if (!nitroapi::IsRegisteredClientVgui(client_hash, nitroapi::HashFileSha256(vgui_path.string())))
         {
@@ -128,12 +133,13 @@ namespace csr::client
         }, this);
         api_.default_cursor(surface_, 1);
         surface_object_ = api_.object(surface_);
-        return StartBinding(client, error);
+        return StartBinding(client, find_key, error);
     }
 
-    bool OriginalUi::StartBinding(void* client, std::string& error)
+    bool OriginalUi::StartBinding(void* client, goldsrc::HUD_KB_FIND_FUNC find_key, std::string& error)
     {
-        if (!binding_.BindInterfaces(client, vgui_.get(), surface_object_, error))
+        if (!keys_.Bind(client, vgui_.get(), engine_, find_key, error) || !gameui_funcs_.Bind(error)) return false;
+        if (!binding_.BindInterfaces(client, vgui_.get(), surface_object_, error, &gameui_funcs_))
             return false;
         // GameUI needs its own verified native services and lifecycle here.
         // Do not pretend the newer SDK/test host supplies those interfaces.
@@ -225,9 +231,9 @@ namespace csr::client
         try { binding_.Shutdown(); }
         catch (...)
         {
-            if (!binding_.HasBinding()) video_.Shutdown();
+            if (!binding_.HasBinding()) { gameui_funcs_.Shutdown(); keys_.Shutdown(); video_.Shutdown(); }
             throw;
         }
-        if (!binding_.HasBinding()) video_.Shutdown();
+        if (!binding_.HasBinding()) { gameui_funcs_.Shutdown(); keys_.Shutdown(); video_.Shutdown(); }
     }
 }

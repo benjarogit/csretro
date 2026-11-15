@@ -1,4 +1,5 @@
 #include "vgui_binding.h"
+#include "NativeGameUiFuncs.h"
 #include "original_vgui_symbols.h"
 
 #include <cstring>
@@ -42,13 +43,16 @@ namespace csr::client
                 value = active_->surface_;
             else if (std::strcmp(name, "VFileSystem009") == 0)
                 value = active_->filesystem_;
+            else if (std::strcmp(name, "VENGINE_GAMEUIFUNCS_VERSION001") == 0 &&
+                     active_->gameui_funcs_ && active_->gameui_funcs_->IsReady())
+                value = active_->gameui_funcs_;
         }
         if (code)
             *code = value ? 0 : 1;
         return value;
     }
 
-    bool VguiBinding::BindInterfaces(void* client, void* vgui, void* surface, std::string& error)
+    bool VguiBinding::BindInterfaces(void* client, void* vgui, void* surface, std::string& error, NativeGameUiFuncs* gameui_funcs)
     {
         error.clear();
         if (!client || !vgui || !surface || active_)
@@ -71,6 +75,7 @@ namespace csr::client
         viewport_start_ = detail::Symbol<void (*)(void*)>(client,
                 "_ZN21CounterStrikeViewport5StartEv", error);
         surface_ = surface;
+        gameui_funcs_ = gameui_funcs;
         filesystem_ = files ? *files : nullptr;
         for (size_t i = 0; i < slots_.size(); ++i)
         {
@@ -226,6 +231,7 @@ namespace csr::client
                 active_ = nullptr;
             viewport_slot_ = nullptr;
             viewport_ = nullptr;
+            gameui_funcs_ = nullptr;
             shutdown_requested_ = false;
             shutting_down_ = false;
         };

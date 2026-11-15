@@ -8,6 +8,7 @@ namespace csr::client
     // Original VGUI uses different versioned interfaces from the vendored UI.
     // Keep these opaque and call resolved original methods; never cast them to
     // the vendored IPanel, IScheme or IInput classes.
+    class NativeGameUiFuncs;
     class VguiBinding
     {
     public:
@@ -20,7 +21,7 @@ namespace csr::client
         // Both modules and the Surface are borrowed and must outlive this owner.
         // Keep the native phases separate so GameUI can initialize before the
         // viewport and start between viewport initialization and startup.
-        bool BindInterfaces(void* client, void* vgui, void* surface, std::string& error);
+        bool BindInterfaces(void* client, void* vgui, void* surface, std::string& error, NativeGameUiFuncs* gameui_funcs = nullptr);
         bool InitializeViewport(std::string& error);
         bool StartViewport(std::string& error);
         void Shutdown();
@@ -34,6 +35,7 @@ namespace csr::client
         std::array<Slot, 9> slots_{};
         std::array<Factory, 4> factories_{};
         void* surface_{};
+        NativeGameUiFuncs* gameui_funcs_{};
         void* filesystem_{};
         void* ivgui_{};
         void (*shutdown_)(void*){};

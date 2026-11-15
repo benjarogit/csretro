@@ -14,6 +14,8 @@ namespace
     void* seen_surface{};
     void* seen_filesystem{};
     std::vector<int> events;
+    int last_sdl_key{};
+    Factory engine_factory{};
     void (*init_hook)();
     void (*shutdown_hook)();
 }
@@ -28,6 +30,7 @@ public:
 bool CVGui::Init(Factory* factories, int count)
 {
     ++init_count;
+    engine_factory = count > 0 && factories ? factories[0] : nullptr;
     if (count <= 0 || !factories)
         return false;
     for (int i = 0; i < count; ++i)
@@ -97,6 +100,8 @@ void CInputWin32::InternalMouseReleased(vgui2::MouseCode code) { events.push_bac
 extern "C" void FixtureVguiConfigure(int value)
 {
     mode = value;
+    last_sdl_key = 0;
+    engine_factory = nullptr;
     init_hook = shutdown_hook = nullptr;
     events.clear();
     init_count = shutdown_count = 0;
@@ -133,4 +138,16 @@ extern "C" void FixtureVguiHooks(void (*init)(), void (*shutdown)())
 {
     init_hook = init;
     shutdown_hook = shutdown;
+}
+
+extern "C" __attribute__((visibility("hidden"))) int KeyCode_VirtualKeyToVGUI(int key)
+{
+    last_sdl_key = key;
+    return key ? 500 : 0;
+}
+extern "C" int FixtureLastSdlKey() { return last_sdl_key; }
+extern "C" void* FixtureQueryGameUiFuncs(int* code)
+{
+    if (!engine_factory) { if (code) *code = 1; return nullptr; }
+    return engine_factory("VENGINE_GAMEUIFUNCS_VERSION001", code);
 }

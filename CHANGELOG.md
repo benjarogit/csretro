@@ -10,6 +10,7 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Supply the complete original GameUIFuncs ABI from fingerprint-bound native Xash key services and existing video data, with executable ELF ownership checks and a separate legacy ABI consumer test.
 - Feed the original UI from native GameUI video/renderer data using real Xash cvars and borrowed SDL2 window/display services, with stable mode storage and fail-closed availability checks.
 
 - Separate original VGUI binding, viewport initialization and viewport startup into checked runtime phases, preserving GameUI lifecycle insertion points and safe partial/reentrant teardown.

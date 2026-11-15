@@ -109,7 +109,7 @@ namespace
             // fails, the game module must unload before those dependencies.
             if (!ui_) ui_ = std::make_unique<OriginalUi>();
             std::string error;
-            if (!ui_->Initialize(module_.get(), directory_, client_hash_, engine, error))
+            if (!ui_->Initialize(module_.get(), directory_, client_hash_, engine, callbacks_.pFindKey, error))
             {
                 std::fprintf(stderr, "CSRETRO client bridge: %s\n", error.c_str());
                 return false;

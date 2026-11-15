@@ -2,6 +2,7 @@
 
 #include "engine_files.h"
 #include "gameui_video.h"
+#include "NativeGameUiFuncs.h"
 #include "client_callbacks.h"
 #include "original_panels.h"
 #include "vgui_binding.h"
@@ -19,7 +20,7 @@ namespace csr::client
         ~OriginalUi();
         bool Initialize(void* client, const std::filesystem::path& directory,
                         const std::string& client_hash, goldsrc::cl_enginefunc_t* engine,
-                        std::string& error);
+                        goldsrc::HUD_KB_FIND_FUNC find_key, std::string& error);
         void Shutdown();
         void Paint();
         void Frame();
@@ -48,7 +49,7 @@ namespace csr::client
             decltype(&csr_surface_set_default_cursor) default_cursor{};
             bool Bind(void* module, std::string& error);
         } api_;
-        bool StartBinding(void* client, std::string& error);
+        bool StartBinding(void* client, goldsrc::HUD_KB_FIND_FUNC find_key, std::string& error);
         bool AttachRoot();
         void MovePointer(bool advance_frame);
         using Module = std::unique_ptr<void, int (*)(void*)>;
@@ -63,6 +64,8 @@ namespace csr::client
         unsigned (*relative_mouse_)(int*, int*){};
         EngineFiles files_;
         GameUiVideo video_;
+        XashKeys keys_;
+        NativeGameUiFuncs gameui_funcs_{video_, keys_.Queries()};
         OriginalPanels panels_;
         VguiBinding binding_;
     };

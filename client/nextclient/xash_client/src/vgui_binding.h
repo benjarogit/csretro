@@ -24,6 +24,7 @@ namespace csr::client
         bool InitializeViewport(std::string& error);
         bool StartViewport(std::string& error);
         void Shutdown();
+        bool HasBinding() const { return phase_ != Phase::Unbound || shutting_down_; }
         bool IsInitialized() const { return phase_ == Phase::Started; }
 
     private:

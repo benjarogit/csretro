@@ -57,3 +57,12 @@ factory. `python3 tests/xash_client/run.py --with-surface` also runs the real Su
 
 The decision and the scope are in
 [plan section 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
+
+## Native keyboard demand
+
+The original-client owner installs a borrowed live keyboard-demand query on the
+single Surface. It reflects native GameUI/console/input state and is cleared
+before owner teardown. Popup inventory queries use the same handles as painting;
+no second popup list is maintained. These additive C functions preserve existing
+function-table layouts. SDL2 event delivery and its remaining runtime acceptance
+are described in the [client build guide](../build/client.md).

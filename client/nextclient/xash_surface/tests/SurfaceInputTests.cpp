@@ -5,6 +5,7 @@
 #include <vgui/Cursor.h>
 
 #include <string>
+#include <stdexcept>
 #include <vector>
 
 namespace
@@ -117,4 +118,25 @@ namespace
         EXPECT_TRUE(vgui->IsCursorVisible());
         csr_surface_destroy(surface);
     }
+}
+
+TEST(SurfaceInput, KeyboardCaptureTracksItsBorrowedLiveOwnerAndContainsQueryFailures)
+{
+    csr_surface_t* surface = csr_surface_create(nullptr);
+    ASSERT_NE(surface, nullptr);
+    auto* vgui = static_cast<vgui2::ISurface*>(csr_surface_vgui(surface));
+    EXPECT_FALSE(vgui->NeedKBInput());
+    int capture{};
+    csr_surface_set_keyboard_query(surface, [](void* user) { return *static_cast<int*>(user); }, &capture);
+    EXPECT_FALSE(vgui->NeedKBInput());
+    capture = 1;
+    EXPECT_TRUE(vgui->NeedKBInput());
+    capture = 0;
+    EXPECT_FALSE(vgui->NeedKBInput());
+    csr_surface_set_keyboard_query(surface, [](void*) -> int { throw std::runtime_error("query failure"); }, nullptr);
+    EXPECT_NO_THROW(EXPECT_FALSE(vgui->NeedKBInput()));
+    csr_surface_set_keyboard_query(surface, nullptr, nullptr);
+    EXPECT_FALSE(vgui->NeedKBInput());
+    csr_surface_set_keyboard_query(nullptr, nullptr, nullptr);
+    csr_surface_destroy(surface);
 }

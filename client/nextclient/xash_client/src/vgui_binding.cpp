@@ -41,8 +41,14 @@ namespace csr::client
         void* value{};
         if (active_ && name)
         {
-            if (std::strcmp(name, "VGUI_Surface026") == 0)
+            if (std::strcmp(name, "BaseUI001") == 0)
+            {
+                value = active_->base_ui_;
+            }
+            else if (std::strcmp(name, "VGUI_Surface026") == 0)
+            {
                 value = active_->surface_;
+            }
             else if (std::strcmp(name, "VFileSystem009") == 0)
                 value = active_->filesystem_;
             else if (
@@ -292,6 +298,45 @@ namespace csr::client
         return true;
     }
 
+    bool VguiBinding::SetBaseUi(void* base_ui)
+    {
+        if (phase_ != Phase::Bound || shutting_down_ || shutdown_requested_ || base_ui_ || !base_ui)
+        {
+            return false;
+        }
+        base_ui_ = base_ui;
+        return true;
+    }
+
+    bool VguiBinding::RunStartupUi(void (*operation)(void*), void* context)
+    {
+        if (!operation || shutting_down_ || shutdown_requested_ || active_ != this ||
+            (phase_ != Phase::Bound && phase_ != Phase::ViewportInitialized && phase_ != Phase::Started))
+        {
+            return false;
+        }
+        ++native_call_depth_;
+        try
+        {
+            operation(context);
+        }
+        catch (...)
+        {
+            --native_call_depth_;
+            if (!native_call_depth_ && shutdown_requested_)
+            {
+                Shutdown();
+            }
+            throw;
+        }
+        --native_call_depth_;
+        if (!native_call_depth_ && shutdown_requested_)
+        {
+            Shutdown();
+        }
+        return HasBinding() && !shutdown_requested_;
+    }
+
     bool VguiBinding::RunNativeUi(void (*operation)(void*), void* context)
     {
         if (!operation || phase_ != Phase::Started || shutting_down_ || shutdown_requested_)
@@ -346,6 +391,7 @@ namespace csr::client
             viewport_slot_ = nullptr;
             viewport_ = nullptr;
             gameui_funcs_ = nullptr;
+            base_ui_ = nullptr;
             const PanelServices services = engine_panels_;
             engine_panels_ = {};
             if (services.release_services)
@@ -371,10 +417,31 @@ namespace csr::client
                 }
             }
         };
+        if (bound && engine_panels_.stop_client)
+        {
+            attempt([&] { engine_panels_.stop_client(engine_panels_.owner); });
+        }
         if (bound && engine_panels_.tree)
         {
             attempt([&] { engine_panels_.detach_surface(engine_panels_.owner); });
+            if (engine_panels_.can_release && !engine_panels_.can_release(engine_panels_.owner))
+            {
+                // Callable leases or native controls remain. Keep the entire
+                // allocator, globals and module graph alive, with dispatch stopped.
+                phase_ = Phase::Bound;
+                shutdown_requested_ = true;
+                shutting_down_ = false;
+                if (failure)
+                {
+                    std::rethrow_exception(failure);
+                }
+                return;
+            }
             attempt([&] { engine_panels_.tree->Shutdown(); });
+            if (engine_panels_.end_native_lifetime)
+            {
+                engine_panels_.end_native_lifetime(engine_panels_.owner);
+            }
             // CVGui shutdown ends the allocator lifetime even when a prior
             // native cleanup operation failed. Retained callbacks cannot retry it.
             engine_panels_.tree->EndNativeLifetime();

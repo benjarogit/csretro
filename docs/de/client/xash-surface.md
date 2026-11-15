@@ -59,3 +59,12 @@ Bibliothek als erste Factory. `python3 tests/xash_client/run.py --with-surface` 
 
 Die Entscheidung und der Umfang stehen in
 [Plan, Abschnitt 3.7](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
+
+## Nativer Tastaturbedarf
+
+Der Original-Client-Owner setzt eine geliehene Live-Abfrage für Tastaturbedarf
+an derselben Surface. Sie folgt dem nativen GameUI-/Konsolen-/Eingabezustand
+und wird vor Owner-Abbau entfernt. Popup-Abfragen verwenden dieselben Handles
+wie das Zeichnen; es wird keine zweite Popup-Liste gepflegt. Diese zusätzlichen
+C-Funktionen erhalten die bisherigen Funktionstabellen. SDL2-Ereigniszustellung
+und ihre offene Laufzeitabnahme stehen in der [Client-Bauanleitung](../build/client.md).

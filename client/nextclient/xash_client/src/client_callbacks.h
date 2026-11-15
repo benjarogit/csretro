@@ -20,6 +20,31 @@ namespace csr::client
     void MouseWithVgui(goldsrc::HUD_IN_MOUSEEVENT_FUNC original, int buttons, UiAction before, UiMouse after, void* owner);
     void ResetInputWithVgui(goldsrc::HUD_IN_CLEARSTATES_FUNC original, UiAction after, void* owner);
 
+    // The original shutdown unloads module handles without nulling them.
+    // Own one shutdown claim for each successful initialization cycle.
+    class ClientInitialization
+    {
+    public:
+        bool Begin();
+        void Finish(bool success);
+        bool ClaimShutdown();
+        void Shutdown(void (*original)(), UiAction teardown, void* owner);
+        bool ShutdownRequested() const
+        {
+            return shutdown_requested_;
+        }
+        bool IsInitializing() const
+        {
+            return initializing_;
+        }
+
+    private:
+        bool initializing_{};
+        bool initialized_{};
+        bool shutting_down_{};
+        bool shutdown_requested_{};
+    };
+
     class MouseButtonState
     {
     public:

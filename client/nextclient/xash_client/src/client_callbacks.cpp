@@ -1,6 +1,7 @@
 #include "client_callbacks.h"
 
 #include <dlfcn.h>
+#include <exception>
 
 namespace csr::client
 {
@@ -32,6 +33,92 @@ namespace csr::client
         if (!original) return;
         original();
         if (after) after(owner);
+    }
+
+    bool ClientInitialization::Begin()
+    {
+        if (initializing_ || initialized_ || shutting_down_)
+        {
+            return false;
+        }
+        initializing_ = true;
+        shutdown_requested_ = false;
+        return true;
+    }
+
+    void ClientInitialization::Finish(bool success)
+    {
+        if (!initializing_)
+        {
+            return;
+        }
+        initializing_ = false;
+        initialized_ = success;
+    }
+
+    bool ClientInitialization::ClaimShutdown()
+    {
+        shutdown_requested_ = true;
+        if (initializing_ || !initialized_)
+        {
+            return false;
+        }
+        // Consume before invoking external code, including throwing/reentrant
+        // callbacks. Repeating its native unload operations would be unsafe.
+        initialized_ = false;
+        return true;
+    }
+
+    void ClientInitialization::Shutdown(void (*original)(), UiAction teardown, void* owner)
+    {
+        if (shutting_down_)
+        {
+            return;
+        }
+        if (initializing_)
+        {
+            ClaimShutdown();
+            return;
+        }
+        shutting_down_ = true;
+        struct FinishShutdown
+        {
+            bool& active;
+            ~FinishShutdown()
+            {
+                active = false;
+            }
+        } finish{shutting_down_};
+        std::exception_ptr failure;
+        if (ClaimShutdown() && original)
+        {
+            try
+            {
+                original();
+            }
+            catch (...)
+            {
+                failure = std::current_exception();
+            }
+        }
+        try
+        {
+            if (teardown)
+            {
+                teardown(owner);
+            }
+        }
+        catch (...)
+        {
+            if (!failure)
+            {
+                failure = std::current_exception();
+            }
+        }
+        if (failure)
+        {
+            std::rethrow_exception(failure);
+        }
     }
 
     void MouseButtonState::Update(int buttons, Emit emit, void* owner)

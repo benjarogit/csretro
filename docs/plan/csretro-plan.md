@@ -1591,10 +1591,66 @@ beliebige vorherige fremde Parent-Hierarchien wiederherzustellen. Eine
 Delete-Nachricht fordert sicheren Owner-Abbau an, ohne während des Dispatchs
 Objekte zu zerstören.
 
-Echte BaseUI-Sichtbarkeits-/Konsolen-/Eingabedienste, System-Eigentümerschaft
-und GameUI-Lebenszyklus bleiben vor der vollen Anbindung nötig. Keine Null-
-System-Dummies als erfolgreiche Services. FWGS-Referenzcode wird nur gelesen,
-nicht übernommen; NextClient bleibt Basis.
+**Native System-/BaseUI-Dienste und GameUI-Lebensdauer (Komponentenimplementierung).**
+Der eigene Linux-System-Owner erfüllt die ursprünglichen 41 Slots einschließlich
+virtueller Basisklassen-Metadaten. Er führt echte Modul-, Listener- und
+Befehlsregistrierungen, framebasierte Zeit/Ticks sowie Engine-Datei-/Konsolen-
+und Parameterdienste aus. Die Produktversion kommt aus VERSION. Das
+Basisverzeichnis stammt aus dem benannten fs_rootdir der tatsächlich von Xash
+initialisierten Dateisysteminstanz, nicht aus dem Aufrufer-Arbeitsverzeichnis.
+Optionale enginewrapper002-/demoplayer001-Module werden nicht erfunden.
+
+Vor Original-Initialize werden Engine, GameUI und Dateisystem anhand der
+Kompatibilitäts-Registry geprüft. Die benannte fs_pfnCreateInterface der Engine
+muss dieselbe geladene Dateisysteminstanz bezeichnen; gleiche Bytes in einer
+zweiten Bibliothek reichen nicht. Anschließend hält die Brücke genau die vom
+Originalclient geladenen GameUI-/Dateisystemmodule und prüft deren tatsächliche
+Interfaceobjekte sowie einen frischen GameUI-Singleton. Es gibt keinen zweiten
+umbenannten GameUI-Owner, kein zusätzliches FS-Mount und keinen Career-Patch.
+Diese Referenzfingerprints sind keine Clean-Build- oder Spielbarkeitsnachweise.
+
+Die getrennte GameUI-Liste enthält sechs aufrufbare Factories; die vorhandene
+Viererliste des Viewports bleibt erhalten. Die Reihenfolge ist
+GameUI.Initialize, viewport.Initialize, GameUI.Start mit echtem System und
+540-Byte-Engine-Tabelle, viewport.Start/SetParent, Console.Initialize/SetParent
+und GameUI.Activate. Pro HUD-Frame folgen Eingabe-Drain und System/GameUI auf
+reale Zeitdifferenzen; der vorhandene native VGUI-Scheduler läuft genau einmal
+nach Cursor-Synchronisierung. BaseUI vermittelt echte Sichtbarkeit/Konsole,
+SDL-Ereignisse und vollständiges Fenster-Paint. Andere Paint-Rechtecke werden
+als nicht unterstützt abgewiesen. Originale Gameplay-/Tastaturcallbacks
+bleiben erhalten; vollständige Eingabeakzeptanz ist noch nicht nachgewiesen.
+Die unabhängige Prüfung hat eine konkrete offene Grenze festgestellt: Ein
+SDL-Watch kann Engine-Spielbefehle nicht konsumieren; der registrierte
+Original-KeyInput gibt sie weiter, und Xash ruft die veröffentlichte BaseUI
+nicht automatisch auf. Menü-/Konsoleneingabe darf deshalb noch nicht als
+exklusiv oder spielbereit abgenommen werden. Ein vorgeschalteter Wrapper um
+pKeyEvent könnte UI-Tasten konsumieren und sonst alle Originalargumente und
+Rückgaben erhalten, widerspricht aber dem bisherigen unveränderten
+Tastaturcallback-Vertrag in xash_client/AGENTS.md. Diese Vertragsänderung
+benötigt eine Maintainer-Entscheidung und eigene Regressionen; es wird kein
+Eventfilter oder Engine-Patch als Umgehung eingesetzt.
+
+Der SDL2-Event-Watch benötigt mindestens 2.0.8, hängt sich an das vorhandene
+Fenster und verändert weder Eventfilter noch Textinput-Modus. Fremdthread-
+Ereignisse landen begrenzt in einer Queue; native UI-Aufrufe erfolgen erst im
+Owner-Thread. Fokusverlust, Überlauf und Shutdown geben gehaltene Tasten frei.
+UTF-8 wird validiert. Eine eigene Engine-Tabelle fängt UI-Befehlsregistrierung
+ab, prüft tatsächliche Record-/Funktionsidentität und entfernt nur eigene
+Callbacks. condump wird vor Modulfreigabe stillgelegt. Auch Original-Shutdown
+wartet auf den äußersten nativen Aufruf und wird pro erfolgreichem
+Initialisierungszyklus höchstens einmal ausgeführt. GameUI-eigene Controls
+werden vor dem Ende ihres nativen Allocators über Safehandles entfernt;
+geliehene Controls bleiben fremdes Eigentum. Unsichere Befehls-, Watch- oder
+Control-Freigabe hält den vollständigen Owner-/Modulgraphen und fordert einen
+Prozessneustart, statt Erfolg zu behaupten. Terminale Seals verhindern spätere
+native Aufrufe. Reinitialisierung desselben GameUI-Kontextes ist nicht zugesagt.
+
+Dies schließt weder Issue #23 noch G07. Ein menschlicher Start mit passenden
+Originaldateien muss GameUI, Konsole, Eingabe und Abbau erstmals bestätigen;
+NextClient-Integration, vollständige Runtime-Bereitstellung und Spielnachweise
+bleiben offen. FWGS-Referenzen bleiben nur Ideengeber; NextClient bleibt Basis.
+PR #19 bleibt zurückgestellt, Review-Steuerung wird zentral durch Orqen
+vorbereitet; vorhandene Merge-/Sicherheitsgates werden nicht verändert.
 
 **Zweiter Schritt: ausschließlich x64 und mindestens 60 FPS.** Erst nach dem funktionierenden Port werden durchgängig native x64-Artefakte und mindestens 60 FPS in einer benannten echten Spielszene nachgewiesen. Eine i386-Spielbibliothek ist keine x64-Lösung. Die Eigenständigkeit von Valves Engine darf nicht mit der bereits erfolgten Ablösung jedes Original-Spielmoduls verwechselt werden. `tools/check_game_client.py` prüft nur das benannte x64-Kernprofil, keine alternative `F`-/`GetClientAPI`-Tabelle, Signaturen oder Spielbarkeit. Der Test ist für diese Phase eingegrenzt und blockiert den ersten architekturgleichen Port nicht. Leere Ersatz-Exports oder No-ops sind kein Fortschrittsnachweis.
 

@@ -177,8 +177,22 @@ void CounterStrikeViewport::SetParent(unsigned parent)
 }
 namespace { CounterStrikeViewport viewport; }
 __attribute__((visibility("hidden"))) void* gViewPortInterface = &viewport;
+__attribute__((visibility("hidden"))) void* g_hGameUIModule{};
+__attribute__((visibility("hidden"))) void* g_pGameUI{};
+__attribute__((visibility("hidden"))) void* g_pGameConsole{};
+__attribute__((visibility("hidden"))) void* g_hFileSystemModule{};
+extern "C" void FixtureClientUiModules(void* game_module, void* game, void* console, void* fs_module, void* fs)
+{
+    g_hGameUIModule = game_module;
+    g_pGameUI = game;
+    g_pGameConsole = console;
+    g_hFileSystemModule = fs_module;
+    g_pFileSystem = fs;
+}
+
 extern "C" void FixtureClientBindingReset()
 {
+    g_hGameUIModule = g_pGameUI = g_pGameConsole = g_hFileSystemModule = nullptr;
     viewport_init_count = viewport_start_count = viewport_factory_count = 0;
     viewport_parent = 0;
     viewport_parent_count = 0;

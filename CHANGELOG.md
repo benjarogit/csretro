@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Connect fingerprint-bound original GameUI/System/BaseUI services with native startup phases, SDL2 event delivery and ownership-aware command/control retirement; preserve the human runtime and gameplay acceptance boundary.
+
 - Own genuine native VGUI root/client/GameUI containers with the original callback ABI, complete viewport parenting, shared painting/input and deferred safe teardown; preserve unsupported Steam authentication as failure.
 - Supply the complete original GameUIFuncs ABI from fingerprint-bound native Xash key services and existing video data, with executable ELF ownership checks and a separate legacy ABI consumer test.
 - Feed the original UI from native GameUI video/renderer data using real Xash cvars and borrowed SDL2 window/display services, with stable mode storage and fail-closed availability checks.

@@ -26,7 +26,10 @@ namespace nitroapi
     bool IsRegisteredClient(const std::string& platform, const std::string& client_sha256);
     bool IsRegisteredClientVgui(const std::string& client_sha256, const std::string& vgui_sha256);
 
-    // Recorded Xash spike artifact, only for the named key-query ABI. This
+    bool IsRegisteredClientGameUi(const std::string& client_sha256, const std::string& gameui_sha256);
+    bool IsRegisteredXashFileSystem(const std::string& engine_sha256, const std::string& filesystem_sha256);
+
+    // Recorded Xash spike artifact, only for the named native-service ABI. This
     // does not identify a retail engine or certify a clean/reproducible build.
     std::optional<int> RegisteredXashKeyCount(const std::string& engine_sha256);
 

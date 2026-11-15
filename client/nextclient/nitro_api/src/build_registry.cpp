@@ -21,6 +21,7 @@ namespace nitroapi
             const char* engine_sha256;
             const char* client_sha256;
             const char* vgui_sha256;
+            const char* gameui_sha256;
             BuildFamily family;
         };
 
@@ -38,9 +39,13 @@ namespace nitroapi
                 "fca6628b5a4d76a945e11b9796f327004edc65420d9f9cc23f883143508edd78",
                 "2e799ef31931c0f4372ff31ad30f0aab529b16461ed3b0928dfbd958183b2e5a",
                 "f0291c95ec420d65a8f174ccb0e144be831d101b9d2650bb29c6da6bd96bcd3f",
+                "6473a660d1f10c0de35c80fd328110266bb5eeb5d1d7eb07697a4867eda2ce0a",
                 BuildFamily::PublicLinux,
             },
         };
+
+        constexpr const char* kXashReference = "d9f3776b156cc906a1016882d3154de8726c71cb4242fe9ed02fa44203af81db";
+        constexpr const char* kXashFileSystemReference = "da4c042ba76c63773b97e04666342c502714d37298393dc65c7a1b47566f12eb";
 
         std::string ToLower(std::string value)
         {
@@ -122,12 +127,29 @@ namespace nitroapi
         return false;
     }
 
+    bool IsRegisteredClientGameUi(const std::string& client_sha256, const std::string& gameui_sha256)
+    {
+        for (const BuildRecord& record : kBuilds)
+        {
+            if (ToLower(client_sha256) == record.client_sha256 && ToLower(gameui_sha256) == record.gameui_sha256)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool IsRegisteredXashFileSystem(const std::string& engine_sha256, const std::string& filesystem_sha256)
+    {
+        return ToLower(engine_sha256) == kXashReference && ToLower(filesystem_sha256) == kXashFileSystemReference;
+    }
+
     std::optional<int> RegisteredXashKeyCount(const std::string& engine_sha256)
     {
         // Exact preserved i386 Xash reference, not a generic private ABI.
         // No binary is distributed. The original legacy GameUI uses 0..255;
         // this observed engine has 265 entries, independently checked statically.
-        if (ToLower(engine_sha256) == "d9f3776b156cc906a1016882d3154de8726c71cb4242fe9ed02fa44203af81db")
+        if (ToLower(engine_sha256) == kXashReference)
             return 265;
         return std::nullopt;
     }

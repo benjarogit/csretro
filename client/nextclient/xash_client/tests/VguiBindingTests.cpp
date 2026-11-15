@@ -468,3 +468,54 @@ TEST_F(OriginalVguiBinding, ThrowingRuntimeOperationCompletesRequestedShutdownBe
     EXPECT_EQ(Count(vgui.get(), "FixtureVguiShutdownCount"), 1);
     ExpectOriginalGlobals();
 }
+
+TEST_F(OriginalVguiBinding, StartupScopeDefersShutdownAndPublishesBorrowedBaseUi)
+{
+    csr::client::VguiBinding binding;
+    std::string error;
+    int base_ui{};
+    ASSERT_TRUE(binding.BindInterfaces(client.get(), vgui.get(), &surface_token, error));
+    ASSERT_TRUE(binding.SetBaseUi(&base_ui));
+    EXPECT_FALSE(binding.SetBaseUi(&base_ui));
+    EXPECT_EQ(binding.EngineFactory()("BaseUI001", nullptr), &base_ui);
+    struct Context
+    {
+        csr::client::VguiBinding* binding;
+        bool visited{};
+    } context{&binding};
+    EXPECT_FALSE(binding.RunStartupUi(
+        [](void* opaque) {
+            auto& context = *static_cast<Context*>(opaque);
+            context.binding->Shutdown();
+            EXPECT_TRUE(context.binding->HasBinding());
+            context.visited = true;
+        },
+        &context
+    ));
+    EXPECT_TRUE(context.visited);
+    EXPECT_FALSE(binding.HasBinding());
+    EXPECT_EQ(binding.EngineFactory()("BaseUI001", nullptr), nullptr);
+    EXPECT_EQ(Count(vgui.get(), "FixtureVguiShutdownCount"), 1);
+    ExpectOriginalGlobals();
+}
+
+TEST_F(OriginalVguiBinding, ThrowingStartupScopeRetainsNativeStateUntilItReturns)
+{
+    csr::client::VguiBinding binding;
+    std::string error;
+    ASSERT_TRUE(binding.BindInterfaces(client.get(), vgui.get(), &surface_token, error));
+    EXPECT_THROW(
+        binding.RunStartupUi(
+            [](void* opaque) {
+                auto& binding = *static_cast<csr::client::VguiBinding*>(opaque);
+                binding.Shutdown();
+                EXPECT_TRUE(binding.HasBinding());
+                throw std::runtime_error("startup failed");
+            },
+            &binding
+        ),
+        std::runtime_error
+    );
+    EXPECT_FALSE(binding.HasBinding());
+    ExpectOriginalGlobals();
+}

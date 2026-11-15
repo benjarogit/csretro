@@ -72,6 +72,8 @@ typedef struct csr_surface_file_fns
     void* user;
 } csr_surface_file_fns_t;
 
+typedef int (*csr_surface_keyboard_fn)(void* user);
+
 typedef void (*csr_surface_popup_fn)(void* panel, int mouse, int keyboard, void* user);
 
 #if defined(_WIN32)
@@ -102,6 +104,11 @@ CSR_SURFACE_API void csr_surface_set_panel(csr_surface_t* surface, const csr_sur
 CSR_SURFACE_API void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t* input);
 CSR_SURFACE_API void csr_surface_set_file(csr_surface_t* surface, const csr_surface_file_fns_t* file);
 CSR_SURFACE_API void csr_surface_set_popup(csr_surface_t* surface, csr_surface_popup_fn popup, void* user);
+// Borrowed live keyboard capture query. Clearing it restores the default false.
+CSR_SURFACE_API void csr_surface_set_keyboard_query(csr_surface_t* surface, csr_surface_keyboard_fn query, void* user);
+// Read the same popup inventory used by painting; handles remain borrowed.
+CSR_SURFACE_API int csr_surface_popup_count(csr_surface_t* surface);
+CSR_SURFACE_API void* csr_surface_popup_at(csr_surface_t* surface, int index);
 // Binds a loaded texture to a VGUI cursor code. Texture 0 clears it.
 CSR_SURFACE_API void csr_surface_set_cursor_texture(csr_surface_t* surface, int cursor, int texture);
 // The quad from the last PaintTraverse. Returns 0 when that paint drew no cursor.

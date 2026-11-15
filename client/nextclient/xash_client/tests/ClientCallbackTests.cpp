@@ -8,6 +8,7 @@
 #include <dlfcn.h>
 #include <filesystem>
 #include <memory>
+#include <stdexcept>
 
 namespace
 {
@@ -233,4 +234,75 @@ TEST_F(ClientCallbacks, FailedInitializationSkipsVguiAndFailedVguiFailsTheEngine
     EXPECT_EQ(Count("FixtureInitializeCount"), 1);
     EXPECT_EQ(csr::client::InitializeWithVgui(nullptr, nullptr, 7, bind, &calls), 0);
     EXPECT_EQ(calls, 1);
+}
+
+TEST(ClientInitialization, ClaimsOriginalShutdownOncePerSuccessfulCycle)
+{
+    csr::client::ClientInitialization state;
+    EXPECT_FALSE(state.ClaimShutdown());
+    ASSERT_TRUE(state.Begin());
+    EXPECT_FALSE(state.Begin());
+    state.Finish(true);
+    EXPECT_FALSE(state.Begin());
+    EXPECT_TRUE(state.ClaimShutdown());
+    EXPECT_FALSE(state.ClaimShutdown());
+    ASSERT_TRUE(state.Begin());
+    state.Finish(true);
+    EXPECT_TRUE(state.ClaimShutdown());
+    EXPECT_FALSE(state.ClaimShutdown());
+}
+
+TEST(ClientInitialization, DefersShutdownDuringInitializationAndRejectsFailedCycle)
+{
+    csr::client::ClientInitialization state;
+    ASSERT_TRUE(state.Begin());
+    EXPECT_FALSE(state.ClaimShutdown());
+    EXPECT_TRUE(state.ShutdownRequested());
+    EXPECT_TRUE(state.IsInitializing());
+    state.Finish(true);
+    EXPECT_TRUE(state.ClaimShutdown());
+    ASSERT_TRUE(state.Begin());
+    EXPECT_FALSE(state.ShutdownRequested());
+    state.Finish(false);
+    EXPECT_FALSE(state.ClaimShutdown());
+}
+
+namespace
+{
+    csr::client::ClientInitialization* shutting_client;
+    int original_shutdowns{}, ui_shutdowns{};
+    bool throw_shutdown{};
+    void ShutdownUi(void*)
+    {
+        ++ui_shutdowns;
+    }
+    void ShutdownOriginal()
+    {
+        ++original_shutdowns;
+        EXPECT_FALSE(shutting_client->Begin());
+        shutting_client->Shutdown(ShutdownOriginal, ShutdownUi, nullptr);
+        EXPECT_EQ(ui_shutdowns, 0);
+        if (throw_shutdown)
+        {
+            throw std::runtime_error("native shutdown failure");
+        }
+    }
+} // namespace
+
+TEST(ClientInitialization, NestedShutdownWaitsForOriginalReturnAndStillCleansUiOnException)
+{
+    csr::client::ClientInitialization state;
+    shutting_client = &state;
+    original_shutdowns = ui_shutdowns = 0;
+    throw_shutdown = true;
+    ASSERT_TRUE(state.Begin());
+    state.Finish(true);
+    EXPECT_THROW(state.Shutdown(ShutdownOriginal, ShutdownUi, nullptr), std::runtime_error);
+    EXPECT_EQ(original_shutdowns, 1);
+    EXPECT_EQ(ui_shutdowns, 1);
+    state.Shutdown(ShutdownOriginal, ShutdownUi, nullptr);
+    EXPECT_EQ(original_shutdowns, 1);
+    EXPECT_EQ(ui_shutdowns, 2);
+    throw_shutdown = false;
+    shutting_client = nullptr;
 }

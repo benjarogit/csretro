@@ -757,6 +757,16 @@ namespace csr::client
             }
         }
     }
+    void NativePanelTree::SetVisible(int type, bool visible)
+    {
+        if (!IsReady() || state_->sealed || type < 0 || type >= 3)
+        {
+            return;
+        }
+        State::Guard guard(*state_);
+        state_->set_visible(state_->panels, state_->nodes[type].handle, visible);
+    }
+
     bool NativePanelTree::IsReady() const
     {
         return state_ && state_->ready && !state_->stopping;

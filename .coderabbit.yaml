@@ -13,15 +13,31 @@ reviews:
       - name: CSRETRO independent acceptance
         mode: error
         instructions: >-
-          Read docs/evidence/acceptance.json at the current PR head. Independently
-          examine every changed path (including old rename paths) and each criterion.
-          Fail missing evidence, false claims, missing required human gameplay proof,
-          or unresolved findings. A successful scan upload is not cleared findings.
-          When and only when all criteria genuinely pass, include the structured
-          csretro-acceptance-review attestation specified in tools/github_acceptance.py
-          in a submitted review. Bind it to the current head and canonical acceptance
-          JSON SHA256, list every reviewed path and explain every criterion decision.
-          Never approve a skipped, summary-only, rate-limited or incomplete review.
+          Independently assess source content at the exact PR head against the
+          current docs/evidence/acceptance.json. This manifest describes this PR,
+          not permanent baseline criteria; a docs-only canary legitimately has
+          different scope from the infrastructure PR. Global mandatory checks
+          must remain unchanged and are verified by Actions/native protection.
+          Review every changed current/old path and each criterion's substantive
+          requirement. Missing required human evidence or unverifiable source
+          requirements are failures/inconclusive, never guessed passes.
+          The checks array names evidence handles for the later live API audit;
+          do NOT require live GitHub API access, completion of your own review,
+          a prior CodeRabbit approval or the protected merge acceptance job.
+          Those are independently enforced AFTER this source-content assessment,
+          otherwise the protocol is circular. Do not submit a GitHub review from
+          this custom check: return your assessment in its Explanation.
+          If and only if the source criteria genuinely pass, return PASS and put
+          a visible fenced csretro-acceptance-review JSON block in Explanation.
+          Include schema=1, head=the exact head SHA, acceptance_sha256=SHA256 of
+          Python json.dumps(artifact,sort_keys=True,separators=(',',':')) UTF-8,
+          decision=pass, reviewed_paths=every changed current/old path,
+          summary=concrete independent assessment, criteria=[{id:each criterion ID,
+          passed:true,reason:concrete inspected evidence}]. The authenticated
+          walkthrough check result is the publication channel. Never fabricate
+          a pass, execution result or human acceptance. The coordinator separately
+          requires a completed substantive CodeRabbit run, actual current-head
+          native approval and all live CI/security checks before any merge.
   fail_commit_status: true
   auto_review:
     enabled: true
@@ -32,10 +48,8 @@ reviews:
         Enforce AGENTS.md and the authoritative CSRETRO plan. Check acceptance
         evidence, DE/EN documentation, preserved work and security boundaries.
         A stored callback is not gameplay proof. Do not approve unresolved findings.
-        Acceptance must use the committed docs/evidence/acceptance.json, not mutable
-        PR-body assertions. Submit an HTML comment csretro-acceptance-review containing
-        JSON keys schema=1, head=current PR SHA, acceptance_sha256=SHA256 of Python
-        json.dumps(artifact,sort_keys=True,separators=(',',':')), decision=pass,
-        reviewed_paths=all changed current/old paths, summary=concrete assessment,
-        criteria=[{id:each criterion id,passed:true,reason:concrete inspected evidence}].
-        Only a genuine complete content review can produce this attestation.
+        Acceptance uses the committed per-PR docs/evidence/acceptance.json.
+        The custom pre-merge check evaluates source semantics and publishes its
+        assessment in Explanation; it does not require its own completed review
+        or live checks. Formal approval and real CI/security completion are
+        separately required by native protection and the host verifier.

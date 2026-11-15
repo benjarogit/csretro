@@ -2314,73 +2314,64 @@ Auch bei reiner Ideen-Übernahme wird credited.
 
 ### 11.7 Geschützter automatischer GitHub-Merge
 
-Die bestehende NextClient-/Xash3D-Portierung bleibt der Entwicklungsauftrag.
-Normale Änderungen nutzen native GitHub-Squash-Auto-Merges nach aktuellen,
-strikten Pflichtchecks (bestehende vier CI-Jobs, CodeQL und Akzeptanz-Gate),
-CodeRabbit-Freigabe zum aktuellen Head und gelösten Review-Konversationen.
-Branch-Schutz gilt auch für Administratoren, verbietet Force-Push/Löschen und
-verlangt aktuelle unabhängige Freigabe; die Live-Prüfung ersetzt keine Schutzregel.
-Der Koordinator führt ausschließlich Code aus `main` aus, nie PR-Code mit
-Schreibrechten. Er reagiert auf vorhandene CI-/Review-/PR-Ereignisse, baut
-keine zweite Testpipeline und startet weder Spiel noch Modell. Fehler oder
-unvollständige Nachweise verhindern das Scharfschalten. Die Akzeptanzerklärung
-im PR ist an dessen Head gebunden und muss überprüfbare Kriterien/Belege nennen;
-sie ersetzt keine notwendige menschliche Laufzeitabnahme.
+Die vorhandene NextClient-/Xash3D-Portierung bleibt das zentrale Entwicklungsziel.
+Normale Entwicklungs-PRs dürfen nach wirksamen nativen Schutzregeln, allen
+obligatorischen CI-/Sicherheitsprüfungen, unabhängiger aktueller Abnahme und
+CodeRabbit-Freigabe automatisch per Squash integriert werden. Grüne Teiltests,
+übersprungene Reviews und PM-Empfehlungen sind keine Freigabe. Releases,
+produktive Deployments, Kosten, Berechtigungsänderungen und andere sensible
+Änderungen benötigen weiterhin ausdrückliche, auf den aktuellen Stand bezogene
+Maintainer-Freigabe. Kein Bypass, keine neue App, keine neuen Zugangsdaten.
 
-Sensible Pfade/Labels laut zentraler Policy verlangen zusätzlich ausdrückliche
-Maintainer-Freigabe am aktuellen Head. Selbstfreigaben zählen nicht. Releases,
-Deployments, Kosten und Berechtigungen werden nie pauschal freigegeben.
-PR #14 wird zuerst geprüft, #15 erst danach auf aktualisiertem `main`, #16
-anschließend ohne Verlust seiner bestehenden Workflow-/Vorlagenarbeit.
-Solange Review-Dienst oder vertrauenswürdiger Bootstrap fehlt, bleiben alle
-Merges gesperrt. Keine kostenpflichtigen Dienste oder größeren Runner hinzufügen.
+Die zentrale Policy ist `.github/merge-policy.json`; der vorhandene berechtigte
+Host prüft mit `tools/github_merge_gate.py` live Rulesets, Quellbindungen, aktuelle
+Checks, Review-Konversationen und Sensibilität. Natives Auto-Merge wird erst nach
+allen Belegen aktiviert. Main und die Test-Sandbox behalten sämtliche Schutzregeln,
+strikte Basisfrische, aktuelle unabhängige Reviews und gelöste Konversationen.
+Native CodeQL-Regeln prüfen Befunde und ausstehende Analysen getrennt vom bloßen
+Analyse-/Upload-Erfolg. Ausgeblendete Bypassdetails oder API-Fehler sperren.
 
-Native Rulesets und natives Auto-Merge benötigen keine eigene App. Ein optionaler
-eigenständig authentifizierter Akzeptanzcheck benötigt eine getrennte Identität, weil die
-gemeinsame Actions-ID auch von veränderten PR-Workflows benutzt werden kann.
-App-Schlüssel bleiben ausschließlich in einem serverseitig auf `main` begrenzten
-Environment. Einrichtung dieser App-Rechte braucht ausdrückliche Freigabe;
-ohne App-Konfiguration und echten Token-/Negativtest bleibt Repository-Auto-Merge
-ausgeschaltet. Eine unabhängige aktuelle Freigabe bestätigt zusätzlich den
-SHA-256-Digest der Akzeptanzerklärung. CodeQL-Ergebnischeck und offene Warnungen
-werden separat vom erfolgreichen Analyse-/Uploadjob geprüft.
+**Aufgabenteilung ohne Prüfkreis.** Das versionierte Manifest
+`docs/evidence/acceptance.json` beschreibt die Akzeptanz des jeweiligen PRs,
+keine dauerhaft zu erbende Liste von Kriterien des Basis-PRs. Ein reiner
+Doku-Test darf eigene passende Kriterien haben, ohne globale Pflichtchecks zu
+reduzieren. Der kanonische Digest, exakte Basis-Commit und alle geänderten/
+umbenannten Pfade binden die Belege an den aktuellen Head. Menschlich nötige
+Gameplay-Abnahme wird nicht automatisiert oder erfunden.
 
-Native-first-Prüfung: Ruleset 27257972 wurde mit bestehenden Schutzanforderungen
-und nativem CodeQL-Befundschutz ohne Bypass aktiviert; bestehender Branch-Schutz
-bleibt erhalten. Keine neuen App-Rechte vergeben. Als Alternative prüft der
-bestehende Host Akzeptanz und aktiviert natives Auto-Merge mit vorhandener
-Berechtigung. Eine optionale getrennte App wäre ausschließlich Check-Schreiber
-(Checks schreiben, Metadata lesen); keine App-Rechte für Administration, Code,
-PR-Änderungen oder Sicherheitswarnungen. Ruleset-Bypassdetails prüft der vorhandene
-Administrator-Host. Ohne diese Sicht bleibt der Ablauf gesperrt. Quellen, Grenzen
-der persönlichen Repository-Verwaltung und Schlüsselrotation sind zweisprachig
-im Integrationsleitfaden dokumentiert.
+CodeRabbits Custom-Pre-Merge-Check bewertet unabhängig die inhaltlichen
+Anforderungen anhand des Quellbaums. Die im Manifest genannten Checks sind
+Beleghandles für die spätere Live-Prüfung. Der Custom-Check fordert weder
+GitHub-API-Zugriff noch seinen eigenen bereits abgeschlossenen Lauf, eine
+vorherige formale Freigabe oder einen bereits grünen Akzeptanzjob. Er veröffentlicht
+seine konkrete Kriterien-/Pfadbewertung mit Digest als sichtbaren JSON-Block in
+der Explanation seines authentifizierten Walkthroughs. Das ist der tatsächlich
+unterstützte Ausgabekanal; der Check kann selbst kein GitHub-Review erzeugen.
 
-**Akzeptanz ohne neue App-Rechte (Fortsetzung).** Der nicht bereitgestellte eigene
-App-Schreiber wird durch einen schreibgeschützten nativen Actions-Akzeptanzjob
-ersetzt; alle sieben Pflichtkontexte und ihre bisherigen Dienstbindungen bleiben
-erhalten. Kein neuer Schlüssel oder Token. Kriterien und vollständige Pfadliste
-liegen als `docs/evidence/acceptance.json` am exakten PR-Head. CodeRabbit muss eine
-echte aktuelle Inhaltsprüfung samt konkreter Kriterienbewertung, Pfadnachweis und
-kanonischem Manifest-Digest im Review abgeben sowie aktuell freigeben. Übersprungene,
-neutrale, begrenzte oder reine Zusammenfassungsantworten zählen niemals.
-Review-Ereignisse prüfen nur den lesenden Akzeptanzjob neu; kein zweiter Build und
-kein privilegierter PR-Code. Die Actions-App-ID belegt den Dienst, nicht die
-Identität eines bestimmten Workflows; die unabhängige aktuelle Workflow-Prüfung
-und nativen Review-Gates bleiben Teil dieser Vertrauensgrenze. Der vorhandene Host
-aktiviert natives Auto-Merge erst nach allen Nachweisen. Der harmlose Doku-Test-PR
-muss auch einen echten positiven Ablauf beweisen; bis dahin bleibt Auto-Merge aus.
-Fehlende CodeQL-Grundlage oder dienstseitig fehlende Reviews sperren weiterhin.
-Ein beim Worktree-Test reproduzierter Pre-Push-Fehler wird an der Ursache korrigiert:
-Hook-lokale Git-Variablen werden nur für den Verify-Unterprozess entfernt, damit
-Test-Fixtures keine gemeinsame Repository-Konfiguration verändern; LFS behält
-seinen ursprünglichen Kontext. Keine Umgehung des Hooks.
+Der schreibgeschützte native Actions-Job `protected merge acceptance` prüft danach
+Bot-/App-Identität, abgeschlossenen erfolgreichen Inhaltsreview-Lauf, offiziellen
+Head-Abdeckungsnachweis, tatsächlich bestandenen Custom-Check und vollständiges
+Testat. Ungültige, unklare, übersprungene, begrenzte oder rein zusammenfassende
+Ergebnisse scheitern. Dieser Inhaltscheck ersetzt keine formale Freigabe:
+Die nativen Review-Regeln und der abschließende Host-Audit verlangen zusätzlich
+eine aktuelle CodeRabbit-APPROVED-Stimme und alle tatsächlich erfolgreichen
+Live-CI-/Sicherheitschecks. Widerrufene/negative Freigaben sperren auch den
+Inhaltsjob. Die Actions-App-ID authentifiziert den Dienst, nicht einen bestimmten
+Workflow gegen böswillige Repository-Schreiber; auch Workflow-Code bleibt
+unabhängig zu prüfen. Keine privilegierte PR-Ausführung, Secrets oder Check-Schreibrechte.
 
-**Wiederaufnahme und Sandbox-Gleichheit (15. November 2026).** Die vorhandene
-Arbeit wird ab `c6926966` fortgesetzt; kein Neustart und keine Orqen-Migration.
-Eine Test-Sandbox muss sämtliche konfigurierten und wirksamen Regeln mit allen
-Parametern/Quellen kopieren, inklusive Merge-Verfahren und zusätzlichen
-Review-Anforderungen. Ein Vergleich nur ausgewählter Checkfelder genügt nicht.
-Die harmlose Pfadliste bleibt an einen unveränderlichen Head gebunden und wird
-vor dem Aktivieren zusammen mit der vollständigen Schutzgleichheit erneut
-geprüft. Produktionsregeln und alle sieben Pflichtchecks bleiben unverändert.
+**Kontrollierter Test.** Die bereits begonnene Arbeit wird ab `c6926966`
+fortgesetzt; kein Projektneustart und keine Orqen-Migration. Sandbox und Produktion
+müssen vollständige konfigurierte/wirksame native Regeln mit allen Parametern und
+Quellen haben; zusätzlich wird der Legacy-Branch-Schutz live abgeglichen. Nur der
+exakte isolierte Branch ist zugelassen. Der harmlose Drei-Dateien-Umfang bleibt
+an einen unveränderlichen Head gebunden; vor dem Aktivieren werden Head, Umfang
+und Schutzgleichheit erneut geprüft. Kein Force-Push oder Produktionsmerge für
+Testvorbereitung. Ein echter positiver Ende-zu-Ende-Nachweis bleibt erforderlich;
+bis dahin bleibt Repository-Auto-Merge ausgeschaltet. CodeQL-Grundlage aus PR #16,
+PR #15s Abhängigkeit von #14 und bestehende G07-Arbeit werden erhalten.
+
+Der reproduzierte Worktree-Pre-Push-Fehler ist an der Ursache korrigiert: Nur der
+Verify-Unterprozess entfernt Hook-lokale Git-Variablen; verschachtelte Fixtures
+verändern dadurch keine gemeinsame Repository-Konfiguration. Der ursprüngliche
+LFS-Kontext und der vollständige Pre-Push-Prüfumfang bleiben bestehen.

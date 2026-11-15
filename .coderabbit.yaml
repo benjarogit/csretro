@@ -40,7 +40,9 @@ reviews:
           native approval and all live CI/security checks before any merge.
   fail_commit_status: true
   auto_review:
-    enabled: true
+    # Targeted included reviews only; the live base is unchanged until approval.
+    enabled: false
+    auto_incremental_review: false
     drafts: false
   path_instructions:
     - path: "**/*"

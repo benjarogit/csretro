@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Stage a disabled provider-neutral independent-review contract with source-bound executor receipts, actual-output verification and positive/negative regression tests; preserve effective native and CodeRabbit merge gates.
+
 - Separate independent source assessment from live CI/formal approval, using authenticated CodeRabbit walkthrough evidence to avoid a circular pre-merge protocol.
 
 - Compare complete live sandbox protections and bind the harmless canary scope to an immutable head before native merge arming.

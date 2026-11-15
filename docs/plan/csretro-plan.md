@@ -2375,3 +2375,34 @@ Der reproduzierte Worktree-Pre-Push-Fehler ist an der Ursache korrigiert: Nur de
 Verify-Unterprozess entfernt Hook-lokale Git-Variablen; verschachtelte Fixtures
 verändern dadurch keine gemeinsame Repository-Konfiguration. Der ursprüngliche
 LFS-Kontext und der vollständige Pre-Push-Prüfumfang bleiben bestehen.
+
+
+#### 11.7.1 Anbieterunabhängiger Review-Vertrag (separate Abnahme)
+
+CodeRabbit bleibt nutzbar, darf aber nicht die einzige fachliche Review-Route
+sein. Der separat geprüfte Kandidat `tools/review_contract.py` und
+`tools/review_adapters.py` bindet tatsächliche unabhängige Ausführung an Repository,
+PR, exakten Head/Basis, vollständiges Manifest, alte/neue Pfade und Blob-/SHA-256-
+Quellenbelege. Gepinnte Ausführungsidentitäten, Eingabe-/Ausgabe-Hashes,
+Kriterienbegründungen und konkrete Quellausschnitte sind Pflicht. Negative Reviews
+sperren trotz positivem Ersatz; Kontingent-Nichtverfügbarkeit ist kein Codefehler.
+Ein Implementierer kann sich weder selbst freigeben noch über seinen PR anmelden.
+
+Die Architektur und ausführbaren Regressionen werden zuerst separat geprüft.
+`.github/review-contract.json` bleibt deaktiviert und ohne Ausführer. Ein extern
+festgelegter Vertrauens-Pin und aus der geschützten Basis gelesene Registrierung
+sind vor Live-Anbindung nötig; Signaturen allein beweisen keine Unabhängigkeit.
+Native Agenten und vorhandene lokale Modelle liefern echte Belegentwürfe, keine
+erfundenen formalen GitHub-Stimmen. Details stehen in den DE/EN-Maintainer-Guides.
+Automatische inkrementelle CodeRabbit-Anfragen werden im Kandidaten abgeschaltet;
+gezielte enthaltene Reviews bleiben möglich. Kein kostenpflichtiger Ersatz.
+
+Bestehende wirksame Schutzregeln und CodeRabbit-Gates bleiben bis zur separat
+freigegebenen Migration unverändert. Die formale aktuelle GitHub-Freigabe eines
+anderen berechtigten Akteurs, alle CI-/Sicherheitschecks und sensible Freigaben
+bleiben Pflicht. Keine zusätzliche App-Berechtigung oder Main-Integration ist
+hiermit erteilt. Der erfolgreiche Sandbox-Test für PR #18 belegt den bisherigen
+CodeRabbit-Weg, nicht die noch deaktivierte Alternative. Vor deren Aktivierung
+sind unabhängige Vertragsabnahme, explizite Vertrauensregistrierung und ein eigener
+geschützter Sandbox-Nachweis nötig. Portierung und gesicherte G07-Arbeit bleiben
+erhalten; aktueller Stand und Folgearbeit stehen ausschließlich im HANDOFF.

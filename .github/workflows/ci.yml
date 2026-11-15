@@ -50,6 +50,9 @@ jobs:
       - name: Test protected merge eligibility
         run: python3 -m unittest discover -s tests/github_merge -v
 
+      - name: Test staged provider-neutral review contract
+        run: python3 -m unittest discover -s tests/review_contract -v
+
       - name: Test native game-client export screen
         run: python3 -m unittest discover -s tests/game_client -v
 

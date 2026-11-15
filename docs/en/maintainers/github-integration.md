@@ -73,3 +73,5 @@ hook-local Git variables from nested test repositories while preserving LFS cont
 
 Sources: [native Auto-Merge](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/automatically-merging-a-pull-request),
 [CodeRabbit approvals and custom checks](https://docs.coderabbit.ai/reference/configuration).
+
+Sandbox preparation compares complete configured and effective native rules, including every review/merge parameter and every active source, rather than only a selected check projection. Its ruleset must target the exact isolated branch with no bypass. The three-file harmless scope is bound to the observed immutable head; every final inspection rechecks scope, head and protection equivalence. Changes invalidate the test instead of expanding its authority.

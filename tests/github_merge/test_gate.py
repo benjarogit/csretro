@@ -1,5 +1,6 @@
 """Native protection and host arming regressions; no network or mutations."""
 import json
+import copy
 from pathlib import Path
 import sys
 import unittest
@@ -139,28 +140,74 @@ class GateTests(unittest.TestCase):
             disarm.assert_called_once()
             run.assert_not_called()
 
-    def test_sandbox_cannot_target_main_or_change_runtime(self):
+    def sandbox_fixture(self):
         github = Mock()
+        branch = 'codex/auto-merge-sandbox'
+        main_rules = [{'type': 'pull_request', 'parameters': {
+            'allowed_merge_methods': ['squash'], 'require_code_owner_review': False,
+            'require_extra_approval_for_unattributed_changes': True, 'required_reviewers': []}},
+            {'type': 'required_status_checks', 'parameters': {'checks': ['all-seven']}}]
+        main = {'enforcement': 'active', 'bypass_actors': [], 'target': 'branch', 'rules': main_rules,
+                'conditions': {'ref_name': {'include': ['refs/heads/main'], 'exclude': []}}}
+        sandbox = copy.deepcopy(main)
+        sandbox['conditions']['ref_name']['include'] = ['refs/heads/' + branch]
+        pr = {'head': {'sha': 'abc'}, 'base': {'sha': 'base', 'ref': branch}}
+        files = [{'filename': path} for path in gate.canary_paths(self.policy)]
+        def api(path):
+            if path == 'rulesets/42': return sandbox
+            if path == f'rulesets/{self.policy["native_ruleset_id"]}': return main
+            if path == 'pulls/18': return pr
+            raise AssertionError(path)
+        def pages(path):
+            if path == f'rules/branches/{branch}':
+                return [{**rule, 'ruleset_id': 42} for rule in sandbox['rules']]
+            if path == 'rules/branches/main':
+                return [{**rule, 'ruleset_id': self.policy['native_ruleset_id']} for rule in main['rules']]
+            if path == 'pulls/18/files': return files
+            raise AssertionError(path)
+        github.api.side_effect = api
+        github.pages.side_effect = pages
+        return github, main, sandbox, pr, files
+
+    def test_sandbox_rejects_main_runtime_and_production_ruleset(self):
+        github, _, _, _, files = self.sandbox_fixture()
         with self.assertRaises(ValueError):
             gate.sandbox_policy(github, 18, self.policy, 'main', 42)
         with self.assertRaises(ValueError):
             gate.sandbox_policy(github, 18, self.policy, 'codex/auto-merge-sandbox', self.policy['native_ruleset_id'])
-        with patch.object(gate, 'native_protection', return_value=self.protection):
-            github.pages.return_value = [{'filename': 'client/code.cpp'}]
-            with self.assertRaises(RuntimeError):
-                gate.sandbox_policy(github, 18, self.policy, 'codex/auto-merge-sandbox', 42)
+        files.append({'filename': 'client/code.cpp'})
+        with self.assertRaises(RuntimeError):
+            gate.sandbox_policy(github, 18, self.policy, 'codex/auto-merge-sandbox', 42)
 
-    def test_sandbox_requires_equal_native_gates_and_exact_harmless_scope(self):
-        github = Mock()
-        github.pages.return_value = [{'filename': path} for path in (
-            'docs/de/maintainers/merge-canary.md', 'docs/en/maintainers/merge-canary.md', self.policy['acceptance_path'])]
-        with patch.object(gate, 'native_protection', side_effect=[self.protection, {}]):
-            with self.assertRaises(RuntimeError):
-                gate.sandbox_policy(github, 18, self.policy, 'codex/auto-merge-sandbox', 42)
-        with patch.object(gate, 'native_protection', return_value=self.protection):
-            sandbox = gate.sandbox_policy(github, 18, self.policy, 'codex/auto-merge-sandbox', 42)
-            self.assertEqual(sandbox['base'], 'codex/auto-merge-sandbox')
-            self.assertEqual(self.policy['base'], 'main')
+    def test_sandbox_compares_every_merge_and_review_setting(self):
+        for parameter, value in [('allowed_merge_methods', ['merge', 'squash']),
+                ('require_extra_approval_for_unattributed_changes', False), ('required_reviewers', ['different'])]:
+            with self.subTest(parameter=parameter):
+                github, _, sandbox, _, _ = self.sandbox_fixture()
+                sandbox['rules'][0]['parameters'][parameter] = value
+                with self.assertRaises(RuntimeError):
+                    gate.sandbox_policy(github, 18, self.policy, 'codex/auto-merge-sandbox', 42)
+
+    def test_sandbox_requires_all_effective_rules_and_exact_isolated_scope(self):
+        github, main, sandbox, _, _ = self.sandbox_fixture()
+        main['rules'].append({'type': 'required_signatures'})
+        with self.assertRaises(RuntimeError):
+            gate.sandbox_policy(github, 18, self.policy, 'codex/auto-merge-sandbox', 42)
+        sandbox['rules'].append({'type': 'required_signatures'})
+        sandbox['conditions']['ref_name']['include'].append('refs/heads/main')
+        with self.assertRaises(RuntimeError):
+            gate.sandbox_policy(github, 18, self.policy, 'codex/auto-merge-sandbox', 42)
+
+    def test_sandbox_binds_scope_to_immutable_head_and_rechecks_later_changes(self):
+        github, _, _, _, _ = self.sandbox_fixture()
+        policy = gate.sandbox_policy(github, 18, self.policy, 'codex/auto-merge-sandbox', 42)
+        self.assertEqual(policy['sandbox_head'], 'abc')
+        self.assertEqual(self.policy['base'], 'main')
+        github.api.side_effect = None
+        github.api.return_value = {'head': {'sha': 'new-runtime-head'}}
+        with patch.object(gate, 'native_protection') as protection:
+            with self.assertRaises(RuntimeError): gate.inspect(github, 18, policy)
+            protection.assert_not_called()
 
     def test_complete_gate_only_arms_native_auto_merge_exact_head(self):
         passed = {'head': 'abc', 'eligible': True, 'holds': []}

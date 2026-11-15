@@ -5,16 +5,23 @@ Project state for the next session. Personal context belongs in
 
 ## State
 
-- **Date:** 2026-11-14
+- **Date:** 2026-11-15
 - **Gate:** G07 — in progress. The first runnable version is not achieved.
 - **Branch:** `main` is the integration target; changes use gate pull requests.
 - **Validated baseline:** `ab2b095b` (PR #13 merged); main CI https://github.com/benjarogit/csretro/actions/runs/43571005119 and Pages https://github.com/benjarogit/csretro/actions/runs/43571072573 — success.
 - **Product sequence:** Port existing NextClient/CS behavior to Xash3D first; then exclusively Linux x86_64 and at least 60 FPS in gameplay without a 60 FPS cap; additional features later. Original licensed game files stay in a separate copy, and the port starts no Steam process. Rules and decisions live in the authoritative plan, sections 3.7–3.8.
 - **Actual runtime boundary:** The host builds and presents native VGUI2 UI, reads content and records world primitives/callbacks. It does not execute Xash3D gameplay. `client_mini` is an extension of an existing game client, not a native CS game implementation. The SDK builds the UI foundation, not the missing CS gameplay implementation.
 - **Critical next port work:** Integrate the existing NextClient extensions with a real architecture-matched Xash3D/CS runtime, using the locally supplied original game library as the i386 spike does. A native x64 game library is the following phase, not a demand to rewrite CS before porting. The x64-only export screen still fails on the extension module as expected; it is not a gate against the initial i386 port.
-- **Current work:** PAUSED at the maintainer's explicit request for a computer restart (2026-11-14). Preserve the existing development objective; do not start tasks, retry reviews, activate Auto-Merge or merge PRs until the maintainer resumes. The work-in-progress no-new-App acceptance implementation remains on `codex/protected-auto-merge` / PR #17. Canary PR #18 is open and blocked. Repository Auto-Merge remains disabled; main and the saved G07 branch are unchanged.
+- **Current work:** Resumed by explicit maintainer instruction on 2026-11-15 from saved commit `c6926966` on `codex/protected-auto-merge` / PR #17. Continue the same no-new-App independent acceptance and protected canary task; do not restart the project. Both worktrees and saved differences were checked before edits. Backup hashes match, SQLite integrity is valid, and the canary's existing LFS difference exactly matches its saved binary patch. No local changes were overwritten. All seven production checks remain enforced; Auto-Merge stays disabled pending a genuine positive canary.
 - **Clarified scope:** No CS rewrite or reference-client feature import before the existing NextClient-to-Xash3D port. The original game library can be supplied locally for that first port; a later exclusively x64 phase must solve its own architecture constraints. Existing GPL reference rules remain unchanged.
 - **Historical evidence:** Earlier i386 spikes and test-only host results remain below. They do not establish x64 gameplay, production Steam authentication or measured scene FPS.
+
+## Resumed acceptance work (2026-11-15)
+
+- Explicit resumption verified the primary checkout at `c6926966` and canary at `b7c558d4`. All saved checkpoint hashes and the canary binary patch match; SQLite integrity is valid. The two original untracked archives and the canary LFS materialization difference are preserved without restoration or overwrite.
+- The saved implementation is reused. The hosted checkpoint passed all four CI jobs https://github.com/benjarogit/csretro/actions/runs/43585391010 and Python CodeQL/results https://github.com/benjarogit/csretro/actions/runs/43585391026. Its independent acceptance run https://github.com/benjarogit/csretro/actions/runs/43585391016 correctly failed on missing substantive CodeRabbit review, approval and attestation, not on a schema/base error. That is a blocker, not a green integration gate.
+- Fresh independent read-only review reproduced two gaps in the unfinished sandbox path: full native settings were omitted by the old comparison projection, and scope could move to a different head before final inspection. The resumed fix compares complete configured/effective rules with every parameter/source, checks exact test-only scope and binds the harmless diff to the observed head. Every later sandbox inspection repeats the protection check and rejects a moved head. Regression suite now has 35 cases passing; final review/hosted evidence follow before claiming success.
+- Production ruleset 27257972 and legacy branch protection still enforce the seven existing checks, strict base freshness, independent review/conversation requirements and no admin bypass. Repository Auto-Merge remains disabled. No sandbox branch or cloned ruleset has yet been created at this checkpoint; CodeRabbit capacity must be checked afresh before the real test. No new App, credentials, release or production merge.
 
 ## Restart checkpoint — explicitly paused (2026-11-14)
 
@@ -374,7 +381,7 @@ the Security overview switches in the browser.
 
 ## Next task
 
-Wait for explicit maintainer resumption after the computer restart. Then read this checkpoint, reconcile the existing ChatDev task and current GitHub state, inspect the saved WIP commit, rerun only necessary checks and finish independent review of the no-new-App acceptance path. Continue the protected canary test described above; no new project, no repeated completed work, no skipped rules. The positive Auto-Merge test and normal activation remain unproven. Preserve PR #15's dependency on #14, PR #16's scanner/template work and the saved G07 factory-ABI branch.
+Continue the existing protected acceptance gate from task 9. Correct and independently verify sandbox equivalence against complete live rules and test-only branch scope; the initial normalized projection omitted additional review/merge settings. Preserve all production protection and local differences. Then prepare the isolated protected canary using the saved implementation, obtain a genuinely substantive included CodeRabbit review and verify negative and positive native Auto-Merge behavior. CodeRabbit absence and scanner/acceptance foundations missing from main remain real blockers; do not mark the gate complete or activate normal Auto-Merge early. Preserve PR #15's dependency on #14, PR #16's scanner/template work and the saved G07 factory-ABI branch. Orqen preparation does not replace the existing harness or authorize changes in another repository.
 
 ## Open decisions
 

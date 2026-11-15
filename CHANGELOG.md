@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Compare complete live sandbox protections and bind the harmless canary scope to an immutable head before native merge arming.
+
 - Verify immutable acceptance criteria against substantive current-head CodeRabbit review evidence in a read-only native job, without a new App or secrets; reject skipped and rate-limited reviews.
 - Isolate pre-push verification from hook-local Git variables while retaining LFS forwarding, preventing worktree test fixtures from altering the caller repository.
 

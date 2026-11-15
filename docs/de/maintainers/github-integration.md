@@ -77,3 +77,5 @@ erhält dabei den ursprünglichen LFS-Kontext.
 
 Quellen: [natives Auto-Merge](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/automatically-merging-a-pull-request),
 [CodeRabbit-Freigaben und eigene Prüfungen](https://docs.coderabbit.ai/reference/configuration).
+
+Die Sandbox-Vorbereitung vergleicht vollständige konfigurierte und wirksame native Regeln einschließlich aller Review-/Merge-Parameter und aller aktiven Quellen statt nur ausgewählter Checks. Ihr Ruleset darf ausschließlich den exakten Testbranch ohne Bypass betreffen. Der harmlose Drei-Dateien-Umfang ist an den beobachteten unveränderlichen Head gebunden; jede abschließende Prüfung kontrolliert Umfang, Head und Schutzgleichheit erneut. Änderungen entwerten den Test, statt seine Befugnisse zu erweitern.

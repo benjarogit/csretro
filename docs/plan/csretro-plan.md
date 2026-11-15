@@ -2375,3 +2375,12 @@ Ein beim Worktree-Test reproduzierter Pre-Push-Fehler wird an der Ursache korrig
 Hook-lokale Git-Variablen werden nur für den Verify-Unterprozess entfernt, damit
 Test-Fixtures keine gemeinsame Repository-Konfiguration verändern; LFS behält
 seinen ursprünglichen Kontext. Keine Umgehung des Hooks.
+
+**Wiederaufnahme und Sandbox-Gleichheit (15. November 2026).** Die vorhandene
+Arbeit wird ab `c6926966` fortgesetzt; kein Neustart und keine Orqen-Migration.
+Eine Test-Sandbox muss sämtliche konfigurierten und wirksamen Regeln mit allen
+Parametern/Quellen kopieren, inklusive Merge-Verfahren und zusätzlichen
+Review-Anforderungen. Ein Vergleich nur ausgewählter Checkfelder genügt nicht.
+Die harmlose Pfadliste bleibt an einen unveränderlichen Head gebunden und wird
+vor dem Aktivieren zusammen mit der vollständigen Schutzgleichheit erneut
+geprüft. Produktionsregeln und alle sieben Pflichtchecks bleiben unverändert.

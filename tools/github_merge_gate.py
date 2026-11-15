@@ -139,6 +139,8 @@ def evaluate(pr, files, reviews, checks, protection, repository, threads, policy
 
 def native_protection(github, policy):
     """Read native rules; existing host must audit bypasses without expanding App access."""
+    if policy.get('sandbox_production'):
+        assert_sandbox_equivalence(github, policy, policy['sandbox_production'])
     effective = github.pages(f'rules/branches/{policy["base"]}')
     rule_id = policy['native_ruleset_id']
     if not any(rule.get('ruleset_id') == rule_id for rule in effective):
@@ -183,9 +185,13 @@ def changed_paths(files):
 
 def inspect(github, number, policy):
     pr = github.api(f'pulls/{number}')
+    if policy.get('sandbox_head') and pr['head']['sha'] != policy['sandbox_head']:
+        raise RuntimeError('Canary head changed after harmless-scope validation')
     protection = native_protection(github, policy)
     repository = github.api('')
     files = changed_paths(github.pages(f'pulls/{number}/files'))
+    if policy.get('sandbox_head') and set(files) != canary_paths(policy):
+        raise RuntimeError('Canary scope changed during live inspection')
     reviews = github.pages(f'pulls/{number}/reviews')
     checks = []
     for page in range(1, 101):
@@ -259,20 +265,61 @@ def disarm(github, number):
           clientMutationId } }''', {'id': pr['id']}, merge_auth=True)
 
 
+def canary_paths(policy):
+    return {'docs/de/maintainers/merge-canary.md', 'docs/en/maintainers/merge-canary.md',
+            policy['acceptance_path']}
+
+
+def rule_signature(rules):
+    # Retain every parameter, including settings not projected by native_protection.
+    return sorted(json.dumps({'type': rule['type'], 'parameters': rule.get('parameters', {})},
+                             sort_keys=True, separators=(',', ':')) for rule in rules)
+
+
+def full_native_snapshot(github, policy):
+    effective = github.pages(f'rules/branches/{policy["base"]}')
+    sources = {rule['ruleset_id'] for rule in effective}
+    if policy['native_ruleset_id'] not in sources:
+        raise RuntimeError('Required ruleset is not effective on the selected target')
+    metadata = {}
+    for rule_id in sources:
+        data = github.api(f'rulesets/{rule_id}')
+        if data.get('enforcement') != 'active' or data.get('bypass_actors') != []:
+            raise RuntimeError('Every effective ruleset must be visible, active and without bypass')
+        metadata[rule_id] = data
+    primary = metadata[policy['native_ruleset_id']]
+    return effective, primary
+
+
+def assert_sandbox_equivalence(github, candidate, production):
+    actual, sandbox = full_native_snapshot(github, candidate)
+    required, main = full_native_snapshot(github, production)
+    if (sandbox.get('target') != 'branch'
+            or sandbox.get('conditions') != {'ref_name': {'include': [f'refs/heads/{candidate["base"]}'], 'exclude': []}}):
+        raise RuntimeError('Sandbox rules must target only the exact isolated branch')
+    if rule_signature(actual) != rule_signature(required):
+        raise RuntimeError('Full effective sandbox protections differ from production')
+    if rule_signature(sandbox['rules']) != rule_signature(main['rules']):
+        raise RuntimeError('Full configured sandbox protections differ from production')
+
+
 def sandbox_policy(github, number, policy, branch, rule_id):
     """Permit an isolated, equally protected three-file documentation canary only."""
     if not isinstance(branch, str) or not re.fullmatch(r'codex/auto-merge-sandbox(?:-[a-z0-9]+)?', branch):
         raise ValueError('Only an isolated auto-merge sandbox target is allowed')
     if not isinstance(rule_id, int) or rule_id == policy['native_ruleset_id']:
         raise ValueError('A distinct test-only ruleset is required')
-    candidate = {**policy, 'base': branch, 'native_ruleset_id': rule_id}
-    if native_protection(github, candidate) != native_protection(github, policy):
-        raise RuntimeError('Sandbox native protections differ from production requirements')
-    expected = {'docs/de/maintainers/merge-canary.md', 'docs/en/maintainers/merge-canary.md',
-                policy['acceptance_path']}
+    candidate = {**policy, 'base': branch, 'native_ruleset_id': rule_id,
+                 'sandbox_production': dict(policy)}
+    assert_sandbox_equivalence(github, candidate, policy)
+    before = github.api(f'pulls/{number}')
     paths = set(changed_paths(github.pages(f'pulls/{number}/files')))
-    if paths != expected:
+    after = github.api(f'pulls/{number}')
+    if before['head']['sha'] != after['head']['sha'] or before['base']['sha'] != after['base']['sha']:
+        raise RuntimeError('Canary changed during harmless-scope validation')
+    if after['base']['ref'] != branch or paths != canary_paths(policy):
         raise RuntimeError('Canary must change exactly paired documentation and its acceptance manifest')
+    candidate['sandbox_head'] = after['head']['sha']
     return candidate
 
 

@@ -3,6 +3,7 @@
 #include <cstring>
 #include <cstdint>
 #include <vector>
+#include <unordered_map>
 
 using Factory = csr::client::VguiBinding::Factory;
 namespace
@@ -18,6 +19,24 @@ namespace
     Factory engine_factory{};
     void (*init_hook)();
     void (*shutdown_hook)();
+    struct KeyboardPanel
+    {
+        unsigned parent;
+        bool visible;
+        bool keyboard;
+        bool popup;
+    };
+    std::unordered_map<unsigned, KeyboardPanel> keyboard_panels;
+    int keyboard_queries{};
+    KeyboardPanel PanelState(unsigned panel)
+    {
+        auto found = keyboard_panels.find(panel);
+        if (found != keyboard_panels.end())
+        {
+            return found->second;
+        }
+        return {panel == 17 || panel == 18 ? 16u : 0u, panel != 18, panel == 16 || panel == 17, panel == 17};
+    }
 }
 class __attribute__((visibility("hidden"))) CVGui
 {
@@ -65,6 +84,8 @@ class __attribute__((visibility("hidden"))) VPanelWrapper
 public:
     bool IsVisible(unsigned);
     bool IsPopup(unsigned);
+    bool IsKeyBoardInputEnabled(unsigned);
+    unsigned GetParent(unsigned);
     int GetChildCount(unsigned);
     unsigned GetChild(unsigned, int);
     void Solve(unsigned);
@@ -74,16 +95,48 @@ public:
     void SetMouseInputEnabled(unsigned, bool);
     void SetKeyBoardInputEnabled(unsigned, bool);
 };
-bool VPanelWrapper::IsVisible(unsigned p) { return p != 18; }
-bool VPanelWrapper::IsPopup(unsigned p) { return p == 17; }
+bool VPanelWrapper::IsVisible(unsigned p)
+{
+    ++keyboard_queries;
+    return PanelState(p).visible;
+}
+bool VPanelWrapper::IsPopup(unsigned p)
+{
+    ++keyboard_queries;
+    return PanelState(p).popup;
+}
+bool VPanelWrapper::IsKeyBoardInputEnabled(unsigned p)
+{
+    ++keyboard_queries;
+    return PanelState(p).keyboard;
+}
+unsigned VPanelWrapper::GetParent(unsigned p)
+{
+    ++keyboard_queries;
+    return PanelState(p).parent;
+}
 int VPanelWrapper::GetChildCount(unsigned p) { return p == 16 ? 2 : 0; }
 unsigned VPanelWrapper::GetChild(unsigned p, int i) { return p == 16 && i >= 0 && i < 2 ? 17 + i : 0; }
 void VPanelWrapper::Solve(unsigned p) { events.push_back(100 + p); }
 void VPanelWrapper::PerformApplySchemeSettings(unsigned p) { events.push_back(200 + p); }
 void VPanelWrapper::PaintTraverse(unsigned p, bool r, bool f) { events.push_back(300 + p); events.push_back(r); events.push_back(f); }
-void VPanelWrapper::SetPopup(unsigned p, bool value) { events.push_back(1000 + p); events.push_back(value); }
+void VPanelWrapper::SetPopup(unsigned p, bool value)
+{
+    auto state = PanelState(p);
+    state.popup = value;
+    keyboard_panels[p] = state;
+    events.push_back(1000 + p);
+    events.push_back(value);
+}
 void VPanelWrapper::SetMouseInputEnabled(unsigned p, bool value) { events.push_back(2000 + p); events.push_back(value); }
-void VPanelWrapper::SetKeyBoardInputEnabled(unsigned p, bool value) { events.push_back(3000 + p); events.push_back(value); }
+void VPanelWrapper::SetKeyBoardInputEnabled(unsigned p, bool value)
+{
+    auto state = PanelState(p);
+    state.keyboard = value;
+    keyboard_panels[p] = state;
+    events.push_back(3000 + p);
+    events.push_back(value);
+}
 class __attribute__((visibility("hidden"))) CInputWin32
 {
 public:
@@ -100,6 +153,8 @@ void CInputWin32::InternalMouseReleased(vgui2::MouseCode code) { events.push_bac
 extern "C" void FixtureVguiConfigure(int value)
 {
     mode = value;
+    keyboard_panels.clear();
+    keyboard_queries = 0;
     last_sdl_key = 0;
     engine_factory = nullptr;
     init_hook = shutdown_hook = nullptr;
@@ -150,4 +205,13 @@ extern "C" void* FixtureQueryGameUiFuncs(int* code)
 {
     if (!engine_factory) { if (code) *code = 1; return nullptr; }
     return engine_factory("VENGINE_GAMEUIFUNCS_VERSION001", code);
+}
+
+extern "C" void FixtureKeyboardPanel(unsigned handle, unsigned parent, int visible, int keyboard, int popup)
+{
+    keyboard_panels[handle] = {parent, visible != 0, keyboard != 0, popup != 0};
+}
+extern "C" int FixtureKeyboardQueryCount()
+{
+    return keyboard_queries;
 }

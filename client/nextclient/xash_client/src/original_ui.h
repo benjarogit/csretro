@@ -9,6 +9,7 @@
 #include "vgui_binding.h"
 #include "pointer_motion.h"
 #include "NativeGameUiContext.h"
+#include "NativeKeyCapture.h"
 #include "OriginalUiModules.h"
 #include <filesystem>
 #include <functional>
@@ -41,6 +42,7 @@ namespace csr::client
         void MouseMove();
         void MouseButtons(int buttons);
         void ClearInput();
+        int KeyEvent(NativeKeyCapture& capture, goldsrc::HUD_KEY_EVENT_FUNC original, int down, int key, const char* binding);
 
     private:
         struct SurfaceApi
@@ -71,7 +73,7 @@ namespace csr::client
         bool StartGameUi(void* client, std::string& error);
         bool NeedsKeyboard() const;
         void ClearMouseBound();
-        int HandleKey(int down, int key, const char* binding);
+        int HandleKey(int down, int key, const char* binding, bool repeat = false);
         void SetTitle(const char* title);
         void MovePointer(bool advance_frame);
         void PaintBound();

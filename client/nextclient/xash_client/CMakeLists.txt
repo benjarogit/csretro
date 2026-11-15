@@ -13,7 +13,7 @@ endif ()
 math(EXPR CSRETRO_SYSTEM_VERSION "${CMAKE_MATCH_1} * 10000 + ${CMAKE_MATCH_2} * 100 + ${CMAKE_MATCH_3}")
 
 add_library(xash_client SHARED src/client_export.cpp src/client_callbacks.cpp src/vgui_binding.cpp
-        src/original_panels.cpp src/engine_files.cpp src/original_ui.cpp src/pointer_motion.cpp src/gameui_video.cpp src/XashKeys.cpp src/NativeGameUiFuncs.cpp src/NativePanelTree.cpp src/NativeGameUiSystem.cpp src/NativeGameUiRuntime.cpp src/NativeEngineCommands.cpp src/NativeSdlInput.cpp src/NativeGameUiContext.cpp src/OriginalUiModules.cpp)
+        src/original_panels.cpp src/engine_files.cpp src/original_ui.cpp src/pointer_motion.cpp src/gameui_video.cpp src/XashKeys.cpp src/NativeGameUiFuncs.cpp src/NativePanelTree.cpp src/NativeGameUiSystem.cpp src/NativeGameUiRuntime.cpp src/NativeEngineCommands.cpp src/NativeSdlInput.cpp src/NativeGameUiContext.cpp src/OriginalUiModules.cpp src/NativeKeyCapture.cpp)
 target_compile_definitions(xash_client PRIVATE CSRETRO_SYSTEM_VERSION=${CSRETRO_SYSTEM_VERSION})
 target_include_directories(xash_client PRIVATE ../xash_surface/include ../../dep/SDL2/include)
 target_link_libraries(xash_client PRIVATE Threads::Threads)
@@ -83,8 +83,8 @@ if (NEXTCLIENT_BUILD_TESTS)
     target_include_directories(client-vgui-fixture PRIVATE src)
     target_compile_features(client-vgui-fixture PRIVATE cxx_std_17)
     add_executable(xash_client-tests tests/ClientCallbackTests.cpp tests/VguiBindingTests.cpp
-            tests/OriginalPanelTests.cpp tests/EngineFileTests.cpp tests/RuntimeCallbackTests.cpp tests/PointerMotionTests.cpp tests/GameUiVideoTests.cpp tests/NativeFunctionTests.cpp tests/NativeGameUiFuncsTests.cpp tests/NativePanelTreeTests.cpp tests/NativePanelBindingTests.cpp tests/NativeGameUiSystemTests.cpp tests/NativeGameUiRuntimeTests.cpp tests/NativeEngineCommandsTests.cpp tests/NativeSdlInputTests.cpp tests/NativeGameUiContextTests.cpp tests/OriginalUiModulesTests.cpp
-            src/client_callbacks.cpp src/vgui_binding.cpp src/original_panels.cpp src/engine_files.cpp src/pointer_motion.cpp src/gameui_video.cpp src/XashKeys.cpp src/NativeGameUiFuncs.cpp src/NativePanelTree.cpp src/NativeGameUiSystem.cpp src/NativeGameUiRuntime.cpp src/NativeEngineCommands.cpp src/NativeSdlInput.cpp src/NativeGameUiContext.cpp src/OriginalUiModules.cpp)
+            tests/OriginalPanelTests.cpp tests/EngineFileTests.cpp tests/RuntimeCallbackTests.cpp tests/PointerMotionTests.cpp tests/GameUiVideoTests.cpp tests/NativeFunctionTests.cpp tests/NativeGameUiFuncsTests.cpp tests/NativePanelTreeTests.cpp tests/NativePanelBindingTests.cpp tests/NativeGameUiSystemTests.cpp tests/NativeGameUiRuntimeTests.cpp tests/NativeEngineCommandsTests.cpp tests/NativeSdlInputTests.cpp tests/NativeGameUiContextTests.cpp tests/OriginalUiModulesTests.cpp tests/NativeKeyCaptureTests.cpp
+            src/client_callbacks.cpp src/vgui_binding.cpp src/original_panels.cpp src/engine_files.cpp src/pointer_motion.cpp src/gameui_video.cpp src/XashKeys.cpp src/NativeGameUiFuncs.cpp src/NativePanelTree.cpp src/NativeGameUiSystem.cpp src/NativeGameUiRuntime.cpp src/NativeEngineCommands.cpp src/NativeSdlInput.cpp src/NativeGameUiContext.cpp src/OriginalUiModules.cpp src/NativeKeyCapture.cpp)
     target_include_directories(xash_client-tests PRIVATE src ../xash_surface/include ../../dep/SDL2/include)
     target_link_libraries(xash_client-tests PRIVATE Threads::Threads)
     target_link_libraries(xash_client-tests PRIVATE goldsrc::abi nitro_build_registry nitro_native_symbols GTest::gtest_main ${CMAKE_DL_LIBS})

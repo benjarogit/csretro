@@ -1619,16 +1619,35 @@ nach Cursor-Synchronisierung. BaseUI vermittelt echte Sichtbarkeit/Konsole,
 SDL-Ereignisse und vollständiges Fenster-Paint. Andere Paint-Rechtecke werden
 als nicht unterstützt abgewiesen. Originale Gameplay-/Tastaturcallbacks
 bleiben erhalten; vollständige Eingabeakzeptanz ist noch nicht nachgewiesen.
-Die unabhängige Prüfung hat eine konkrete offene Grenze festgestellt: Ein
-SDL-Watch kann Engine-Spielbefehle nicht konsumieren; der registrierte
-Original-KeyInput gibt sie weiter, und Xash ruft die veröffentlichte BaseUI
-nicht automatisch auf. Menü-/Konsoleneingabe darf deshalb noch nicht als
-exklusiv oder spielbereit abgenommen werden. Ein vorgeschalteter Wrapper um
-pKeyEvent könnte UI-Tasten konsumieren und sonst alle Originalargumente und
-Rückgaben erhalten, widerspricht aber dem bisherigen unveränderten
-Tastaturcallback-Vertrag in xash_client/AGENTS.md. Diese Vertragsänderung
-benötigt eine Maintainer-Entscheidung und eigene Regressionen; es wird kein
-Eventfilter oder Engine-Patch als Umgehung eingesetzt.
+Die unabhängige Prüfung hat bestätigt, dass ein SDL-Watch Engine-Spielbefehle
+nicht konsumieren kann und Xash die veröffentlichte BaseUI nicht automatisch
+aufruft. Der Maintainer hat deshalb den engen pKeyEvent-Wrapper und die
+entsprechende Änderung des verschachtelten Harness-Vertrags ausdrücklich
+freigegeben. Er konsumiert nur UI-eigene Tastendrücke einschließlich ihrer
+Wiederholungen und Freigaben nach dem Schließen der UI. Im Spiel begonnene
+Tasten behalten ihren Originalcallback für Wiederholungen und Freigaben auch
+nach dem Öffnen der UI. Unbekannte Releases und ungültige Tasten passieren
+unverändert; nur UI-Konsum wird zum Engine-Ergebnis 0. Escape und toggleconsole
+lösen höchstens einmal pro Druck aus. Echte Engine-Tastenfreigaben beenden den Besitz, auch bei Fokusverlust.
+IN_ClearStates/IN_DeactivateMouse des registrierten Clients verändern nur
+Mauszustände und dürfen Keyboard-Besitz nicht zurücksetzen. Die Engine gibt
+Tasten durch Key_Event(key, 0) frei; Mouse-Freigaben haben einen separaten
+Engine-Pfad. Ein UI-Zustandswechsel ersetzt keinen Tastatur-Release. Originalargumente, Binding-Zeiger und Rückgaben bleiben bei
+Weitergabe unverändert. Movement, Prediction und CreateMove werden nicht
+umgestellt. Tastaturbedarf folgt nativen Menüs, Konsole, exklusivem Input und
+sichtbaren tastaturfähigen Popups samt Vorfahren; Cursor-Sichtbarkeit allein
+ist kein Tastaturbedarf. Der Wrapper liefert keine zweiten VGUI-Tasten-/Text-
+Ereignisse, ersetzt keinen globalen Filter und patcht die Engine nicht.
+Capture umfasst die 265 Einträge des authentifizierten Xash-Keyprofils
+(einschließlich INTERNATIONAL1–9); die alten GameUI-Keyabfragen bleiben bei
+256 Einträgen. Vorhandene Gameplay-Repeats und Releases passieren auch aus
+verschachtelten UI-Aufrufen, mit getrennten Rekursionsschutzmengen pro Taste
+und Down-/Up-Pfad. Ein bereits angeforderter UI-Abbau sperrt neue native
+Queries, nicht die Original-Freigaben. Der Dispatcher unterscheidet einen
+wirklich ausgeführten Aufruf vom endgültigen Guard-Status, damit abgeschlossener
+Abbau keine Doppelzustellung erzeugt. Positive/negative Regressionen und
+unabhängige Komponentenprüfung sichern dies ab; menschliche Tastatur-/Fokus-/
+Gameplay-Abnahme bleibt getrennt offen.
 
 Der SDL2-Event-Watch benötigt mindestens 2.0.8, hängt sich an das vorhandene
 Fenster und verändert weder Eventfilter noch Textinput-Modus. Fremdthread-

@@ -48,6 +48,11 @@ namespace csr::client
         bool RunNativeUi(void (*operation)(void*), void* context);
         void Shutdown();
         bool RunStartupUi(void (*operation)(void*), void* context);
+        bool RunKeyInput(void (*operation)(void*), void* context);
+        bool CanDispatchNativeUi() const
+        {
+            return phase_ == Phase::Started && !shutting_down_ && !shutdown_requested_;
+        }
         bool SetBaseUi(void* base_ui);
         Factory EngineFactory() const
         {

@@ -337,6 +337,36 @@ namespace csr::client
         return HasBinding() && !shutdown_requested_;
     }
 
+    bool VguiBinding::RunKeyInput(void (*operation)(void*), void* context)
+    {
+        if (!operation || active_ != this || (phase_ == Phase::Unbound && !shutting_down_))
+        {
+            return false;
+        }
+        // Retiring bindings still own the original callback code and key
+        // stream. Allow releases while native UI queries remain disabled.
+        ++native_call_depth_;
+        try
+        {
+            operation(context);
+        }
+        catch (...)
+        {
+            --native_call_depth_;
+            if (!native_call_depth_ && shutdown_requested_ && !shutting_down_)
+            {
+                Shutdown();
+            }
+            throw;
+        }
+        --native_call_depth_;
+        if (!native_call_depth_ && shutdown_requested_ && !shutting_down_)
+        {
+            Shutdown();
+        }
+        return HasBinding();
+    }
+
     bool VguiBinding::RunNativeUi(void (*operation)(void*), void* context)
     {
         if (!operation || phase_ != Phase::Started || shutting_down_ || shutdown_requested_)

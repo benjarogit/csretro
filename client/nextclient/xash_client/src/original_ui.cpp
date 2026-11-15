@@ -4,6 +4,7 @@
 #include <cmath>
 #include <array>
 #include <cstring>
+#include <strings.h>
 #include <stdexcept>
 
 #include <dlfcn.h>
@@ -375,17 +376,51 @@ namespace csr::client
 
     bool OriginalUi::NeedsKeyboard() const
     {
-        return context_.IsReady() &&
-               (context_.IsActive() || context_.IsConsoleVisible() || context_.HasExclusiveInput() || (surface_ && api_.visible(surface_)));
+        if (context_.ReleaseRequested())
+        {
+            throw std::runtime_error("Native UI input retirement is pending");
+        }
+        if (!context_.IsReady())
+        {
+            return false;
+        }
+        const bool active = context_.IsActive();
+        const bool console = context_.IsConsoleVisible();
+        const bool exclusive = context_.HasExclusiveInput();
+        if (context_.ReleaseRequested())
+        {
+            throw std::runtime_error("Native UI keyboard state query failed");
+        }
+        if (active || console || exclusive)
+        {
+            return true;
+        }
+        const int count = surface_ ? api_.popup_count(surface_) : 0;
+        if (count < 0 || count > 4096)
+        {
+            throw std::runtime_error("Native popup keyboard inventory is invalid");
+        }
+        for (int index = 0; index < count; ++index)
+        {
+            if (panels_.KeyboardInput(api_.popup_at(surface_, index)))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
-    int OriginalUi::HandleKey(int down, int key, const char* binding)
+    int OriginalUi::HandleKey(int down, int key, const char* binding, bool repeat)
     {
+        if (context_.ReleaseRequested())
+        {
+            throw std::runtime_error("Native UI key handling is unavailable");
+        }
         if (!context_.IsReady())
         {
             return 0;
         }
-        if (down && binding && std::strcmp(binding, "toggleconsole") == 0)
+        if (down && !repeat && binding && ::strcasecmp(binding, "toggleconsole") == 0)
         {
             if (context_.IsConsoleVisible())
             {
@@ -397,7 +432,7 @@ namespace csr::client
             }
             return 1;
         }
-        if (down && key == 27)
+        if (down && !repeat && key == 27)
         {
             if (context_.IsConsoleVisible())
             {
@@ -418,6 +453,21 @@ namespace csr::client
             return 1;
         }
         return NeedsKeyboard() ? 1 : 0;
+    }
+
+    int OriginalUi::KeyEvent(NativeKeyCapture& capture, goldsrc::HUD_KEY_EVENT_FUNC original, int down, int key, const char* binding)
+    {
+        return capture.EventGuarded(
+            binding_,
+            original,
+            down,
+            key,
+            binding,
+            [](void* opaque, int down, int key, const char* binding, bool repeat) {
+                return static_cast<OriginalUi*>(opaque)->HandleKey(down, key, binding, repeat) != 0;
+            },
+            this
+        );
     }
 
     void OriginalUi::SetTitle(const char* title)

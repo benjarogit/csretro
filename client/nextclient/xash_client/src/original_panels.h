@@ -16,6 +16,7 @@ namespace csr::client
         void Insets(void* panel, int* l, int* t, int* r, int* b) const;
         void Clip(void* panel, int* x0, int* y0, int* x1, int* y1) const;
         void Popup(void* panel, int mouse, int keyboard) const;
+        bool KeyboardInput(void* panel) const;
         void RunFrame() const;
         csr_surface_panel_fns_t PanelFunctions();
         csr_surface_input_fns_t InputFunctions();
@@ -31,6 +32,8 @@ namespace csr::client
         void (*clip_)(void*, int&, int&, int&, int&){};
         bool (*visible_)(void*, unsigned){};
         bool (*popup_)(void*, unsigned){};
+        bool (*keyboard_)(void*, unsigned){};
+        unsigned (*parent_)(void*, unsigned){};
         int (*count_)(void*, unsigned){};
         unsigned (*child_)(void*, unsigned, int){};
         void (*solve_)(void*, unsigned){};
@@ -46,4 +49,4 @@ namespace csr::client
         void (*dispatch_)(void*){};
         void (*frame_)(void*){};
     };
-}
+} // namespace csr::client

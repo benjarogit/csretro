@@ -22,6 +22,7 @@ namespace
     void BridgeMouse(int);
     void BridgeClearInput();
     void BridgeDeactivateMouse();
+    int BridgeKeyEvent(int, int, const char*);
 
     using OriginalUi = csr::client::OriginalUi;
 
@@ -113,6 +114,7 @@ namespace
             table.pIN_MouseEvent = BridgeMouse;
             table.pIN_ClearStates = BridgeClearInput;
             table.pIN_DeactivateMouse = BridgeDeactivateMouse;
+            table.pKeyEvent = BridgeKeyEvent;
             return table;
         }
 
@@ -201,8 +203,26 @@ namespace
 
         void ClearInput(bool deactivate)
         {
-            csr::client::ResetInputWithVgui(deactivate ? callbacks_.pIN_DeactivateMouse : callbacks_.pIN_ClearStates,
-                    [](void* owner) { auto& self = *static_cast<OriginalClient*>(owner); if (self.ui_) self.ui_->ClearInput(); }, this);
+            csr::client::ResetInputWithVgui(
+                deactivate ? callbacks_.pIN_DeactivateMouse : callbacks_.pIN_ClearStates,
+                [](void* owner) {
+                    auto& self = *static_cast<OriginalClient*>(owner);
+                    if (self.ui_)
+                    {
+                        self.ui_->ClearInput();
+                    }
+                },
+                this
+            );
+        }
+
+        int KeyEvent(int down, int key, const char* binding)
+        {
+            if (ui_)
+            {
+                return ui_->KeyEvent(keyboard_, callbacks_.pKeyEvent, down, key, binding);
+            }
+            return keyboard_.Event(callbacks_.pKeyEvent, down, key, binding, nullptr, nullptr);
         }
 
         void Shutdown()
@@ -233,6 +253,7 @@ namespace
         std::shared_ptr<csr::client::ClientInitialization> initialization_ = std::make_shared<csr::client::ClientInitialization>();
         Module module_{nullptr, &dlclose};
         goldsrc::cldll_func_t callbacks_{};
+        csr::client::NativeKeyCapture keyboard_;
         std::filesystem::path directory_;
         std::string client_hash_;
         std::unique_ptr<OriginalUi> ui_;
@@ -268,6 +289,18 @@ namespace
     {
         try { Original().Mouse(buttons); }
         catch (...) { std::fprintf(stderr, "CSRETRO client bridge: mouse input failed\n"); }
+    }
+    int BridgeKeyEvent(int down, int key, const char* binding)
+    {
+        try
+        {
+            return Original().KeyEvent(down, key, binding);
+        }
+        catch (...)
+        {
+            std::fprintf(stderr, "CSRETRO client bridge: key input failed\n");
+            return 0;
+        }
     }
     void BridgeClearInput()
     {

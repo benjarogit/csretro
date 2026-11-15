@@ -3,6 +3,10 @@
 #include "vgui_binding.h"
 
 #include <cstdint>
+#include <algorithm>
+#include <array>
+#include <limits>
+#include <stdexcept>
 #include <dlfcn.h>
 
 namespace csr::client
@@ -47,6 +51,8 @@ namespace csr::client
         clip_ = Symbol<decltype(clip_)>(vgui, "_ZN5vgui26VPanel11GetClipRectERiS1_S1_S1_", error);
         visible_ = Symbol<decltype(visible_)>(vgui, "_ZN13VPanelWrapper9IsVisibleEj", error);
         popup_ = Symbol<decltype(popup_)>(vgui, "_ZN13VPanelWrapper7IsPopupEj", error);
+        keyboard_ = Symbol<decltype(keyboard_)>(vgui, "_ZN13VPanelWrapper22IsKeyBoardInputEnabledEj", error);
+        parent_ = Symbol<decltype(parent_)>(vgui, "_ZN13VPanelWrapper9GetParentEj", error);
         count_ = Symbol<decltype(count_)>(vgui, "_ZN13VPanelWrapper13GetChildCountEj", error);
         child_ = Symbol<decltype(child_)>(vgui, "_ZN13VPanelWrapper8GetChildEji", error);
         solve_ = Symbol<decltype(solve_)>(vgui, "_ZN13VPanelWrapper5SolveEj", error);
@@ -73,6 +79,40 @@ namespace csr::client
         popup_enable_(panels_, Handle(panel), true);
         mouse_enable_(panels_, Handle(panel), mouse != 0);
         keyboard_enable_(panels_, Handle(panel), keyboard != 0);
+    }
+
+    bool OriginalPanels::KeyboardInput(void* panel) const
+    {
+        const uintptr_t raw = reinterpret_cast<uintptr_t>(panel);
+        if (!raw)
+        {
+            return false;
+        }
+        if (raw > std::numeric_limits<unsigned>::max())
+        {
+            throw std::runtime_error("Original keyboard popup handle exceeds the native VPANEL domain");
+        }
+        if (!panels_ || !popup_ || !keyboard_ || !visible_ || !parent_)
+        {
+            throw std::runtime_error("Original keyboard popup query requires complete native panel services");
+        }
+        const unsigned candidate = static_cast<unsigned>(raw);
+        const bool requested = popup_(panels_, candidate) && keyboard_(panels_, candidate);
+        bool visible = true;
+        std::array<unsigned, 4096> visited{};
+        size_t depth = 0;
+        for (unsigned current = candidate; current; current = parent_(panels_, current))
+        {
+            if (depth == visited.size() || std::find(visited.begin(), visited.begin() + depth, current) != visited.begin() + depth)
+            {
+                throw std::runtime_error("Original keyboard popup ancestry is cyclic or exceeds its bounded depth");
+            }
+            visited[depth++] = current;
+            // Hidden candidates still require a valid ancestry before declining capture.
+            const bool current_visible = visible_(panels_, current);
+            visible = visible && current_visible;
+        }
+        return requested && visible;
     }
 
     void OriginalPanels::RunFrame() const { frame_(ivgui_); }

@@ -2,6 +2,7 @@
 #include "original_vgui_symbols.h"
 
 #include <cstring>
+#include <cstdio>
 #include <dlfcn.h>
 
 namespace csr::client
@@ -26,7 +27,11 @@ namespace csr::client
         };
     }
 
-    VguiBinding::~VguiBinding() { Shutdown(); }
+    VguiBinding::~VguiBinding()
+    {
+        try { Shutdown(); }
+        catch (...) { std::fprintf(stderr, "CSRETRO original VGUI shutdown failed\n"); }
+    }
 
     void* VguiBinding::HostFactory(const char* name, int* code)
     {
@@ -43,7 +48,7 @@ namespace csr::client
         return value;
     }
 
-    bool VguiBinding::Initialize(void* client, void* vgui, void* surface, std::string& error)
+    bool VguiBinding::BindInterfaces(void* client, void* vgui, void* surface, std::string& error)
     {
         error.clear();
         if (!client || !vgui || !surface || active_)
@@ -61,9 +66,9 @@ namespace csr::client
         auto viewport = detail::Symbol<void**>(client, "gViewPortInterface", error);
         auto init = detail::Symbol<bool (*)(void*, Factory*, int)>(vgui, "_ZN5CVGui4InitEPPFPvPKcPiEi", error);
         shutdown_ = detail::Symbol<void (*)(void*)>(vgui, "_ZN5CVGui8ShutdownEv", error);
-        auto viewport_init = detail::Symbol<void (*)(void*, Factory*, int)>(client,
+        viewport_init_ = detail::Symbol<void (*)(void*, Factory*, int)>(client,
                 "_ZN21CounterStrikeViewport10InitializeEPPFPvPKcPiEi", error);
-        auto viewport_start = detail::Symbol<void (*)(void*)>(client,
+        viewport_start_ = detail::Symbol<void (*)(void*)>(client,
                 "_ZN21CounterStrikeViewport5StartEv", error);
         surface_ = surface;
         filesystem_ = files ? *files : nullptr;
@@ -86,39 +91,150 @@ namespace csr::client
         // of count, then prepends its own factory for VGuiControls_Init.
         // Engine/FS services share our host; UI roles share the original VGUI.
         factories_ = {HostFactory, HostFactory, factory, factory};
+        const auto selected_viewport = *viewport;
         active_ = this;
-        if (!init(ivgui_, factories_.data(), static_cast<int>(factories_.size())))
+        phase_ = Phase::Binding;
+        bool ready{};
+        try { ready = init(ivgui_, factories_.data(), static_cast<int>(factories_.size())); }
+        catch (...)
+        {
+            phase_ = Phase::Unbound;
+            active_ = nullptr;
+            shutdown_requested_ = false;
+            throw;
+        }
+        if (!ready)
         {
             active_ = nullptr;
+            phase_ = Phase::Unbound;
+            shutdown_requested_ = false;
             error = "Original VGUI initialization failed";
             return false;
         }
-        initialized_ = true;
+        phase_ = Phase::Bound;
+        if (shutdown_requested_ || *viewport != selected_viewport)
+        {
+            Shutdown();
+            error = "Original VGUI binding was interrupted";
+            return false;
+        }
+        viewport_slot_ = viewport;
+        viewport_ = selected_viewport;
         for (auto& slot : slots_)
         {
             slot.original = *slot.address;
             *slot.address = slot.value;
         }
         globals_bound_ = true;
-        viewport_init(*viewport, factories_.data(), static_cast<int>(factories_.size()));
-        viewport_start(*viewport);
+        return true;
+    }
+
+    bool VguiBinding::InitializeViewport(std::string& error)
+    {
+        error.clear();
+        if (phase_ != Phase::Bound || active_ != this || shutting_down_)
+        {
+            error = "Viewport initialization requires bound original VGUI interfaces";
+            return false;
+        }
+        if (*viewport_slot_ != viewport_)
+        {
+            error = "Original viewport changed after binding";
+            return false;
+        }
+        phase_ = Phase::InitializingViewport;
+        try { viewport_init_(viewport_, factories_.data(), static_cast<int>(factories_.size())); }
+        catch (...)
+        {
+            phase_ = Phase::Bound;
+            Shutdown();
+            throw;
+        }
+        phase_ = Phase::ViewportInitialized;
+        if (shutdown_requested_)
+        {
+            Shutdown();
+            error = "Original viewport initialization was interrupted";
+            return false;
+        }
+        if (*viewport_slot_ != viewport_)
+        {
+            error = "Original viewport initialization was interrupted";
+            return false;
+        }
+        return true;
+    }
+
+    bool VguiBinding::StartViewport(std::string& error)
+    {
+        error.clear();
+        if (phase_ != Phase::ViewportInitialized || active_ != this || shutting_down_)
+        {
+            error = "Viewport startup requires original viewport initialization";
+            return false;
+        }
+        if (*viewport_slot_ != viewport_)
+        {
+            error = "Original viewport changed before startup";
+            return false;
+        }
+        phase_ = Phase::StartingViewport;
+        try { viewport_start_(viewport_); }
+        catch (...)
+        {
+            phase_ = Phase::ViewportInitialized;
+            Shutdown();
+            throw;
+        }
+        phase_ = Phase::ViewportInitialized;
+        if (shutdown_requested_)
+        {
+            Shutdown();
+            error = "Original viewport startup was interrupted";
+            return false;
+        }
+        if (*viewport_slot_ != viewport_)
+        {
+            error = "Original viewport changed during startup";
+            return false;
+        }
+        phase_ = Phase::Started;
         return true;
     }
 
     void VguiBinding::Shutdown()
     {
-        if (initialized_)
+        if (shutting_down_) return;
+        if (phase_ == Phase::Binding || phase_ == Phase::InitializingViewport || phase_ == Phase::StartingViewport)
         {
-            initialized_ = false;
-            shutdown_(ivgui_);
+            // Native code may still be using VGUI. Defer teardown until it
+            // returns, keeping factories/globals live throughout the call.
+            shutdown_requested_ = true;
+            return;
         }
-        if (globals_bound_)
+        shutting_down_ = true;
+        const bool bound = phase_ != Phase::Unbound;
+        phase_ = Phase::Unbound;
+        const auto restore = [this]() noexcept {
+            if (globals_bound_)
+            {
+                for (auto& slot : slots_)
+                    *slot.address = slot.original;
+                globals_bound_ = false;
+            }
+            if (active_ == this)
+                active_ = nullptr;
+            viewport_slot_ = nullptr;
+            viewport_ = nullptr;
+            shutdown_requested_ = false;
+            shutting_down_ = false;
+        };
+        try { if (bound) shutdown_(ivgui_); }
+        catch (...)
         {
-            for (auto& slot : slots_)
-                *slot.address = slot.original;
-            globals_bound_ = false;
+            restore();
+            throw;
         }
-        if (active_ == this)
-            active_ = nullptr;
+        restore();
     }
 }

@@ -18,9 +18,13 @@ namespace csr::client
         VguiBinding& operator=(const VguiBinding&) = delete;
 
         // Both modules and the Surface are borrowed and must outlive this owner.
-        bool Initialize(void* client, void* vgui, void* surface, std::string& error);
+        // Keep the native phases separate so GameUI can initialize before the
+        // viewport and start between viewport initialization and startup.
+        bool BindInterfaces(void* client, void* vgui, void* surface, std::string& error);
+        bool InitializeViewport(std::string& error);
+        bool StartViewport(std::string& error);
         void Shutdown();
-        bool IsInitialized() const { return initialized_; }
+        bool IsInitialized() const { return phase_ == Phase::Started; }
 
     private:
         static void* HostFactory(const char* name, int* code);
@@ -32,7 +36,14 @@ namespace csr::client
         void* filesystem_{};
         void* ivgui_{};
         void (*shutdown_)(void*){};
-        bool initialized_{};
+        enum class Phase { Unbound, Binding, Bound, InitializingViewport, ViewportInitialized, StartingViewport, Started };
+        Phase phase_{Phase::Unbound};
+        void** viewport_slot_{};
+        void* viewport_{};
+        void (*viewport_init_)(void*, Factory*, int){};
+        void (*viewport_start_)(void*){};
+        bool shutting_down_{};
+        bool shutdown_requested_{};
         bool globals_bound_{};
     };
 }

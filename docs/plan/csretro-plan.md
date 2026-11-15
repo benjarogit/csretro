@@ -1514,16 +1514,32 @@ Bibliothek hängt noch nicht an Xash3D.
 
 **Original-Panel-Laufzeit (umgesetzt, Komponentenabnahme).** Die Brücke löst Wurzel, Panelgeometrie, Traversierung, Popup-Flags und Input über benannte Originalsymbole auf. VPANEL bleibt das originale unsigned-int-Handle; es gibt keine Umdeutung alter SDK-Objekte. Nach Original-HUD-Redraw folgen Layout und Paint auf derselben Surface, mit Engine-Bildschirmgröße. Dateien werden über COM_LoadFile/COM_FreeFile gelesen; Marlett wird über COM_ExpandFilename aus der eigenen Installation gefunden. Vor jedem originalen CVGui-Frame werden Cursor und Embedded-Panel synchronisiert. Die Surface-eigene RunFrame bleibt leer; der bisherige Testhost wird nicht auf den Original-Scheduler umgestellt. Relative SDL2-Mausbewegung wird aus dem bereits geladenen Client nur bei sichtbarer UI konsumiert; sonst bleibt sie dem Original-Movement erhalten. Tastenzustandswechsel für fünf Maustasten werden einmal zugestellt und beim Zurücksetzen freigegeben. dc_none meldet unsichtbar. CreatePopup setzt native Popup-/Input-Flags; ein optionaler eigener Pfeil ersetzt fehlende Cursor-Assets, ohne Valve-Dateien zu verteilen. Native Fixtures prüfen Delegation, Dateifreigabe, Fokusaktualisierung, Schedulerreihenfolge und relativen Mausweg; echte Surface-Tests prüfen zusätzlich Pixel im EGL-Pbuffer. CI baut beide Callback-Architekturen und einen x64-Offscreen-GL-Lauf. Diese Prüfungen starten weder Xash3D noch Originalbibliotheken und belegen keine Spielbarkeit oder Movement-Abnahme. Tastatur-/Fokusabnahme, GameUI, NextClient und vollständige Engine-/Installationsbereitstellung bleiben offen.
 
-**Entwicklungsfortsetzung trotz separater App-Freigabe.** Die Untersuchung einer
-unabhängigen Reviewer-App wird auf ausdrücklichen Maintainer-Auftrag separat
-geparkt. Bestehende G07-Arbeit wird aus ihrem gespeicherten Branch fortgesetzt;
-keine Neuimplementierung abgeschlossener ABI-Schritte. Vorhandene Review-/CI-
-und Merge-Gates bleiben verbindlich. GameUI muss seinen eigenen nativen
-Factory-/Engine-Start-Vertrag erfüllen; die vier Viewport-Factory-Einträge sind
-kein universeller Ersatz. Insbesondere hat der native Renderer-Service der
-Original-GameUI fünf explizite Argumente statt der sechs des neueren SDKs; erst
-ein versionsgerechter Engine-Service-Provider erlaubt den echten GameUI-Start.
-Die Untersuchung startet weder Spiel noch Originalcode.
+**Zentrale Review-Steuerung, unabhängige Portfortsetzung.** Die allgemeine
+anbieterunabhängige Review-Steuerung wird im Orqen-Projekt untersucht und
+entwickelt. Keine parallele CSRETRO-Review-Infrastruktur oder eigene Reviewer-App
+weiterentwickeln/aktivieren; Erkenntnisse und Tests aus PR #19 bleiben erhalten.
+Eine spätere projektspezifische Integration erfolgt separat nach Prüfung der
+zentralen Lösung. Bestehende Schutz-, CI-, Sicherheits- und Review-Gates bleiben
+unverändert; fehlende verbindliche Reviews gelten nicht als bestanden. Diese
+Genehmigungs-/Anbieterabhängigkeit blockiert keine sonst freigegebene G07-Arbeit.
+Keine Änderungen an Orqen-Repositories im CSRETRO-Auftrag.
+
+**Getrennte native VGUI-Startphasen (umgesetzt, Komponentenabnahme).** Die Brücke
+bindet zuerst originale Interfaces/Globals, initialisiert danach den Viewport
+und startet ihn zuletzt. Beide OriginalUi-Pfade verwenden diese getrennten
+Schritte. Nur der abgeschlossene Viewport-Start schaltet Frame/Paint/Input frei.
+Damit sind die für den echten GameUI-Port nötigen Positionen vorhanden:
+GameUI.Initialize vor viewport.Initialize und GameUI.Start vor viewport.Start.
+Die fehlenden GameUI-Engine-Services werden dadurch nicht ersetzt. Falsche oder
+wiederholte Reihenfolge ruft keine native Phase erneut auf; abgebrochene
+Zwischenzustände stellen Globals/Exklusivität wieder her. Reentrante native
+Aufrufe können keine spätere Phase vorziehen; angeforderter Abbau wartet auf die
+Rückkehr des nativen Aufrufs. Die vier Viewport-Factory-Einträge bleiben erhalten.
+Native Fixtures prüfen Phasen, Abbruch, Wiederöffnung und Fehlergrenzen auf beiden
+Architekturen. Originalmodule und Spielstart bleiben außerhalb der Automation.
+GameUI muss seinen eigenen Factory-/Engine-Start-Vertrag erfüllen; dessen native
+Renderer-Methode hat fünf explizite Argumente statt sechs im neueren SDK. Erst
+versionsgerechte echte Engine-Services erlauben die weitere GameUI-Anbindung.
 
 **Zweiter Schritt: ausschließlich x64 und mindestens 60 FPS.** Erst nach dem funktionierenden Port werden durchgängig native x64-Artefakte und mindestens 60 FPS in einer benannten echten Spielszene nachgewiesen. Eine i386-Spielbibliothek ist keine x64-Lösung. Die Eigenständigkeit von Valves Engine darf nicht mit der bereits erfolgten Ablösung jedes Original-Spielmoduls verwechselt werden. `tools/check_game_client.py` prüft nur das benannte x64-Kernprofil, keine alternative `F`-/`GetClientAPI`-Tabelle, Signaturen oder Spielbarkeit. Der Test ist für diese Phase eingegrenzt und blockiert den ersten architekturgleichen Port nicht. Leere Ersatz-Exports oder No-ops sind kein Fortschrittsnachweis.
 

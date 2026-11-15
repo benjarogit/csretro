@@ -47,6 +47,7 @@ namespace csr::client
             decltype(&csr_surface_set_default_cursor) default_cursor{};
             bool Bind(void* module, std::string& error);
         } api_;
+        bool StartBinding(void* client, std::string& error);
         bool AttachRoot();
         void MovePointer(bool advance_frame);
         using Module = std::unique_ptr<void, int (*)(void*)>;

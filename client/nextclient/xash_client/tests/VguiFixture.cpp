@@ -14,6 +14,8 @@ namespace
     void* seen_surface{};
     void* seen_filesystem{};
     std::vector<int> events;
+    void (*init_hook)();
+    void (*shutdown_hook)();
 }
 class __attribute__((visibility("hidden"))) CVGui
 {
@@ -34,9 +36,10 @@ bool CVGui::Init(Factory* factories, int count)
         if (!seen_surface) seen_surface = factories[i]("VGUI_Surface026", nullptr);
         if (!seen_filesystem) seen_filesystem = factories[i]("VFileSystem009", nullptr);
     }
+    if (init_hook) init_hook();
     return seen_surface && seen_filesystem && mode != 2;
 }
-void CVGui::Shutdown() { ++shutdown_count; }
+void CVGui::Shutdown() { ++shutdown_count; if (shutdown_hook) shutdown_hook(); }
 void CVGui::DispatchMessages() { events.push_back(900); }
 void CVGui::RunFrame() { events.push_back(950); }
 
@@ -94,6 +97,7 @@ void CInputWin32::InternalMouseReleased(vgui2::MouseCode code) { events.push_bac
 extern "C" void FixtureVguiConfigure(int value)
 {
     mode = value;
+    init_hook = shutdown_hook = nullptr;
     events.clear();
     init_count = shutdown_count = 0;
     seen_surface = seen_filesystem = nullptr;
@@ -123,4 +127,10 @@ extern "C" int FixturePanelEventCount() { return static_cast<int>(events.size())
 extern "C" int FixturePanelEvent(int index)
 {
     return index >= 0 && index < static_cast<int>(events.size()) ? events[index] : -1;
+}
+
+extern "C" void FixtureVguiHooks(void (*init)(), void (*shutdown)())
+{
+    init_hook = init;
+    shutdown_hook = shutdown;
 }

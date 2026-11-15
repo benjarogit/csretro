@@ -77,6 +77,18 @@ TEST_F(OriginalVguiBinding, BindsOriginalInterfacesAndStartsViewportBeforeRestor
     EXPECT_EQ(Count(vgui.get(), "FixtureVguiShutdownCount"), 1);
 }
 
+TEST_F(OriginalVguiBinding, SuppliesAllFourFactoriesReadByTheRegisteredNativeViewport)
+{
+    csr::client::VguiBinding binding;
+    std::string error;
+    ASSERT_TRUE(binding.Initialize(client.get(), vgui.get(), &surface_token, error)) << error;
+    EXPECT_EQ(Count(client.get(), "FixtureViewportFactoryCount"), 4);
+    // The fixture resolves Surface, filesystem, panels and KeyValues through
+    // all four entries. A two-entry array cannot initialize/start the viewport.
+    EXPECT_EQ(Count(client.get(), "FixtureViewportInitCount"), 1);
+    EXPECT_EQ(Count(client.get(), "FixtureViewportStartCount"), 1);
+}
+
 TEST_F(OriginalVguiBinding, MissingInterfaceAndFailedInitializationNeverBindClientGlobals)
 {
     for (int mode : {1, 2})

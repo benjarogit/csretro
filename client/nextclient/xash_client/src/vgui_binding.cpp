@@ -82,7 +82,10 @@ namespace csr::client
             return false;
         }
         ivgui_ = slots_[0].value;
-        factories_ = {HostFactory, factory};
+        // The registered viewport reads all four incoming slots regardless
+        // of count, then prepends its own factory for VGuiControls_Init.
+        // Engine/FS services share our host; UI roles share the original VGUI.
+        factories_ = {HostFactory, HostFactory, factory, factory};
         active_ = this;
         if (!init(ivgui_, factories_.data(), static_cast<int>(factories_.size())))
         {

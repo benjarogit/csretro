@@ -117,6 +117,7 @@ namespace
     int filesystem_token;
     int viewport_init_count;
     int viewport_start_count;
+    int viewport_factory_count;
 }
 namespace vgui2
 {
@@ -140,9 +141,17 @@ public:
 };
 void CounterStrikeViewport::Initialize(void* (**factories)(const char*, int*), int count)
 {
-    if (count == 2 && factories &&
-        factories[0]("VGUI_Surface026", nullptr) == vgui2::g_pSurfaceInterface &&
-        factories[0]("VFileSystem009", nullptr) == vgui2::g_pFileSystemInterface)
+    // The registered TeamFortressViewport initializer reads four incoming
+    // factories and prepends its own before a five-factory controls lookup.
+    // Guard the count here so a short product array fails without fixture UB.
+    viewport_factory_count = count;
+    if (count != 4 || !factories) return;
+    for (int i = 0; i < 4; ++i)
+        if (!factories[i]) return;
+    if (factories[0]("VGUI_Surface026", nullptr) == vgui2::g_pSurfaceInterface &&
+        factories[1]("VFileSystem009", nullptr) == vgui2::g_pFileSystemInterface &&
+        factories[2]("VGUI_Panel007", nullptr) == vgui2::g_pPanelInterface &&
+        factories[3]("KeyValues003", nullptr) == g_pKeyValuesInterface)
         ++viewport_init_count;
 }
 void CounterStrikeViewport::Start()
@@ -154,10 +163,11 @@ namespace { CounterStrikeViewport viewport; }
 __attribute__((visibility("hidden"))) void* gViewPortInterface = &viewport;
 extern "C" void FixtureClientBindingReset()
 {
-    viewport_init_count = viewport_start_count = 0;
+    viewport_init_count = viewport_start_count = viewport_factory_count = 0;
     g_pFileSystem = &filesystem_token;
     gViewPortInterface = &viewport;
 }
+extern "C" int FixtureViewportFactoryCount() { return viewport_factory_count; }
 extern "C" int FixtureViewportInitCount() { return viewport_init_count; }
 extern "C" int FixtureViewportStartCount() { return viewport_start_count; }
 extern "C" void* FixtureClientGlobal(int slot)

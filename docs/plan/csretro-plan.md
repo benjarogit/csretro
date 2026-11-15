@@ -2128,7 +2128,7 @@ Nützlich und vorgesehen:
 | Bestehender Verify-Lauf | Gate gegen Drift, Secrets, Struktur |
 | Offizielle Pages-Actions | Bau und Publish der Doku-Page |
 | Dependabot nur für Actions unter `.github/` | Versions-PRs für Workflow-Actions |
-| Code-Scanning für Python und Workflows | Statische Prüfung ohne Auto-Merge |
+| CodeQL für Python-Werkzeuge | Pflichtprüfung vor geschütztem Auto-Merge; keine C++-Abdeckung |
 | Wöchentlicher Upstream-Wächter | Höchstens ein Issue; ändert keinen Pin |
 
 Kosten: öffentliche Standard-Runner und GitHub Pages sind kostenlos. Größere Runner
@@ -2233,7 +2233,7 @@ Vierzehn Fachzuständigkeiten werden als kontrollierte Phasen aktiviert, nicht a
 
 **Projektmanager und Anbieterunabhängigkeit.** Die zusätzliche, ausdrücklich beauftragte fünfzehnte Zuständigkeit `project_manager` läuft als echte lokale Koordinationsfunktion bei Start, Resume, Status und Backlog. Ihr persistierter Bericht erreicht den Orchestrator und beschreibt Aufgabenfortschritt mit aktuellen Nachweisen, autoritative Meilensteine, Prioritäten, Abhängigkeiten, Blocker und nächste Schritte. `assign` speichert Prioritäten/Abhängigkeiten atomar und verhindert Zyklen; `continue` setzt vorhandene Aufgaben fort und aktiviert benötigte Rollen, ohne ein neues Projekt oder Modell zu starten. Nachweise und unabhängige Qualität bleiben Pflicht. Historische CI-Fehler abgeschlossener Branches lösen keine Wiederholung erledigter Arbeit aus.
 
-Die gemeinsame SQLite-/JSON-Schnittstelle verwendet generische Client-Kennungen und benötigt weder Cursor noch Codex oder einen Modellanbieter. Optionale Adapter erkennen vorhandene offizielle CLIs und exportieren geschützte, versionierte Zuweisungen; sie installieren nichts und greifen nicht in laufende IDE-Sitzungen ein. Ein echter Agentenstart wird dadurch nicht behauptet. Gemeinsame Berichte werden unter Prozesssperre atomar veröffentlicht. Speicher-Stapeltransaktionen und WAL vermeiden den im realen Upstream-Import beobachteten Aufwand einzelner Commits; vollständige Dauerhaftigkeit und sichere Wiederherstellung bleiben erhalten. Der wiederverwendbare Speicher akzeptiert eigene Autoritätsquellen und funktioniert ohne Git-Installation. Eine spätere Orqen-Ausgliederung muss CSRETRO-Profil, generischen Kern und optionale Ausführungsadapter trennen; dieser Auftrag ändert kein Orqen-Repository. Main-Merges verlangen ausdrücklich eine neue Maintainer-Freigabe; PM und grüne CI ersetzen sie nicht.
+Die gemeinsame SQLite-/JSON-Schnittstelle verwendet generische Client-Kennungen und benötigt weder Cursor noch Codex oder einen Modellanbieter. Optionale Adapter erkennen vorhandene offizielle CLIs und exportieren geschützte, versionierte Zuweisungen; sie installieren nichts und greifen nicht in laufende IDE-Sitzungen ein. Ein echter Agentenstart wird dadurch nicht behauptet. Gemeinsame Berichte werden unter Prozesssperre atomar veröffentlicht. Speicher-Stapeltransaktionen und WAL vermeiden den im realen Upstream-Import beobachteten Aufwand einzelner Commits; vollständige Dauerhaftigkeit und sichere Wiederherstellung bleiben erhalten. Der wiederverwendbare Speicher akzeptiert eigene Autoritätsquellen und funktioniert ohne Git-Installation. Eine spätere Orqen-Ausgliederung muss CSRETRO-Profil, generischen Kern und optionale Ausführungsadapter trennen; dieser Auftrag ändert kein Orqen-Repository. Normale Entwicklungs-PRs dürfen nach der geschützten Auto-Merge-Prüfung ohne zusätzliche Einzel-Freigabe integriert werden. PM und grüne CI beweisen allein weder Schutzregeln noch Akzeptanz; maßgeblich sind `.github/merge-policy.json` und `tools/github_merge_gate.py`. Releases, produktive Deployments, Kosten, Berechtigungserweiterungen und sicherheitsrelevante Änderungen benötigen weiterhin ausdrückliche, auf den aktuellen Stand bezogene Freigabe.
 
 Der portable Einstieg ist `scripts/chatdev.sh run "Aufgabe"`; der Projektskill unterstützt `/chatdev`, sofern der Host Projektskills entdeckt. Ein universelles Slash-Kommando wird nicht behauptet. Normale Entwicklungssitzungen erhalten den Einstieg über AGENTS.md. Dieser Infrastrukturauftrag entwickelt G07 nicht weiter; die Portreihenfolge bleibt unverändert.
 
@@ -2311,3 +2311,67 @@ Auch bei reiner Ideen-Übernahme wird credited.
 10. Push, CI prüfen, Handoff aktualisieren
 
 **Abnahme G01:** CI grün, `verify.sh` grün, Push erfolgt, Handoff aktuell.
+
+### 11.7 Geschützter automatischer GitHub-Merge
+
+Die vorhandene NextClient-/Xash3D-Portierung bleibt das zentrale Entwicklungsziel.
+Normale Entwicklungs-PRs dürfen nach wirksamen nativen Schutzregeln, allen
+obligatorischen CI-/Sicherheitsprüfungen, unabhängiger aktueller Abnahme und
+CodeRabbit-Freigabe automatisch per Squash integriert werden. Grüne Teiltests,
+übersprungene Reviews und PM-Empfehlungen sind keine Freigabe. Releases,
+produktive Deployments, Kosten, Berechtigungsänderungen und andere sensible
+Änderungen benötigen weiterhin ausdrückliche, auf den aktuellen Stand bezogene
+Maintainer-Freigabe. Kein Bypass, keine neue App, keine neuen Zugangsdaten.
+
+Die zentrale Policy ist `.github/merge-policy.json`; der vorhandene berechtigte
+Host prüft mit `tools/github_merge_gate.py` live Rulesets, Quellbindungen, aktuelle
+Checks, Review-Konversationen und Sensibilität. Natives Auto-Merge wird erst nach
+allen Belegen aktiviert. Main und die Test-Sandbox behalten sämtliche Schutzregeln,
+strikte Basisfrische, aktuelle unabhängige Reviews und gelöste Konversationen.
+Native CodeQL-Regeln prüfen Befunde und ausstehende Analysen getrennt vom bloßen
+Analyse-/Upload-Erfolg. Ausgeblendete Bypassdetails oder API-Fehler sperren.
+
+**Aufgabenteilung ohne Prüfkreis.** Das versionierte Manifest
+`docs/evidence/acceptance.json` beschreibt die Akzeptanz des jeweiligen PRs,
+keine dauerhaft zu erbende Liste von Kriterien des Basis-PRs. Ein reiner
+Doku-Test darf eigene passende Kriterien haben, ohne globale Pflichtchecks zu
+reduzieren. Der kanonische Digest, exakte Basis-Commit und alle geänderten/
+umbenannten Pfade binden die Belege an den aktuellen Head. Menschlich nötige
+Gameplay-Abnahme wird nicht automatisiert oder erfunden.
+
+CodeRabbits Custom-Pre-Merge-Check bewertet unabhängig die inhaltlichen
+Anforderungen anhand des Quellbaums. Die im Manifest genannten Checks sind
+Beleghandles für die spätere Live-Prüfung. Der Custom-Check fordert weder
+GitHub-API-Zugriff noch seinen eigenen bereits abgeschlossenen Lauf, eine
+vorherige formale Freigabe oder einen bereits grünen Akzeptanzjob. Er veröffentlicht
+seine konkrete Kriterien-/Pfadbewertung mit Digest als sichtbaren JSON-Block in
+der Explanation seines authentifizierten Walkthroughs. Das ist der tatsächlich
+unterstützte Ausgabekanal; der Check kann selbst kein GitHub-Review erzeugen.
+
+Der schreibgeschützte native Actions-Job `protected merge acceptance` prüft danach
+Bot-/App-Identität, abgeschlossenen erfolgreichen Inhaltsreview-Lauf, offiziellen
+Head-Abdeckungsnachweis, tatsächlich bestandenen Custom-Check und vollständiges
+Testat. Ungültige, unklare, übersprungene, begrenzte oder rein zusammenfassende
+Ergebnisse scheitern. Dieser Inhaltscheck ersetzt keine formale Freigabe:
+Die nativen Review-Regeln und der abschließende Host-Audit verlangen zusätzlich
+eine aktuelle CodeRabbit-APPROVED-Stimme und alle tatsächlich erfolgreichen
+Live-CI-/Sicherheitschecks. Widerrufene/negative Freigaben sperren auch den
+Inhaltsjob. Die Actions-App-ID authentifiziert den Dienst, nicht einen bestimmten
+Workflow gegen böswillige Repository-Schreiber; auch Workflow-Code bleibt
+unabhängig zu prüfen. Keine privilegierte PR-Ausführung, Secrets oder Check-Schreibrechte.
+
+**Kontrollierter Test.** Die bereits begonnene Arbeit wird ab `c6926966`
+fortgesetzt; kein Projektneustart und keine Orqen-Migration. Sandbox und Produktion
+müssen vollständige konfigurierte/wirksame native Regeln mit allen Parametern und
+Quellen haben; zusätzlich wird der Legacy-Branch-Schutz live abgeglichen. Nur der
+exakte isolierte Branch ist zugelassen. Der harmlose Drei-Dateien-Umfang bleibt
+an einen unveränderlichen Head gebunden; vor dem Aktivieren werden Head, Umfang
+und Schutzgleichheit erneut geprüft. Kein Force-Push oder Produktionsmerge für
+Testvorbereitung. Ein echter positiver Ende-zu-Ende-Nachweis bleibt erforderlich;
+bis dahin bleibt Repository-Auto-Merge ausgeschaltet. CodeQL-Grundlage aus PR #16,
+PR #15s Abhängigkeit von #14 und bestehende G07-Arbeit werden erhalten.
+
+Der reproduzierte Worktree-Pre-Push-Fehler ist an der Ursache korrigiert: Nur der
+Verify-Unterprozess entfernt Hook-lokale Git-Variablen; verschachtelte Fixtures
+verändern dadurch keine gemeinsame Repository-Konfiguration. Der ursprüngliche
+LFS-Kontext und der vollständige Pre-Push-Prüfumfang bleiben bestehen.

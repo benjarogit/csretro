@@ -101,7 +101,7 @@ class ManagerIntegrationTests(unittest.TestCase):
         self.assertEqual(self.coordinator.db.execute('SELECT count(*) FROM tasks').fetchone()[0], before)
         self.assertFalse(dispatch['processes_started'])
 
-    def test_fresh_github_merge_hold_does_not_dispatch_resume(self):
+    def test_unverified_protected_merge_does_not_dispatch_resume(self):
         self.start()
         snapshot = {'issues': [], 'pulls': [{'number': 27, 'title': 'Infrastructure', 'state': 'OPEN',
                                             'reviews': [], 'checks': []}], 'errors': []}
@@ -111,7 +111,7 @@ class ManagerIntegrationTests(unittest.TestCase):
             github.return_value.snapshot.assert_called_once_with()
             resume.assert_not_called()
         self.assertEqual(result['dispatch'], 'hold-or-handoff')
-        self.assertEqual(result['recommendation']['action'], 'request-explicit-human-approval')
+        self.assertEqual(result['recommendation']['action'], 'verify-protected-auto-merge')
         self.assertEqual(result['recommendation']['pr'], 27)
         self.assertFalse(result['processes_started'])
         self.assertFalse(result['project_manager']['coordination']['automatic_merge'])

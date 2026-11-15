@@ -118,8 +118,15 @@ without evidence is not verification.
 - Pull request against `main`, squash merge, CI required.
 - `main` is always releasable in the sense that it builds and verifies.
 
-Enforcement: GitHub branch protection is not available on a private free-plan
-repository. The repository therefore ships a tracked `pre-push` hook in
+Enforcement: GitHub branch protection on the public repository requires strict
+status checks, fresh independent review, resolved conversations and applies to
+administrators. `.github/merge-policy.json` defines the protected auto-merge gate.
+Normal development may use native squash auto-merge only after live protection,
+current-head CI/security/review and acceptance evidence pass. Releases, production
+deployments, paid operations, permission changes and other security-sensitive
+changes need explicit scoped maintainer approval; no bypass or unprotected merge.
+Missing rights or unavailable reviews block merging, never weaken the gate.
+The repository also ships a tracked `pre-push` hook in
 `.githooks/` that runs `scripts/verify.sh`. `scripts/bootstrap.sh` sets
 `core.hooksPath` on every clone, so the gate is local and does not depend on the
 GitHub plan. CI remains the second, independent check.
@@ -340,6 +347,7 @@ reconciliation. It reports evidence, priorities, dependencies and blockers to
 the orchestrator; it cannot authorize merges or launch an IDE/model. Use the
 shared local CLI/interchange protocol with any safe client identifier; Cursor
 and Codex adapters are optional. Never install an agent implicitly or alter
-live IDE sessions. No merge to main without explicit maintainer approval;
-green CI and PM recommendations are not approval. Orqen reuse is documented
+live IDE sessions. Normal main merges require the protected automatic gate;
+sensitive changes still require explicit scoped maintainer approval. Green CI
+and PM recommendations alone never authorize a merge. Orqen reuse is documented
 in CSRETRO only; do not modify another repository without its own assignment.

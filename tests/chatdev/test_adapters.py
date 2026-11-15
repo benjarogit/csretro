@@ -40,7 +40,10 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(payload['shared_state']['status'], '.local/chatdev/status.json')
         self.assertNotIn('snapshot', payload['task'])
         self.assertNotIn('results', payload['task'])
-        self.assertTrue(payload['requirements']['fresh_explicit_merge_approval'])
+        self.assertTrue(payload['requirements']['protected_auto_merge_required'])
+        self.assertTrue(payload['requirements']['explicit_approval_for_sensitive_changes'])
+        self.assertEqual(payload['requirements']['merge_policy_source'], '.github/merge-policy.json')
+        self.assertNotIn('fresh_explicit_merge_approval', payload['requirements'])
         self.assertFalse(payload['execution']['authorization_granted'])
 
     def test_discovery_does_not_execute_installed_launchers_or_prove_authentication(self):

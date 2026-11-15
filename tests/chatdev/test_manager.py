@@ -115,20 +115,20 @@ class ManagerTests(unittest.TestCase):
                            {'role': 'quality', 'actor': 'reviewer', 'status': 'passed', 'evidence': proof}]
         self.assertEqual(self.report([task, done])['next']['action'], 'continue-role')
 
-    def test_ci_reviews_and_fresh_merge_approval_generate_actionable_holds(self):
+    def test_ci_reviews_and_live_protection_generate_actionable_holds(self):
         self.snapshot['pulls'] = [{'number': 9, 'state': 'open',
                                   'reviews': [{'state': 'CHANGES_REQUESTED'}],
                                   'checks': [{'name': 'tests', 'conclusion': 'failure'}]}]
         result = self.report([self.task()])
         self.assertEqual(result['next']['action'], 'resolve-ci')
         self.assertEqual(result['next']['role'], 'repository')
-        self.assertEqual(result['holds'][0]['action'], 'request-explicit-human-approval')
+        self.assertEqual(result['holds'][0]['action'], 'verify-protected-auto-merge')
         self.snapshot['pulls'][0]['checks'] = []
         self.assertEqual(self.report([self.task()])['next']['action'], 'address-review')
         self.snapshot['pulls'][0]['reviews'] = []
-        self.assertEqual(self.report()['next']['action'], 'request-explicit-human-approval')
+        self.assertEqual(self.report()['next']['action'], 'verify-protected-auto-merge')
         held = self.report([self.task()])['next']
-        self.assertEqual(held['action'], 'request-explicit-human-approval')
+        self.assertEqual(held['action'], 'verify-protected-auto-merge')
         self.assertNotIn('task', held)
         self.assertEqual(held['related_task'], 1)
 
@@ -139,10 +139,48 @@ class ManagerTests(unittest.TestCase):
             {'id': 2, 'user': user, 'state': 'APPROVED'}]}]
         result = self.report([self.task()])
         self.assertFalse(any(b['kind'] == 'review' for b in result['blockers']))
-        self.assertEqual(result['next']['action'], 'request-explicit-human-approval')
+        self.assertEqual(result['next']['action'], 'verify-protected-auto-merge')
         self.snapshot['pulls'][0]['reviews'].append(
             {'id': 3, 'user': {'id': 20, 'login': 'other'}, 'state': 'CHANGES_REQUESTED'})
         self.assertEqual(self.report([self.task()])['next']['action'], 'address-review')
+
+    def test_green_ci_and_approval_never_certify_protection_or_acceptance(self):
+        self.snapshot['pulls'] = [{'number': 9, 'checks': [
+            {'name': 'tests', 'conclusion': 'success'}], 'reviews': [
+            {'id': 1, 'user': {'id': 10}, 'state': 'APPROVED'}]}]
+        result = self.report()
+        hold = result['holds'][0]
+        self.assertEqual(hold['action'], 'verify-protected-auto-merge')
+        self.assertEqual(hold['verifier'], 'tools/github_merge_gate.py')
+        self.assertEqual(hold['policy_source'], '.github/merge-policy.json')
+        self.assertFalse(hold['protection_verified'])
+        self.assertFalse(hold['automatic_merge'])
+
+    def test_sensitive_merge_holds_require_explicit_scoped_authorization(self):
+        for label in ('security', 'release', 'deployment', 'production',
+                      'paid', 'paid-service', 'permissions', 'manual-approval', 'requires-maintainer-approval'):
+            with self.subTest(label=label):
+                self.snapshot['pulls'] = [{'number': 9, 'labels': [{'name': label}]}]
+                result = self.report([self.task()])
+                self.assertEqual(result['next']['action'], 'request-explicit-human-approval')
+                self.assertEqual(result['holds'][0]['kind'], 'sensitive-merge-approval')
+                self.assertFalse(result['holds'][0]['automatic_merge'])
+                self.assertNotIn('task', result['next'])
+
+    def test_sensitive_labels_follow_central_policy_and_fall_back_conservatively(self):
+        policy = self.root / '.github/merge-policy.json'
+        policy.parent.mkdir()
+        policy.write_text(json.dumps({'sensitive_labels': ['Custom-sensitive']}))
+        self.snapshot['pulls'] = [{'number': 9, 'labels': [{'name': 'custom-SENSITIVE'}]}]
+        self.assertEqual(self.report()['next']['action'], 'request-explicit-human-approval')
+        self.snapshot['pulls'][0]['labels'] = ['paid']
+        self.assertEqual(self.report()['next']['action'], 'request-explicit-human-approval')
+        for content in ('invalid JSON', '{}', '{"sensitive_labels": false}'):
+            policy.write_text(content)
+            self.assertEqual(self.report()['next']['action'], 'request-explicit-human-approval')
+        self.snapshot['pulls'][0]['labels'] = []
+        self.assertEqual(self.report()['next']['action'], 'verify-protected-auto-merge')
+        self.assertFalse(self.report()['holds'][0]['protection_verified'])
 
     def test_backlog_priority_and_blocked_or_done_issue_states(self):
         self.snapshot['issues'] = [

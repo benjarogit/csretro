@@ -24,6 +24,21 @@ Die Brücke `xash_client` erhält die originalen Spielcallbacks und prüft die I
 
 Ein gelieferter Zeiger, Factory-Aufruf, No-op oder aufgezeichnetes Primitive belegt nur diesen Vorgang und schließt keinen Gameplay-Meilenstein. Erhalte Fehlerfälle für fehlende Callbacks, falsche Architektur, gescheiterte Initialisierung, Eingabe, Kartenwechsel, Trennung und Shutdown.
 
+## Tatsächliche Abhängigkeitssymbole prüfen
+
+Passende ELF-Architektur und eine vorhandene DT_NEEDED-Bibliothek beweisen nicht, dass der Provider die Importe des Consumers bereitstellt. Insbesondere dienen die Steam-/tier0-/vstdlib-Hostbibliotheken des SDKs Komponentenbuilds und Probes; ihre Dateinamen machen sie nicht zum Ersatz für die lokal lizenzierte Originalruntime. Deren echte zusammengehörige Abhängigkeiten müssen gemeinsam bereitgestellt werden. Keine Steam-Platzhalterfunktionen oder geänderten Original-Gameplay-Exporte dürfen einen Ladefehler verdecken.
+
+Mit `readelf -d` und der tatsächlichen Ladeumgebung den vollständigen Abhängigkeitsgraphen einschließlich passender Systembibliotheken ermitteln. Jeden dynamisch geladenen Consumer getrennt prüfen:
+
+```bash
+python3 tools/check_elf_imports.py CONSUMER.so \
+  --provider DEPENDENCY_A.so --provider DEPENDENCY_B.so
+```
+
+Die großgeschriebenen Pfadplatzhalter ersetzen und `--provider` für jeden benötigten Provider wiederholen. Das Werkzeug lädt die Bibliotheken nie. Es prüft starke Importe, sichtbare Exporte, Symbolversionen, passende ELF-Metadaten und bekannte Typkonflikte; optionale schwache Importe dürfen fehlen. Der Providergraph wird ausdrücklich vorgegeben und als gültig vorausgesetzt: Das Werkzeug löst weder DT_NEEDED noch Suchpfade auf und beweist weder Ladereihenfolge, Relokationen, Signaturen, Steam-Authentifizierung noch Spielbarkeit. Ein Pass bleibt ein statischer Screen mit ungeprüfter ABI/Spielbarkeit. Ein beliebiger gleichnamiger Export beweist nicht den richtigen Provider.
+
+VGUI1-Supportfehler sind eine getrennte Grenze. Eine Valve-VGUI1-Bibliothek ist nicht der FreeVGUI-Supportadapter von FWGS, und unsere originale VGUI2-Surface implementiert diese API nicht. Keine Support-Exporte erfinden. MainUIs `gfx/shell/btns_main.bmp` und `gfx/fonts` unterscheiden sich ebenfalls von VGUI2-Ressourcen; geprüfte Engine-Menü-/Fontdateien mit ihren Lizenzen an den echten virtuellen Pfaden bereitstellen. Verbleibende Warnungen im menschlichen Log erhalten und nicht als bestanden behandeln.
+
 ## Menschliche Spielabnahme
 
 Automatisierung startet das Spiel nie. Sobald der echte Engine-/Client-Pfad vorbereitet ist, startet ein Mensch die separate installierte Kopie und dokumentiert:

@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Screen strong dynamic ELF imports against explicit matching providers without loading libraries; regress the same-SONAME Steam-provider mismatch in both architecture profiles and enforce the screen tests through existing verification.
+
 - Route UI-owned engine key events through the authorized native wrapper, preserving gameplay press ownership, international keys and nested release/repeat behavior across UI transitions and teardown.
 
 - Connect fingerprint-bound original GameUI/System/BaseUI services with native startup phases, SDL2 event delivery and ownership-aware command/control retirement; preserve the human runtime and gameplay acceptance boundary.

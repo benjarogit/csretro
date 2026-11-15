@@ -1671,6 +1671,42 @@ bleiben offen. FWGS-Referenzen bleiben nur Ideengeber; NextClient bleibt Basis.
 PR #19 bleibt zurückgestellt, Review-Steuerung wird zentral durch Orqen
 vorbereitet; vorhandene Merge-/Sicherheitsgates werden nicht verändert.
 
+**Statische Importprüfung vor menschlichen Porttests (umgesetzt).**
+Ein vorhandenes DT_NEEDED-Ziel und passende ELF-Klasse beweisen keine
+Symbolkompatibilität. Die Host-Bibliotheken aus sdk_host sind Build-/Probe-
+Dienste und keine ABI-Ersatzbibliotheken für originale Public-Module, auch
+wenn sie als i386 gebaut wurden und denselben Dateinamen tragen. Die lokale
+Portkopie verwendet die zusammengehörigen echten Steam-/tier0-/vstdlib-
+Bibliotheken aus der lizenzierten Installation; nichts davon wird vendort.
+Originale Clientdateien, Gameplaycallbacks und Bewegungscode bleiben erhalten.
+
+`tools/check_elf_imports.py` prüft ohne Laden der Bibliotheken sämtliche
+starken dynamischen Importe eines Consumers gegen einen ausdrücklich
+angegebenen Providergraphen. ELF-Klasse/Maschine/Bytefolge, Symbolsichtbarkeit,
+Versionen und bekannte Funktions-/Daten-/TLS-Typkonflikte werden geprüft;
+schwache optionale Importe gelten nicht als Pflichtsymbole. Der Aufrufer muss
+den tatsächlichen Abhängigkeitsgraphen und Suchpfad herstellen. Das Werkzeug
+ist weder Loader noch vollständiger ABI-/Steam-/Spielbarkeitsnachweis. Eigene
+synthetische Bibliotheken mit gleichem SONAME und fehlendem modernen
+Steam-Import reproduzieren den Fehler; Tests laufen über scripts/verify.sh
+im bestehenden CI-Job, ohne neue Workflow-Duplikate. Die Fixtures werden
+niemals ausgeführt, insbesondere auch nicht über ldd oder einen Loader.
+
+VGUI1-Support bleibt getrennt von unserer nativen VGUI2-Surface: Valves alte
+vgui.so besitzt nicht die von FWGS verlangten Support-Einstiege. Der echte
+externe Provider ist der passend gepinnte FreeVGUI-Adapter, keine leeren
+GetVGUISupportAPI-/InitAPI-Exporte in der Clientbrücke. Der untersuchte
+Supportfehler ist nicht fatal und erklärt den Steam-Ladefehler nicht. Der
+Adapter bleibt als eigene offene Laufzeitabhängigkeit dokumentiert.
+MainUI-BMP-/Fontpfade gehören zum Engine-Extras-Staging, nicht zur VGUI2-
+Fontliste. Die neue lokale Testkopie erhält die gegen den bestehenden
+Extras-Pin geprüften Menü-/Fontdateien mit ihren Lizenzen; keine anders
+komprimierten Touch-Dateien oder unkontrollierte Komplettpakete werden
+übernommen. Der Loaderpfad ist für diesen Test isoliert, die alte fehlgeschlagene
+Kopie bleibt als Beleg bestehen. Automatisierung endet erneut vor dem
+Spielstart; nur der nächste menschliche Lauf kann die Korrektur zur Laufzeit
+bestätigen. Fehler, Belege und Resultate stehen ausschließlich im Handoff.
+
 **Zweiter Schritt: ausschließlich x64 und mindestens 60 FPS.** Erst nach dem funktionierenden Port werden durchgängig native x64-Artefakte und mindestens 60 FPS in einer benannten echten Spielszene nachgewiesen. Eine i386-Spielbibliothek ist keine x64-Lösung. Die Eigenständigkeit von Valves Engine darf nicht mit der bereits erfolgten Ablösung jedes Original-Spielmoduls verwechselt werden. `tools/check_game_client.py` prüft nur das benannte x64-Kernprofil, keine alternative `F`-/`GetClientAPI`-Tabelle, Signaturen oder Spielbarkeit. Der Test ist für diese Phase eingegrenzt und blockiert den ersten architekturgleichen Port nicht. Leere Ersatz-Exports oder No-ops sind kein Fortschrittsnachweis.
 
 **Originalinhalte installieren.** Voraussetzung ist eine eigene lizenzierte CS-1.6-Installation. Standardmäßig sucht `scripts/install-content.sh` Steam und App 10. Mit `--source` kann der Benutzer bei fehlender Erkennung oder Kopierproblemen den Spiel-Hauptordner oder dessen `valve`-/`cstrike`-Ordner angeben. Der gemeinsame Baum muss trotzdem beide Spielordner und die benötigten Ressourcen enthalten. Die manuelle Auswahl wird geprüft und nicht still durch eine andere Installation ersetzt. Sie braucht keine lesbaren Steam-Metadaten und startet Steam nicht. Die Prüfung kontrolliert Datenstruktur und Pflichtdateien, keine Kontoanmeldung. Der Installer kopiert dieselbe Allowlist, lässt Ballast und persönliche Dateien liegen, schützt Quelle und erkannte Steam-Bibliotheken vor Ziel-/Overlay-Schreibzugriff und liefert keine Valve-Dateien im Repository aus. Die bisherige Inhaltskopie bleibt von Runtime-Bibliotheksintegration und vollständigen Client-/Server-Startern getrennt.

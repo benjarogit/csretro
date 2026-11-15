@@ -2375,3 +2375,58 @@ Der reproduzierte Worktree-Pre-Push-Fehler ist an der Ursache korrigiert: Nur de
 Verify-Unterprozess entfernt Hook-lokale Git-Variablen; verschachtelte Fixtures
 verändern dadurch keine gemeinsame Repository-Konfiguration. Der ursprüngliche
 LFS-Kontext und der vollständige Pre-Push-Prüfumfang bleiben bestehen.
+
+
+#### 11.7.1 Anbieterunabhängiger Review-Vertrag (separate Abnahme)
+
+CodeRabbit bleibt nutzbar, darf aber nicht die einzige fachliche Review-Route
+sein. Der separat geprüfte Kandidat `tools/review_contract.py` und
+`tools/review_adapters.py` bindet tatsächliche unabhängige Ausführung an Repository,
+PR, exakten Head/Basis, vollständiges Manifest, alte/neue Pfade und Blob-/SHA-256-
+Quellenbelege. Gepinnte Ausführungsidentitäten, Eingabe-/Ausgabe-Hashes,
+Kriterienbegründungen und konkrete Quellausschnitte sind Pflicht. Negative Reviews
+sperren trotz positivem Ersatz; Kontingent-Nichtverfügbarkeit ist kein Codefehler.
+Ein Implementierer kann sich weder selbst freigeben noch über seinen PR anmelden.
+
+Die Architektur und ausführbaren Regressionen werden zuerst separat geprüft.
+`.github/review-contract.json` bleibt deaktiviert und ohne Ausführer. Ein extern
+festgelegter Vertrauens-Pin und aus der geschützten Basis gelesene Registrierung
+sind vor Live-Anbindung nötig; Signaturen allein beweisen keine Unabhängigkeit.
+Native Agenten und vorhandene lokale Modelle liefern echte Belegentwürfe, keine
+erfundenen formalen GitHub-Stimmen. Details stehen in den DE/EN-Maintainer-Guides.
+Automatische inkrementelle CodeRabbit-Anfragen werden im Kandidaten abgeschaltet;
+gezielte enthaltene Reviews bleiben möglich. Kein kostenpflichtiger Ersatz.
+
+Bestehende wirksame Schutzregeln und CodeRabbit-Gates bleiben bis zur separat
+freigegebenen Migration unverändert. Die formale aktuelle GitHub-Freigabe eines
+anderen berechtigten Akteurs, alle CI-/Sicherheitschecks und sensible Freigaben
+bleiben Pflicht. Keine zusätzliche App-Berechtigung oder Main-Integration ist
+hiermit erteilt. Der erfolgreiche Sandbox-Test für PR #18 belegt den bisherigen
+CodeRabbit-Weg, nicht die noch deaktivierte Alternative. Vor deren Aktivierung
+sind unabhängige Vertragsabnahme, explizite Vertrauensregistrierung und ein eigener
+geschützter Sandbox-Nachweis nötig. Portierung und gesicherte G07-Arbeit bleiben
+erhalten; aktueller Stand und Folgearbeit stehen ausschließlich im HANDOFF.
+
+
+#### 11.7.2 Reviewer-App untersuchen, Einrichtung gesondert freigeben
+
+Eine dedizierte GitHub-App ist die bevorzugte zu prüfende Identität; kein zweites
+persönliches Konto und keine Autor-Zugangsdaten als unabhängiger Prüfer. Der
+Installationstoken-Publisher benötigt minimal Pull requests write und Metadata
+read. Quellenabruf bleibt getrennt lesend; Contents/Checks/Admin/Actions write
+und Bypass sind nicht nötig. Konkrete Isolation, Schlüsselverantwortung,
+Rechtesatz und Einrichtungsschritte stehen in den DE/EN-Review-Guides.
+
+Der Autor darf weder Schlüssel/Token noch beliebige Signier-/Freigabe-Endpunkte
+kontrollieren. Echte unabhängige Ausführung, exakter Head/Basis, Quellen-/Manifest-
+Bindung und negative Befunde bleiben Pflicht. Die dokumentierte API-Unterstützung
+für App-Reviews ersetzt nicht den nach späterer Freigabe nötigen geschützten
+Nachweis, dass die neue App unter den aktuellen nativen Regeln wirklich zählt.
+Alle sieben CI-/Sicherheitschecks, formale Last-Push-Freigabe und sensible
+Maintainer-Abnahmen bleiben unverändert. Bis zur gesonderten Zustimmung werden
+keine App, Rechte, Schlüssel oder Live-Route eingerichtet.
+
+Diese Genehmigungsabhängigkeit betrifft nur die App-Migration. Auf ausdrücklichen
+Maintainer-Auftrag wird sie geparkt, während bestehende freigegebene G07-Portarbeit
+in ihrer bisherigen Branchfolge fortgesetzt wird. Das hebt keine Review- oder
+Merge-Sperre auf und startet kein neues Projekt. Keine kostenpflichtigen Reviews.

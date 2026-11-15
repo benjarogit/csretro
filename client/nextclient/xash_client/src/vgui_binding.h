@@ -22,6 +22,9 @@ namespace csr::client
             void (*detach_surface)(void*){};
             void (*release_services)(void*) noexcept {};
             void* owner{};
+            bool (*can_release)(void*){};
+            void (*end_native_lifetime)(void*) noexcept {};
+            void (*stop_client)(void*){};
         };
         VguiBinding() = default;
         ~VguiBinding();
@@ -44,6 +47,21 @@ namespace csr::client
         bool StartViewport(std::string& error);
         bool RunNativeUi(void (*operation)(void*), void* context);
         void Shutdown();
+        bool RunStartupUi(void (*operation)(void*), void* context);
+        bool RunKeyInput(void (*operation)(void*), void* context);
+        bool CanDispatchNativeUi() const
+        {
+            return phase_ == Phase::Started && !shutting_down_ && !shutdown_requested_;
+        }
+        bool SetBaseUi(void* base_ui);
+        Factory EngineFactory() const
+        {
+            return HostFactory;
+        }
+        void* FileSystem() const
+        {
+            return filesystem_;
+        }
         bool HasBinding() const { return phase_ != Phase::Unbound || shutting_down_; }
         bool IsInitialized() const { return phase_ == Phase::Started; }
 
@@ -54,6 +72,7 @@ namespace csr::client
         std::array<Slot, 9> slots_{};
         std::array<Factory, 4> factories_{};
         void* surface_{};
+        void* base_ui_{};
         NativeGameUiFuncs* gameui_funcs_{};
         PanelServices engine_panels_{};
         void* vgui_module_{};

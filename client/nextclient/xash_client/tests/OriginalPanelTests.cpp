@@ -1,6 +1,8 @@
 #include "original_panels.h"
 #include <gtest/gtest.h>
 #include <cstdint>
+#include <limits>
+#include <stdexcept>
 #include <dlfcn.h>
 #include <memory>
 #include <vector>
@@ -31,6 +33,21 @@ namespace
             std::vector<int> result;
             if (count && event) for (int i = 0; i < count(); ++i) result.push_back(event(i));
             return result;
+        }
+        void KeyboardPanel(unsigned handle, unsigned parent, bool visible, bool keyboard, bool popup)
+        {
+            auto set = reinterpret_cast<void (*)(unsigned, unsigned, int, int, int)>(dlsym(vgui.get(), "FixtureKeyboardPanel"));
+            ASSERT_NE(set, nullptr);
+            set(handle, parent, visible, keyboard, popup);
+        }
+        int KeyboardQueries()
+        {
+            auto count = reinterpret_cast<int (*)()>(dlsym(vgui.get(), "FixtureKeyboardQueryCount"));
+            return count ? count() : -1;
+        }
+        void* Handle(unsigned value)
+        {
+            return reinterpret_cast<void*>(static_cast<uintptr_t>(value));
         }
         Module client{nullptr, &dlclose}, vgui{nullptr, &dlclose};
         void (*configure)(int){};
@@ -96,4 +113,124 @@ TEST_F(OriginalPanelRuntime, MissingModulesInterfacesAndSymbolsDoNotCreateAFakeR
     EXPECT_EQ(panels.Root(), nullptr);
     EXPECT_TRUE(Events().empty());
     EXPECT_TRUE(panels.Prepare(client.get(), vgui.get(), error)) << error;
+}
+
+
+TEST_F(OriginalPanelRuntime, OnlyVisibleKeyboardEnabledNativePopupRequestsKeyboard)
+{
+    std::string error;
+    ASSERT_TRUE(panels.Prepare(client.get(), vgui.get(), error)) << error;
+    EXPECT_TRUE(panels.KeyboardInput(Handle(17)));
+    EXPECT_FALSE(panels.KeyboardInput(Handle(16)));
+    EXPECT_FALSE(panels.KeyboardInput(Handle(999)));
+    EXPECT_TRUE(Events().empty());
+}
+
+TEST_F(OriginalPanelRuntime, NativeKeyboardFlagIsIndependentFromMouseConfiguration)
+{
+    std::string error;
+    ASSERT_TRUE(panels.Prepare(client.get(), vgui.get(), error)) << error;
+    panels.Popup(Handle(17), 1, 0);
+    EXPECT_FALSE(panels.KeyboardInput(Handle(17)));
+    panels.Popup(Handle(17), 0, 1);
+    EXPECT_TRUE(panels.KeyboardInput(Handle(17)));
+}
+
+TEST_F(OriginalPanelRuntime, HiddenCandidateOrAnyHiddenAncestorDeclinesKeyboard)
+{
+    std::string error;
+    ASSERT_TRUE(panels.Prepare(client.get(), vgui.get(), error)) << error;
+    KeyboardPanel(17, 16, false, true, true);
+    EXPECT_FALSE(panels.KeyboardInput(Handle(17)));
+    KeyboardPanel(17, 16, true, true, true);
+    KeyboardPanel(16, 19, true, false, false);
+    KeyboardPanel(19, 0, false, false, false);
+    EXPECT_FALSE(panels.KeyboardInput(Handle(17)));
+    KeyboardPanel(19, 0, true, false, false);
+    EXPECT_TRUE(panels.KeyboardInput(Handle(17)));
+}
+
+TEST_F(OriginalPanelRuntime, AncestorKeyboardFlagDoesNotDisableAnEnabledPopup)
+{
+    std::string error;
+    ASSERT_TRUE(panels.Prepare(client.get(), vgui.get(), error)) << error;
+    KeyboardPanel(16, 0, true, false, false);
+    EXPECT_TRUE(panels.KeyboardInput(Handle(17)));
+}
+
+TEST_F(OriginalPanelRuntime, CyclicCandidateAndAncestorChainsFailClosed)
+{
+    std::string error;
+    ASSERT_TRUE(panels.Prepare(client.get(), vgui.get(), error)) << error;
+    KeyboardPanel(17, 17, true, true, true);
+    EXPECT_THROW(panels.KeyboardInput(Handle(17)), std::runtime_error);
+    KeyboardPanel(17, 16, true, true, true);
+    KeyboardPanel(16, 19, true, true, false);
+    KeyboardPanel(19, 16, true, false, false);
+    EXPECT_THROW(panels.KeyboardInput(Handle(17)), std::runtime_error);
+}
+
+TEST_F(OriginalPanelRuntime, HiddenOrDisabledCandidateDoesNotMaskMalformedAncestry)
+{
+    std::string error;
+    ASSERT_TRUE(panels.Prepare(client.get(), vgui.get(), error)) << error;
+    KeyboardPanel(17, 16, false, false, true);
+    KeyboardPanel(16, 16, false, false, false);
+    EXPECT_THROW(panels.KeyboardInput(Handle(17)), std::runtime_error);
+}
+
+TEST_F(OriginalPanelRuntime, ParentTraversalHasAnExplicitBoundAndAcceptsItsLastValidDepth)
+{
+    std::string error;
+    ASSERT_TRUE(panels.Prepare(client.get(), vgui.get(), error)) << error;
+    KeyboardPanel(17, 1000, true, true, true);
+    for (unsigned value = 1000; value < 5095; ++value)
+    {
+        KeyboardPanel(value, value == 5094 ? 0 : value + 1, true, false, false);
+    }
+    EXPECT_TRUE(panels.KeyboardInput(Handle(17)));
+    const int before = KeyboardQueries();
+    KeyboardPanel(5094, 5095, true, false, false);
+    KeyboardPanel(5095, 0, true, false, false);
+    EXPECT_THROW(panels.KeyboardInput(Handle(17)), std::runtime_error);
+    EXPECT_LE(KeyboardQueries() - before, 8194);
+}
+
+TEST_F(OriginalPanelRuntime, MissingCandidateNeedsNoNativeQueryAndUnavailableBackendThrows)
+{
+    EXPECT_FALSE(panels.KeyboardInput(nullptr));
+    EXPECT_THROW(panels.KeyboardInput(Handle(17)), std::runtime_error);
+    EXPECT_EQ(KeyboardQueries(), 0);
+    std::string error;
+    ASSERT_TRUE(panels.Prepare(client.get(), vgui.get(), error)) << error;
+    EXPECT_FALSE(panels.KeyboardInput(nullptr));
+    EXPECT_EQ(KeyboardQueries(), 0);
+}
+
+TEST_F(OriginalPanelRuntime, MissingNativeViewportRootDoesNotInventKeyboardDemand)
+{
+    std::string error;
+    ASSERT_TRUE(panels.Prepare(client.get(), vgui.get(), error)) << error;
+    auto availability = reinterpret_cast<void (*)(int, int)>(dlsym(client.get(), "FixtureClientAvailability"));
+    ASSERT_NE(availability, nullptr);
+    availability(1, 0);
+    EXPECT_EQ(panels.Root(), nullptr);
+    EXPECT_FALSE(panels.KeyboardInput(panels.Root()));
+    EXPECT_EQ(KeyboardQueries(), 0);
+}
+
+TEST_F(OriginalPanelRuntime, HandlesCannotBeSilentlyNarrowedToTheLegacyVpanelDomain)
+{
+    std::string error;
+    ASSERT_TRUE(panels.Prepare(client.get(), vgui.get(), error)) << error;
+    if constexpr (sizeof(uintptr_t) > sizeof(unsigned))
+    {
+        const uintptr_t oversized = static_cast<uintptr_t>(std::numeric_limits<unsigned>::max()) + 1;
+        EXPECT_THROW(panels.KeyboardInput(reinterpret_cast<void*>(oversized)), std::runtime_error);
+        EXPECT_EQ(KeyboardQueries(), 0);
+    }
+    else
+    {
+        EXPECT_FALSE(panels.KeyboardInput(nullptr));
+    }
 }

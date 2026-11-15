@@ -946,7 +946,20 @@ namespace xash
 
         bool NeedKBInput() override
         {
-            return false;
+            try
+            {
+                return keyboard_query_ && keyboard_query_(keyboard_user_) != 0;
+            }
+            catch (...)
+            {
+                return false;
+            }
+        }
+
+        void SetKeyboardQuery(csr_surface_keyboard_fn query, void* user)
+        {
+            keyboard_query_ = query;
+            keyboard_user_ = user;
         }
 
         bool HasCursorPosFunctions() override
@@ -1682,6 +1695,8 @@ namespace xash
         bool button_down_{};
         bool cursor_locked_{};
         bool translate_keys_{};
+        csr_surface_keyboard_fn keyboard_query_{};
+        void* keyboard_user_{};
     };
 
     XashSurface* XashSurface::current_ = nullptr;
@@ -1792,6 +1807,24 @@ void csr_surface_set_popup(csr_surface_t* surface, csr_surface_popup_fn popup, v
 {
     if (surface)
         As(surface)->SetPopupFn(popup, user);
+}
+
+void csr_surface_set_keyboard_query(csr_surface_t* surface, csr_surface_keyboard_fn query, void* user)
+{
+    if (surface)
+    {
+        As(surface)->SetKeyboardQuery(query, user);
+    }
+}
+
+int csr_surface_popup_count(csr_surface_t* surface)
+{
+    return surface ? As(surface)->GetPopupCount() : 0;
+}
+
+void* csr_surface_popup_at(csr_surface_t* surface, int index)
+{
+    return surface ? reinterpret_cast<void*>(static_cast<uintptr_t>(As(surface)->GetPopup(index))) : nullptr;
 }
 
 void csr_surface_set_input(csr_surface_t* surface, const csr_surface_input_fns_t* input)

@@ -212,6 +212,13 @@ namespace
         vgui->CreatePopup(5, false, false, true, true, true);
         vgui->CreatePopup(6, false, false, false, true, true);
         EXPECT_EQ(vgui->GetPopupCount(), 2);
+        EXPECT_EQ(csr_surface_popup_count(surface), 2);
+        EXPECT_EQ(csr_surface_popup_at(surface, 0), Key(5));
+        EXPECT_EQ(csr_surface_popup_at(surface, 1), Key(6));
+        EXPECT_EQ(csr_surface_popup_at(surface, -1), nullptr);
+        EXPECT_EQ(csr_surface_popup_at(surface, 2), nullptr);
+        EXPECT_EQ(csr_surface_popup_count(nullptr), 0);
+        EXPECT_EQ(csr_surface_popup_at(nullptr, 0), nullptr);
         EXPECT_EQ(walk.events, (std::vector<std::string>{"popup 5 1 0", "popup 5 0 0", "popup 6 1 1"}));
         walk.events.clear();
         csr_surface_solve(surface, Key(1), 0);

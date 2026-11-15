@@ -33,6 +33,9 @@ namespace
         int detach_count{};
         int release_count{};
         bool throw_detach{};
+        bool leases_retired{true};
+        int seal_count{};
+        int client_shutdown_count{};
 
         template <class T>
         T Function(Module& module, const char* name)
@@ -89,7 +92,14 @@ namespace
                     EXPECT_EQ(fixture.NativeShutdowns(), 1);
                     ++fixture.release_count;
                 },
-                this
+                this,
+                [](void* owner) { return static_cast<NativePanelBinding*>(owner)->leases_retired; },
+                [](void* owner) noexcept { ++static_cast<NativePanelBinding*>(owner)->seal_count; },
+                [](void* owner) {
+                    auto& fixture = *static_cast<NativePanelBinding*>(owner);
+                    EXPECT_EQ(fixture.NativeShutdowns(), 0);
+                    ++fixture.client_shutdown_count;
+                }
             };
             return binding.BindInterfaces(client.get(), vgui.get(), &surface, error, nullptr, &services);
         }
@@ -258,4 +268,64 @@ TEST_F(NativePanelBinding, FailedCleanupIsSealedBeforeCvGuiInvalidatesItsNativeA
     EXPECT_EQ(Function<int (*)()>(vgui, "FixturePanelParentCalls")(), parent_calls);
     EXPECT_EQ(Function<int (*)()>(vgui, "FixturePanelFreeCalls")(), free_calls);
     EXPECT_EQ(Function<int (*)()>(vgui, "FixturePanelPostShutdownCalls")(), 0);
+}
+
+TEST_F(NativePanelBinding, PendingNativeLeasesKeepAllocatorAndGlobalsLiveUntilRetired)
+{
+    std::string error;
+    ASSERT_TRUE(Bind(error));
+    ASSERT_TRUE(binding.InitializeEnginePanels(640, 480, error));
+    leases_retired = false;
+    binding.Shutdown();
+    EXPECT_TRUE(binding.HasBinding());
+    EXPECT_TRUE(tree.IsReady());
+    EXPECT_EQ(NativeShutdowns(), 0);
+    EXPECT_EQ(release_count, 0);
+    EXPECT_EQ(seal_count, 0);
+    int called{};
+    EXPECT_FALSE(binding.RunStartupUi([](void* p) { ++*static_cast<int*>(p); }, &called));
+    EXPECT_FALSE(binding.RunNativeUi([](void* p) { ++*static_cast<int*>(p); }, &called));
+    EXPECT_EQ(called, 0);
+    leases_retired = true;
+    binding.Shutdown();
+    EXPECT_FALSE(binding.HasBinding());
+    EXPECT_EQ(NativeShutdowns(), 1);
+    EXPECT_EQ(release_count, 1);
+    EXPECT_EQ(seal_count, 1);
+}
+
+TEST_F(NativePanelBinding, OriginalClientShutdownWaitsForOutermostNativeStartupAndRuntimeReturn)
+{
+    std::string error;
+    ASSERT_TRUE(Bind(error));
+    ASSERT_TRUE(binding.InitializeEnginePanels(640, 480, error));
+    struct Request
+    {
+        csr::client::VguiBinding* binding;
+        csr::client::NativePanelTree* tree;
+        int* client_shutdowns;
+        bool returned{};
+    } request{&binding, &tree, &client_shutdown_count};
+    EXPECT_FALSE(binding.RunStartupUi(
+        [](void* opaque) {
+            auto& request = *static_cast<Request*>(opaque);
+            EXPECT_FALSE(request.binding->RunStartupUi(
+                [](void* opaque) {
+                    auto& request = *static_cast<Request*>(opaque);
+                    request.binding->Shutdown();
+                    EXPECT_EQ(*request.client_shutdowns, 0);
+                    EXPECT_TRUE(request.tree->IsReady());
+                },
+                &request
+            ));
+            EXPECT_EQ(*request.client_shutdowns, 0);
+            EXPECT_TRUE(request.tree->IsReady());
+            request.returned = true;
+        },
+        &request
+    ));
+    EXPECT_TRUE(request.returned);
+    EXPECT_EQ(client_shutdown_count, 1);
+    EXPECT_EQ(NativeShutdowns(), 1);
+    EXPECT_FALSE(binding.HasBinding());
 }

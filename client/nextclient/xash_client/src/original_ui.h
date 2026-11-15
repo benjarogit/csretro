@@ -8,7 +8,11 @@
 #include "original_panels.h"
 #include "vgui_binding.h"
 #include "pointer_motion.h"
+#include "NativeGameUiContext.h"
+#include "NativeKeyCapture.h"
+#include "OriginalUiModules.h"
 #include <filesystem>
+#include <functional>
 #include <memory>
 
 namespace csr::client
@@ -22,12 +26,23 @@ namespace csr::client
         bool Initialize(void* client, const std::filesystem::path& directory,
                         const std::string& client_hash, goldsrc::cl_enginefunc_t* engine,
                         goldsrc::HUD_KB_FIND_FUNC find_key, std::string& error);
+        bool Prepare(goldsrc::cl_enginefunc_t* engine, const std::string& client_hash, std::string& error);
+        bool CanDestroy() const;
+        bool HasBinding() const
+        {
+            return binding_.HasBinding();
+        }
+        void SetOriginalShutdown(std::function<void()> callback)
+        {
+            original_shutdown_ = std::move(callback);
+        }
         void Shutdown();
         void Paint();
-        void Frame();
+        void Frame(double time);
         void MouseMove();
         void MouseButtons(int buttons);
         void ClearInput();
+        int KeyEvent(NativeKeyCapture& capture, goldsrc::HUD_KEY_EVENT_FUNC original, int down, int key, const char* binding);
 
     private:
         struct SurfaceApi
@@ -48,10 +63,18 @@ namespace csr::client
             decltype(&csr_surface_input_button) button{};
             decltype(&csr_surface_cursor_visible) visible{};
             decltype(&csr_surface_set_default_cursor) default_cursor{};
+            decltype(&csr_surface_set_keyboard_query) keyboard{};
+            decltype(&csr_surface_popup_count) popup_count{};
+            decltype(&csr_surface_popup_at) popup_at{};
             bool Bind(void* module, std::string& error);
         } api_;
         bool StartBinding(void* client, goldsrc::HUD_KB_FIND_FUNC find_key, std::string& error);
         bool AttachRoot();
+        bool StartGameUi(void* client, std::string& error);
+        bool NeedsKeyboard() const;
+        void ClearMouseBound();
+        int HandleKey(int down, int key, const char* binding, bool repeat = false);
+        void SetTitle(const char* title);
         void MovePointer(bool advance_frame);
         void PaintBound();
         void MovePointerBound(bool advance_frame);
@@ -73,5 +96,12 @@ namespace csr::client
         std::unique_ptr<NativePanelTree> engine_panels_ = std::make_unique<NativePanelTree>();
         NativeEngineVGui engine_vgui_{*engine_panels_};
         VguiBinding binding_;
+        std::function<void()> original_shutdown_;
+        OriginalUiModules modules_;
+        NativeGameUiContext context_;
+        double last_frame_{};
+        bool have_frame_{};
+        void* (*sdl_window_)(){};
+        void (*sdl_title_)(void*, const char*){};
     };
 }

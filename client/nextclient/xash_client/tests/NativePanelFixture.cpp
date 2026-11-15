@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace native_panel_fixture
@@ -50,6 +51,8 @@ namespace
     struct Record
     {
         Callback* callback{};
+        std::string module{"Foreign"};
+        bool auto_delete{true};
         std::vector<H> children;
         H parent{};
         bool visible{true}, popup{}, keyboard{true}, mouse{true}, foreign{};
@@ -79,6 +82,7 @@ namespace
         }
     }
     int parent_calls{}, free_calls{}, throw_parent{}, throw_free{};
+    int control_deletes{}, delete_calls{}, throw_delete{};
     void (*init_hook)(){};
     void (*shutdown_hook)(){};
     void (*allocate_hook)(){};
@@ -160,6 +164,7 @@ extern "C" void FixturePanelReset()
     actual_scheme = 37;
     hook = nullptr;
     parent_calls = free_calls = throw_parent = throw_free = 0;
+    control_deletes = delete_calls = throw_delete = 0;
     engine_factory = nullptr;
     shutdown_count = 0;
     init_hook = shutdown_hook = allocate_hook = nullptr;
@@ -640,4 +645,84 @@ extern "C" int FixturePanelPostShutdownCalls()
 extern "C" int FixturePanelParentCalls()
 {
     return parent_calls;
+}
+
+
+extern "C" H FixtureNativePanelControl(H parent, const char* module, int auto_delete)
+{
+    const auto value = Allocate();
+    At(value).foreign = true;
+    At(value).module = module;
+    At(value).auto_delete = auto_delete != 0;
+    SetParent(value, parent);
+    return value;
+}
+extern "C" int FixtureNativePanelAlive(H value)
+{
+    return records.count(value) != 0;
+}
+extern "C" int FixtureNativePanelControlDeletes()
+{
+    return control_deletes;
+}
+extern "C" void FixtureNativePanelThrowDelete(int relative)
+{
+    throw_delete = delete_calls + relative;
+}
+extern "C" int FixtureNativePanelDeleteCalls()
+{
+    return delete_calls;
+}
+NATIVE(H, NativeGetParent, (void*, H value), "_ZN13VPanelWrapper9GetParentEj")
+{
+    return At(value).parent;
+}
+NATIVE(const char*, NativeModule, (void*, H value), "_ZN13VPanelWrapper13GetModuleNameEj")
+{
+    auto& node = At(value);
+    return node.callback ? node.callback->Module() : node.module.c_str();
+}
+NATIVE(H, NativeSafeHandle, (void*, H value), "_ZN5CVGui13PanelToHandleEj")
+{
+    RequireNative();
+    return records.count(value) ? value + 10000 : 0;
+}
+NATIVE(H, NativeLivePanel, (void*, H safe), "_ZN5CVGui13HandleToPanelEm")
+{
+    RequireNative();
+    return safe >= 10000 && records.count(safe - 10000) ? safe - 10000 : 0;
+}
+NATIVE(void, NativeDeleteControl, (void* service, H value), "_ZN13VPanelWrapper11DeletePanelEj")
+{
+    RequireNative();
+    ++delete_calls;
+    if (delete_calls == throw_delete)
+    {
+        throw std::runtime_error("synthetic control deletion failure");
+    }
+    auto& node = At(value);
+    if (node.callback)
+    {
+        node.callback->Delete();
+        return;
+    }
+    const auto children = node.children;
+    for (const auto item : children)
+    {
+        if (At(item).auto_delete)
+        {
+            NativeDeleteControl(service, item);
+        }
+        else
+        {
+            SetParent(item, 0);
+        }
+    }
+    SetParent(value, 0);
+    records.erase(value);
+    ++control_deletes;
+}
+NATIVE(void, NativeDispatchMessages, (void*), "_ZN5CVGui16DispatchMessagesEv")
+{
+    RequireNative();
 }

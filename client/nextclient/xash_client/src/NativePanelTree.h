@@ -24,6 +24,7 @@ namespace csr::client
         // longer access native services or retry allocator operations.
         void EndNativeLifetime() noexcept;
         void Resize(int width, int height);
+        void SetVisible(int type, bool visible);
         bool IsReady() const;
         bool ReleaseRequested() const;
         uint32_t GetPanel(int type) const;

@@ -222,10 +222,10 @@ namespace csr::client
         return key ? vgui_key_(key) : 0;
     }
 
-    bool XashKeys::Bind(void* client, void* vgui, goldsrc::cl_enginefunc_t* callbacks, goldsrc::HUD_KB_FIND_FUNC find, std::string& error)
+    bool XashKeys::PrepareEngine(goldsrc::cl_enginefunc_t* callbacks, std::string& error)
     {
         error.clear();
-        if (engine_ || !callbacks || !callbacks->pfnGetScreenInfo)
+        if (!callbacks || !callbacks->pfnGetScreenInfo)
         {
             error = "Xash key source is already bound or lacks the engine owner callback";
             return false;
@@ -236,7 +236,8 @@ namespace csr::client
             error = "Cannot identify the loaded Xash key-service owner";
             return false;
         }
-        auto count = nitroapi::RegisteredXashKeyCount(nitroapi::HashFileSha256(owner.dli_fname));
+        const std::string fingerprint = nitroapi::HashFileSha256(owner.dli_fname);
+        auto count = nitroapi::RegisteredXashKeyCount(fingerprint);
         if (!count)
         {
             error = "Loaded engine does not match the registered Xash key-service fingerprint";
@@ -250,16 +251,40 @@ namespace csr::client
             error = "Verified Xash entry does not belong to the already-loaded callback owner";
             return false;
         }
-        if (!queries_.Bind(engine.get(), client, vgui, callbacks, find, *count, error))
+        if (engine_)
+        {
+            if (engine_.get() != engine.get())
+            {
+                error = "A different Xash engine already owns the native services";
+                return false;
+            }
+            return true;
+        }
+        if (!commands_.Bind(engine.get(), error))
         {
             return false;
         }
         engine_ = std::move(engine);
+        engine_sha256_ = fingerprint;
+        engine_key_count_ = *count;
         return true;
     }
+    bool XashKeys::Bind(void* client, void* vgui, goldsrc::cl_enginefunc_t* callbacks, goldsrc::HUD_KB_FIND_FUNC find, std::string& error)
+    {
+        if (queries_.IsBound())
+        {
+            error = "Native key queries are already bound";
+            return false;
+        }
+        return PrepareEngine(callbacks, error) && queries_.Bind(engine_.get(), client, vgui, callbacks, find, engine_key_count_, error);
+    }
+
     void XashKeys::Shutdown()
     {
+        commands_.Shutdown();
         queries_.Shutdown();
         engine_.reset();
+        engine_sha256_.clear();
+        engine_key_count_ = 0;
     }
 } // namespace csr::client

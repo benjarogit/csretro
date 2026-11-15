@@ -20,9 +20,24 @@ Exit 0 belegt nur diese Kern-Exporte. Damit sind weder Callback-Signaturen noch 
 
 Die Presets `linux`/`linux-tests` bauen/testen x64-Komponenten; `linux-port`/`linux-port-tests` liefern die ersten i386-Komponenten. Siehe [Buildprofile](../build/client.md). Keines stellt bereits die vollständige Laufzeit zusammen. Halte Port-Artefakte architekturgleich und dokumentiere ihren Buildpfad getrennt. Prüfe die tatsächlichen Shared-Artefakte und nicht nur statische Testbibliotheken. Eine echte Engine muss die Spiel-Callbacks erhalten und ihre eigene Engine-Tabelle übergeben. Herkunft und passende Lizenz des nativen Spielcodes werden vor einem Quellimport dokumentiert. Die zulässigen Upstream-Grenzen stehen im [Plan](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md).
 
-Die Brücke `xash_client` erhält die originalen Spielcallbacks und prüft die Identität vor dem Laden. Ihre Wrapper binden die registrierte Original-VGUI an Surface, verbinden native Panels/Popup-Flags, zeichnen nach HUD-Redraw, lesen Dateien/Fonts über die Engine und leiten UI-Mauszustandswechsel weiter. Die Cursorsynchronisierung kommt vor dem originalen VGUI-Scheduler; bei versteckter UI bleibt relativer Mausweg beim Spiel. Native Fixtures und echte Offscreen-Surface-Tests prüfen diese Komponenten einschließlich GL-Pixeln. GameUI, Tastatur-/Fokusabnahme und tatsächliche NextClient-/Laufzeitbereitstellung bleiben offen; diese Tests führen Originalbibliotheken nie aus und bescheinigen weder Movement noch Spielbarkeit.
+Die Brücke `xash_client` erhält die originalen Spielcallbacks und prüft die Identität vor dem Laden. Ihre Wrapper binden die registrierte Original-VGUI an Surface, verbinden native Panels/Popup-Flags, zeichnen nach HUD-Redraw, lesen Dateien/Fonts über die Engine und leiten UI-Mauszustandswechsel weiter. Die Cursorsynchronisierung kommt vor dem originalen VGUI-Scheduler; bei versteckter UI bleibt relativer Mausweg beim Spiel. Native Fixtures und echte Offscreen-Surface-Tests prüfen diese Komponenten einschließlich GL-Pixeln. Native GameUI-Laufzeitabnahme, Tastatur-/Fokusabnahme und tatsächliche NextClient-/Laufzeitbereitstellung bleiben offen; diese Tests führen Originalbibliotheken nie aus und bescheinigen weder Movement noch Spielbarkeit.
 
 Ein gelieferter Zeiger, Factory-Aufruf, No-op oder aufgezeichnetes Primitive belegt nur diesen Vorgang und schließt keinen Gameplay-Meilenstein. Erhalte Fehlerfälle für fehlende Callbacks, falsche Architektur, gescheiterte Initialisierung, Eingabe, Kartenwechsel, Trennung und Shutdown.
+
+## Tatsächliche Abhängigkeitssymbole prüfen
+
+Passende ELF-Architektur und eine vorhandene DT_NEEDED-Bibliothek beweisen nicht, dass der Provider die Importe des Consumers bereitstellt. Insbesondere dienen die Steam-/tier0-/vstdlib-Hostbibliotheken des SDKs Komponentenbuilds und Probes; ihre Dateinamen machen sie nicht zum Ersatz für die lokal lizenzierte Originalruntime. Deren echte zusammengehörige Abhängigkeiten müssen gemeinsam bereitgestellt werden. Keine Steam-Platzhalterfunktionen oder geänderten Original-Gameplay-Exporte dürfen einen Ladefehler verdecken.
+
+Mit `readelf -d` und der tatsächlichen Ladeumgebung den vollständigen Abhängigkeitsgraphen einschließlich passender Systembibliotheken ermitteln. Jeden dynamisch geladenen Consumer getrennt prüfen:
+
+```bash
+python3 tools/check_elf_imports.py CONSUMER.so \
+  --provider DEPENDENCY_A.so --provider DEPENDENCY_B.so
+```
+
+Die großgeschriebenen Pfadplatzhalter ersetzen und `--provider` für jeden benötigten Provider wiederholen. Das Werkzeug lädt die Bibliotheken nie. Es prüft starke Importe, sichtbare Exporte, Symbolversionen, passende ELF-Metadaten und bekannte Typkonflikte; optionale schwache Importe dürfen fehlen. Der Providergraph wird ausdrücklich vorgegeben und als gültig vorausgesetzt: Das Werkzeug löst weder DT_NEEDED noch Suchpfade auf und beweist weder Ladereihenfolge, Relokationen, Signaturen, Steam-Authentifizierung noch Spielbarkeit. Ein Pass bleibt ein statischer Screen mit ungeprüfter ABI/Spielbarkeit. Ein beliebiger gleichnamiger Export beweist nicht den richtigen Provider.
+
+VGUI1-Supportfehler sind eine getrennte Grenze. Eine Valve-VGUI1-Bibliothek ist nicht der FreeVGUI-Supportadapter von FWGS, und unsere originale VGUI2-Surface implementiert diese API nicht. Keine Support-Exporte erfinden. MainUIs `gfx/shell/btns_main.bmp` und `gfx/fonts` unterscheiden sich ebenfalls von VGUI2-Ressourcen; geprüfte Engine-Menü-/Fontdateien mit ihren Lizenzen an den echten virtuellen Pfaden bereitstellen. Verbleibende Warnungen im menschlichen Log erhalten und nicht als bestanden behandeln.
 
 ## Menschliche Spielabnahme
 

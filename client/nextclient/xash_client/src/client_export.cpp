@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 #include <filesystem>
 #include <fstream>
+#include <exception>
 #include <memory>
 
 extern "C" __attribute__((visibility("default"))) void F(goldsrc::cldll_func_t* out);
@@ -21,6 +22,7 @@ namespace
     void BridgeMouse(int);
     void BridgeClearInput();
     void BridgeDeactivateMouse();
+    int BridgeKeyEvent(int, int, const char*);
 
     using OriginalUi = csr::client::OriginalUi;
 
@@ -31,17 +33,27 @@ namespace
         {
             try
             {
-                if (ui_)
-                {
-                    ui_->Shutdown();
-                }
+                Shutdown();
             }
             catch (...)
             {
-                std::fprintf(stderr, "CSRETRO original client UI teardown failed\n");
+                std::fprintf(stderr, "CSRETRO original client teardown failed\n");
             }
-            // The original client's static destructors can still reference
-            // VGUI code. Unload it while both UI modules and Surface are live.
+            if (ui_ && !ui_->CanDestroy())
+            {
+                // A live callback still owns this graph. Pin bridge code as
+                // well as every native module; dangling Surface hosts are unsafe.
+                Dl_info self{};
+                if (dladdr(reinterpret_cast<void*>(&F), &self) && self.dli_fname)
+                {
+                    static_cast<void>(dlopen(self.dli_fname, RTLD_NOW | RTLD_NOLOAD | RTLD_NODELETE));
+                }
+                static_cast<void>(module_.release());
+                static_cast<void>(ui_.release());
+                std::fprintf(stderr, "CSRETRO retained incomplete native UI lifetime; restart required\n");
+                return;
+            }
+            // Original static destructors can still reference VGUI/Surface.
             module_.reset();
             ui_.reset();
         }
@@ -102,15 +114,52 @@ namespace
             table.pIN_MouseEvent = BridgeMouse;
             table.pIN_ClearStates = BridgeClearInput;
             table.pIN_DeactivateMouse = BridgeDeactivateMouse;
+            table.pKeyEvent = BridgeKeyEvent;
             return table;
         }
 
         int Initialize(goldsrc::cl_enginefunc_t* engine, int version)
         {
-            return csr::client::InitializeWithVgui(callbacks_.pInitFunc, engine, version,
-                    [](void* owner, goldsrc::cl_enginefunc_t* funcs) {
-                        return static_cast<OriginalClient*>(owner)->BindUi(funcs);
-                    }, this);
+            if (!initialization_->Begin())
+            {
+                return 0;
+            }
+            if (!ui_)
+            {
+                ui_ = std::make_unique<OriginalUi>();
+            }
+            ui_->SetOriginalShutdown([state = initialization_, shutdown = callbacks_.pShutdown] {
+                state->Shutdown(shutdown, nullptr, nullptr);
+            });
+            std::string error;
+            int result{};
+            try
+            {
+                if (!ui_->Prepare(engine, client_hash_, error))
+                {
+                    initialization_->Finish(false);
+                    std::fprintf(stderr, "CSRETRO client preflight: %s\n", error.c_str());
+                    return 0;
+                }
+                result = callbacks_.pInitFunc(engine, version);
+                initialization_->Finish(result != 0);
+                if (!result)
+                {
+                    return result;
+                }
+                if (initialization_->ShutdownRequested() || !BindUi(engine))
+                {
+                    Shutdown();
+                    return 0;
+                }
+                return result;
+            }
+            catch (...)
+            {
+                initialization_->Finish(result != 0);
+                Shutdown();
+                throw;
+            }
         }
 
         bool BindUi(goldsrc::cl_enginefunc_t* engine)
@@ -135,8 +184,14 @@ namespace
 
         void Frame(double time)
         {
-            csr::client::FrameWithVgui(callbacks_.pHudFrame, time,
-                    [](void* owner) { auto& self = *static_cast<OriginalClient*>(owner); if (self.ui_) self.ui_->Frame(); }, this);
+            if (callbacks_.pHudFrame)
+            {
+                callbacks_.pHudFrame(time);
+            }
+            if (ui_)
+            {
+                ui_->Frame(time);
+            }
         }
 
         void Mouse(int buttons)
@@ -148,22 +203,57 @@ namespace
 
         void ClearInput(bool deactivate)
         {
-            csr::client::ResetInputWithVgui(deactivate ? callbacks_.pIN_DeactivateMouse : callbacks_.pIN_ClearStates,
-                    [](void* owner) { auto& self = *static_cast<OriginalClient*>(owner); if (self.ui_) self.ui_->ClearInput(); }, this);
+            csr::client::ResetInputWithVgui(
+                deactivate ? callbacks_.pIN_DeactivateMouse : callbacks_.pIN_ClearStates,
+                [](void* owner) {
+                    auto& self = *static_cast<OriginalClient*>(owner);
+                    if (self.ui_)
+                    {
+                        self.ui_->ClearInput();
+                    }
+                },
+                this
+            );
+        }
+
+        int KeyEvent(int down, int key, const char* binding)
+        {
+            if (ui_)
+            {
+                return ui_->KeyEvent(keyboard_, callbacks_.pKeyEvent, down, key, binding);
+            }
+            return keyboard_.Event(callbacks_.pKeyEvent, down, key, binding, nullptr, nullptr);
         }
 
         void Shutdown()
         {
-            if (ui_) ui_->ClearInput();
-            callbacks_.pShutdown();
-            if (ui_) ui_->Shutdown();
+            if (ui_ && ui_->HasBinding() && !initialization_->IsInitializing())
+            {
+                // The binding invokes original shutdown only after its outermost
+                // native operation returns, then retires UI while modules live.
+                ui_->Shutdown();
+                return;
+            }
+            initialization_->Shutdown(
+                callbacks_.pShutdown,
+                [](void* owner) {
+                    auto& self = *static_cast<OriginalClient*>(owner);
+                    if (self.ui_)
+                    {
+                        self.ui_->Shutdown();
+                    }
+                },
+                this
+            );
         }
 
     private:
         // Xash calls original shutdown before unloading this bridge. Retain
         // the game module until then; no callback may outlive its code.
+        std::shared_ptr<csr::client::ClientInitialization> initialization_ = std::make_shared<csr::client::ClientInitialization>();
         Module module_{nullptr, &dlclose};
         goldsrc::cldll_func_t callbacks_{};
+        csr::client::NativeKeyCapture keyboard_;
         std::filesystem::path directory_;
         std::string client_hash_;
         std::unique_ptr<OriginalUi> ui_;
@@ -199,6 +289,18 @@ namespace
     {
         try { Original().Mouse(buttons); }
         catch (...) { std::fprintf(stderr, "CSRETRO client bridge: mouse input failed\n"); }
+    }
+    int BridgeKeyEvent(int down, int key, const char* binding)
+    {
+        try
+        {
+            return Original().KeyEvent(down, key, binding);
+        }
+        catch (...)
+        {
+            std::fprintf(stderr, "CSRETRO client bridge: key input failed\n");
+            return 0;
+        }
     }
     void BridgeClearInput()
     {

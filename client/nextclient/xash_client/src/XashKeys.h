@@ -1,6 +1,7 @@
 #pragma once
 
 #include <goldsrc/client_api.h>
+#include "XashCommandAccess.h"
 #include <memory>
 #include <string>
 
@@ -46,8 +47,17 @@ namespace csr::client
     class XashKeys
     {
     public:
+        bool PrepareEngine(goldsrc::cl_enginefunc_t* callbacks, std::string& error);
         bool Bind(void* client, void* vgui, goldsrc::cl_enginefunc_t* callbacks, goldsrc::HUD_KB_FIND_FUNC find, std::string& error);
+        const std::string& EngineFingerprint() const
+        {
+            return engine_sha256_;
+        }
         void Shutdown();
+        nitroapi::XashCommandAccess& Commands()
+        {
+            return commands_;
+        }
         XashKeyQueries& Queries()
         {
             return queries_;
@@ -57,5 +67,8 @@ namespace csr::client
         using Module = std::unique_ptr<void, int (*)(void*)>;
         Module engine_{nullptr, nullptr};
         XashKeyQueries queries_;
+        nitroapi::XashCommandAccess commands_;
+        std::string engine_sha256_;
+        int engine_key_count_{};
     };
 } // namespace csr::client

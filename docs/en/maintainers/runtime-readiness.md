@@ -20,9 +20,24 @@ Exit 0 establishes only these core exports. It proves neither callback signature
 
 The `linux`/`linux-tests` presets build/test x64 components; `linux-port`/`linux-port-tests` supply the initial i386 components. See [build profiles](../build/client.md). Neither assembles the complete runtime yet. Keep port-stage artifacts architecture-matched and record their build path separately. Check the actual shared artifacts, not just static test libraries. A real engine must obtain the game callbacks and pass its own engine table to them. Document the native game-code origin and compatible license before importing source. The [plan](https://github.com/benjarogit/csretro/blob/main/docs/plan/csretro-plan.md) defines the permitted upstream boundaries.
 
-The `xash_client` bridge preserves the original game callbacks and checks identity before loading. Its wrappers bind the registered original VGUI to Surface, connect native panels/popup flags, paint after HUD redraw, read files/fonts through the engine and route UI mouse transitions. Cursor synchronization precedes the original VGUI scheduler; relative mouse deltas remain with the game when UI is hidden. Native fixtures and actual offscreen Surface tests cover these components, including GL pixels. GameUI, keyboard/focus acceptance and actual NextClient/runtime assembly remain open; these tests never run original libraries and do not certify movement or playability.
+The `xash_client` bridge preserves the original game callbacks and checks identity before loading. Its wrappers bind the registered original VGUI to Surface, connect native panels/popup flags, paint after HUD redraw, read files/fonts through the engine and route UI mouse transitions. Cursor synchronization precedes the original VGUI scheduler; relative mouse deltas remain with the game when UI is hidden. Native fixtures and actual offscreen Surface tests cover these components, including GL pixels. Native GameUI runtime acceptance, keyboard/focus acceptance and actual NextClient/runtime assembly remain open; these tests never run original libraries and do not certify movement or playability.
 
 A supplied address, factory lookup, no-op or recorded primitive is only evidence for that operation. It cannot close a gameplay milestone. Retain failure cases for missing callbacks, wrong architecture, failed initialization, input, map changes, disconnects and shutdown.
+
+## Check actual dependency symbols
+
+A matching ELF architecture and a present DT_NEEDED library do not prove that the provider supplies the consumer's imports. In particular, the SDK host Steam/tier0/vstdlib libraries serve component builds and probes; their filenames do not make them replacements for the locally licensed original runtime. Keep that runtime's genuine matching dependencies together. Do not add placeholder Steam functions or change original gameplay exports to hide a loader failure.
+
+Use `readelf -d` and the real load environment to identify the complete dependency graph, including matching system libraries. Screen each dynamically loaded consumer separately:
+
+```bash
+python3 tools/check_elf_imports.py CONSUMER.so \
+  --provider DEPENDENCY_A.so --provider DEPENDENCY_B.so
+```
+
+Replace the uppercase path placeholders and repeat `--provider` for every required provider. This tool never loads the libraries. It checks strong imports, visible exports, symbol versions, matching ELF metadata and known type conflicts; optional weak imports may remain absent. The provider graph is explicitly supplied and assumed valid: the tool does not resolve DT_NEEDED, choose search paths, prove load order, inspect relocations or certify signatures, Steam authentication or gameplay. A pass stays an ABI/playability-unverified static screen. An unrelated export with the same name is not proof of the right provider.
+
+VGUI1 support errors are a separate boundary. A Valve VGUI1 library is not FWGS's FreeVGUI support adapter, and our original VGUI2 Surface does not implement that API. Do not invent support exports. MainUI's `gfx/shell/btns_main.bmp` and `gfx/fonts` assets also differ from VGUI2 resources; stage the verified engine menu/font resources and their licenses at their real virtual paths. Preserve remaining warnings in the human log instead of treating them as passed.
 
 ## Human gameplay acceptance
 

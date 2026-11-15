@@ -1591,10 +1591,121 @@ beliebige vorherige fremde Parent-Hierarchien wiederherzustellen. Eine
 Delete-Nachricht fordert sicheren Owner-Abbau an, ohne während des Dispatchs
 Objekte zu zerstören.
 
-Echte BaseUI-Sichtbarkeits-/Konsolen-/Eingabedienste, System-Eigentümerschaft
-und GameUI-Lebenszyklus bleiben vor der vollen Anbindung nötig. Keine Null-
-System-Dummies als erfolgreiche Services. FWGS-Referenzcode wird nur gelesen,
-nicht übernommen; NextClient bleibt Basis.
+**Native System-/BaseUI-Dienste und GameUI-Lebensdauer (Komponentenimplementierung).**
+Der eigene Linux-System-Owner erfüllt die ursprünglichen 41 Slots einschließlich
+virtueller Basisklassen-Metadaten. Er führt echte Modul-, Listener- und
+Befehlsregistrierungen, framebasierte Zeit/Ticks sowie Engine-Datei-/Konsolen-
+und Parameterdienste aus. Die Produktversion kommt aus VERSION. Das
+Basisverzeichnis stammt aus dem benannten fs_rootdir der tatsächlich von Xash
+initialisierten Dateisysteminstanz, nicht aus dem Aufrufer-Arbeitsverzeichnis.
+Optionale enginewrapper002-/demoplayer001-Module werden nicht erfunden.
+
+Vor Original-Initialize werden Engine, GameUI und Dateisystem anhand der
+Kompatibilitäts-Registry geprüft. Die benannte fs_pfnCreateInterface der Engine
+muss dieselbe geladene Dateisysteminstanz bezeichnen; gleiche Bytes in einer
+zweiten Bibliothek reichen nicht. Anschließend hält die Brücke genau die vom
+Originalclient geladenen GameUI-/Dateisystemmodule und prüft deren tatsächliche
+Interfaceobjekte sowie einen frischen GameUI-Singleton. Es gibt keinen zweiten
+umbenannten GameUI-Owner, kein zusätzliches FS-Mount und keinen Career-Patch.
+Diese Referenzfingerprints sind keine Clean-Build- oder Spielbarkeitsnachweise.
+
+Die getrennte GameUI-Liste enthält sechs aufrufbare Factories; die vorhandene
+Viererliste des Viewports bleibt erhalten. Die Reihenfolge ist
+GameUI.Initialize, viewport.Initialize, GameUI.Start mit echtem System und
+540-Byte-Engine-Tabelle, viewport.Start/SetParent, Console.Initialize/SetParent
+und GameUI.Activate. Pro HUD-Frame folgen Eingabe-Drain und System/GameUI auf
+reale Zeitdifferenzen; der vorhandene native VGUI-Scheduler läuft genau einmal
+nach Cursor-Synchronisierung. BaseUI vermittelt echte Sichtbarkeit/Konsole,
+SDL-Ereignisse und vollständiges Fenster-Paint. Andere Paint-Rechtecke werden
+als nicht unterstützt abgewiesen. Originale Gameplay-/Tastaturcallbacks
+bleiben erhalten; vollständige Eingabeakzeptanz ist noch nicht nachgewiesen.
+Die unabhängige Prüfung hat bestätigt, dass ein SDL-Watch Engine-Spielbefehle
+nicht konsumieren kann und Xash die veröffentlichte BaseUI nicht automatisch
+aufruft. Der Maintainer hat deshalb den engen pKeyEvent-Wrapper und die
+entsprechende Änderung des verschachtelten Harness-Vertrags ausdrücklich
+freigegeben. Er konsumiert nur UI-eigene Tastendrücke einschließlich ihrer
+Wiederholungen und Freigaben nach dem Schließen der UI. Im Spiel begonnene
+Tasten behalten ihren Originalcallback für Wiederholungen und Freigaben auch
+nach dem Öffnen der UI. Unbekannte Releases und ungültige Tasten passieren
+unverändert; nur UI-Konsum wird zum Engine-Ergebnis 0. Escape und toggleconsole
+lösen höchstens einmal pro Druck aus. Echte Engine-Tastenfreigaben beenden den Besitz, auch bei Fokusverlust.
+IN_ClearStates/IN_DeactivateMouse des registrierten Clients verändern nur
+Mauszustände und dürfen Keyboard-Besitz nicht zurücksetzen. Die Engine gibt
+Tasten durch Key_Event(key, 0) frei; Mouse-Freigaben haben einen separaten
+Engine-Pfad. Ein UI-Zustandswechsel ersetzt keinen Tastatur-Release. Originalargumente, Binding-Zeiger und Rückgaben bleiben bei
+Weitergabe unverändert. Movement, Prediction und CreateMove werden nicht
+umgestellt. Tastaturbedarf folgt nativen Menüs, Konsole, exklusivem Input und
+sichtbaren tastaturfähigen Popups samt Vorfahren; Cursor-Sichtbarkeit allein
+ist kein Tastaturbedarf. Der Wrapper liefert keine zweiten VGUI-Tasten-/Text-
+Ereignisse, ersetzt keinen globalen Filter und patcht die Engine nicht.
+Capture umfasst die 265 Einträge des authentifizierten Xash-Keyprofils
+(einschließlich INTERNATIONAL1–9); die alten GameUI-Keyabfragen bleiben bei
+256 Einträgen. Vorhandene Gameplay-Repeats und Releases passieren auch aus
+verschachtelten UI-Aufrufen, mit getrennten Rekursionsschutzmengen pro Taste
+und Down-/Up-Pfad. Ein bereits angeforderter UI-Abbau sperrt neue native
+Queries, nicht die Original-Freigaben. Der Dispatcher unterscheidet einen
+wirklich ausgeführten Aufruf vom endgültigen Guard-Status, damit abgeschlossener
+Abbau keine Doppelzustellung erzeugt. Positive/negative Regressionen und
+unabhängige Komponentenprüfung sichern dies ab; menschliche Tastatur-/Fokus-/
+Gameplay-Abnahme bleibt getrennt offen.
+
+Der SDL2-Event-Watch benötigt mindestens 2.0.8, hängt sich an das vorhandene
+Fenster und verändert weder Eventfilter noch Textinput-Modus. Fremdthread-
+Ereignisse landen begrenzt in einer Queue; native UI-Aufrufe erfolgen erst im
+Owner-Thread. Fokusverlust, Überlauf und Shutdown geben gehaltene Tasten frei.
+UTF-8 wird validiert. Eine eigene Engine-Tabelle fängt UI-Befehlsregistrierung
+ab, prüft tatsächliche Record-/Funktionsidentität und entfernt nur eigene
+Callbacks. condump wird vor Modulfreigabe stillgelegt. Auch Original-Shutdown
+wartet auf den äußersten nativen Aufruf und wird pro erfolgreichem
+Initialisierungszyklus höchstens einmal ausgeführt. GameUI-eigene Controls
+werden vor dem Ende ihres nativen Allocators über Safehandles entfernt;
+geliehene Controls bleiben fremdes Eigentum. Unsichere Befehls-, Watch- oder
+Control-Freigabe hält den vollständigen Owner-/Modulgraphen und fordert einen
+Prozessneustart, statt Erfolg zu behaupten. Terminale Seals verhindern spätere
+native Aufrufe. Reinitialisierung desselben GameUI-Kontextes ist nicht zugesagt.
+
+Dies schließt weder Issue #23 noch G07. Ein menschlicher Start mit passenden
+Originaldateien muss GameUI, Konsole, Eingabe und Abbau erstmals bestätigen;
+NextClient-Integration, vollständige Runtime-Bereitstellung und Spielnachweise
+bleiben offen. FWGS-Referenzen bleiben nur Ideengeber; NextClient bleibt Basis.
+PR #19 bleibt zurückgestellt, Review-Steuerung wird zentral durch Orqen
+vorbereitet; vorhandene Merge-/Sicherheitsgates werden nicht verändert.
+
+**Statische Importprüfung vor menschlichen Porttests (umgesetzt).**
+Ein vorhandenes DT_NEEDED-Ziel und passende ELF-Klasse beweisen keine
+Symbolkompatibilität. Die Host-Bibliotheken aus sdk_host sind Build-/Probe-
+Dienste und keine ABI-Ersatzbibliotheken für originale Public-Module, auch
+wenn sie als i386 gebaut wurden und denselben Dateinamen tragen. Die lokale
+Portkopie verwendet die zusammengehörigen echten Steam-/tier0-/vstdlib-
+Bibliotheken aus der lizenzierten Installation; nichts davon wird vendort.
+Originale Clientdateien, Gameplaycallbacks und Bewegungscode bleiben erhalten.
+
+`tools/check_elf_imports.py` prüft ohne Laden der Bibliotheken sämtliche
+starken dynamischen Importe eines Consumers gegen einen ausdrücklich
+angegebenen Providergraphen. ELF-Klasse/Maschine/Bytefolge, Symbolsichtbarkeit,
+Versionen und bekannte Funktions-/Daten-/TLS-Typkonflikte werden geprüft;
+schwache optionale Importe gelten nicht als Pflichtsymbole. Der Aufrufer muss
+den tatsächlichen Abhängigkeitsgraphen und Suchpfad herstellen. Das Werkzeug
+ist weder Loader noch vollständiger ABI-/Steam-/Spielbarkeitsnachweis. Eigene
+synthetische Bibliotheken mit gleichem SONAME und fehlendem modernen
+Steam-Import reproduzieren den Fehler; Tests laufen über scripts/verify.sh
+im bestehenden CI-Job, ohne neue Workflow-Duplikate. Die Fixtures werden
+niemals ausgeführt, insbesondere auch nicht über ldd oder einen Loader.
+
+VGUI1-Support bleibt getrennt von unserer nativen VGUI2-Surface: Valves alte
+vgui.so besitzt nicht die von FWGS verlangten Support-Einstiege. Der echte
+externe Provider ist der passend gepinnte FreeVGUI-Adapter, keine leeren
+GetVGUISupportAPI-/InitAPI-Exporte in der Clientbrücke. Der untersuchte
+Supportfehler ist nicht fatal und erklärt den Steam-Ladefehler nicht. Der
+Adapter bleibt als eigene offene Laufzeitabhängigkeit dokumentiert.
+MainUI-BMP-/Fontpfade gehören zum Engine-Extras-Staging, nicht zur VGUI2-
+Fontliste. Die neue lokale Testkopie erhält die gegen den bestehenden
+Extras-Pin geprüften Menü-/Fontdateien mit ihren Lizenzen; keine anders
+komprimierten Touch-Dateien oder unkontrollierte Komplettpakete werden
+übernommen. Der Loaderpfad ist für diesen Test isoliert, die alte fehlgeschlagene
+Kopie bleibt als Beleg bestehen. Automatisierung endet erneut vor dem
+Spielstart; nur der nächste menschliche Lauf kann die Korrektur zur Laufzeit
+bestätigen. Fehler, Belege und Resultate stehen ausschließlich im Handoff.
 
 **Zweiter Schritt: ausschließlich x64 und mindestens 60 FPS.** Erst nach dem funktionierenden Port werden durchgängig native x64-Artefakte und mindestens 60 FPS in einer benannten echten Spielszene nachgewiesen. Eine i386-Spielbibliothek ist keine x64-Lösung. Die Eigenständigkeit von Valves Engine darf nicht mit der bereits erfolgten Ablösung jedes Original-Spielmoduls verwechselt werden. `tools/check_game_client.py` prüft nur das benannte x64-Kernprofil, keine alternative `F`-/`GetClientAPI`-Tabelle, Signaturen oder Spielbarkeit. Der Test ist für diese Phase eingegrenzt und blockiert den ersten architekturgleichen Port nicht. Leere Ersatz-Exports oder No-ops sind kein Fortschrittsnachweis.
 

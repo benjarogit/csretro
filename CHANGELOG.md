@@ -10,6 +10,8 @@ The authoritative version string is the `VERSION` file.
 
 ### Added
 
+- Document the unprovisioned dedicated reviewer-App permission set, isolated execution/key boundary and protected validation sequence; park approval-dependent setup independently of ordinary port development.
+
 - Stage a disabled provider-neutral independent-review contract with source-bound executor receipts, actual-output verification and positive/negative regression tests; preserve effective native and CodeRabbit merge gates.
 
 - Separate independent source assessment from live CI/formal approval, using authenticated CodeRabbit walkthrough evidence to avoid a circular pre-merge protocol.

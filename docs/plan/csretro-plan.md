@@ -2406,3 +2406,27 @@ CodeRabbit-Weg, nicht die noch deaktivierte Alternative. Vor deren Aktivierung
 sind unabhängige Vertragsabnahme, explizite Vertrauensregistrierung und ein eigener
 geschützter Sandbox-Nachweis nötig. Portierung und gesicherte G07-Arbeit bleiben
 erhalten; aktueller Stand und Folgearbeit stehen ausschließlich im HANDOFF.
+
+
+#### 11.7.2 Reviewer-App untersuchen, Einrichtung gesondert freigeben
+
+Eine dedizierte GitHub-App ist die bevorzugte zu prüfende Identität; kein zweites
+persönliches Konto und keine Autor-Zugangsdaten als unabhängiger Prüfer. Der
+Installationstoken-Publisher benötigt minimal Pull requests write und Metadata
+read. Quellenabruf bleibt getrennt lesend; Contents/Checks/Admin/Actions write
+und Bypass sind nicht nötig. Konkrete Isolation, Schlüsselverantwortung,
+Rechtesatz und Einrichtungsschritte stehen in den DE/EN-Review-Guides.
+
+Der Autor darf weder Schlüssel/Token noch beliebige Signier-/Freigabe-Endpunkte
+kontrollieren. Echte unabhängige Ausführung, exakter Head/Basis, Quellen-/Manifest-
+Bindung und negative Befunde bleiben Pflicht. Die dokumentierte API-Unterstützung
+für App-Reviews ersetzt nicht den nach späterer Freigabe nötigen geschützten
+Nachweis, dass die neue App unter den aktuellen nativen Regeln wirklich zählt.
+Alle sieben CI-/Sicherheitschecks, formale Last-Push-Freigabe und sensible
+Maintainer-Abnahmen bleiben unverändert. Bis zur gesonderten Zustimmung werden
+keine App, Rechte, Schlüssel oder Live-Route eingerichtet.
+
+Diese Genehmigungsabhängigkeit betrifft nur die App-Migration. Auf ausdrücklichen
+Maintainer-Auftrag wird sie geparkt, während bestehende freigegebene G07-Portarbeit
+in ihrer bisherigen Branchfolge fortgesetzt wird. Das hebt keine Review- oder
+Merge-Sperre auf und startet kein neues Projekt. Keine kostenpflichtigen Reviews.
